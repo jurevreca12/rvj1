@@ -2,4 +2,5 @@ all:
 
 
 
-
+synth:
+	yosys 
