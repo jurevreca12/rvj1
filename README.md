@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # riscv-jedro-1
 Preprosto jedro za RISC-V.
 =======
@@ -25,4 +24,3 @@ OSU odprtokodna knjižnica - Tehnologija (knjižnica standardnih celic)
 
 
 
->>>>>>> 618160732567031db4dc0088e00cd8acb5878e0c
