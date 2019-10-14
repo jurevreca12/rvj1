@@ -23,7 +23,7 @@ module jedro_1_regfile
 	input 	[ADDR_WIDTH-1:0] 	addr_i,
 	input 	[DATA_WIDTH-1:0]	data_i,
 	input 						we_i,
-	output reg [DATA_WIDTH-1:0]	data_o = 32'b0
+	output reg [DATA_WIDTH-1:0]	data_o
 );
 
 localparam NUM_REGISTERS = 2 ** (ADDR_WIDTH);
@@ -32,11 +32,11 @@ localparam NUM_REGISTERS = 2 ** (ADDR_WIDTH);
 reg [DATA_WIDTH-1:0] reg_file [NUM_REGISTERS-1:0];
 
 
-
 always@(posedge clk_i)
 begin
 	if (rstn_i == 1'b1) begin
 		reg_file[0] <= 32'b0;
+		data_o <= 32'b0;
 	end
 	else begin
 		reg_file[0] <= 32'b0;
