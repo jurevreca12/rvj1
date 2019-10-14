@@ -1,7 +1,4 @@
 # riscv-jedro-1 - Preprosto jedro za RISC-V.
-=======
-## riscv-jedro-1
-Preprosto jedro za RISC-V.
 
 
 # Uporabljena orodja in knjižnice
