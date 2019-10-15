@@ -1,4 +1,6 @@
 # Verilog source files
+GUI=1
+WAVES=1
 SOURCE_DIR = ../source/
 VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_regfile.v
 					
