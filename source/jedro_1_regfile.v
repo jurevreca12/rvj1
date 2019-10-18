@@ -63,6 +63,13 @@ for (i=1; i < NUM_REGISTERS; i=i+1) begin
 end
 endgenerate
 
+`ifdef COCOTB_SIM
+initial begin
+	$dumpfile("dump.vcd");
+	$dumpvars(0, jedro_1_regfile);
+	#1;
+end
+`endif
 
 endmodule
 
