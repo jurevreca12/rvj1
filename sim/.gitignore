@@ -1,0 +1,7 @@
+build/
+log/
+sim_build/
+results.xml
+*.pyc
+*.vcd
+
