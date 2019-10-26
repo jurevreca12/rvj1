@@ -1,8 +1,11 @@
-WAVES=1
-GUI=1
 # Verilog source files
-SOURCE_DIR = ../source/
-VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_regfile.v
+SOURCE_DIR = ../source
+VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_defines.v 				\
+				   $(SOURCE_DIR)/jedro_1_regfile.v				\
+				   $(SOURCE_DIR)/jedro_1_alu.v     				\
+				   $(SOURCE_DIR)/jedro_1_decoder.v				\
+				   $(SOURCE_DIR)/alu/adder/full_adder_1b.v		\
+				   $(SOURCE_DIR)/alu/adder/ripple_carry_adder_Nb.v
 					
 # Simulation stuff
 SIM = icarus
@@ -12,3 +15,4 @@ MODULE = test_regfile # MODULE is the name of the Python test file:
 # Simulation stuff
 include $(shell cocotb-config --makefiles)/Makefile.inc
 include $(shell cocotb-config --makefiles)/Makefile.sim
+

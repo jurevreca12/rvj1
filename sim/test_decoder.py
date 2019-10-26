@@ -25,18 +25,19 @@ def write_reg(dut, addr, val):
 	dut.we_i   <= 1
 	dut.data_i <= val
 	yield RisingEdge(dut.clk_i)
+	yield RisingEdge(dut.clk_i) # It takes 2 clock cycles to write a value
 	dut.we_i   <= 0
 
 @cocotb.test()
-def basic_read(dut):
-	dut._log.info("Running basic_read test!")
+def test_instr_add(dut):
+	dut._log.info("Running test for instruction add!")
 	
 	# Set inputs to zero
 	dut.clk_i  <= 0
 	dut.rstn_i <= 0
-	dut.addr_i <= 0
-	dut.data_i <= 0
-	dut.we_i   <= 0
+	dut.instr_rdata_i <= 0
+	dut.instr_next_avail_i <= 0
+	dut.reg_data_i <= 0
 
 	# Start the clock pin wiggling
 	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
@@ -54,39 +55,6 @@ def basic_read(dut):
 	dut._log.info("Test basic_read finnished.")	
 
 
-@cocotb.test()
-def basic_write(dut):
-	dut._log.info("Running basic_write test!")
-	
-	# Set inputs to zero
-	dut.clk_i  <= 0
-	dut.rstn_i <= 0
-	dut.addr_i <= 0
-	dut.data_i <= 0
-	dut.we_i   <= 0
-
-	# Start the clock
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD).start())
-
-	# reset the block first
-	yield reset_dut(dut, dut.rstn_i, 2*CLK_PERIOD)
-
-	# First check the x0 register (always returns zero)
-	yield write_reg(dut, 0, 12)
-	reg_val = yield read_reg(dut, 0)
-	if reg_val != 0:	
-		raise TestFailure("ERROR 1: Register x0 has wrong value " + str(reg_val) + ". It should be 0.") 
-	
-	# Basic write check
-	for i in range (1,31):
-		yield write_reg(dut, i, i) 	
-		dut.we_i <= 1
-		reg_val = yield read_reg(dut, i)
-		if reg_val != i:
-			raise TestFailure("ERROR 1: Register x" + str(i) + " has wrong value " + str(reg_val) + ". It should be " + str(i)) 
-
-	yield Timer (5*CLK_PERIOD)
-	dut._log.info("Test basic_write finnished.")	
 	
 	
 

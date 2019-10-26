@@ -1,6 +1,10 @@
 // This document contains the opcode definitions of RISC-V
 
 
+// General defines
+`define DATA_WIDTH = 32
+`define ADDR_WIDTH = $clog2(DATA_WIDTH)
+
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 
 `define OPCODE_LOAD     7'b0000011
@@ -27,3 +31,7 @@
 `define OPCODE_JAL	7'b1101111
 `define OPCODE_SYSTEM	7'b1110011
 
+
+
+// ALU defines
+`define ALU_OP_WIDTH  3	// Number of bits used to encode the operator of the ALU operation
