@@ -11,7 +11,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-`include "jedro_1_defines.v"
+`include "inc/jedro_1_defines.v"
 
 module jedro_1_decoder
 (
@@ -33,8 +33,10 @@ module jedro_1_decoder
 	output reg [DATA_WIDTH-1:0]		alu_op_b_o,
 
 	// Register file interface
-	input [DATA_WIDTH-1:0]			reg_data_i,
-	output [ADDR_WIDTH-1:0]			reg_addr_o
+	input  [DATA_WIDTH-1:0]			reg_b_data_i,
+	output [ADDR_WIDTH-1:0]			reg_b_addr_o,
+	input  [DATA_WIDTH-1:0]			reg_c_data_i,
+	output [ADDR_WIDTH-1:0]			reg_c_addr_o
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -95,8 +97,11 @@ begin
 		end
 		
 		OPCODE_OP: begin
-			read_reg(regs1, alu_op_a_o);
-			read_reg(regs2, alu_op_b_o);
+			reg_b_data_i <= regs1;
+			reg_c_data_i <= regs2;
+			@ (posedge clk);
+		    alu_op_a_o <= reg_b_data_i;
+			alu_op_b_o <=
 			alu_op_sel_o = 1;
 			alu_en = 0;
 		end
@@ -131,12 +136,12 @@ end
 
 
 ///// HELPER TASKS //////
-task read_reg(
+task read_regb(
 	input [ADDR_WIDTH-1:0] reg_addr,
 	output [DATA_WIDTH-1:0] reg_data
 );
 	reg_addr_o = reg_addr;
-	@ (posedge clk);
+	@(posedge clk);
 	reg_data   = reg_data_i;
 endtask
 

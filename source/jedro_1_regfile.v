@@ -21,18 +21,18 @@ module jedro_1_regfile
 	input 						clk_i,
 	input						rstn_i,
 
-	// Write port A
-	input 	[ADDR_WIDTH-1:0] 	wpa_addr_i,
-	input 	[DATA_WIDTH-1:0]	wpa_data_i,
-	input 						wpa_we_i,
+	// Read port A
+	input   [ADDR_WIDTH-1:0]	rpa_addr_i,
+	output  [DATA_WIDTH-1:0]	rpa_data_o,
 
-	// Write port B
-	input   [ADDR_WIDTH-1:0]	rpb_addr_i,
-	output  [DATA_WIDTH-1:0]	rpb_data_o,
+	// Read port B
+	input	[ADDR_WIDTH-1:0]	rpb_addr_i,
+	output	[DATA_WIDTH-1:0]	rpb_data_o,
 
 	// Write port C
-	input	[ADDR_WIDTH-1:0]	rpc_addr_i,
-	output	[DATA_WIDTH-1:0]	rpc_data_o
+	input 	[ADDR_WIDTH-1:0] 	wpc_addr_i,
+	input 	[DATA_WIDTH-1:0]	wpc_data_i,
+	input 						wpc_we_i
 );
 
 localparam NUM_REGISTERS = 2 ** (ADDR_WIDTH);
@@ -42,8 +42,8 @@ reg [DATA_WIDTH-1:0] reg_file [NUM_REGISTERS-1:0];
 
 
 // Mux the appropriate register to the data_o line
+assign rpa_data_o = reg_file[rpa_addr_i];
 assign rpb_data_o = reg_file[rpb_addr_i];
-assign rpc_data_o = reg_file[rpc_addr_i];
 
 
 // Register x0-x31 reset
@@ -60,9 +60,9 @@ end
 // Write to the registers (register x0 should always be zero)
 always@(posedge clk_i)
 begin
-	if (wpa_we_i == 1'b1 && rstn_i != 1'b0) begin
-		if (wpa_addr_i != 0) begin
-			reg_file[wpa_addr_i] <= wpa_data_i;
+	if (wpc_we_i == 1'b1 && rstn_i != 1'b0) begin
+		if (wpc_addr_i != 0) begin
+			reg_file[wpc_addr_i] <= wpc_data_i;
 		end
 	end
 end

@@ -55,9 +55,6 @@ begin
 end
 
 
-
-
-
 `ifdef COCOTB_SIM
 initial begin
 	$dumpfile("jedro_1_alu.vcd");

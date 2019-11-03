@@ -9,13 +9,13 @@ CLK_PERIOD = 1000 # ns or 1 MHz
 def set_inputs_to_zero(dut):
 	dut.clk_i 	   <= 0
 	dut.rstn_i 	   <= 0
- 	dut.wpa_addr_i <= 0
-	dut.wpa_data_i <= 0
-	dut.wpa_we_i   <= 0
+	dut.rpa_addr_i <= 0
+	dut.rpa_data_o <= 0
 	dut.rpb_addr_i <= 0
 	dut.rpb_data_o <= 0
-	dut.rpc_addr_i <= 0
-	dut.rpc_data_o <= 0
+ 	dut.wpc_addr_i <= 0
+	dut.wpc_data_i <= 0
+	dut.wpc_we_i   <= 0
 	yield Timer(0)
 
 @cocotb.coroutine
@@ -26,26 +26,26 @@ def reset_dut(dut, rstn, duration):
 	dut._log.info("Reset complete.")
 
 @cocotb.coroutine
-def read_regb(dut, addr):
-	dut.rpb_addr_i <= addr
+def read_rega(dut, addr):
+	dut.rpa_addr_i <= addr
 	yield RisingEdge(dut.clk_i)
-	raise ReturnValue(dut.rpb_data_o.value)	
+	raise ReturnValue(dut.rpa_data_o.value)	
 
 	
 @cocotb.coroutine
-def read_regc(dut, addr):
-	dut.rpc_addr_i <= addr
+def read_regb(dut, addr):
+	dut.rpb_addr_i <= addr
 	yield RisingEdge(dut.clk_i)
-	raise ReturnValue(dut.rpc_data_o.value)
+	raise ReturnValue(dut.rpb_data_o.value)
 
 @cocotb.coroutine
-def write_rega(dut, addr, val):
+def write_regc(dut, addr, val):
 	yield FallingEdge(dut.clk_i)
-	dut.wpa_addr_i <= addr
-	dut.wpa_we_i   <= 1
-	dut.wpa_data_i <= val
+	dut.wpc_addr_i <= addr
+	dut.wpc_we_i   <= 1
+	dut.wpc_data_i <= val
 	yield RisingEdge(dut.clk_i)
-	dut.wpa_we_i   <= 0
+	dut.wpc_we_i   <= 0
 
 @cocotb.test()
 def basic_read(dut):
@@ -60,12 +60,12 @@ def basic_read(dut):
 
 	# Check all registers are set to zero at first
 	for i in range (0, 32):
-		reg_val = yield read_regb(dut, i)
+		reg_val = yield read_rega(dut, i)
 		if reg_val != 0:
 			raise TestFailure("ERROR 0: Register x"+ str(i) + " read on port B is non-zero after reset! Its value is " + str(reg_val.value) + ".")
 	
 	for i in range (0, 32):
-		reg_val = yield read_regc(dut, i)
+		reg_val = yield read_regb(dut, i)
 		if reg_val != 0:
 			raise TestFailure("ERROR 0: Register x"+ str(i) + " read on port C is non-zero after reset! Its value is " + str(reg_val.value) + ".")
 
@@ -87,15 +87,15 @@ def basic_write(dut):
 	yield reset_dut(dut, dut.rstn_i, 2*CLK_PERIOD)
 
 	# First check the x0 register (always returns zero)
-	yield write_rega(dut, 0, 12)
-	reg_val = yield read_regb(dut, 0)
+	yield write_regc(dut, 0, 12)
+	reg_val = yield read_rega(dut, 0)
 	if reg_val != 0:	
 		raise TestFailure("ERROR 1: Register x0 has wrong value " + str(reg_val) + ". It should be 0.") 
 	
 	# Basic write check
 	for i in range (1,31):
-		yield write_rega(dut, i, i) 	
-		reg_val = yield read_regb(dut, i)
+		yield write_regc(dut, i, i) 	
+		reg_val = yield read_rega(dut, i)
 		if reg_val != i:
 			raise TestFailure("ERROR 1: Register x" + str(i) + " has wrong value " + str(reg_val) + ". It should be " + str(i)) 
 
