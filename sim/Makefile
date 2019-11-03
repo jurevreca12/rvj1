@@ -1,11 +1,12 @@
 # Verilog source files
 SOURCE_DIR = ../source
-VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_defines.v 				\
+
+VERILOG_SOURCES =  $(SOURCE_DIR)/inc/jedro_1_defines.v			\
 				   $(SOURCE_DIR)/jedro_1_regfile.v				\
-				   $(SOURCE_DIR)/jedro_1_alu.v     				\
+				  # $(SOURCE_DIR)/jedro_1_alu.v     				\
 				   $(SOURCE_DIR)/jedro_1_decoder.v				\
-				   $(SOURCE_DIR)/alu/adder/full_adder_1b.v		\
-				   $(SOURCE_DIR)/alu/adder/ripple_carry_adder_Nb.v
+				 #  $(SOURCE_DIR)/alu/adder/full_adder_1b.v		\
+				 #  $(SOURCE_DIR)/alu/adder/ripple_carry_adder_Nb.v
 					
 # Simulation stuff
 SIM = icarus

@@ -44,14 +44,11 @@ def test_instr_add(dut):
 	
 	# First reset the block
 	yield reset_dut(dut, dut.rstn_i, 2*CLK_PERIOD) 
-
-	# Check all registers are set to zero at first
-	for i in range (0, 32):
-		reg_val = yield read_reg(dut, i)
-		if reg_val != 0:
-			raise TestFailure("ERROR 0: Register x"+ str(i) + " is non-zero after reset! Its value is " + str(reg_val.value) + ".")
 	
-	yield Timer (5*CLK_PERIOD)
+	dut.instr_rdata_i <= 32311
+	dut.instr_next_avail_i <= 1
+	
+	yield Timer (50*CLK_PERIOD)
 	dut._log.info("Test basic_read finnished.")	
 
 

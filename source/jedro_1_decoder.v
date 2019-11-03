@@ -20,14 +20,14 @@ module jedro_1_decoder
 
 	// Interface to instruction LSU 
 	input 		[31:0] 				instr_rdata_i,		// Instructions coming in from memory/cache
-	input							instr_next_avail_i	// Signals that the next instruction is available
+	input							instr_next_avail_i,	// Signals that the next instruction is available
 	output reg						instr_next_en_o,	// Get the next instruction
 
 	// Interface to the control unit
-	output reg 						illegal_instr_o,		// Illegal instruction encountered			
+	output reg 						illegal_instr_o,	// Illegal instruction encountered			
 
 	// ALU interface
-	output reg	[ALU_OP_WIDTH-1:0]  alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
+	output reg [ALU_OP_WIDTH-1:0]   alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
 	output reg						alu_en,				
 	output reg [DATA_WIDTH-1:0]		alu_op_a_o,
 	output reg [DATA_WIDTH-1:0]		alu_op_b_o,
@@ -36,8 +36,6 @@ module jedro_1_decoder
 	input [DATA_WIDTH-1:0]			reg_data_i,
 	output [ADDR_WIDTH-1:0]			reg_addr_o
 );
-
-
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
 wire [6:0]   opcode   = instr_rdata_i[6:0];
@@ -49,7 +47,6 @@ wire [14:12] funct3   = instr_rdata_i[14:12];
 wire [19:15] regs1	  = instr_rdata_i[19:15];
 wire [24:20] regs2	  = instr_rdata_i[24:20];
 wire [31:25] funct7   = instr_rdata_i[31:25];
-
 
 // Holds the currently decoded instruction
 reg [DATA_WIDTH-1:0] instr_current;
@@ -73,17 +70,9 @@ end
 
 
 
-// Help with decoding
-wire decoding_cur_instr = ~instr_next_en_o;
-
 // Start decoding a new instruction
-always @(posedge clk_i or opcode)
+always @(instr_current)
 begin
-	if (rstn_i == 1'b0) begin
-		instr_next_en_o <= 1'b0;
-		start_decoding_alu_r_type <= 1'b0;
-	end
-	else begin
 	case (opcode)
 		OPCODE_LOAD: begin
 
@@ -136,7 +125,6 @@ begin
 			illegal_instr_o = 1'b1;
 		end
 	endcase
-	end
 end
 
 
@@ -152,4 +140,14 @@ task read_reg(
 	reg_data   = reg_data_i;
 endtask
 
-endmodule // riscv_jedro_1
+
+`ifdef COCOTB_SIM
+initial begin
+    $dumpfile("jedro_1_decoder.vcd");
+    $dumpvars(0, jedro_1_decoder);
+    #1;
+end
+`endif
+
+
+endmodule // jedro_1_decoder
