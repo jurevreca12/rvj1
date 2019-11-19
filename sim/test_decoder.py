@@ -6,38 +6,36 @@ from cocotb.result import ReturnValue, TestFailure
 CLK_PERIOD = 1000 # ns or 1 MHz
 
 @cocotb.coroutine
-def reset_dut(dut, rstn, duration):
-	rstn <= 0
-	yield Timer(duration)
-	rstn <= 1
-	dut._log.info("Reset complete.")
+def set_inputs_to_zero(dut):
+	clk_i <= 0
+	rstn_i <= 0
+	instr_rdata_i <= 0
+	instr_next_avail_i <= 0
+	instr_next_en_o <= 0
+	illegal_instr_o <= 0
+	alu_op_sel_o <= 0
+	alu_en <= 0
+	alu_op_a_o <= 0   
+	alu_op_b_o <= 0
+	reg_a_data_i <= 0
+	reg_a_addr_o <= 0
+	reg_b_data_i <= 0
+	reg_b_addr_o <= 0
+	yield Timer(0)
 
 @cocotb.coroutine
-def read_reg(dut, addr):
-	dut.addr_i <= addr
-	yield RisingEdge(dut.clk_i)
-	raise ReturnValue(dut.data_o.value)	
-	
-@cocotb.coroutine
-def write_reg(dut, addr, val):
-	yield FallingEdge(dut.clk_i)
-	dut.addr_i <= addr
-	dut.we_i   <= 1
-	dut.data_i <= val
-	yield RisingEdge(dut.clk_i)
-	yield RisingEdge(dut.clk_i) # It takes 2 clock cycles to write a value
-	dut.we_i   <= 0
+def reset_dut(dut, rstn, duration):
+    rstn <= 0
+    yield Timer(duration)
+    rstn <= 1
+    dut._log.info("Reset complete.")
+
 
 @cocotb.test()
 def test_instr_add(dut):
 	dut._log.info("Running test for instruction add!")
-	
-	# Set inputs to zero
-	dut.clk_i  <= 0
-	dut.rstn_i <= 0
-	dut.instr_rdata_i <= 0
-	dut.instr_next_avail_i <= 0
-	dut.reg_data_i <= 0
+
+	set_inputs_to_zero(dut)
 
 	# Start the clock pin wiggling
 	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 

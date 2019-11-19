@@ -11,32 +11,32 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-`include "inc/jedro_1_defines.v"
+`include "jedro_1_defines.v"
 
 module jedro_1_decoder
 (
-	input 							clk_i,
-	input							rstn_i,
+	input 								clk_i,
+	input								rstn_i,
 
 	// Interface to instruction LSU 
-	input 		[31:0] 				instr_rdata_i,		// Instructions coming in from memory/cache
-	input							instr_next_avail_i,	// Signals that the next instruction is available
-	output reg						instr_next_en_o,	// Get the next instruction
+	input 		[31:0] 					instr_rdata_i,		// Instructions coming in from memory/cache
+	input								instr_next_avail_i,	// Signals that the next instruction is available
+	output reg							instr_next_en_o,	// Get the next instruction
 
 	// Interface to the control unit
-	output reg 						illegal_instr_o,	// Illegal instruction encountered			
+	output reg 							illegal_instr_o,	// Illegal instruction encountered			
 
 	// ALU interface
-	output reg [ALU_OP_WIDTH-1:0]   alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
-	output reg						alu_en,				
-	output reg [DATA_WIDTH-1:0]		alu_op_a_o,
-	output reg [DATA_WIDTH-1:0]		alu_op_b_o,
+	output reg [`ALU_OP_WIDTH-1:0]   	alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
+	output reg						 	alu_en,				
+	output reg [`DATA_WIDTH-1:0]		alu_op_a_o,
+	output reg [`DATA_WIDTH-1:0]		alu_op_b_o,
 
 	// Register file interface
-	input  [DATA_WIDTH-1:0]			reg_b_data_i,
-	output [ADDR_WIDTH-1:0]			reg_b_addr_o,
-	input  [DATA_WIDTH-1:0]			reg_c_data_i,
-	output [ADDR_WIDTH-1:0]			reg_c_addr_o
+	input  [`DATA_WIDTH-1:0]			reg_a_data_i,
+	output [`ADDR_WIDTH-1:0]			reg_a_addr_o,
+	input  [`DATA_WIDTH-1:0]			reg_b_data_i,
+	output [`ADDR_WIDTH-1:0]			reg_b_addr_o
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -51,7 +51,7 @@ wire [24:20] regs2	  = instr_rdata_i[24:20];
 wire [31:25] funct7   = instr_rdata_i[31:25];
 
 // Holds the currently decoded instruction
-reg [DATA_WIDTH-1:0] instr_current;
+reg [`DATA_WIDTH-1:0] instr_current;
 
 
 // Handle the interface to the instruction load store unit
@@ -63,7 +63,7 @@ begin
 	end
 	else begin
 		// Fetch next instr, if it is available and we are done with previous instructions
-		if (next_instr_avail_i == 1'b1) begin
+		if (instr_next_avail_i == 1'b1) begin
 			instr_next_en_o <= 1'b0;
 			instr_current 	<= instr_rdata_i;
 		end
@@ -76,53 +76,53 @@ end
 always @(instr_current)
 begin
 	case (opcode)
-		OPCODE_LOAD: begin
+		`OPCODE_LOAD: begin
 
 		end
 
-		OPCODE_MISCMEM: begin
+		`OPCODE_MISCMEM: begin
 		
 		end
 
-		OPCODE_OPIMM: begin
+		`OPCODE_OPIMM: begin
 		
 		end
 
-		OPCODE_AUIPC: begin
+		`OPCODE_AUIPC: begin
 
 		end
 
-		OPCODE_STORE: begin
+		`OPCODE_STORE: begin
 
 		end
 		
-		OPCODE_OP: begin
-			reg_b_data_i <= regs1;
-			reg_c_data_i <= regs2;
-			@ (posedge clk);
-		    alu_op_a_o <= reg_b_data_i;
-			alu_op_b_o <=
-			alu_op_sel_o = 1;
-			alu_en = 0;
+		`OPCODE_OP: begin
+			//reg_a_addr_o <= regs1;
+			//reg_b_addr_o <= regs2;
+			//@ (posedge clk);
+		    //alu_op_a_o <= reg_a_data_i;
+			//alu_op_b_o <= reg_b_data_i;
+			//alu_op_sel_o = 1;
+			//alu_en = 1;
 		end
 
-		OPCODE_LUI: begin
-
-		end
-
-		OPCODE_BRANCH: begin
+		`OPCODE_LUI: begin
 
 		end
 
-		OPCODE_JALR: begin
+		`OPCODE_BRANCH: begin
 
 		end
 
-		OPCODE_JAL: begin
+		`OPCODE_JALR: begin
 
 		end
 
-		OPCODE_SYSTEM: begin
+		`OPCODE_JAL: begin
+
+		end
+
+		`OPCODE_SYSTEM: begin
 
 		end
 
@@ -131,19 +131,6 @@ begin
 		end
 	endcase
 end
-
-
-
-
-///// HELPER TASKS //////
-task read_regb(
-	input [ADDR_WIDTH-1:0] reg_addr,
-	output [DATA_WIDTH-1:0] reg_data
-);
-	reg_addr_o = reg_addr;
-	@(posedge clk);
-	reg_data   = reg_data_i;
-endtask
 
 
 `ifdef COCOTB_SIM
