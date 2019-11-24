@@ -19,15 +19,15 @@ report_power -file ./post_synth_power.rpt
 opt_design
 place_design
 phys_opt_design
-write_checkpoint post_place
+write_checkpoint -force post_place
 report_timing_summary -file ./post_place_timing_summary.rpt
 
 # Run router
-route design
+route_design
 write_checkpoint -force ./post_route
 report_timing_summary -file post_route_timing_summary.rpt
 report_timing -sort_by group -max_paths 100 -path_type summary -file post_route_timing.rpt
-report clock_utilization -file ./clock_util.rpt
+report_clock_utilization -file ./clock_util.rpt
 report_utilization -file post_route_util.rpt
 report_power -file ./post_route_power.rpt
 report_drc -file ./post_imp_drc.rpt
@@ -35,5 +35,5 @@ write_verilog -force ./cpu_impl_netlist.v
 write_xdc -no_fixed_only -force ./cpu_impl.xdc
 
 # Generate bistream
-write_bistream -force DESIGN.bit
+#write_bistream -force DESIGN.bit
 

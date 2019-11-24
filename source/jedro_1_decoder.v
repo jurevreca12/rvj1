@@ -19,24 +19,17 @@ module jedro_1_decoder
 	input								rstn_i,
 
 	// Interface to instruction LSU 
-	input 		[31:0] 					instr_rdata_i,		// Instructions coming in from memory/cache
-	input								instr_next_avail_i,	// Signals that the next instruction is available
-	output reg							instr_next_en_o,	// Get the next instruction
+	input 		[`DATA_WIDTH-1:0]		instr_rdata_i,		// Instructions coming in from memory/cache
 
 	// Interface to the control unit
 	output reg 							illegal_instr_o,	// Illegal instruction encountered			
 
 	// ALU interface
 	output reg [`ALU_OP_WIDTH-1:0]   	alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
-	output reg						 	alu_en_o,				
-	output reg [`DATA_WIDTH-1:0]		alu_op_a_o,
-	output reg [`DATA_WIDTH-1:0]		alu_op_b_o,
-
-	// Register file interface
-	input      [`DATA_WIDTH-1:0]		reg_a_data_i,
-	output reg [`ADDR_WIDTH-1:0]		reg_a_addr_o,
-	input      [`DATA_WIDTH-1:0]		reg_b_data_i,
-	output reg [`ADDR_WIDTH-1:0]		reg_b_addr_o
+	output reg 							alu_reg_op_a_o,
+	output reg 							alu_reg_op_b_o,
+	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_a_addr_o,
+	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_b_addr_o
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -50,49 +43,30 @@ wire [19:15] regs1	  = instr_rdata_i[19:15];
 wire [24:20] regs2	  = instr_rdata_i[24:20];
 wire [31:25] funct7   = instr_rdata_i[31:25];
 
-// Holds the currently decoded instruction
-reg [`DATA_WIDTH-1:0] instr_current;
 
 
-// Handle the interface to the instruction load store unit
+// Interface to the contol unit
 always @(posedge clk_i)
 begin
 	if (rstn_i == 1'b0) begin
-		instr_next_en_o <= 1'b1;
-		instr_current <= 32'b0;
-	end
-	else begin
-		// Fetch next instr, if it is available and we are done with previous instructions
-		if (instr_next_avail_i == 1'b1) begin
-			instr_current 	<= instr_rdata_i;
-		end
+		illegal_instr_o <= 1'b0;
 	end
 end
-
-
-// The register interface
-always @(posedge clk_i)
-begin
-	if (rstn_i == 1'b0) begin
-		reg_a_addr_o <= 32'b0;
-		reg_b_addr_o <= 32'b0;
-	end
-
-
 
 // ALU interface
 always @(posedge clk_i)
 begin
 	if (rstn_i == 1'b0) begin
-		alu_en_o <= 1'b0;
-		alu_op_sel_o <= 3'b0;
-		alu_op_a_o   <= 32'b0;
-		alu_op_b_o   <= 32'b0;
+		alu_op_sel_o 		<= {`ALU_OP_WIDTH{1'b0}};
+		alu_reg_op_a_o   	<= 1'b0;
+		alu_reg_op_b_o   	<= 1'b0;
+		alu_reg_op_a_addr_o <= {`ADDR_WIDTH{1'b0}};
+		alu_reg_op_b_addr_o <= {`ADDR_WIDTH{1'b0}}; 
 	end
 end
 
 // Start decoding a new instruction
-always @(instr_current)
+always @(*)
 begin
 	case (opcode)
 		`OPCODE_LOAD: begin
@@ -116,15 +90,11 @@ begin
 		end
 		
 		`OPCODE_OP: begin
-			reg_a_addr_o <= regs1;
-			reg_b_addr_o <= regs2;
-			instr_next_en_o <= 0;
-			@ (posedge clk_i);
-		    alu_op_a_o <= reg_a_data_i;
-			alu_op_b_o <= reg_b_data_i;
-			alu_op_sel_o <= 1;
-			alu_en_o <= 1;
-			instr_next_en_o <= 1;
+			alu_op_sel_o <= {instr_rdata_i[30], funct3};
+			alu_reg_op_a_o <= 1;
+			alu_reg_op_b_o <= 1;
+			alu_reg_op_a_addr_o <= regs1;
+			alu_reg_op_b_addr_o <= regs2;
 		end
 
 		`OPCODE_LUI: begin

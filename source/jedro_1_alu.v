@@ -18,40 +18,37 @@ module jedro_1_alu
 	input 						clk_i,
 	input						rstn_i,
 
-	input [ALU_OP_WIDTH-1:0]	alu_op_sel_i,
+	input [`ALU_OP_WIDTH-1:0]	alu_op_sel_i,
 
-	input						op_ready_i,
-	input 	[DATA_WIDTH-1:0]	opa_i,
-	input   [DATA_WIDTH-1:0]	opb_i,
-	output reg [DATA_WIDTH-1:0]	res_o,
-	output reg 					res_ready_o
+	input 	[`DATA_WIDTH-1:0]	opa_i,
+	input   [`DATA_WIDTH-1:0]	opb_i,
+	output reg [`DATA_WIDTH-1:0]	res_o
 );
 
+
+wire [`DATA_WIDTH-1:0] adder_res;
 
 // Ripple-carry adder
 ripple_carry_adder_Nb #(DATA_WIDTH) ripple_carry_adder_32 (
 	.ci (1'b0),
 	.a  (opa_i),
 	.b  (opb_i),
-	.s  (res_o),
+	.s  (adder_res),
 	.co ()
 );
 
 
-// Handle ready single
-always@(posedge clk_i)
+always@(*)
 begin
-	if (rstn_i == 1'b0) begin
-		res_ready_o <= 1'b0;
-	end
-	else begin
-		if (op_ready_i == 1'b1) begin
-			res_ready_o <= 1'b1;
+	case (alu_op_sel_i)
+		`ALU_OP_ADD: begin
+			res_o <= adder_res; 
 		end
-		else begin
-			res_ready_o <= 1'b0;
+
+		default: begin
+			res_o <= 32'b0;
 		end
-	end
+	endcase
 end
 
 
