@@ -45,7 +45,7 @@
 `define ALU_OP_SRL		4'b0101
 `define ALU_OP_SRA		4'b1101
 `define ALU_OP_OR		4'b0110
-`define ALU_OP_ANDI		4'b0111
+`define ALU_OP_AND		4'b0111
 
 
 

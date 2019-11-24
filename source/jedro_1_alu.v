@@ -27,6 +27,8 @@ module jedro_1_alu
 
 
 wire [`DATA_WIDTH-1:0] adder_res;
+wire [`DATA_WIDTH-1:0] and_res;
+
 
 // Ripple-carry adder
 ripple_carry_adder_Nb #(`DATA_WIDTH) ripple_carry_adder_32 (
@@ -38,6 +40,8 @@ ripple_carry_adder_Nb #(`DATA_WIDTH) ripple_carry_adder_32 (
 	.co ()
 );
 
+// AND
+assign and_res = opa_i & opb_i;
 
 
 // Result muxing
@@ -80,8 +84,8 @@ begin
 			res_o <=
 		end
 
-		`ALU_OP_ANDI: begin
-			res_o <= 
+		`ALU_OP_AND: begin
+			res_o <= and_res; 
 		end
 		default: begin
 			res_o <= 32'b0;
