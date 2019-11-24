@@ -36,3 +36,10 @@
 // ALU defines
 `define ALU_OP_WIDTH  	4	// Number of bits used to encode the operator of the ALU operation
 `define ALU_OP_ADD		4'b0000
+
+
+
+
+
+
+
