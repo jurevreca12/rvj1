@@ -30,6 +30,7 @@ module jedro_1_decoder
 	output reg 							alu_reg_op_b_o,
 	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_a_addr_o,
 	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_b_addr_o
+	
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -42,7 +43,6 @@ wire [14:12] funct3   = instr_rdata_i[14:12];
 wire [19:15] regs1	  = instr_rdata_i[19:15];
 wire [24:20] regs2	  = instr_rdata_i[24:20];
 wire [31:25] funct7   = instr_rdata_i[31:25];
-
 
 
 // Interface to the contol unit
