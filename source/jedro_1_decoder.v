@@ -28,15 +28,15 @@ module jedro_1_decoder
 
 	// ALU interface
 	output reg [`ALU_OP_WIDTH-1:0]   	alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
-	output reg						 	alu_en,				
+	output reg						 	alu_en_o,				
 	output reg [`DATA_WIDTH-1:0]		alu_op_a_o,
 	output reg [`DATA_WIDTH-1:0]		alu_op_b_o,
 
 	// Register file interface
-	input  [`DATA_WIDTH-1:0]			reg_a_data_i,
-	output [`ADDR_WIDTH-1:0]			reg_a_addr_o,
-	input  [`DATA_WIDTH-1:0]			reg_b_data_i,
-	output [`ADDR_WIDTH-1:0]			reg_b_addr_o
+	input      [`DATA_WIDTH-1:0]		reg_a_data_i,
+	output reg [`ADDR_WIDTH-1:0]		reg_a_addr_o,
+	input      [`DATA_WIDTH-1:0]		reg_b_data_i,
+	output reg [`ADDR_WIDTH-1:0]		reg_b_addr_o
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -58,19 +58,38 @@ reg [`DATA_WIDTH-1:0] instr_current;
 always @(posedge clk_i)
 begin
 	if (rstn_i == 1'b0) begin
-		instr_next_en_o <= 1'b0;
+		instr_next_en_o <= 1'b1;
 		instr_current <= 32'b0;
 	end
 	else begin
 		// Fetch next instr, if it is available and we are done with previous instructions
 		if (instr_next_avail_i == 1'b1) begin
-			instr_next_en_o <= 1'b0;
 			instr_current 	<= instr_rdata_i;
 		end
 	end
 end
 
 
+// The register interface
+always @(posedge clk_i)
+begin
+	if (rstn_i == 1'b0) begin
+		reg_a_addr_o <= 32'b0;
+		reg_b_addr_o <= 32'b0;
+	end
+
+
+
+// ALU interface
+always @(posedge clk_i)
+begin
+	if (rstn_i == 1'b0) begin
+		alu_en_o <= 1'b0;
+		alu_op_sel_o <= 3'b0;
+		alu_op_a_o   <= 32'b0;
+		alu_op_b_o   <= 32'b0;
+	end
+end
 
 // Start decoding a new instruction
 always @(instr_current)
@@ -97,13 +116,15 @@ begin
 		end
 		
 		`OPCODE_OP: begin
-			//reg_a_addr_o <= regs1;
-			//reg_b_addr_o <= regs2;
-			//@ (posedge clk);
-		    //alu_op_a_o <= reg_a_data_i;
-			//alu_op_b_o <= reg_b_data_i;
-			//alu_op_sel_o = 1;
-			//alu_en = 1;
+			reg_a_addr_o <= regs1;
+			reg_b_addr_o <= regs2;
+			instr_next_en_o <= 0;
+			@ (posedge clk_i);
+		    alu_op_a_o <= reg_a_data_i;
+			alu_op_b_o <= reg_b_data_i;
+			alu_op_sel_o <= 1;
+			alu_en_o <= 1;
+			instr_next_en_o <= 1;
 		end
 
 		`OPCODE_LUI: begin
