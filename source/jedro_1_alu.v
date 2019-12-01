@@ -30,9 +30,11 @@ wire [`DATA_WIDTH-1:0] adder_res;
 wire [`DATA_WIDTH-1:0] and_res;
 wire [`DATA_WIDTH-1:0] or_res;
 wire [`DATA_WIDTH-1:0] xor_res;
+wire 				   less_than_sign_res;
+wire				   less_than_unsign_res;
 
 // Ripple-carry adder
-ripple_carry_adder_Nb #(`DATA_WIDTH) ripple_carry_adder_32 (
+ripple_carry_adder_Nb #(.N=`DATA_WIDTH) ripple_carry_adder_32b_inst (
 	.ci (1'b0),
 	.a  (opa_i),
 	.b  (opb_i),
@@ -50,6 +52,20 @@ assign or_res = opa_i | opb_i;
 // XOR
 assign xor_res = opa_i ^ opb_i;
 
+// Compare modules
+less_than_sign_Nb #(.N=`DATA_WIDTH) less_than_sign_32b_inst
+(
+	.a (opa_i),
+	.b (opb_i),
+	.r (less_than_sign_res)
+);
+
+less_than_unsign_Nb #(.N=`DATA_WIDTH) less_than_unsign_32b_inst
+(
+	.a (opa_i),
+	.b (opb_i),
+	.r (less_than_unsign_res)
+);
 
 // Result muxing
 always@(*)
@@ -68,11 +84,11 @@ begin
 		end
 
 		`ALU_OP_SLT: begin
-			res_o <=
+			res_o <= {31{1'b0}, less_than_sign_res};
 		end
 
 		`ALU_OP_SLTU: begin
-			res_o <= 
+			res_o <= {31(1'b0}, less_than_unsign_res};
 		end
 
 		`ALU_OP_XOR: begin
