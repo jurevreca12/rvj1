@@ -32,6 +32,8 @@ wire [`DATA_WIDTH-1:0] or_res;
 wire [`DATA_WIDTH-1:0] xor_res;
 wire 				   less_than_sign_res;
 wire				   less_than_unsign_res;
+wire [`DATA_WIDTH-1:0] shifter_right_res;
+wire [`DATA_WIDTH-1:0] shifter_left_res;
 
 // Ripple-carry adder
 ripple_carry_adder_Nb #(.N=`DATA_WIDTH) ripple_carry_adder_32b_inst (
@@ -67,6 +69,24 @@ less_than_unsign_Nb #(.N=`DATA_WIDTH) less_than_unsign_32b_inst
 	.r (less_than_unsign_res)
 );
 
+
+// SHIFTERS
+barrel_shifter_left_32b shifter_left_32b_inst
+(
+	.in  	 (opa_i),
+	.cntrl   (opb_i[4:0]),
+	.arith   (alu_op_sel_i[3]),   // Last bit of alu_op_sel_i selects between SRL and SRA instrucitons (its a hack I know)
+	.out 	 (shifter_left_res)
+);
+
+barrel_shifter_right_32b shifter_right_32b_inst
+(
+	.in  (opa_i),
+	.b   (opb_i[4:0]),
+	.out (shifter_left_res)
+);
+
+
 // Result muxing
 always@(*)
 begin
@@ -80,7 +100,7 @@ begin
 		end
 
 		`ALU_OP_SLL: begin
-			res_o <= 
+			res_o <= shifter_left_res; 
 		end
 
 		`ALU_OP_SLT: begin
@@ -96,11 +116,11 @@ begin
 		end
 
 		`ALU_OP_SRL: begin
-			res_o <=
+			res_o <= shifter_right_res;
 		end
 
 		`ALU_OP_SRA: begin
-			res_O <=
+			res_O <= shifter_right_res;
 		end
 
 		`ALU_OP_OR: begin
