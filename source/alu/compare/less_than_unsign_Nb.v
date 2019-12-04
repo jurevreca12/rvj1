@@ -15,7 +15,7 @@
 module less_than_unsign_Nb #(parameter N = 32) (
 	input  [N-1:0] a,
 	input  [N-1:0] b,
-	output         r
+	output [N-1:0] r
 );
 
 wire [N-1:0] w0 = ~( a ^ b ); // check bits for equality
@@ -23,15 +23,13 @@ wire [N-1:0] w1 =  ( ~a & b ); // check if a is less than b  (i.e. a is zero and
 wire [N-1:0] w2;
 
 assign w2[0] = w1[0];
-assign r     = w2[n-1];
+assign r     = {31'b0, w2[N-1]};
 
 genvar i;
 generate 
-begin
-    for (i = 1; i < N; i = i + 1) begin
+	for (i = 1; i < N; i = i + 1) begin
         assign w2[i] = w1[i] | ( w0[i] & w2[i-1] );
     end
-end
 endgenerate
 
 endmodule

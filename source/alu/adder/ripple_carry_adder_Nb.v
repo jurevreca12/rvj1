@@ -29,18 +29,8 @@ reg ci_mod; // Used to implement substraction (
 assign c[0] = ci_mod; // The first 1-bit full adders cary in is usually zero.
 
 
-// Inverting for subtraction
-always@(*)
-begin
-	if (inv_b == 1'b1) begin
-		b_mod <= ~b;
-		ci_mod <= ~ci;
-	end
-	else begin
-		b_mod <= b;
-		ci_mod <= ci;
-	end
-end
+assign b_mod  = (inv_b)?(~b):b;
+assign ci_mod = (inv_b)?(~ci):ci;
 
 genvar i;
 for (i = 0; i < N; i = i + 1) begin

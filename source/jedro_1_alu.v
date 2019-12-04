@@ -30,13 +30,13 @@ wire [`DATA_WIDTH-1:0] adder_res;
 wire [`DATA_WIDTH-1:0] and_res;
 wire [`DATA_WIDTH-1:0] or_res;
 wire [`DATA_WIDTH-1:0] xor_res;
-wire 				   less_than_sign_res;
-wire				   less_than_unsign_res;
+wire [`DATA_WIDTH-1:0] less_than_sign_res;
+wire [`DATA_WIDTH-1:0] less_than_unsign_res;
 wire [`DATA_WIDTH-1:0] shifter_right_res;
 wire [`DATA_WIDTH-1:0] shifter_left_res;
 
 // Ripple-carry adder
-ripple_carry_adder_Nb #(.N=`DATA_WIDTH) ripple_carry_adder_32b_inst (
+ripple_carry_adder_Nb #(.N(`DATA_WIDTH)) ripple_carry_adder_32b_inst (
 	.ci (1'b0),
 	.a  (opa_i),
 	.b  (opb_i),
@@ -55,14 +55,14 @@ assign or_res = opa_i | opb_i;
 assign xor_res = opa_i ^ opb_i;
 
 // Compare modules
-less_than_sign_Nb #(.N=`DATA_WIDTH) less_than_sign_32b_inst
+less_than_sign_Nb #(.N(`DATA_WIDTH)) less_than_sign_32b_inst
 (
 	.a (opa_i),
 	.b (opb_i),
 	.r (less_than_sign_res)
 );
 
-less_than_unsign_Nb #(.N=`DATA_WIDTH) less_than_unsign_32b_inst
+less_than_unsign_Nb #(.N(`DATA_WIDTH)) less_than_unsign_32b_inst
 (
 	.a (opa_i),
 	.b (opb_i),
@@ -74,16 +74,16 @@ less_than_unsign_Nb #(.N=`DATA_WIDTH) less_than_unsign_32b_inst
 barrel_shifter_left_32b shifter_left_32b_inst
 (
 	.in  	 (opa_i),
-	.cntrl   (opb_i[4:0]),
-	.arith   (alu_op_sel_i[3]),   // Last bit of alu_op_sel_i selects between SRL and SRA instrucitons (its a hack I know)
+	.cntrl   (opb_i[5-1:0]),
 	.out 	 (shifter_left_res)
 );
 
 barrel_shifter_right_32b shifter_right_32b_inst
 (
-	.in  (opa_i),
-	.b   (opb_i[4:0]),
-	.out (shifter_left_res)
+	.in    (opa_i),
+	.cntrl (opb_i[5-1:0]),
+	.arith   (alu_op_sel_i[3]),   // Last bit of alu_op_sel_i selects between SRL and SRA instrucitons (its a hack I know)
+	.out   (shifter_left_res)
 );
 
 
@@ -104,11 +104,11 @@ begin
 		end
 
 		`ALU_OP_SLT: begin
-			res_o <= {31{1'b0}, less_than_sign_res};
+			res_o <= less_than_sign_res;
 		end
 
 		`ALU_OP_SLTU: begin
-			res_o <= {31(1'b0}, less_than_unsign_res};
+			res_o <= less_than_unsign_res;
 		end
 
 		`ALU_OP_XOR: begin
@@ -120,7 +120,7 @@ begin
 		end
 
 		`ALU_OP_SRA: begin
-			res_O <= shifter_right_res;
+			res_o <= shifter_right_res;
 		end
 
 		`ALU_OP_OR: begin

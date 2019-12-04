@@ -6,5 +6,7 @@ module mux2x1(
     input sel,
     output out
 );
+
     assign out = (sel)?in1:in0;
+
 endmodule

@@ -12,7 +12,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-module barrel_shifte_left_32b  (
+module barrel_shifter_left_32b  (
     input  [32-1:0] in,
     input  [5-1:0] cntrl,	 // The amount to shift by
     output [32-1:0] out

@@ -5,11 +5,27 @@ from cocotb.result import ReturnValue, TestFailure
 
 CLK_PERIOD = 1000 # ns or 1 MHz
 
+ALU_OP_DICT = {'ADD':  0b0000,
+			   'SUB':  0b1000,
+			   'SLL':  0b0001,
+			   'SLT':  0b0010,
+			   'SLTU': 0b0011,
+			   'XOR':  0b0100,
+			   'SRL':  0b0101,
+			   'SRA':  0b1101,
+			   'OR':   0b0110,
+			   'AND':  0b0111}
+
+
+
 @cocotb.coroutine
 def set_inputs_to_zero(dut):
-	dut.clk_i <= 0
-	dut.rstn_i <= 0
-	dut.instr_rdata_i <= 0
+	dut.clk_i 		 <= 0
+	dut.rstn_i 		 <= 0
+	dut.alu_op_sel_i <= 0
+	dut.opa_i 		 <= 0
+	dut.opb_i 	 	 <= 0
+	dut.res_o 	     <= 0
 	yield Timer(0)
 
 @cocotb.coroutine
@@ -21,7 +37,7 @@ def reset_dut(dut, duration):
 
 
 @cocotb.test()
-def test_instr_op_add(dut):
+def test_addder_basic(dut):
 	dut._log.info("Running test for instruction add!")
 	yield set_inputs_to_zero(dut)
 
@@ -30,13 +46,19 @@ def test_instr_op_add(dut):
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
+	
+	dut.alu_op_sel_i <= ALU_OP_DICT['ADD']
 
-	# Feed instruction add r3,r1,r2
-	dut.instr_rdata_i <= 0b000000000001000001000000110110011
-	
-	
+	dut.opa_i <= 2
+	dut.opb_i <= 5
+
+	yield Timer(2*CLK_PERIOD)
+
+	if (int(dut.res_o) != 7):
+		raise TestFailure("Adder result is incorrect: %s != 7" % str(dut.res_o))
+
 	yield Timer (20*CLK_PERIOD)
-	dut._log.info("Test basic_read finnished.")	
+	dut._log.info("Test test_adder_basic finnished.")	
 
 
 	
