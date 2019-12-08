@@ -13,30 +13,32 @@
 
 
 module ripple_carry_adder_Nb #(parameter N = 32) (
-	input  ci,
-	input  [N-1:0] a,
-	input  [N-1:0] b,
-	input  inv_b, 		// Should input b be inverted?
-	output [N-1:0] s,
-	output co
+	input  carry_i,
+	input  [N-1:0] opa_i,
+	input  [N-1:0] opb_i,
+	input  inv_b_i, 		// Should input b be inverted?
+	output [N-1:0] res_o,
+	output carry_o
 );
 
-wire [N:0] c;
+wire [N:0] carry;
 wire [N-1:0] b_mod;
-
-reg ci_mod; // Used to implement substraction (
-
-assign c[0] = ci_mod; // The first 1-bit full adders cary in is usually zero.
+reg ci_mod; 		  // Used to implement substraction 
 
 
-assign b_mod  = (inv_b)?(~b):b;
-assign ci_mod = (inv_b)?(~ci):ci;
+// inv_b = 0 and ci = 0 -> a + b + 0
+// inb_b = 0 and ci = 1 -> a + b + 1
+// inv_b = 1 and ci = 0 -> a + (~b + 1) = a + ~b + 1
+// inv_b = 1 and ci = 1 -> a + (~b + 1) + 1 = a + ~b
+assign b_mod  = (inv_b_i)?(~opb_i):opb_i;
+assign ci_mod = (inv_b_i)?(~carry_i):carry_i;
+assign carry[0] = ci_mod; // The first 1-bit full adders cary in is usually zero.
 
 genvar i;
 for (i = 0; i < N; i = i + 1) begin
-	full_adder_1b FA_1b(a[i], b_mod[i], c[i], s[i], c[i+1]);
+	full_adder_1b FA_1b(opa_i[i], b_mod[i], carry[i], res_o[i], carry[i+1]);
 end
 
-assign co = c[N];
+assign carry_o = carry[N];
 
 endmodule

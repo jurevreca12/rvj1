@@ -37,12 +37,12 @@ wire [`DATA_WIDTH-1:0] shifter_left_res;
 
 // Ripple-carry adder
 ripple_carry_adder_Nb #(.N(`DATA_WIDTH)) ripple_carry_adder_32b_inst (
-	.ci (1'b0),
-	.a  (opa_i),
-	.b  (opb_i),
-	.inv_b (alu_op_sel_i[3]),
-	.s  (adder_res),
-	.co ()
+	.carry_i (1'b0),
+	.opa_i   (opa_i),
+	.opb_i   (opb_i),
+	.inv_b_i (alu_op_sel_i[3]),
+	.res_o  (adder_res),
+	.carry_o ()
 );
 
 // AND

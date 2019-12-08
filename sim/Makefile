@@ -2,6 +2,15 @@
 CDIR = $(shell pwd)
 SOURCE_DIR = $(CDIR)/../source
 
+ifeq ($(OS),Msys)
+WPWD=$(shell sh -c 'pwd -W')
+PYTHONPATH := $(WPWD)/simModels;$(PYTHONPATH)
+else
+WPWD=$(shell pwd)
+PYTHONPATH := $(WPWD)/simModels:$(PYTHONPATH)
+endif
+
+
 VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_regfile.v				\
 				   $(SOURCE_DIR)/jedro_1_alu.v     				\
 				   $(SOURCE_DIR)/jedro_1_decoder.v				\
@@ -17,7 +26,7 @@ VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_regfile.v				\
 # Simulation stuff
 SIM = icarus
 TOPLEVEL = jedro_1_alu # TOPLEVEL is the name of the top level module
-MODULE = test_alu # MODULE is the name of the Python test file:
+MODULE = test_alu # MODULE is the name of the Python test file
 COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
 
 
