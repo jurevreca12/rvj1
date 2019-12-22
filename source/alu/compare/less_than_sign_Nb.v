@@ -26,8 +26,9 @@ less_than_unsign_Nb #(.N(31)) less_than_unsign_31b_inst ( a[N-2:0], b[N-2:0], re
 always@ (*)
 begin
 	case ({a[N-1], b[N-1]})
-		2'b00 	: r <= 32'b0;
+		2'b00 	: r <= {1'b0, res_abs};
 		2'b10 	: r <= 32'b1;
+		2'b01	: r <= 32'b0;
 		default : r <= {1'b0, res_abs};
 	endcase
 end

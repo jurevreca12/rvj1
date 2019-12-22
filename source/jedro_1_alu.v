@@ -83,7 +83,7 @@ barrel_shifter_right_32b shifter_right_32b_inst
 	.in    (opa_i),
 	.cntrl (opb_i[5-1:0]),
 	.arith   (alu_op_sel_i[3]),   // Last bit of alu_op_sel_i selects between SRL and SRA instrucitons (its a hack I know)
-	.out   (shifter_left_res)
+	.out   (shifter_right_res)
 );
 
 
@@ -130,7 +130,8 @@ begin
 		`ALU_OP_AND: begin
 			res_o <= and_res; 
 		end
-		default: begin
+
+		default: begin 
 			res_o <= 32'b0;
 		end
 	endcase
