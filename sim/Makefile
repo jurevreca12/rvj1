@@ -21,12 +21,13 @@ VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_regfile.v				\
 				   $(SOURCE_DIR)/alu/compare/less_than_unsign_Nb.v \
 				   $(SOURCE_DIR)/alu/shift/mux2x1.v \
 				   $(SOURCE_DIR)/alu/shift/barrel_shifter_left_32b.v \
-				   $(SOURCE_DIR)/alu/shift/barrel_shifter_right_32b.v
+				   $(SOURCE_DIR)/alu/shift/barrel_shifter_right_32b.v \
+				   $(SOURCE_DIR)/sign_extender.v
 
 # Simulation stuff
 SIM = icarus
-TOPLEVEL = jedro_1_alu # TOPLEVEL is the name of the top level module
-MODULE = test_alu # MODULE is the name of the Python test file
+TOPLEVEL = sign_extender # TOPLEVEL is the name of the top level module
+MODULE = test_sign_extender # MODULE is the name of the Python test file
 COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
 
 
