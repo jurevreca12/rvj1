@@ -9,15 +9,14 @@ set output_dir $script_path/output/.
 set_part xc7z010clg225-1
 # Out-of-context synthesis
 
-read_verilog  $source_dir/jedro_1_alu.v  
+read_verilog [ glob $source_dir/*.v ] 
 read_verilog [ glob $source_dir/alu/adder/*.v ] 
 read_verilog [ glob $source_dir/alu/compare/*.v ] 
 read_verilog [ glob $source_dir/alu/shift/*.v ] 
-#read_verilog [ glob $source_dir/inc/*.v ] 
 read_xdc     $script_path/constr.xdc
 
 # Run synthesis
-synth_design -top jedro_1_alu \
+synth_design -top jedro_1_top \
 	     -include_dirs $source_dir/inc \
 	     -mode out_of_context
 write_checkpoint -force $output_dir/post_synth

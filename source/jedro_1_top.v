@@ -47,7 +47,8 @@ module jedro_1_top
 
 reg  [31:0] pc_r; // program counter
 reg  [31:0] cinstr_r; // current instruction
-reg illegal_instr_r = 0;
+wire illegal_instr;
+reg  illegal_instr_r = 0;
 wire [`ALU_OP_WIDTH-1:0] alu_op_sel;
 wire alu_reg_op_a;
 wire alu_reg_op_b;
@@ -61,8 +62,11 @@ wire [`DATA_WIDTH-1:0] alu_result_data;
 // Because an instruction can be executed every cycle we can decode a new
 // instruction each cycle as long as the core is enabled.
 always @(posedge clk_i) begin
-	if (rstn_i == 1'b0 or illegal_instr_r == 1'b1)	begin
+	if (rstn_i == 1'b0 || illegal_instr_r == 1'b1)	begin
 		pc_r <= 32'b0;
+	end
+	else if (illegal_instr_r == 1'b1) begin
+		illegal_instr_r <= 1'b1;
 	end
 	else begin
 		pc_r <= pc_r + 1;
@@ -72,7 +76,7 @@ end
 jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
     						  .rstn_i 	   	   	   (rstn_i),
     						  .instr_rdata_i   	   (cinstr_r),
-							  .illegal_instr_o 	   (illegal_instr_r),            
+							  .illegal_instr_o 	   (illegal_instr),            
     						  .alu_op_sel_o    	   (alu_op_sel), 
     						  .alu_reg_op_a_o  	   (alu_reg_op_a), 
     						  .alu_reg_op_b_o  	   (alu_reg_op_b), 
@@ -103,7 +107,5 @@ jedro_1_alu alu_inst (.clk_i 		(clk_i),
     				  .opa_i		(reg_op_a_data),
     				  .opb_i		(reg_op_b_data),
     				  .res_o		(alu_result_data));
-);
-
 
 endmodule
