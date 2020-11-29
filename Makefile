@@ -1,8 +1,7 @@
 all:
 
-
-zynqberry:
-	cd impl && $(MAKE) zynqberry
+vivado:
+	cd impl && $(MAKE) vivado
 
 synth:
 	qflow synthesize top.v
