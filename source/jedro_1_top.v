@@ -17,7 +17,8 @@
 module jedro_1_top
 (
 	input clk_i,
-	input rstn_i
+	input rstn_i,
+	input en_i,
 
  // Instruction interface
 	output reg			instr_req_o,
@@ -44,41 +45,64 @@ module jedro_1_top
 
 );
 
+reg  [31:0] pc_r; // program counter
+reg  [31:0] cinstr_r; // current instruction
+reg illegal_instr_r = 0;
+wire [`ALU_OP_WIDTH-1:0] alu_op_sel;
+wire alu_reg_op_a;
+wire alu_reg_op_b;
+wire [`REG_ADDR_WIDTH-1:0] alu_reg_op_a_addr;
+wire [`REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr;
+wire [`DATA_WIDTH-1:0] reg_op_a_data;
+wire [`DATA_WIDTH-1:0] reg_op_b_data;
+wire [`DATA_WIDTH-1:0] alu_result_data;
+
+// Reset program counter to zero.
+// Because an instruction can be executed every cycle we can decode a new
+// instruction each cycle as long as the core is enabled.
+always @(posedge clk_i) begin
+	if (rstn_i == 1'b0 or illegal_instr_r == 1'b1)	begin
+		pc_r <= 32'b0;
+	end
+	else begin
+		pc_r <= pc_r + 1;
+	end
+end
 
 jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
     						  .rstn_i 	   	   	   (rstn_i),
-    						  .instr_rdata_i   	   (instr_rdata_i),
-							  .illegal_instr_o 	   (TODO),           
-    						  .alu_op_sel_o    	   (TODO),
-    						  .alu_reg_op_a_o  	   (TODO),
-    						  .alu_reg_op_b_o  	   (TODO),
-   							  .alu_reg_op_a_addr_o (TODO),
-    						  .alu_reg_op_b_addr_o (TODO));
+    						  .instr_rdata_i   	   (cinstr_r),
+							  .illegal_instr_o 	   (illegal_instr_r),            
+    						  .alu_op_sel_o    	   (alu_op_sel), 
+    						  .alu_reg_op_a_o  	   (alu_reg_op_a), 
+    						  .alu_reg_op_b_o  	   (alu_reg_op_b), 
+   							  .alu_reg_op_a_addr_o (alu_reg_op_a_addr), 
+    						  .alu_reg_op_b_addr_o (alu_reg_op_b_addr));
 
 
 
 jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst (.clk_i   	 (clk_i),
     											 .rstn_i	 (rstn_i),
-    											 .rpa_addr_i (TODO),
-    											 .rpa_data_o (TODO),
-    											 .rpb_addr_i (TODO),
-    											 .rpb_data_o (TODO),
-    											 .wpc_addr_i (TODO),
-    											 .wpc_data_i (TODO), 
-    											 .wpc_we_i   (TODO));
+    											 .rpa_addr_i (alu_reg_op_a_addr),
+    											 .rpa_data_o (reg_op_a_data),
+    											 .rpb_addr_i (alu_reg_op_b_addr),
+    											 .rpb_data_o (reg_op_b_data),
+    											 .wpc_addr_i (4'b0),			// TODO
+    											 .wpc_data_i (alu_result_data), // TODO
+    											 .wpc_we_i   (1'b0));			// TODO
 
 
 
-sign_extender #(.N(32), .M(12)) sign_extender_inst (.in_i(TODO),
-												    .out_o(TODO));
+sign_extender #(.N(32), .M(12)) sign_extender_inst (.in_i(12'b0),
+												    .out_o(32'b0));
 
 
 jedro_1_alu alu_inst (.clk_i 		(clk_i),
     				  .rstn_i		(rstn_i),
-					  .alu_op_sel_i (TODO),
-    				  .opa_i		(TODO),
-    				  .opb_i		(TODO),
-    				  .res_o		(TODO));
+					  .alu_op_sel_i (alu_op_sel),
+    				  .opa_i		(reg_op_a_data),
+    				  .opb_i		(reg_op_b_data),
+    				  .res_o		(alu_result_data));
 );
 
 

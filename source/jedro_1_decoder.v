@@ -28,8 +28,8 @@ module jedro_1_decoder
 	output reg [`ALU_OP_WIDTH-1:0]   	alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
 	output reg 							alu_reg_op_a_o,
 	output reg 							alu_reg_op_b_o,
-	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_a_addr_o,
-	output reg [`ADDR_WIDTH-1:0]		alu_reg_op_b_addr_o
+	output reg [`REG_ADDR_WIDTH-1:0]		alu_reg_op_a_addr_o,
+	output reg [`REG_ADDR_WIDTH-1:0]		alu_reg_op_b_addr_o
 	
 );
 
@@ -60,8 +60,8 @@ begin
 		alu_op_sel_o 		<= {`ALU_OP_WIDTH{1'b0}};
 		alu_reg_op_a_o   	<= 1'b0;
 		alu_reg_op_b_o   	<= 1'b0;
-		alu_reg_op_a_addr_o <= {`ADDR_WIDTH{1'b0}};
-		alu_reg_op_b_addr_o <= {`ADDR_WIDTH{1'b0}}; 
+		alu_reg_op_a_addr_o <= {`REG_ADDR_WIDTH{1'b0}};
+		alu_reg_op_b_addr_o <= {`REG_ADDR_WIDTH{1'b0}}; 
 	end
 end
 

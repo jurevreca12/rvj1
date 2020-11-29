@@ -15,27 +15,27 @@
 module jedro_1_regfile
 #(
 	parameter	DATA_WIDTH = 32,
-	parameter	ADDR_WIDTH = $clog2(DATA_WIDTH)
+	parameter	REG_ADDR_WIDTH = $clog2(DATA_WIDTH)
 )
 (
 	input 						clk_i,
 	input						rstn_i,
 
 	// Read port A
-	input   [ADDR_WIDTH-1:0]	rpa_addr_i,
+	input   [REG_ADDR_WIDTH-1:0]	rpa_addr_i,
 	output  [DATA_WIDTH-1:0]	rpa_data_o,
 
 	// Read port B
-	input	[ADDR_WIDTH-1:0]	rpb_addr_i,
+	input	[REG_ADDR_WIDTH-1:0]	rpb_addr_i,
 	output	[DATA_WIDTH-1:0]	rpb_data_o,
 
 	// Write port C
-	input 	[ADDR_WIDTH-1:0] 	wpc_addr_i,
+	input 	[REG_ADDR_WIDTH-1:0] 	wpc_addr_i,
 	input 	[DATA_WIDTH-1:0]	wpc_data_i,
 	input 						wpc_we_i
 );
 
-localparam NUM_REGISTERS = 2 ** (ADDR_WIDTH);
+localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
 
 // Integer register file x0-x31
 reg [DATA_WIDTH-1:0] reg_file [NUM_REGISTERS-1:0];

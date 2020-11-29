@@ -3,7 +3,7 @@
 
 // General defines
 `define DATA_WIDTH 		 32
-`define ADDR_WIDTH 		 $clog2(`DATA_WIDTH)
+`define REG_ADDR_WIDTH 		 $clog2(`DATA_WIDTH)
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 
