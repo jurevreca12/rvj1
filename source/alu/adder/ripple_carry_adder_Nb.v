@@ -23,7 +23,7 @@ module ripple_carry_adder_Nb #(parameter N = 32) (
 
 wire [N:0] carry;
 wire [N-1:0] b_mod;
-reg ci_mod; 		  // Used to implement substraction 
+wire ci_mod; 		  // Used to implement substraction 
 
 
 // inv_b = 0 and ci = 0 -> a + b + 0
