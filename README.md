@@ -1,7 +1,7 @@
 # riscv-jedro-1 - Preprosto jedro za RISC-V.
 
 
-# Uporabljena orodja in knjižnice
+# orodja in knjižnice
 1. Yosys (qflow) - Digitalna sinteza 
 2. Vivado - Digitalna sinteza
 3. Abc - Logični optimizator 
