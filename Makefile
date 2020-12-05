@@ -1,4 +1,8 @@
-all:
+all: vivado sim doc
+
+
+doc:
+	cd docs && $(MAKE)
 
 vivado:
 	cd impl && $(MAKE) vivado

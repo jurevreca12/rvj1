@@ -69,9 +69,19 @@ always @(posedge clk_i) begin
 		illegal_instr_r <= 1'b1;
 	end
 	else begin
-		pc_r <= pc_r + 1;
+		pc_r <= pc_r + 4;
 	end
 end
+
+
+jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
+							  .rstn_i			   (rstn_i),
+							  .instr_req_o		   (instr_req_o),
+							  .instr_addr_o		   (instr_addr_o),
+							  .instr_gnt_i		   (instr_rvalid_i),
+							  .instr_rdata_i	   (isntr_rdata_i));
+								
+
 
 jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
     						  .rstn_i 	   	   	   (rstn_i),
