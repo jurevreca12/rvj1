@@ -65,7 +65,7 @@ jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
 
 jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
     						  .rstn_i 	   	   	   (rstn_i),
-    						  .instr_rdata_i   	   (cinstr_r),
+    						  .instr_rdata_i   	   (instr_addr_o),
 							  .illegal_instr_o 	   (illegal_instr),            
     						  .alu_op_sel_o    	   (alu_op_sel), 
     						  .alu_reg_op_a_o  	   (alu_reg_op_a), 
