@@ -21,11 +21,10 @@ module jedro_1_top
 	input en_i,
 
  // Instruction interface
-	output reg			instr_req_o,
-	input				instr_gnt_i,
-	input				instr_rvalid_i,
-	output reg [31:0]	instr_addr_o,
-	input [31:0]		instr_rdata_i,	
+ 	output reg			instr_rsta_o,
+	output reg			isntr_en_o,
+	output reg [`DATA_WIDTH-1:0] instr_addr_o;
+	input wire [`DATA_WIDTH-1:0] instr_data_i;				
 
  // Data interface
 	output reg 			data_req_o,
@@ -45,10 +44,6 @@ module jedro_1_top
 
 );
 
-reg  [31:0] pc_r; // program counter
-reg  [31:0] cinstr_r; // current instruction
-wire illegal_instr;
-reg  illegal_instr_r = 0;
 wire [`ALU_OP_WIDTH-1:0] alu_op_sel;
 wire alu_reg_op_a;
 wire alu_reg_op_b;
@@ -58,29 +53,14 @@ wire [`DATA_WIDTH-1:0] reg_op_a_data;
 wire [`DATA_WIDTH-1:0] reg_op_b_data;
 wire [`DATA_WIDTH-1:0] alu_result_data;
 
-// Reset program counter to zero.
-// Because an instruction can be executed every cycle we can decode a new
-// instruction each cycle as long as the core is enabled.
-always @(posedge clk_i) begin
-	if (rstn_i == 1'b0 || illegal_instr_r == 1'b1)	begin
-		pc_r <= 32'b0;
-	end
-	else if (illegal_instr_r == 1'b1) begin
-		illegal_instr_r <= 1'b1;
-	end
-	else begin
-		pc_r <= pc_r + 4;
-	end
-end
-
 
 jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
 							  .rstn_i			   (rstn_i),
-							  .instr_req_o		   (instr_req_o),
-							  .instr_addr_o		   (instr_addr_o),
-							  .instr_gnt_i		   (instr_rvalid_i),
-							  .instr_rdata_i	   (isntr_rdata_i));
-								
+
+							  .rsta_o			   (instr_rsta_o),
+							  .en_o				   (instr_en_o),
+							  .addr_o			   (instr_addr_o),
+							  .data_i			   (instr_data_i));	
 
 
 jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),

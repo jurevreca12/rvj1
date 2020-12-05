@@ -3,7 +3,8 @@
 
 // General defines
 `define DATA_WIDTH 		 32
-`define REG_ADDR_WIDTH 		 $clog2(`DATA_WIDTH)
+`define REG_ADDR_WIDTH 	 $clog2(`DATA_WIDTH)
+`define BOOT_ADDR		 8'h0000_0000
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 
