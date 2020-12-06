@@ -21,10 +21,10 @@ module jedro_1_top
 	input en_i,
 
  // Instruction interface
- 	output reg			instr_rsta_o,
+ 	output	 			instr_rsta_o,
 	output reg			isntr_en_o,
-	output reg [`DATA_WIDTH-1:0] instr_addr_o;
-	input wire [`DATA_WIDTH-1:0] instr_data_i;				
+	output 	   [`DATA_WIDTH-1:0] instr_addr_o,
+	input wire [`DATA_WIDTH-1:0] instr_data_i,				
 
  // Data interface
 	output reg 			data_req_o,
@@ -52,7 +52,10 @@ wire [`REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr;
 wire [`DATA_WIDTH-1:0] reg_op_a_data;
 wire [`DATA_WIDTH-1:0] reg_op_b_data;
 wire [`DATA_WIDTH-1:0] alu_result_data;
-
+wire [11:0]			   decoder_immediate;
+wire [`DATA_WIDTH-1:0] decoder_immediate_extended;
+wire [`DATA_WIDTH-1:0] mux_alu_operand_b;
+wire alu_is_immediate;
 
 jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
 							  .rstn_i			   (rstn_i),
@@ -71,7 +74,8 @@ jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
     						  .alu_reg_op_a_o  	   (alu_reg_op_a), 
     						  .alu_reg_op_b_o  	   (alu_reg_op_b), 
    							  .alu_reg_op_a_addr_o (alu_reg_op_a_addr), 
-    						  .alu_reg_op_b_addr_o (alu_reg_op_b_addr));
+    						  .alu_reg_op_b_addr_o (alu_reg_op_b_addr),
+							  .alu_immediate_o	   (decoder_immediate));
 
 
 
@@ -87,15 +91,20 @@ jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst (.clk_i   	 (clk_i),
 
 
 
-sign_extender #(.N(32), .M(12)) sign_extender_inst (.in_i(12'b0),
-												    .out_o(32'b0));
+sign_extender #(.N(32), .M(12)) sign_extender_inst (.in_i(decoder_immediate),
+												    .out_o(decoder_immediate_extended));
 
+// alu_is_immediate signal tells if an operation is between 2 registers or an
+// register and an immediate. Based on this the 2:1 MUX bellow selects the 
+// mux_alu_operand_b
+assign alu_is_immediate = ~(alu_reg_op_a & alu_reg_op_b);
+assign mux_alu_operand_b = alu_is_immediate ? reg_op_b_data : decoder_immediate_extended;
 
 jedro_1_alu alu_inst (.clk_i 		(clk_i),
     				  .rstn_i		(rstn_i),
 					  .alu_op_sel_i (alu_op_sel),
     				  .opa_i		(reg_op_a_data),
-    				  .opb_i		(reg_op_b_data),
+    				  .opb_i		(mux_alu_operand_b),
     				  .res_o		(alu_result_data));
 
 endmodule

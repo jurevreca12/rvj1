@@ -3,47 +3,31 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_instr                                              //
+// Design Name:    jedro_1_lsu                                                //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       Verilog                                                    //
 //                                                                            //
-// Description:    The instruction interface to the RAM memory.               //
+// Description:    The load-store unit of the jedro-1 riscv core.             //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-
+  
 `include "jedro_1_defines.v"
 
-module jedro_1_instr 
+
+module jedro_1_lsu
 (
-	input					 	 clk_i,
-	input						 rstn_i,
+	input clk_i,
+	input rstn_i,
 	
-	output  					 rsta_o,
-	output reg					 en_o,	
-	output     [`DATA_WIDTH-1:0] addr_o,
-	input 	   [`DATA_WIDTH-1:0] data_i
+	input lsu_new_ctrl_i, // signals if the control signal is valid (i.e. new instruction)
+	input [`LSU_CTRL_WIDTH-1:0] lsu_ctrl_i,
+
+	// Decoded signals from the decoder
+	input [`REG_ADDR_WIDTH-1:0] lsu_regdest_i,
+	input [`REG_ADDR_WIDTH-1:0] lsu_regsrc1_i,
+	input [11:0]				lsu_offset_i,
+	input [`REG_ADDR_WIDTH-1:0] lsu_regsrc2_i	
 );
 
-reg [`DATA_WIDTH-1:0] pc_r;
-reg [`DATA_WIDTH-1:0] cinstr;
-
-// COMBINATIAL LOGIC
-// The output address just follows pc_r
-assign addr_o = pc_r;
-assign rsta_o = ~rstn_i;
-
-// SEQUENTIAL LOGIC
-// Synchronous reset
-always @(posedge clk_i) begin
-	if (rstn_i == 1'b0) begin
-		pc_r <= `BOOT_ADDR;
-		en_o <= 1'b1;
-	end
-	else begin
-		cinstr <= data_i;
-		pc_r   <= pc_r + 4; // TODO add suport for jump instructions
-	end
-end
 
 endmodule
-

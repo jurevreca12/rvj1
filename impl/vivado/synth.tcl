@@ -4,7 +4,7 @@
 #
 set script_path [ file dirname [ file normalize [ info script ] ] ]
 set project_root_dir $script_path/../../.
-set source_dir $project_root_dir/source
+set source_dir $project_root_dir/rtl
 set output_dir $script_path/output/.
 set_part xc7z010clg225-1
 # Out-of-context synthesis

@@ -18,7 +18,7 @@ module jedro_1_decoder
 	input 								clk_i,
 	input								rstn_i,
 
-	// Interface to instruction LSU 
+	// Interface to instruction interface 
 	input 		[`DATA_WIDTH-1:0]		instr_rdata_i,		// Instructions coming in from memory/cache
 
 	// Interface to the control unit
@@ -28,9 +28,13 @@ module jedro_1_decoder
 	output reg [`ALU_OP_WIDTH-1:0]   	alu_op_sel_o,		// Combination of funct3 + 6-th bit of funct7
 	output reg 							alu_reg_op_a_o,
 	output reg 							alu_reg_op_b_o,
-	output reg [`REG_ADDR_WIDTH-1:0]		alu_reg_op_a_addr_o,
-	output reg [`REG_ADDR_WIDTH-1:0]		alu_reg_op_b_addr_o
+	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_a_addr_o,
+	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_b_addr_o,
 	
+	output reg [11:0]					alu_immediate_o,	// to be sign extended
+	output reg 							lsu_new_cntrl_o,	
+	output reg [3:0]					lsu_ctrl_o,
+	output reg [`REG_ADDR_WIDTH-1:0]	lsu_regdest_o
 );
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -66,11 +70,16 @@ begin
 end
 
 // Start decoding a new instruction
-always @(*)
+always @(posedge clk_i)
 begin
 	case (opcode)
 		`OPCODE_LOAD: begin
-
+			lsu_new_cntrl_o 	<= 1'b1;
+			lsu_ctrl_o			<= {opcode[6], funct3};
+			lsu_regdest_o		<= regdest;
+			alu_reg_op_a_o		<= 1'b1;
+			alu_reg_op_a_addr_o	<= regs1;
+			alu_immediate_o		<= imm11_0;
 		end
 
 		`OPCODE_MISCMEM: begin
@@ -86,7 +95,11 @@ begin
 		end
 
 		`OPCODE_STORE: begin
-
+			lsu_new_cntrl_o 	<= 1;
+			lsu_ctrl_o			<= {opcode[6], funct3};
+			alu_reg_op_a_o		<= 1'b1;	
+			alu_reg_op_a_addr_o	<= regs1;	
+			alu_immediate_o		<= {instr_rdata_i[31:25], instr_rdata_i[11:7]};
 		end
 		
 		`OPCODE_OP: begin
