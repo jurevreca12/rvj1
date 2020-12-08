@@ -7,7 +7,6 @@
 `define BOOT_ADDR		 8'h0000_0000
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
-
 `define OPCODE_LOAD     7'b0000011
 `define OPCODE_LOADFP	7'b0000111
 `define OPCODE_CUSTOM0	7'b0001011
@@ -32,11 +31,8 @@
 `define OPCODE_JAL		7'b1101111
 `define OPCODE_SYSTEM	7'b1110011
 
-
-
 // ALU defines
 `define ALU_OP_WIDTH  	4	// Number of bits used to encode the operator of the ALU operation
-
 `define ALU_OP_ADD		4'b0000
 `define ALU_OP_SUB		4'b1000
 `define ALU_OP_SLL		4'b0001
@@ -49,7 +45,7 @@
 `define ALU_OP_AND		4'b0111
 
 
-
-
+// Load-Store Unit
+`define LSU_CTRL_WIDTH 4	// we need to encode 8 states 
 
 

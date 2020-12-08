@@ -1,4 +1,4 @@
-all: vivado sim doc
+all: lint sim vivado doc
 
 
 doc:
@@ -9,6 +9,9 @@ vivado:
 
 synth:
 	qflow synthesize top.v
+
+lint:
+	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.v ./rtl/*.v 
 
 clean:
 	rm source/*.ys
