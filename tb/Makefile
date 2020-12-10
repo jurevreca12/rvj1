@@ -1,4 +1,4 @@
-all: cocotb
+all:	cocotb
 
 cocotb:
 	cd cocotb && $(MAKE)
