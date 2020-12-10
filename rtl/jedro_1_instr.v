@@ -17,7 +17,9 @@ module jedro_1_instr
 (
 	input					 	 clk_i,
 	input						 rstn_i,
+
 	input 						 get_next_instr_i,	// A signal that specifys that we can get the next isntruction (controlled by the cores FSM)
+	output reg					 next_instr_lock_o, // Indicates that the next instruction is not ready to be processed TODO
 	input						 jmp_instr_i,		// specify that we encountered a jump instruction and the program counter should be changed to jmp_address_i
 	input	   [`DATA_WIDTH-1:0] jmp_address_i,		// The address to jump to, after we had encountered a jump instruction
 	
@@ -45,8 +47,10 @@ always @(posedge clk_i) begin
 		pc_r <= `BOOT_ADDR;
 		en_o <= 1'b1;
 		cinstr_o <= 0;
+		next_instr_lock_o <= 0;
 	end
 	else if (get_next_instr_i == 1'b1) begin
+		cinstr_o <= data_i;
 		if (jmp_instr_i == 1'b1) begin
 			pc_r <= jmp_address_i;
 		end
@@ -55,7 +59,7 @@ always @(posedge clk_i) begin
 		end 
 	end
 	
-	cinstr_o <= data_i;
+
 	
 end
 

@@ -90,4 +90,55 @@ def instr_if_read_basic(dut):
 		raise TestFailure("ERROR 1: The current instruction register cinstr should contian the 0xAA instruction.")
 	
 	yield Timer (5*CLK_PERIOD, units='ns')
+	dut._log.info("Test instr_if_read_basic finnished.")
+
+	
+@cocotb.test()
+def instr_if_read_with_jmp_instr(dut):
+	dut._log.info("Running a basic test of the instruction interface!")
+	
+	yield set_inputs_to_zero(dut)
+	
+	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD, units='ns').start())
+	cocotb.fork(memory(dut))
+	
+	# First reset the block
+	yield reset_dut(dut, dut.rstn_i, 2*CLK_PERIOD) 
+
+	yield FallingEdge(dut.clk_i)
+	yield RisingEdge(dut.clk_i)	
+	dut.get_next_instr_i <= 1
+
+	if dut.cinstr_o == 0xAA:
+		raise TestFailure("ERROR 0: Looks like cinstr register is infered as a latch, not a flipflop. \
+	 	                   It shouldn't change before the positive clock edge.")
+
+	yield RisingEdge(dut.clk_i)
+	yield RisingEdge(dut.clk_i)
+
+	if dut.cinstr_o != 0xAA:
+		raise TestFailure(f"ERROR 1: The current instruction register cinstr should contain the 0xAA instruction.\
+							Instead it is the {dut.cinstr_o} instruction")
+
+	if dut.pc_r != 0x04:
+		raise TestFailure(f"ERROR 2: The current program counter should be 4, not {dut.pc_r}.")
+
+
+	if dut.cinstr_o == 0xBB:
+		raise TestFailure("ERROR 0: Looks like cinstr register is infered as a latch, not a flipflop. \
+						   It shouldn't change before the positive clock edge.")
+
+	dut.jmp_instr_i <= 1
+	dut.jmp_address_i <= 0x14
+	yield RisingEdge(dut.clk_i)
+	yield RisingEdge(dut.clk_i)
+	yield RisingEdge(dut.clk_i)
+
+	if dut.pc_r != 0x14:
+		raise TestFailure(f"ERROR 2: The current program counter should be 8, not {dut.pc_r}.")
+
+	if dut.cinstr_o != 0xFF:
+		raise TestFailure("ERROR 1: The current instruction register cinstr should contian the 0xFF instruction.")
+	
+	yield Timer (5*CLK_PERIOD, units='ns')
 	dut._log.info("Test instr_if_read_basic finnished.")	
