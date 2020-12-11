@@ -21,10 +21,10 @@ module jedro_1_top
 	input en_i,
 
  // Instruction interface
- 	output	 			instr_rsta_o,
-	output reg			isntr_en_o,
-	output 	   [`DATA_WIDTH-1:0] instr_addr_o,
-	input wire [`DATA_WIDTH-1:0] instr_data_i,				
+ 	output	 			ifu_rsta_o,
+	output reg			ifu_en_o,
+	output 	   [`DATA_WIDTH-1:0] ifu_addr_o,
+	input wire [`DATA_WIDTH-1:0] ifu_data_i,				
 
  // Data interface
 	output reg 			data_req_o,
@@ -55,9 +55,9 @@ wire [`DATA_WIDTH-1:0] alu_result_data;
 wire [`DATA_WIDTH-1:0] decoder_immediate_extended;
 wire [`DATA_WIDTH-1:0] mux_alu_operand_b;
 wire alu_is_immediate;
-wire current_instr_if;
+wire ifu_current_instr;
 
-jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
+jedro_1_ifu		ifu_inst 	 (.clk_i			   (clk_i),
 							  .rstn_i			   (rstn_i),
 
 							  // The interface to the FSM
@@ -68,19 +68,19 @@ jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
 							  .jmp_address_i	   (),
 
 							  // The instruction interface
-							  .rsta_o			   (instr_rsta_o),
-							  .en_o				   (instr_en_o),
-							  .addr_o			   (instr_addr_o),
-							  .data_i			   (instr_data_i),
+							  .rsta_o			   (ifu_rsta_o),
+							  .en_o				   (ifu_en_o),
+							  .addr_o			   (ifu_addr_o),
+							  .data_i			   (ifu_data_i),
 							  
 							  // The decoder interface
-							  .cinstr_o			   (current_instr_if));	
+							  .cinstr_o			   (ifu_current_instr));	
 
 
 jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
     						  .rstn_i 	   	   	       (rstn_i),
     						  
-							  .instr_rdata_i   	       (current_instr_if),
+							  .instr_rdata_i   	       (ifu_current_instr),
 							  .illegal_instr_o 	       (illegal_instr),
             
     						  .alu_op_sel_o    	       (alu_op_sel), 

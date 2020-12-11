@@ -3,17 +3,18 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_instr                                              //
+// Design Name:    jedro_1_ifu	                                              //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       Verilog                                                    //
 //                                                                            //
-// Description:    The instruction interface to the RAM memory.               //
+// Description:    The instruction fetch unit for SPROM memory with           //
+//				   a single cycle read delay.								  //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
 `include "jedro_1_defines.v"
 
-module jedro_1_instr 
+module jedro_1_ifu 
 (
 	input					 	 clk_i,
 	input						 rstn_i,
@@ -21,6 +22,8 @@ module jedro_1_instr
 	input 						 get_next_instr_i,	// A signal that specifys that we can get the next isntruction (controlled by the cores FSM)
 	output reg					 next_instr_lock_o, // Indicates that the next instruction is not ready to be processed TODO
 	input						 jmp_instr_i,		// specify that we encountered a jump instruction and the program counter should be changed to jmp_address_i
+	
+	// This address comes from the ALU (actually it comes from a mux after the ALU)
 	input	   [`DATA_WIDTH-1:0] jmp_address_i,		// The address to jump to, after we had encountered a jump instruction
 	
 	// Interface to the ROM memory
@@ -65,8 +68,8 @@ end
 
 `ifdef COCOTB_SIM
 initial begin
-	$dumpfile ("jedro_1_instr_test.vcd");
-	$dumpvars (0, jedro_1_instr);
+	$dumpfile ("jedro_1_ifu_test.vcd");
+	$dumpvars (0, jedro_1_ifu);
 end
 `endif
 
