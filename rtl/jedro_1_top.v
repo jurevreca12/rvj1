@@ -52,30 +52,43 @@ wire [`REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr;
 wire [`DATA_WIDTH-1:0] reg_op_a_data;
 wire [`DATA_WIDTH-1:0] reg_op_b_data;
 wire [`DATA_WIDTH-1:0] alu_result_data;
-wire [11:0]			   decoder_immediate;
 wire [`DATA_WIDTH-1:0] decoder_immediate_extended;
 wire [`DATA_WIDTH-1:0] mux_alu_operand_b;
 wire alu_is_immediate;
+wire current_instr_if;
 
 jedro_1_instr	instr_inst 	 (.clk_i			   (clk_i),
 							  .rstn_i			   (rstn_i),
 
+							  // The interface to the FSM
+							  .get_next_instr_i	   (), // TODO
+							  .next_instr_lock_o   (), 
+							  .jmp_instr_i		   (),
+							  
+							  .jmp_address_i	   (),
+
+							  // The instruction interface
 							  .rsta_o			   (instr_rsta_o),
 							  .en_o				   (instr_en_o),
 							  .addr_o			   (instr_addr_o),
-							  .data_i			   (instr_data_i));	
+							  .data_i			   (instr_data_i),
+							  
+							  // The decoder interface
+							  .cinstr_o			   (current_instr_if));	
 
 
-jedro_1_decoder decoder_inst (.clk_i 		   	   (clk_i),
-    						  .rstn_i 	   	   	   (rstn_i),
-    						  .instr_rdata_i   	   (instr_addr_o),
-							  .illegal_instr_o 	   (illegal_instr),            
-    						  .alu_op_sel_o    	   (alu_op_sel), 
-    						  .alu_reg_op_a_o  	   (alu_reg_op_a), 
-    						  .alu_reg_op_b_o  	   (alu_reg_op_b), 
-   							  .alu_reg_op_a_addr_o (alu_reg_op_a_addr), 
-    						  .alu_reg_op_b_addr_o (alu_reg_op_b_addr),
-							  .alu_immediate_o	   (decoder_immediate));
+jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
+    						  .rstn_i 	   	   	       (rstn_i),
+    						  
+							  .instr_rdata_i   	       (current_instr_if),
+							  .illegal_instr_o 	       (illegal_instr),
+            
+    						  .alu_op_sel_o    	       (alu_op_sel), 
+    						  .alu_reg_op_a_o  	       (alu_reg_op_a), 
+    						  .alu_reg_op_b_o  	       (alu_reg_op_b), 
+   							  .alu_reg_op_a_addr_o 	   (alu_reg_op_a_addr), 
+    						  .alu_reg_op_b_addr_o 	   (alu_reg_op_b_addr),
+							  .alu_immediate_ext_o 	   (decoder_immediate_extended));
 
 
 
@@ -89,10 +102,6 @@ jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst (.clk_i   	 (clk_i),
     											 .wpc_data_i (alu_result_data), // TODO
     											 .wpc_we_i   (1'b0));			// TODO
 
-
-
-sign_extender #(.N(32), .M(12)) sign_extender_inst (.in_i(decoder_immediate),
-												    .out_o(decoder_immediate_extended));
 
 // alu_is_immediate signal tells if an operation is between 2 registers or an
 // register and an immediate. Based on this the 2:1 MUX bellow selects the 
