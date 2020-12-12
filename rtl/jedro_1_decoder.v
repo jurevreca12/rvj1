@@ -59,15 +59,15 @@ wire [`DATA_WIDTH-1:0] B_immediate_sign_extended_w;
 
 // COMBINATIONAL LOGIC
 // For the I instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst (.in_i(imm11_0),
+sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_I (.in_i(imm11_0),
 								 	                         .out_o(I_immediate_sign_extended_w));
 
 // For the J instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst (.in_i({instr_rdata_i[31], instr_rdata_i[19:12], instr_rdata_i[20], instr_rdata_i[10:1], 1'b0}),
+sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_J (.in_i({instr_rdata_i[31], instr_rdata_i[19:12], instr_rdata_i[20], instr_rdata_i[10:1], 1'b0}),
 								 	                         .out_o(J_immediate_sign_extended_w));
 
 // For the B instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst (.in_i({instr_rdata_i[31], instr_rdata_i[7], instr_rdata_i[30:25], instr_rdata_i[11:8], 1'b0}),
+sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_B (.in_i({instr_rdata_i[31], instr_rdata_i[7], instr_rdata_i[30:25], instr_rdata_i[11:8], 1'b0}),
 								 	                         .out_o(B_immediate_sign_extended_w));
 // Reset
 always @(posedge clk_i)
