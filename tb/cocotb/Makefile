@@ -11,7 +11,7 @@ PYTHONPATH := $(WPWD)/../simModels:$(PYTHONPATH)
 endif
 
 
-VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_instr.v				\
+VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_ifu.v					\
 				   $(SOURCE_DIR)/jedro_1_regfile.v				\
 				   $(SOURCE_DIR)/jedro_1_alu.v     				\
 				   $(SOURCE_DIR)/jedro_1_decoder.v				\
@@ -27,8 +27,8 @@ VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_instr.v				\
 
 # Simulation stuff
 SIM = icarus
-TOPLEVEL = jedro_1_instr # TOPLEVEL is the name of the top level module
-MODULE = test_instr # MODULE is the name of the Python test file
+TOPLEVEL = jedro_1_ifu # TOPLEVEL is the name of the top level module
+MODULE = test_ifu # MODULE is the name of the Python test file
 COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
 
 

@@ -46,7 +46,7 @@ async def memory(dut):
 
 
 @cocotb.test()
-def instr_if_read_basic(dut):
+def ifu_read_basic(dut):
 	dut._log.info("Running a basic test of the instruction interface!")
 	
 	yield set_inputs_to_zero(dut)
@@ -90,11 +90,11 @@ def instr_if_read_basic(dut):
 		raise TestFailure("ERROR 1: The current instruction register cinstr should contian the 0xAA instruction.")
 	
 	yield Timer (5*CLK_PERIOD, units='ns')
-	dut._log.info("Test instr_if_read_basic finnished.")
+	dut._log.info("Test ifu_read_basic finnished.")
 
 	
 @cocotb.test()
-def instr_if_read_with_jmp_instr(dut):
+def ifu_read_with_jmp_instr(dut):
 	dut._log.info("Running a basic test of the instruction interface!")
 	
 	yield set_inputs_to_zero(dut)
@@ -141,4 +141,4 @@ def instr_if_read_with_jmp_instr(dut):
 		raise TestFailure("ERROR 1: The current instruction register cinstr should contian the 0xFF instruction.")
 	
 	yield Timer (5*CLK_PERIOD, units='ns')
-	dut._log.info("Test instr_if_read_basic finnished.")	
+	dut._log.info("Test ifu_read_with_jmp_instr finnished.")	
