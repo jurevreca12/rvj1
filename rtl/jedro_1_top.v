@@ -91,7 +91,11 @@ jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
    							  .alu_reg_op_a_addr_o 	   (alu_reg_op_a_addr), 
     						  .alu_reg_op_b_addr_o 	   (alu_reg_op_b_addr),
 							  .alu_reg_dest_addr_o	   (alu_reg_dest_addr),
-							  .alu_immediate_ext_o 	   (decoder_immediate_extended));
+							  .alu_immediate_ext_o 	   (decoder_immediate_extended),
+
+							  .lsu_new_ctrl_o		   (), // TODO
+							  .lsu_ctrl_o			   (),
+							  .lsu_regdest_o		   ());
 
 
 

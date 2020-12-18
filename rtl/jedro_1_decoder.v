@@ -34,7 +34,7 @@ module jedro_1_decoder
 	output reg [`DATA_WIDTH:0]			alu_immediate_ext_o,	// sign extended
 
 	// Interface to the load-store unit
-	output reg 							lsu_new_cntrl_o,	
+	output reg 							lsu_new_ctrl_o,	
 	output reg [3:0]					lsu_ctrl_o,
 	output reg [`REG_ADDR_WIDTH-1:0]	lsu_regdest_o
 );
@@ -88,7 +88,7 @@ always @(posedge clk_i)
 begin
 	case (opcode)
 		`OPCODE_LOAD: begin
-			lsu_new_cntrl_o 	<= 1'b1;
+			lsu_new_ctrl_o 	<= 1'b1;
 			lsu_ctrl_o			<= {opcode[6], funct3};
 			lsu_regdest_o		<= regdest;
 			alu_reg_op_a_o		<= 1'b1;
@@ -109,7 +109,7 @@ begin
 		end
 
 		`OPCODE_STORE: begin
-			lsu_new_cntrl_o 	<= 1;
+			lsu_new_ctrl_o 	<= 1;
 			lsu_ctrl_o			<= {opcode[6], funct3};
 			alu_reg_op_a_o		<= 1'b1;	
 			alu_reg_op_a_addr_o	<= regs1;	

@@ -9,7 +9,11 @@ vivado:
 	cd impl && $(MAKE) vivado
 
 lint:
-	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.v ./rtl/*.v 
+	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.v \
+											./rtl/*.v \
+											./rtl/alu/adder/*.v \
+											./rtl/alu/compare/*.v \
+											./rtl/alu/shift/*.v \
 
 clean:
 	cd impl && $(MAKE) clean
