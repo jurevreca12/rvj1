@@ -62,14 +62,14 @@ def top_addi_instr_basic(dut):
 	yield RisingEdge(dut.clk_i)
 	yield RisingEdge(dut.clk_i)
 
-	if dut.regfile_inst.reg_file.value[1] != 0:
-		raise TestFailure(f"ERROR 0: Register x1 should've been reset to 0. Instead its value is {dut.regfile_inst.reg_file.value[1].integer}")
+	if dut.regfile_inst.regfile.value[1] != 0:
+		raise TestFailure(f"ERROR 0: Register x1 should've been reset to 0. Instead its value is {dut.regfile_inst.regfile.value[1].integer}")
 	
 	for i in range(PIPELINE_DEPTH):
 		yield RisingEdge(dut.clk_i)
 	
-	if dut.regfile_inst.reg_file.value[1] != 13:
-		raise TestFailure(f"ERROR 1: Register x1 should've been set to 13 by the addi instruction. Instead its value is {dut.regfile_inst.reg_file.value[1].integer}")
+	if dut.regfile_inst.regfile.value[1] != 13:
+		raise TestFailure(f"ERROR 1: Register x1 should've been set to 13 by the addi instruction. Instead its value is {dut.regfile_inst.regfile.value[1].integer}")
 		
 	yield Timer (5*CLK_PERIOD, units='ns')
 	dut._log.info("Test top_addi_instr_basic finnished.")
