@@ -30,7 +30,7 @@ module jedro_1_decoder
 	output reg 							alu_reg_op_b_o,
 	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_a_addr_o,
 	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_b_addr_o,
-	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_dest_addr,		// So the ALU knows where to store the result after computing it.
+	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_dest_addr_o,		// So the ALU knows where to store the result after computing it.
 	output reg [`DATA_WIDTH:0]			alu_immediate_ext_o,	// sign extended
 
 	// Interface to the load-store unit

@@ -1,7 +1,5 @@
 #include <Python.h>
 
-// Declare a new exception object for our module
-static PyObject *simModelsError;
 
 // Declare function prototypes
 static PyObject* simModels_add(PyObject* self, PyObject* args);
@@ -35,17 +33,18 @@ static PyMethodDef simModels_methods[] =
 	{NULL, NULL, 0, NULL}
 };
 
-
-PyMODINIT_FUNC initsimModels(void)
+static struct PyModuleDef simModels_module =
 {
-	PyObject *m;
-	m = Py_InitModule("simModels", simModels_methods);
-	if (m == NULL) return;
-	
-	simModelsError = PyErr_NewException("simModels.error", NULL, NULL); // Return Python error object
-	Py_INCREF(simModelsError);
+	PyModuleDef_HEAD_INIT,
+    "simModels", /* name of module */
+    "Arithmetic models for testing the ALU",          /* module documentation, may be NULL */
+    -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    simModels_methods
+};
 
-	PyModule_AddObject(m, "error", simModelsError);
+PyMODINIT_FUNC PyInit_simModels(void)
+{
+	return PyModule_Create(&simModels_module);
 }
 
 static PyObject* simModels_add(PyObject* self, PyObject* args)

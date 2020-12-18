@@ -19,7 +19,7 @@ clean:
 	rm -rf env/
 
 sim:
-	$(MAKE) -C sim/ sim 
+	$(MAKE) -C tb/ all 
 
 
 envinst: 

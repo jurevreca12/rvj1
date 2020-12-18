@@ -14,7 +14,6 @@ import random
 # Custom made models made with c functions
 import simModels
 
-
 # For randomised testing
 NUM_RANDOM_CASES = 200
 RANDOM_SEED = 30
@@ -37,24 +36,23 @@ ALU_OP_DICT = {'ADD':  0b0000,
 			   'OR':   0b0110,
 			   'AND':  0b0111}
 
-
-
 @cocotb.coroutine
 def set_inputs_to_zero(dut):
-	dut.clk_i 		 <= 0
-	dut.rstn_i 		 <= 0
-	dut.alu_op_sel_i <= 0
-	dut.opa_i 		 <= 0
-	dut.opb_i 	 	 <= 0
-	dut.res_o 	     <= 0
+	dut.alu_inst.clk_i 		 <= 0
+	dut.alu_inst.rstn_i 	 <= 0
+	dut.alu_inst.alu_op_sel_i <= 0
+	dut.alu_inst.opa_i 		 <= 0
+	dut.alu_inst.opb_i 	 	 <= 0
+	dut.alu_inst.res_o 	     <= 0
 	yield Timer(0)
+
 
 @cocotb.coroutine
 def reset_dut(dut, duration):
-    dut.rstn_i <= 0
+    dut.alu_inst.rstn_i <= 0
     yield Timer(duration)
-    dut.rstn_i <= 1
-    dut._log.info("Reset complete.")
+    dut.alu_inst.rstn_i <= 1
+    dut.alu_inst._log.info("Reset complete.")
 
 
 @cocotb.test()
@@ -62,26 +60,24 @@ def test_alu_adder_basic(dut):
 	yield set_inputs_to_zero(dut)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
 	
-	dut.alu_op_sel_i <= ALU_OP_DICT['ADD']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['ADD']
 
-	dut.opa_i <= 2
-	dut.opb_i <= 5
+	dut.alu_inst.opa_i <= 2
+	dut.alu_inst.opb_i <= 5
 
 	yield Timer(2*CLK_PERIOD)
 
-	res_o = Bits(bin=str(dut.res_o))
+	res_o = Bits(bin=str(dut.alu_inst.res_o))
 	if res_o.int != 7:
-		raise TestFailure("Adder result is incorrect: %s != 7" % str(dut.res_o))
+		raise TestFailure("Adder result is incorrect: %s != 7" % str(dut.alu_inst.res_o))
 
 	yield Timer (5*CLK_PERIOD)
 
-
-	
 	
 @cocotb.test()
 def test_alu_adder_randomised_signed(dut):
@@ -91,23 +87,23 @@ def test_alu_adder_randomised_signed(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['ADD']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['ADD']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(MINSINT32, MAXSINT32)
 		B = random.randint(MINSINT32, MAXSINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res_o = Bits(bin=str(dut.res_o))
+		res_o = Bits(bin=str(dut.alu_inst.res_o))
 		ref_res = simModels.add(A, B);
 		if res_o.int != ref_res:
 			raise TestFailure(
@@ -126,23 +122,23 @@ def test_alu_adder_randomised_unsigned(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['ADD']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['ADD']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res_o = Bits(bin=str(dut.res_o))
+		res_o = Bits(bin=str(dut.alu_inst.res_o))
 		ref_res = simModels.addu(A, B);
 		if res_o.uint != ref_res:
 			raise TestFailure(
@@ -158,21 +154,21 @@ def test_alu_sub_basic(dut):
 	yield set_inputs_to_zero(dut)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
 	
-	dut.alu_op_sel_i <= ALU_OP_DICT['SUB']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SUB']
 
-	dut.opa_i <= 2
-	dut.opb_i <= 5
+	dut.alu_inst.opa_i <= 2
+	dut.alu_inst.opb_i <= 5
 
 	yield Timer(2*CLK_PERIOD)
 
-	res_o = Bits(bin=str(dut.res_o))
+	res_o = Bits(bin=str(dut.alu_inst.res_o))
 	if res_o.int != -3:
-		raise TestFailure("Adder result is incorrect: %s != -3" % str(dut.res_o))
+		raise TestFailure("Adder result is incorrect: %s != -3" % str(dut.alu_inst.res_o))
 
 	yield Timer (5*CLK_PERIOD)
 
@@ -187,23 +183,23 @@ def test_alu_sub_randomised_signed(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
-	yield reset_dut(dut, 2*CLK_PERIOD) 
+	yield reset_dut(dut, 2*CLK_PERIOD)
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SUB']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SUB']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(MINSINT32, MAXSINT32)
 		B = random.randint(MINSINT32, MAXSINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res_o = Bits(bin=str(dut.res_o))
+		res_o = Bits(bin=str(dut.alu_inst.res_o))
 		ref_res = simModels.sub(A, B);
 		if res_o.int != ref_res:
 			raise TestFailure(
@@ -216,30 +212,30 @@ def test_alu_sub_randomised_signed(dut):
 
 @cocotb.test()
 def test_alu_sub_randomised_unsigned(dut):
-   	dut._log.info("Running test_alu_sub_randomised_unsigned!")
+	dut.alu_inst._log.info("Running test_alu_sub_randomised_unsigned!")
 	yield set_inputs_to_zero(dut) 
 	
 	# Set the seed to a constant for reproducability of results
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SUB']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SUB']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res_o = Bits(bin=str(dut.res_o))
+		res_o = Bits(bin=str(dut.alu_inst.res_o))
 		ref_res = simModels.subu(A, B);
 		if res_o.uint != ref_res:
 			raise TestFailure(
@@ -258,23 +254,23 @@ def test_alu_sll(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SLL']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SLL']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.shifter_left_res))
+		res = Bits(bin=str(dut.alu_inst.shifter_left_res))
 		ref_res = simModels.sll(A, B);
 		if res.uint != ref_res:
 			raise TestFailure(
@@ -293,23 +289,23 @@ def test_alu_slt(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SLT']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SLT']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(MINSINT32, MAXSINT32)
 		B = random.randint(MINSINT32, MAXSINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.less_than_sign_res))
+		res = Bits(bin=str(dut.alu_inst.less_than_sign_res))
 		ref_res = simModels.slt(A, B);
 		if res.int != ref_res:
 			raise TestFailure(
@@ -329,23 +325,23 @@ def test_alu_sltu(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SLTU']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SLTU']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.less_than_unsign_res))
+		res = Bits(bin=str(dut.alu_inst.less_than_unsign_res))
 		ref_res = simModels.sltu(A, B);
 		if res.uint != ref_res:
 			raise TestFailure(
@@ -365,23 +361,23 @@ def test_alu_xor_randomised(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['XOR']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['XOR']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.xor_res))
+		res = Bits(bin=str(dut.alu_inst.xor_res))
 		ref_res = simModels.xor(A, B);
 		if res.uint != ref_res:
 			raise TestFailure(
@@ -402,23 +398,23 @@ def test_alu_srl(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SRL']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SRL']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.shifter_right_res))
+		res = Bits(bin=str(dut.alu_inst.shifter_right_res))
 		ref_res = simModels.srl(A, B);
 		if res.uint != ref_res:
 			raise TestFailure(
@@ -438,23 +434,23 @@ def test_alu_sra(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['SRA']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['SRA']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(MINSINT32, MAXSINT32)
 		B = random.randint(MINSINT32, MAXSINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.shifter_right_res))
+		res = Bits(bin=str(dut.alu_inst.shifter_right_res))
 		ref_res = simModels.sra(A, B);
 		if res.int != ref_res:
 			raise TestFailure(
@@ -476,23 +472,23 @@ def test_alu_or_randomised(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['OR']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['OR']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.or_res))
+		res = Bits(bin=str(dut.alu_inst.or_res))
 		ref_res = simModels.orz(A, B); # We don't use the or keyword because it is a python keyword (so orz instead).
 		if res.uint != ref_res:
 			raise TestFailure(
@@ -511,23 +507,23 @@ def test_alu_and_randomised(dut):
 	random.seed(RANDOM_SEED)
 
 	# Start the clock pin wiggling
-	cocotb.fork(Clock(dut.clk_i, CLK_PERIOD/2).start()) 
+	cocotb.fork(Clock(dut.alu_inst.clk_i, CLK_PERIOD/2).start()) 
 	
 	# First reset the block
 	yield reset_dut(dut, 2*CLK_PERIOD) 
    
-	dut.alu_op_sel_i <= ALU_OP_DICT['AND']
+	dut.alu_inst.alu_op_sel_i <= ALU_OP_DICT['AND']
 	
 	for i in range(NUM_RANDOM_CASES):
 		A = random.randint(0, MAXUINT32)
 		B = random.randint(0, MAXUINT32)
 
-		dut.opa_i <= A;
-		dut.opb_i <= B;
+		dut.alu_inst.opa_i <= A;
+		dut.alu_inst.opb_i <= B;
 
 		yield Timer(2)
 
-		res = Bits(bin=str(dut.and_res))
+		res = Bits(bin=str(dut.alu_inst.and_res))
 		ref_res = simModels.andz(A, B); # We don't use the and keyword because it is a python keyword (so andz instead).
 		if res.uint != ref_res:
 			raise TestFailure(
