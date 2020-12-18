@@ -18,14 +18,4 @@ module sign_extender #(parameter N=32, parameter M = 12) (
 
 	assign out_o = { {(N-M){in_i[M-1]}}, in_i[M-1:0]};
 
-
-`ifdef COCOTB_SIM
-initial begin
-    $dumpfile("sign_extender.vcd");
-    $dumpvars(0, sign_extender);
-    #1;
-end
-`endif
-
-
 endmodule

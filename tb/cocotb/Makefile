@@ -28,7 +28,7 @@ VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_top.v					\
 # Simulation stuff
 SIM = icarus
 TOPLEVEL = jedro_1_top # TOPLEVEL is the name of the top level module
-MODULE = test_alu # MODULE is the name of the Python test file
+MODULE = test_top # MODULE is the name of the Python test file
 COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
 
 

@@ -54,16 +54,21 @@ wire [`DATA_WIDTH-1:0] alu_result_data;
 wire [`DATA_WIDTH-1:0] decoder_immediate_extended;
 wire [`DATA_WIDTH-1:0] mux_alu_operand_b;
 wire alu_is_immediate;
-wire ifu_current_instr;
+wire [`DATA_WIDTH-1:0] ifu_current_instr;
 wire alu_overflow;
 wire next_instr_lock;
-wire alu_reg_dest_addr;
+wire [`REG_ADDR_WIDTH-1:0] alu_reg_dest_addr;
+wire [`REG_ADDR_WIDTH-1:0] reg_writeback_addr;
+wire [`REG_ADDR_WIDTH-1:0] reg_writeback_addr_2;
+wire writeback_to_reg;
+wire writeback_to_alu;
+wire writeback_we;
 
 jedro_1_ifu		ifu_inst 	 (.clk_i			   (clk_i),
 							  .rstn_i			   (rstn_i),
 
 							  // The interface to the FSM
-							  .get_next_instr_i	   (1'b1), // TODO
+							  .get_next_instr_i	   (1'b0), // TODO
 							  .next_instr_lock_o   (next_instr_lock), // This signal should probably go to the FSM 
 							  .jmp_instr_i		   (1'b0),
 							  
@@ -92,6 +97,7 @@ jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
     						  .alu_reg_op_b_addr_o 	   (alu_reg_op_b_addr),
 							  .alu_reg_dest_addr_o	   (alu_reg_dest_addr),
 							  .alu_immediate_ext_o 	   (decoder_immediate_extended),
+							  .alu_wb_o				   (writeback_to_reg),
 
 							  .lsu_new_ctrl_o		   (), // TODO
 							  .lsu_ctrl_o			   (),
@@ -99,22 +105,28 @@ jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
 
 
 
-jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst (.clk_i   	 (clk_i),
-    											 .rstn_i	 (rstn_i),
-    											 .rpa_addr_i (alu_reg_op_a_addr),
-    											 .rpa_data_o (reg_op_a_data),
-    											 .rpb_addr_i (alu_reg_op_b_addr),
-    											 .rpb_data_o (reg_op_b_data),
-    											 .wpc_addr_i (4'b0),			// TODO
-    											 .wpc_data_i (alu_result_data), // TODO
-    											 .wpc_we_i   (1'b0));			// TODO
+jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst (.clk_i   	 	 (clk_i),
+    											 .rstn_i	 	 (rstn_i),
+    											 .rpa_addr_i 	 (alu_reg_op_a_addr),
+    											 .rpa_data_o 	 (reg_op_a_data),
+    											 .rpb_addr_i 	 (alu_reg_op_b_addr),
+    											 .rpb_data_o 	 (reg_op_b_data),
+    											 .wpc_addr_i 	 (reg_writeback_addr_2),	// TODO
+    											 .wpc_data_i 	 (alu_result_data), 		// TODO
+    											 .wpc_we_i   	 (writeback_we),
+
+											     .reg_alu_dest_i (alu_reg_dest_addr),
+											     .reg_alu_dest_o (reg_writeback_addr),
+												 .reg_alu_wb_i	 (writeback_to_reg),
+												 .reg_alu_wb_o	 (writeback_to_alu));		// TODO
+
 
 
 // alu_is_immediate signal tells if an operation is between 2 registers or an
 // register and an immediate. Based on this the 2:1 MUX bellow selects the 
 // mux_alu_operand_b
 assign alu_is_immediate = ~(alu_reg_op_a & alu_reg_op_b);
-assign mux_alu_operand_b = alu_is_immediate ? reg_op_b_data : decoder_immediate_extended;
+assign mux_alu_operand_b = alu_is_immediate ? decoder_immediate_extended : reg_op_b_data;
 
 jedro_1_alu alu_inst (.clk_i 		(clk_i),
     				  .rstn_i		(rstn_i),
@@ -122,6 +134,19 @@ jedro_1_alu alu_inst (.clk_i 		(clk_i),
     				  .opa_i		(reg_op_a_data),
     				  .opb_i		(mux_alu_operand_b),
     				  .res_o		(alu_result_data),
-					  .overflow_o	(alu_overflow)); // overflow signal should probably go to the FSM
+					  .overflow_o	(alu_overflow),
+
+					  .reg_alu_dest_addr_i (reg_writeback_addr),
+					  .reg_alu_dest_addr_o (reg_writeback_addr_2),
+					  .alu_reg_wb_i		   (writeback_to_alu),
+					  .alu_reg_wb_o		   (writeback_we)); // overflow signal should probably go to the FSM
+
+
+`ifdef COCOTB_SIM
+initial begin
+	$dumpfile ("jedro_1_top_testing.vcd");
+	$dumpvars (0, jedro_1_top);
+end
+`endif
 
 endmodule

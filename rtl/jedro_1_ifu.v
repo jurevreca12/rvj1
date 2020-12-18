@@ -52,26 +52,21 @@ always @(posedge clk_i) begin
 		cinstr_o <= 0;
 		next_instr_lock_o <= 0;
 	end
-	else if (get_next_instr_i == 1'b1) begin
+	else begin
 		cinstr_o <= data_i;
-		if (jmp_instr_i == 1'b1) begin
-			pc_r <= jmp_address_i;
+		if (get_next_instr_i == 1'b1) begin	
+			if (jmp_instr_i == 1'b1) begin
+				pc_r <= jmp_address_i;
+			end
+			else begin
+				pc_r <= pc_r + 4;
+			end 
 		end
-		else begin
-			pc_r <= pc_r + 4;
-		end 
 	end
 	
 
 	
 end
-
-`ifdef COCOTB_SIM
-initial begin
-	$dumpfile ("jedro_1_ifu_test.vcd");
-	$dumpvars (0, jedro_1_ifu);
-end
-`endif
 
 endmodule
 

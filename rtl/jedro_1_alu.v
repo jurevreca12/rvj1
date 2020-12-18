@@ -23,7 +23,13 @@ module jedro_1_alu
 	input 	[`DATA_WIDTH-1:0]		opa_i,
 	input   [`DATA_WIDTH-1:0]		opb_i,
 	output reg [`DATA_WIDTH-1:0]	res_o,
-	output reg						overflow_o
+	output reg						overflow_o,
+
+	input [`REG_ADDR_WIDTH-1:0]			reg_alu_dest_addr_i,
+	output reg [`REG_ADDR_WIDTH-1:0]	reg_alu_dest_addr_o,
+	
+	input						alu_reg_wb_i,
+	output reg					alu_reg_wb_o
 );
 
 
@@ -88,13 +94,16 @@ barrel_shifter_right_32b shifter_right_32b_inst
 	.out   (shifter_right_res)
 );
 
-// Reset
 always@(posedge clk_i) begin
 	if (rstn_i == 1'b0) begin
-		overflow_o <= 0;	
+		overflow_o <= 0;
+		alu_reg_wb_o <= 0;
+		reg_alu_dest_addr_o <= 0;	
 	end
 	else begin
 		overflow_o <= adder_overflow;
+		alu_reg_wb_o <= alu_reg_wb_i;	
+		reg_alu_dest_addr_o <= reg_alu_dest_addr_i;	
 	end
 end
 
@@ -152,15 +161,6 @@ begin
 		endcase
 	end
 end
-
-
-`ifdef COCOTB_SIM
-initial begin
-	$dumpfile("jedro_1_alu.vcd");
-	$dumpvars(0, jedro_1_alu);
-	#1;
-end
-`endif
 
 endmodule
 

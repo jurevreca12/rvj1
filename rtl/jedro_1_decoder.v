@@ -30,8 +30,9 @@ module jedro_1_decoder
 	output reg 							alu_reg_op_b_o,
 	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_a_addr_o,
 	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_op_b_addr_o,
-	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_dest_addr_o,		// So the ALU knows where to store the result after computing it.
-	output reg [`DATA_WIDTH:0]			alu_immediate_ext_o,	// sign extended
+	output reg [`REG_ADDR_WIDTH-1:0]	alu_reg_dest_addr_o,	// So the ALU knows where to store the result after computing it.
+	output reg [`DATA_WIDTH-1:0]		alu_immediate_ext_o,	// sign extended
+	output reg 							alu_wb_o,				// writeback to the register?
 
 	// Interface to the load-store unit
 	output reg 							lsu_new_ctrl_o,	
@@ -63,11 +64,11 @@ sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_I (.in_i(imm11_0),
 								 	                         .out_o(I_immediate_sign_extended_w));
 
 // For the J instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_J (.in_i({instr_rdata_i[31], instr_rdata_i[19:12], instr_rdata_i[20], instr_rdata_i[10:1], 1'b0}),
+sign_extender #(.N(`DATA_WIDTH), .M(21)) sign_extender_inst_J (.in_i({instr_rdata_i[31], instr_rdata_i[19:12], instr_rdata_i[20], instr_rdata_i[10:1], 1'b0}),
 								 	                         .out_o(J_immediate_sign_extended_w));
 
 // For the B instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_B (.in_i({instr_rdata_i[31], instr_rdata_i[7], instr_rdata_i[30:25], instr_rdata_i[11:8], 1'b0}),
+sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_B (.in_i({instr_rdata_i[31], instr_rdata_i[7], instr_rdata_i[30:25], instr_rdata_i[11:8], 1'b0}),
 								 	                         .out_o(B_immediate_sign_extended_w));
 // Reset
 always @(posedge clk_i)
@@ -79,7 +80,9 @@ begin
 		alu_reg_op_a_addr_o <= {`REG_ADDR_WIDTH{1'b0}};
 		alu_reg_op_b_addr_o <= {`REG_ADDR_WIDTH{1'b0}}; 
 		alu_immediate_ext_o <= 0;
+		alu_wb_o			<= 0;
 		illegal_instr_o 	<= 1'b0;
+		alu_reg_dest_addr_o <= 0;
 	end
 end
 
@@ -88,7 +91,7 @@ always @(posedge clk_i)
 begin
 	case (opcode)
 		`OPCODE_LOAD: begin
-			lsu_new_ctrl_o 	<= 1'b1;
+			lsu_new_ctrl_o 		<= 1'b1;
 			lsu_ctrl_o			<= {opcode[6], funct3};
 			lsu_regdest_o		<= regdest;
 			alu_reg_op_a_o		<= 1'b1;
@@ -100,8 +103,14 @@ begin
 			alu_immediate_ext_o <= I_immediate_sign_extended_w;		
 		end
 
-		`OPCODE_OPIMM: begin	
-			alu_immediate_ext_o <= I_immediate_sign_extended_w;		
+		`OPCODE_OPIMM: begin
+			alu_op_sel_o 			<= {instr_rdata_i[30], funct3};
+			alu_reg_op_a_o			<= 1;	
+			alu_reg_op_a_addr_o		<= regs1;
+			alu_reg_op_b_o			<= 0;
+			alu_wb_o				<= 1;	
+			alu_immediate_ext_o 	<= I_immediate_sign_extended_w;		
+			alu_reg_dest_addr_o		<= regdest;
 		end
 
 		`OPCODE_AUIPC: begin
@@ -109,7 +118,7 @@ begin
 		end
 
 		`OPCODE_STORE: begin
-			lsu_new_ctrl_o 	<= 1;
+			lsu_new_ctrl_o 		<= 1;
 			lsu_ctrl_o			<= {opcode[6], funct3};
 			alu_reg_op_a_o		<= 1'b1;	
 			alu_reg_op_a_addr_o	<= regs1;	
@@ -151,16 +160,5 @@ begin
 		end
 	endcase
 end
-
-
-
-`ifdef COCOTB_SIM
-initial begin
-    $dumpfile("jedro_1_decoder.vcd");
-    $dumpvars(0, jedro_1_decoder);
-    #1;
-end
-`endif
-
 
 endmodule // jedro_1_decoder
