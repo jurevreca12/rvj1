@@ -1,3 +1,5 @@
+.PHONY: vivado
+
 vivado:
 	vivado -mode batch -source ./vivado/synth.tcl
 clean:
@@ -6,4 +8,4 @@ clean:
 	rm -rf ./vivado/output/ -f
 
 
-.PHONY: vivado
+

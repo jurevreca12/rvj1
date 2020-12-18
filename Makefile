@@ -1,5 +1,6 @@
-all: lint sim vivado doc
+.PHONY: all doc vivado lint clean test env_inst env_act env_deact
 
+all: lint test vivado doc
 
 doc:
 	cd docs && $(MAKE)
@@ -7,26 +8,28 @@ doc:
 vivado:
 	cd impl && $(MAKE) vivado
 
-synth:
-	qflow synthesize top.v
-
 lint:
 	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.v ./rtl/*.v 
 
 clean:
-	rm source/*.ys
-	rm source/*.blif
-	rm -rf env/
+	cd impl && $(MAKE) clean
+	cd doc && $(MAKE) clean
+	cd tb && $(MAKE) clean
 
-sim:
+test:
 	$(MAKE) -C tb/ all 
 
-
-envinst: 
+env_inst: 
 	virtualenv --python=/usr/bin/python3 env
 	source env/bin/activate
-	python -m pip install cocotb
+	python3 -m pip install cocotb
 
-envact:
+env_act:
 	source env/bin/activate
+
+env_deact:
+	source env/bin/deactivate
+
+
+
 

@@ -1,3 +1,5 @@
+.PHONY: all latex clean
+
 all:  latex
 
 latex:

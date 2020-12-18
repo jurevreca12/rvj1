@@ -35,3 +35,7 @@ COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
 # Simulation stuff
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
+clean_other:
+	rm -f  *.vcd
+	rm -rf __pycache__/
+	rm -f  results.xml
