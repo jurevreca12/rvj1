@@ -56,6 +56,7 @@ wire [31:25] funct7   = instr_rdata_i[31:25];
 wire [`DATA_WIDTH-1:0] I_immediate_sign_extended_w;
 wire [`DATA_WIDTH-1:0] J_immediate_sign_extended_w;
 wire [`DATA_WIDTH-1:0] B_immediate_sign_extended_w;
+wire [`DATA_WIDTH-1:0] S_immediate_sign_extended_w;
 
 
 // COMBINATIONAL LOGIC
@@ -70,6 +71,11 @@ sign_extender #(.N(`DATA_WIDTH), .M(21)) sign_extender_inst_J (.in_i({instr_rdat
 // For the B instruction type immediate
 sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_B (.in_i({instr_rdata_i[31], instr_rdata_i[7], instr_rdata_i[30:25], instr_rdata_i[11:8], 1'b0}),
 								 	                         .out_o(B_immediate_sign_extended_w));
+
+// For the S instruction type immediate
+sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_S (.in_i({instr_rdata_i[31:25], instr_rdata_i[11:7], 1'b0}),
+								 	                         .out_o(S_immediate_sign_extended_w));
+
 // Reset
 always @(posedge clk_i)
 begin
@@ -122,7 +128,7 @@ begin
 			lsu_ctrl_o			<= {opcode[6], funct3};
 			alu_reg_op_a_o		<= 1'b1;	
 			alu_reg_op_a_addr_o	<= regs1;	
-			alu_immediate_ext_o	<= {instr_rdata_i[31:25], instr_rdata_i[11:7]};
+			alu_immediate_ext_o	<= S_immediate_sign_extended_w;
 		end
 		
 		`OPCODE_OP: begin

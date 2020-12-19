@@ -21,24 +21,23 @@ module ripple_carry_adder_Nb #(parameter N = 32) (
 	output carry_o
 );
 
-wire [N:0] carry;
+wire [N-1:0] carry;	  // carry[0] is used to implement substraction
 wire [N-1:0] b_mod;
-wire ci_mod; 		  // Used to implement substraction 
-
 
 // inv_b = 0 and ci = 0 -> a + b + 0
 // inb_b = 0 and ci = 1 -> a + b + 1
 // inv_b = 1 and ci = 0 -> a + (~b + 1) = a + ~b + 1
 // inv_b = 1 and ci = 1 -> a + (~b + 1) + 1 = a + ~b
 assign b_mod  = (inv_b_i)?(~opb_i):opb_i;
-assign ci_mod = (inv_b_i)?(~carry_i):carry_i;
-assign carry[0] = ci_mod; // The first 1-bit full adders cary in is usually zero.
+assign carry[0] = (inv_b_i)?(~carry_i):carry_i;
 
+full_adder_1b FA_1b_0(opa_i[0], b_mod[0], carry[0], res_o[0], carry[1]);
 genvar i;
-for (i = 0; i < N; i = i + 1) begin
+generate
+for (i = 1; i < N; i = i + 1) begin
 	full_adder_1b FA_1b(opa_i[i], b_mod[i], carry[i], res_o[i], carry[i+1]);
 end
-
-assign carry_o = carry[N];
+endgenerate
+full_adder_1b FA_1b_N(opa_i[N-1], b_mod[N-1], carry[N-1], res_o[N-1], carry_o);
 
 endmodule
