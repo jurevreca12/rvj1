@@ -88,7 +88,7 @@ jedro_1_decoder decoder_inst (.clk_i 		   	       (clk_i),
     						  .rstn_i 	   	   	       (rstn_i),
     						  
 							  .instr_rdata_i   	       (ifu_current_instr),
-							  .illegal_instr_o 	       (illegal_instr),
+							  .illegal_instr_o 	       (), // TODO
             
     						  .alu_op_sel_o    	       (alu_op_sel), 
     						  .alu_reg_op_a_o  	       (alu_reg_op_a), 
@@ -142,11 +142,14 @@ jedro_1_alu alu_inst (.clk_i 		(clk_i),
 					  .alu_reg_wb_o		   (writeback_we)); // overflow signal should probably go to the FSM
 
 
+// Note that the ICARUS flag needs to be set in the makefile arguments
 `ifdef COCOTB_SIM
+`ifdef ICARUS
 initial begin
 	$dumpfile ("jedro_1_top_testing.vcd");
 	$dumpvars (0, jedro_1_top);
 end
+`endif
 `endif
 
 endmodule

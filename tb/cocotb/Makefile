@@ -25,11 +25,20 @@ VERILOG_SOURCES =  $(SOURCE_DIR)/jedro_1_top.v					\
 				   $(SOURCE_DIR)/alu/shift/barrel_shifter_right_32b.v \
 				   $(SOURCE_DIR)/sign_extender.v
 
-# Simulation stuff
-SIM = icarus
 TOPLEVEL = jedro_1_top # TOPLEVEL is the name of the top level module
 MODULE = test_top # MODULE is the name of the Python test file
-COMPILE_ARGS = -I $(SOURCE_DIR)/inc/
+
+# Default simulator is icarus
+ifeq ($(SIM),)
+SIM = icarus
+endif
+
+ifeq ($(SIM),icarus)
+COMPILE_ARGS = -I $(SOURCE_DIR)/inc/ -DICARUS=1
+else ifeq ($(SIM),verilator)
+COMPILE_ARGS = -I$(SOURCE_DIR)/inc/
+EXTRA_ARGS += --trace --trace-structs --coverage
+endif
 
 
 # Simulation stuff

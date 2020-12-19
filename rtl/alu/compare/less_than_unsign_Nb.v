@@ -23,7 +23,7 @@ wire [N-1:0] w1 =  ( ~a & b ); // check if a is less than b  (i.e. a is zero and
 wire [N-1:0] w2;
 
 assign w2[0] = w1[0];
-assign r     = {31'b0, w2[N-1]};
+assign r = { {N-1{1'b0}} , w2[N-1]};
 
 genvar i;
 generate 
