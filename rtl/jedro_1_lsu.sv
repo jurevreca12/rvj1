@@ -11,7 +11,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
   
-`include "jedro_1_defines.v"
+import jedro_1_defines::*;
 
 
 module jedro_1_lsu
@@ -20,13 +20,13 @@ module jedro_1_lsu
 	input rstn_i,
 	
 	input lsu_new_ctrl_i, // signals if the control signal is valid (i.e. new instruction)
-	input [`LSU_CTRL_WIDTH-1:0] lsu_ctrl_i,
+	input [LSU_CTRL_WIDTH-1:0] lsu_ctrl_i,
 
 	// Decoded signals from the decoder
-	input [`REG_ADDR_WIDTH-1:0] lsu_regdest_i,
-	input [`REG_ADDR_WIDTH-1:0] lsu_regsrc1_i,
+	input [REG_ADDR_WIDTH-1:0] lsu_regdest_i,
+	input [REG_ADDR_WIDTH-1:0] lsu_regsrc1_i,
 	input [11:0]				lsu_offset_i,
-	input [`REG_ADDR_WIDTH-1:0] lsu_regsrc2_i	
+	input [REG_ADDR_WIDTH-1:0] lsu_regsrc2_i	
 );
 
 

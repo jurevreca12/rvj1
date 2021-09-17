@@ -12,31 +12,31 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-`include "jedro_1_defines.v"
+import jedro_1_defines::*;
 
 module jedro_1_ifu 
 (
-	input					 	 clk_i,
-	input						 rstn_i,
+	input	clk_i,
+	input	rstn_i,
 
-	input 						 get_next_instr_i,	// A signal that specifys that we can get the next isntruction (controlled by the cores FSM)
-	output reg					 next_instr_lock_o, // Indicates that the next instruction is not ready to be processed TODO
-	input						 jmp_instr_i,		// specify that we encountered a jump instruction and the program counter should be changed to jmp_address_i
+	input 	get_next_instr_i,	// A signal that specifys that we can get the next isntruction (controlled by the cores FSM)
+	output	next_instr_lock_o, // Indicates that the next instruction is not ready to be processed TODO
+	input		jmp_instr_i,		// specify that we encountered a jump instruction and the program counter should be changed to jmp_address_i
 	
 	// This address comes from the ALU (actually it comes from a mux after the ALU)
-	input	   [`DATA_WIDTH-1:0] jmp_address_i,		// The address to jump to, after we had encountered a jump instruction
+	input	[`DATA_WIDTH-1:0] jmp_address_i,		// The address to jump to, after we had encountered a jump instruction
 	
 	// Interface to the ROM memory
-	output  					 rsta_o,	// Reset the memory
-	output reg					 en_o,		// Enable the memory
-	output     [`DATA_WIDTH-1:0] addr_o,	// The relevant address of the isntruction
-	input 	   [`DATA_WIDTH-1:0] data_i,	// The instruction
+	output  					       rsta_o,	// Reset the memory
+	output 					         en_o,		// Enable the memory
+	output [`DATA_WIDTH-1:0] addr_o,	// The relevant address of the isntruction
+	input  [`DATA_WIDTH-1:0] data_i,	// The instruction
 
 	// Interface to the decoder
-	output reg [`DATA_WIDTH-1:0] cinstr_o		// The current instruction (to be decoded)
+	output [`DATA_WIDTH-1:0] cinstr_o		// The current instruction (to be decoded)
 );
 
-reg [`DATA_WIDTH-1:0] pc_r;
+logic [`DATA_WIDTH-1:0] pc_r;
 
 // COMBINATIAL LOGIC
 // The output address just follows pc_r
@@ -62,10 +62,7 @@ always @(posedge clk_i) begin
 				pc_r <= pc_r + 4;
 			end 
 		end
-	end
-	
-
-	
+	end	
 end
 
 endmodule

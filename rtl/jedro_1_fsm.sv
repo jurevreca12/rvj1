@@ -11,7 +11,8 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
   
-`include "jedro_1_defines.v"
+import jedro_1_defines::*;
+
 
 
 module jedro_1_fsm
@@ -20,3 +21,4 @@ module jedro_1_fsm
 );
 
 endmodule
+
