@@ -39,7 +39,6 @@ logic [DATA_WIDTH-1:0]     mux_alu_operand_b;
 logic                      alu_is_immediate;
 logic [DATA_WIDTH-1:0]     ifu_current_instr;
 logic                      alu_overflow;
-logic                      next_instr_lock;
 logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr;
 logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr;
 logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr_2;
@@ -52,7 +51,6 @@ jedro_1_ifu ifu_inst(.clk_i         (clk_i),
 
                      // The interface to the FSM
                      .get_next_instr_i    (1'b0), // TODO
-                     .next_instr_lock_o   (next_instr_lock), // This signal should go to the FSM? 
                      .jmp_instr_i         (1'b0),
                      .jmp_address_i       (32'b0),
 
