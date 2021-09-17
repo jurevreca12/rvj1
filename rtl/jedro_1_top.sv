@@ -19,7 +19,7 @@ module jedro_1_top
   logic input clk_i,
   logic input rstn_i,
 
-  if_ram_1way.MASTER          if_instr_ram;
+  if_ram_1way.MASTER          if_instr_mem;
   if_ram_2way_32b_data.MASTER if_data_ram;
 
  // IRQ/Debug interface TODO
@@ -45,7 +45,7 @@ logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr;
 logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr_2;
 logic                       writeback_to_reg;
 logic                       writeback_to_alu;
-logic                       writeback_we;
+logic                       writeback_we;i
 
 jedro_1_ifu ifu_inst(.clk_i         (clk_i),
                      .rstn_i        (rstn_i),

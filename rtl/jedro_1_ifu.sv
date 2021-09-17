@@ -13,6 +13,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 import jedro_1_defines::*;
+import interfaces::if_ram_1way;
 
 module jedro_1_ifu 
 (
@@ -27,10 +28,7 @@ module jedro_1_ifu
 	input	[`DATA_WIDTH-1:0] jmp_address_i,		// The address to jump to, after we had encountered a jump instruction
 	
 	// Interface to the ROM memory
-	output  					       rsta_o,	// Reset the memory
-	output 					         en_o,		// Enable the memory
-	output [`DATA_WIDTH-1:0] addr_o,	// The relevant address of the isntruction
-	input  [`DATA_WIDTH-1:0] data_i,	// The instruction
+  if_ram_1way.MASTER      if_inst_mem,
 
 	// Interface to the decoder
 	output [`DATA_WIDTH-1:0] cinstr_o		// The current instruction (to be decoded)
