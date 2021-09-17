@@ -1,4 +1,4 @@
-.PHONY: all doc vivado lint clean test env_inst env_act env_deact
+.PHONY: all doc vivado lint clean test 
 
 all: lint test vivado doc
 
@@ -22,18 +22,5 @@ clean:
 
 test:
 	$(MAKE) -C tb/ all 
-
-env_inst: 
-	virtualenv --python=/usr/bin/python3 env
-	source env/bin/activate
-	python3 -m pip install cocotb
-
-env_act:
-	source env/bin/activate
-
-env_deact:
-	source env/bin/deactivate
-
-
 
 
