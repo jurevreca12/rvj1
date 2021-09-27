@@ -11,6 +11,7 @@
 //                 a single cycle read delay.                                 //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+`timescale 1ns/1ps
 
 import jedro_1_defines::*;
 
@@ -36,16 +37,13 @@ module jedro_1_ifu
 );
 
 logic [DATA_WIDTH-1:0] pc_r;
+logic [DATA_WIDTH-1:0] cinstr_reg;
 logic clock_cnt;
-logic cinstr;
 
 // COMBINATIAL LOGIC
 
 // The output address just follows pc_r
 assign if_instr_mem.ram_addr = pc_r;
-
-// Same goes for cinstr_o and cinstr
-assign cinstr_o = cinstr;
 
 
 // SEQUENTIAL LOGIC
@@ -67,23 +65,24 @@ always_ff @(posedge clk_i) begin
   end
 end
 
-assign if_instr_mem.ram_addr = pc_r;
+assign cinstr_o = cinstr_reg;
+
+always_ff @(posedge clk_i) begin
+  if (rstn_i == 1'b0) begin
+    cinstr_reg <= 0;
+  end
+  else begin
+    cinstr_reg <= clock_cnt ? cinstr_reg : if_instr_mem.ram_rdata;
+  end
+end
 
 // Handle the instruction memory interface
-always_ff@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    cinstr <= 0;
-    if_instr_mem.ram_en <= 1;
     clock_cnt <= 0; 
   end
   else begin
-      if (clock_cnt == 1'b1) begin
-        cinstr <= if_instr_mem.ram_rdata;
-      end
-      else begin
-        cinstr <= cinstr;
-        clock_cnt = ~clock_cnt; // We count only to one, hence the negation.
-      end
+    clock_cnt <= ~clock_cnt;  // We count only to one, hence the negation.  
   end 
 end
 

@@ -1,2 +1,10 @@
 xsim.dir/
 xvlog.*
+xelab.*
+webtalk*
+*.wdb
+dump.vcd
+.Xil/
+*.jou
+*.log
+*.str

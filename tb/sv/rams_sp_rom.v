@@ -1,9 +1,10 @@
+`timescale 1ns/1ps
 // Initializing Block RAM (Single-Port Block RAM)
 // File: rams_sp_rom 
 module rams_sp_rom (clk, we, addr, di, dout);
 input clk;
 input we;
-input [3:0] addr;
+input [31:0] addr;
 input [31:0] di;
 output [31:0] dout;
 
@@ -22,8 +23,8 @@ end
 always @(posedge clk)
 begin
   if (we)
-    ram[addr] <= di;
-  dout <= ram[addr];
+    ram[addr >> 2] <= di;
+  dout <= ram[addr >> 2];
 end 
 
 endmodule

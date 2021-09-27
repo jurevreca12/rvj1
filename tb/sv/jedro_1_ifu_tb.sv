@@ -10,28 +10,20 @@ module jedro_1_ifu_tb();
   logic clk;
   logic rstn;
   logic get_next_instr;
-  logic jmp_addr;
-  logic [31:0] jmp_instr;
+  logic jmp_instr;
+  logic [31:0] jmp_addr;
   logic [31:0] current_instr;
 
 
-  if_ram_1way if_ram_cpu_instr_inst();
-
-  ram_sp_rom_wrap rom_memory_inst(.clk_i (clk),
-                                  .rstn_i(rstn),
-                                  .if_rom(if_ram_cpu_instr_inst.SLAVE)
-                                );
 
 
-  jedro_1_ifu ifu_inst(.clk_i           (clk),
-                       .rstn_i          (rstn),
-                       .get_next_instr_i(get_next_instr),
-                       .jmp_instr_i     (jmp_instr),
-                       .jmp_address_i   (jmp_addr),
-                       .if_instr_mem    (if_ram_cpu_instr_inst.MASTER),
-                       .cinstr_o        (current_instr)
-                     );
-
+  jedro_1_ifu_tb_top dut(.clk  (clk),
+                         .rstn (rstn),
+                         .get_next_instr(get_next_instr),
+                         .jmp_instr(jmp_instr),
+                         .jmp_addr(jmp_addr),
+                         .current_instr(current_instr)
+                       );
 
   
   // Handle the clock signal
@@ -41,10 +33,12 @@ module jedro_1_ifu_tb();
   clk            <= 1'b0;
   rstn           <= 1'b0;
   get_next_instr <= 1'b0;
-  jmp_addr       <= 1'b0;
-  current_instr  <= 1'b0;
+  jmp_instr      <= 1'b0;
+  jmp_addr       <= 32'b0;
 
-  repeat (2) @ (posedge clk)
+  repeat (5) @ (posedge clk)
+  
+  rstn <= 1'b1;
 
   // Simple cycle through (no jumps)
   get_next_instr <= 1'b1;
@@ -53,13 +47,19 @@ module jedro_1_ifu_tb();
     repeat (1) @ (posedge clk) 
     repeat (1) @ (posedge clk) begin
       if (i < 15) begin
-        assert current_instr == i;
+        if (!(current_instr == i)) begin
+          $display("ERROR 0: incorrect result at i:%d, current_instr:%d", i, current_instr);
+        end
       end
       else begin
-        assert current_instr == 32'hFFFF_FFFF;
+        if (!(current_instr == 32'hFFFF_FFFF)) begin
+          $display("ERROR 1: incorrect result at i:%d, current_instr:%d", i, current_instr);
+        end
       end
     end
   end
+
+  $finish;
 
   end
 

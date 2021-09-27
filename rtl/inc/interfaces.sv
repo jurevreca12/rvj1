@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 interface if_ram_1way #(
 		parameter ADDR_WIDTH=32,
 		parameter DATA_WIDTH=32

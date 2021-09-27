@@ -1,5 +1,5 @@
 // This document contains the opcode definitions of RISC-V
-
+`timescale 1ns/1ps
 package jedro_1_defines;
 
 // General defines
