@@ -36,7 +36,7 @@ module jedro_1_ifu_tb();
   jmp_instr      <= 1'b0;
   jmp_addr       <= 32'b0;
 
-  repeat (5) @ (posedge clk)
+  repeat (1) @ (posedge clk)
   
   rstn <= 1'b1;
 

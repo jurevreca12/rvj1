@@ -54,7 +54,7 @@ always_ff @(posedge clk_i) begin
     pc_r <= BOOT_ADDR;
   end
   else begin
-    if (get_next_instr_i == 1'b1 & clock_cnt == 1'b0) begin 
+    if (get_next_instr_i == 1'b1 & clock_cnt == 1'b1) begin 
       if (jmp_instr_i == 1'b1) begin
         pc_r <= jmp_address_i;
       end
@@ -72,7 +72,7 @@ always_ff @(posedge clk_i) begin
     cinstr_reg <= 0;
   end
   else begin
-    cinstr_reg <= clock_cnt ? cinstr_reg : if_instr_mem.ram_rdata;
+    cinstr_reg <= clock_cnt ? if_instr_mem.ram_rdata : cinstr_reg;
   end
 end
 
