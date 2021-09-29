@@ -13,7 +13,7 @@ module jedro_1_ifu_tb();
   logic jmp_instr;
   logic [31:0] jmp_addr;
   logic [31:0] current_instr;
-
+  logic cinstr_valid_o;
 
 
 
@@ -22,12 +22,13 @@ module jedro_1_ifu_tb();
                          .get_next_instr(get_next_instr),
                          .jmp_instr(jmp_instr),
                          .jmp_addr(jmp_addr),
-                         .current_instr(current_instr)
+                         .current_instr(current_instr),
+                         .current_instr_valid(cistr_valid_o)
                        );
 
   
   // Handle the clock signal
-  always #10 clk = ~clk;
+  always #1 clk = ~clk;
 
   initial begin
   clk            <= 1'b0;
@@ -36,15 +37,18 @@ module jedro_1_ifu_tb();
   jmp_instr      <= 1'b0;
   jmp_addr       <= 32'b0;
 
-  repeat (1) @ (posedge clk)
+  repeat (3) @ (posedge clk);
   
   rstn <= 1'b1;
 
+  repeat (1) @ (posedge clk);
   // Simple cycle through (no jumps)
   get_next_instr <= 1'b1;
-
+  repeat (2) @ (posedge clk);
   for (int i = 0; i < 16; i++) begin
-    repeat (1) @ (posedge clk) 
+    if (cinstr_valid_o == 1'b0) begin
+      $display("ERROR 2, cinstr_valid_o should be asserted here.");
+    end
     repeat (1) @ (posedge clk) begin
       if (i < 15) begin
         if (!(current_instr == i)) begin

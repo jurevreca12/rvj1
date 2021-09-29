@@ -9,7 +9,8 @@ module jedro_1_ifu_tb_top
   input get_next_instr,
   input jmp_instr,
   input [31:0] jmp_addr,
-  output [31:0] current_instr
+  output [31:0] current_instr,
+  output current_instr_valid
 );
 
   if_ram_1way #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) cpu_rom_if();
@@ -25,7 +26,8 @@ module jedro_1_ifu_tb_top
                        .jmp_instr_i     (jmp_instr),
                        .jmp_address_i   (jmp_addr),
                        .if_instr_mem    (cpu_rom_if.MASTER),
-                       .cinstr_o        (current_instr)
+                       .cinstr_o        (current_instr),
+                       .cinstr_valid_o  (current_instr_valid)
                      );
 
 endmodule
