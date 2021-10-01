@@ -12,4 +12,4 @@ all:
 	xsim sim_snapshot -t simulate.tcl
 
 clean:
-	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb dump.vcd
+	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb dump.vcd Xil./
