@@ -3,6 +3,10 @@
 `include "interfaces.sv"
 
 module jedro_1_ifu_tb_top
+#(
+  parameter DATA_WIDTH = 32,
+  parameter ADDR_WIDTH = 32
+)
 (
   input clk,
   input rstn,
@@ -13,7 +17,7 @@ module jedro_1_ifu_tb_top
   output current_instr_valid
 );
 
-  if_ram_1way #(.ADDR_WIDTH(32), .DATA_WIDTH(32)) cpu_rom_if();
+  if_ram_1way #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) cpu_rom_if();
 
   ram_sp_rom_wrap rom_memory_inst(.clk(clk),
                                   .if_rom(cpu_rom_if.SLAVE)

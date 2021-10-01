@@ -4,7 +4,7 @@
 `include "interfaces.sv"
 
 module jedro_1_ifu_tb();
-  parameter DATA_WIDTH = 4;
+  parameter DATA_WIDTH = 32;
   parameter ADDR_WIDTH = 32;
 
   logic clk;
@@ -17,7 +17,10 @@ module jedro_1_ifu_tb();
 
 
 
-  jedro_1_ifu_tb_top dut(.clk  (clk),
+  jedro_1_ifu_tb_top #(
+    .DATA_WIDTH(DATA_WIDTH),
+    .ADDR_WIDTH(ADDR_WIDTH)
+                      )   dut(.clk  (clk),
                          .rstn (rstn),
                          .get_next_instr(get_next_instr),
                          .jmp_instr(jmp_instr),
