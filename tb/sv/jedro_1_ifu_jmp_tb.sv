@@ -67,6 +67,8 @@ module jedro_1_ifu_jmp_tb();
   jmp_addr  <= 32'h0000_0004;
 
   repeat (1) @ (posedge clk);
+  
+  jmp_instr <= 1'b0;
 
   if (cinstr_valid_o == 1'b1)
     $display("ERROR 2: cinstr_valid_o should NOT be asserted one clock after jmp.");
@@ -77,7 +79,7 @@ module jedro_1_ifu_jmp_tb();
     $display("ERROR 3: cinstr_valid_o should NOT be asserted two clocks after jmp.");
 
 
-  repeat (1) @ (posedge clk);
+  repeat (2) @ (posedge clk);
 
   if (cinstr_valid_o == 1'b0)
     $display("ERROR 4: cinstr_valid_o should be asserted three clocks after jmp.");

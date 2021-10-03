@@ -8,7 +8,8 @@
 // Language:       Verilog                                                    //
 //                                                                            //
 // Description:    The instruction fetch unit for SPROM memory with           //
-//                 a single cycle read delay.                                 //
+//                 a single cycle read delay. The jmp_instr_i should only be  //
+//                 asserted for a single clock cycle (for every jmp instr).   //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns/1ps
@@ -36,50 +37,56 @@ module jedro_1_ifu
   // Interface to the ROM memory
   if_ram_1way.MASTER      if_instr_mem
 );
+localparam CINSTR_SHIFTREG_DEPTH = 2;
 
 logic [DATA_WIDTH-1:0] pc_r;
 logic [DATA_WIDTH-1:0] cinstr_reg;
-logic cinstr_valid_reg_0;
-logic cinstr_valid_reg_1;
-logic cinstr_valid_reg_2;
+logic [CINSTR_SHIFTREG_DEPTH-1:0] cinstr_valid_shiftreg;
 
+
+// PROGRAM COUNTER LOGIC
 // The output address just follows pc_r
 assign if_instr_mem.ram_addr = pc_r;
-assign cinstr_valid_o = cinstr_valid_reg_2;
 
-// Program Counter logic
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     pc_r <= BOOT_ADDR;
-    cinstr_valid_reg_0 <= 1'b0;
-    cinstr_valid_reg_1 <= 1'b0;
-    cinstr_valid_reg_2 <= 1'b0;
   end
   else begin
-    cinstr_valid_reg_1 <= cinstr_valid_reg_0;
-    cinstr_valid_reg_2 <= cinstr_valid_reg_1;
-
-    // We change the program counter only when the get_next_instr_i signal is
-    // aserted and the output on the cinstr_o bus is valid (for the previous
-    // instruction).
-    if (get_next_instr_i == 1'b1 & cinstr_valid_reg_0 == 1'b1) begin 
-      if (jmp_instr_i == 1'b1) begin
+    if (get_next_instr_i == 1'b1) begin 
+      if (jmp_instr_i == 1'b1)
         pc_r <= jmp_address_i;
-        cinstr_valid_reg_0 <= 1'b0;
-        cinstr_valid_reg_1 <= 1'b0;
-        cinstr_valid_reg_2 <= 1'b0;
-      end
-      else begin 
+      else
         pc_r <= pc_r + 4;
-      end
     end
     else begin
-      cinstr_valid_reg_0 <= 1'b1;
+      pc_r <= pc_r;
     end
   end
 end
 
-// Reading logic
+// VALID SIGNAL GENERATION
+assign cinstr_valid_o = cinstr_valid_shiftreg[CINSTR_SHIFTREG_DEPTH-1];
+
+always_ff @(posedge clk_i) begin
+  if (rstn_i == 1'b0) begin
+    cinstr_valid_shiftreg <= CINSTR_SHIFTREG_DEPTH'('b00);
+  end
+  else begin
+    if (get_next_instr_i == 1'b1) begin
+        cinstr_valid_shiftreg <= cinstr_valid_shiftreg << 1;
+        if (jmp_instr_i == 1'b1)
+          cinstr_valid_shiftreg[0] <= 1'b0;
+        else
+          cinstr_valid_shiftreg[0] <= 1'b1;
+    end
+    else begin
+      cinstr_valid_shiftreg <= cinstr_valid_shiftreg;
+    end
+  end
+end
+
+// READING LOGIC
 assign cinstr_o = cinstr_reg;
 
 always_ff @(posedge clk_i) begin
