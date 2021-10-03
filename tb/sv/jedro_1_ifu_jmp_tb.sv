@@ -64,7 +64,7 @@ module jedro_1_ifu_jmp_tb();
   repeat (1) @ (posedge clk);
   
   jmp_instr <= 1'b1;
-  jmp_addr  <= 32'h0000_0000;
+  jmp_addr  <= 32'h0000_0004;
 
   repeat (1) @ (posedge clk);
 
@@ -82,8 +82,8 @@ module jedro_1_ifu_jmp_tb();
   if (cinstr_valid_o == 1'b0)
     $display("ERROR 4: cinstr_valid_o should be asserted three clocks after jmp.");
 
-  if (!(current_instr == 0))
-    $display("ERROR 5: current_instr should be set to 0 (value at address 0)");
+  if (!(current_instr == 1))
+    $display("ERROR 5: current_instr should be set to 1 (value at address 4)");
 
   repeat (3) @ (posedge clk);
   $finish;
