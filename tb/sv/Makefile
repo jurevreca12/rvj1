@@ -26,10 +26,12 @@ sim: sim_ifu_tb sim_ifu_jmp_tb
 
 sim_ifu_tb:
 	xsim ifu_tb_sim -t simulate.tcl
+	mv dump.vcd ifu_tb_sim.vcd
 
 sim_ifu_jmp_tb:
 	xsim ifu_jmp_tb_sim -t simulate.tcl
+	mv dump.vcd ifu_jmp_tb_sim.vcd
 
 
 clean:
-	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb dump.vcd Xil./
+	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./
