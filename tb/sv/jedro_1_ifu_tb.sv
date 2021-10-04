@@ -26,7 +26,7 @@ module jedro_1_ifu_tb();
                          .jmp_instr(jmp_instr),
                          .jmp_addr(jmp_addr),
                          .current_instr(current_instr),
-                         .current_instr_valid(cistr_valid_o)
+                         .current_instr_valid(cinstr_valid_o)
                        );
 
   
@@ -49,10 +49,10 @@ module jedro_1_ifu_tb();
   get_next_instr <= 1'b1;
   repeat (2) @ (posedge clk);
   for (int i = 0; i < 16; i++) begin
-    if (cinstr_valid_o == 1'b0) begin
-      $display("ERROR 2, cinstr_valid_o should be asserted here.");
-    end
     repeat (1) @ (posedge clk) begin
+      if (cinstr_valid_o == 1'b0) begin
+        $display("ERROR 2, cinstr_valid_o should be asserted here.");
+      end
       if (i < 15) begin
         if (!(current_instr == i)) begin
           $display("ERROR 0: incorrect result at i:%d, current_instr:%d", i, current_instr);
