@@ -1,37 +1,46 @@
-.PHONY: all gui elaborate sim sim_gui
+.PHONY: all compile clean
+# We use find to search for all verilog and system verilog files.
+INC_FOLDER := ../../rtl/inc/
+JEDRO_1_DEFINES := $(INC_FOLDER)jedro_1_defines.sv
+RTL_DIR := ../../rtl
+TB_DIR := ../.
+TB_SV_DIR := .
+TB_SUPPORT_DIR := ../support/.
+ALU_DIR := $(RTL_DIR)/alu
+ALU_ADDER_DIR := $(ALU_DIR)/adder
+ALU_COMP_DIR := $(ALU_DIR)/compare
+ALU_SHIFT_DIR := $(ALU_DIR)/shift
+ALU_SIGN_DIR := $(ALU_DIR)/sign_extension
 
-all: compile elaborate sim
+# Add directiores to search path for preqrequisits
+vpath %.sv $(RTL_DIR) $(INC_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) $(ALU_ADDER_DIR)\
+ 					 $(ALU_COMP_DIR) $(ALU_SHIFT_DIR) $(ALU_SIGN_DIR)
+vpath %.v $(RTL_DIR) $(INC_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) $(ALU_ADDER_DIR)\
+ 				 	$(ALU_COMP_DIR) $(ALU_SHIFT_DIR) $(ALU_SIGN_DIR)
 
-compile:
-	xvlog -sv ../../rtl/inc/jedro_1_defines.sv \
-				 ../../rtl/jedro_1_ifu.sv \
-				 ../support/rams_sp_rom.v \
-				 ../support/rams_sp_rom_wrap.sv \
-				 ../support/jedro_1_ifu_tb_top.sv \
-				 jedro_1_ifu_tb.sv \
-				 jedro_1_ifu_jmp_tb.sv \
-				 -i ../../rtl/inc/
+#V_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v")
+V_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v" -print0 | xargs -0 basename -a)
+#SV_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv")
+SV_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
+COMPILED_SV_MODULES := $(SV_FILES:.sv=.wdb)
+COMPILED_SV_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_SV_MODULES))
+COMPILED_V_MODULES := $(V_FILES:.v=.wdb)
+COMPILED_V_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_V_MODULES))
 
+################################
+# TARGETS
+################################
+all: compile
 
-elaborate: elaborate_ifu_tb elaborate_ifu_jmp_tb
+compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
-elaborate_ifu_tb:
-	xelab -debug typical -i ../../rtl/inc/ jedro_1_ifu_tb -s ifu_tb_sim --O0
+$(COMPILED_SV_MODULES): xsim.dir/work/%.wdb: %.sv
+	echo $(SV_PATHS)
+	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_FOLDER)
 
-elaborate_ifu_jmp_tb:
-	xelab -debug typical -i ../../rtl/inc/ jedro_1_ifu_jmp_tb -s ifu_jmp_tb_sim --O0
-
-
-sim: sim_ifu_tb sim_ifu_jmp_tb
-
-sim_ifu_tb:
-	xsim ifu_tb_sim -t simulate.tcl
-	mv dump.vcd ifu_tb_sim.vcd
-
-sim_ifu_jmp_tb:
-	xsim ifu_jmp_tb_sim -t simulate.tcl
-	mv dump.vcd ifu_jmp_tb_sim.vcd
-
+$(COMPILED_V_MODULES): xsim.dir/work/%.wdb: %.v
+	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_FOLDER)
 
 clean:
 	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./
+

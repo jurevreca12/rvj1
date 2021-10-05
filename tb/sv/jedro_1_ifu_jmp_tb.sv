@@ -1,7 +1,7 @@
 // Thtests the jump instruction functionality
 `timescale 1ns/1ps
 
-`include "interfaces.sv"
+`include "if_ram_1way.sv"
 
 module jedro_1_ifu_jmp_tb();
   parameter DATA_WIDTH = 32;

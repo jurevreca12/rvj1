@@ -1,7 +1,7 @@
 // This test bench does some basic testing of the instruction fetch unit
 `timescale 1ns/1ps
 
-`include "interfaces.sv"
+`include "if_ram_1way.sv"
 
 module jedro_1_ifu_tb();
   parameter DATA_WIDTH = 32;

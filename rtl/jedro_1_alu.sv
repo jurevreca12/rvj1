@@ -11,7 +11,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines.v::*;
+import jedro_1_defines::*;
 
 module jedro_1_alu
 (
@@ -43,8 +43,25 @@ logic [DATA_WIDTH-1:0] shifter_right_res;
 logic [DATA_WIDTH-1:0] shifter_left_res;
 logic adder_overflow;
 
+logic [DATA_WIDTH-1:0] res_reg;
+logic [DATA_WIDTH-1:0] res_mux;
+
+logic overflow_reg;
+logic alu_reg_wb_reg;
+logic reg_alu_dest_addr_reg;
+
+assign res_o = res_reg;
+// Result buffering
+always_ff@(posedge clk_i) begin
+  if (rstn_i == 1'b0)
+    res_reg <= 0;
+  else
+    res_reg <= res_mux;
+end
+
+
 // Ripple-carry adder
-ripple_carry_adder_Nb #(.N(`DATA_WIDTH)) ripple_carry_adder_32b_inst (
+ripple_carry_adder_Nb #(.N(DATA_WIDTH)) ripple_carry_adder_32b_inst (
   .carry_i (1'b0),
   .opa_i   (opa_i),
   .opb_i   (opb_i),
@@ -63,14 +80,14 @@ assign or_res = opa_i | opb_i;
 assign xor_res = opa_i ^ opb_i;
 
 // Compare modules
-less_than_sign_Nb #(.N(`DATA_WIDTH)) less_than_sign_32b_inst
+less_than_sign_Nb #(.N(DATA_WIDTH)) less_than_sign_32b_inst
 (
   .a (opa_i),
   .b (opb_i),
   .r (less_than_sign_res)
 );
 
-less_than_unsign_Nb #(.N(`DATA_WIDTH)) less_than_unsign_32b_inst
+less_than_unsign_Nb #(.N(DATA_WIDTH)) less_than_unsign_32b_inst
 (
   .a (opa_i),
   .b (opb_i),
@@ -94,72 +111,71 @@ barrel_shifter_right_32b shifter_right_32b_inst
   .out   (shifter_right_res)
 );
 
+assign overflow_o = overflow_reg;
+assign alu_reg_wb_o = alu_reg_wb_reg;
+assign reg_alu_dest_addr_o = reg_alu_dest_addr_reg;
+
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    overflow_o <= 0;
-    alu_reg_wb_o <= 0;
-    reg_alu_dest_addr_o <= 0; 
+    overflow_reg <= 0;
+    alu_reg_wb_reg <= 0;
+    reg_alu_dest_addr_reg <= 0; 
   end
   else begin
-    overflow_o <= adder_overflow;
-    alu_reg_wb_o <= alu_reg_wb_i; 
-    reg_alu_dest_addr_o <= reg_alu_dest_addr_i; 
+    overflow_reg <= adder_overflow;
+    alu_reg_wb_reg <= alu_reg_wb_i; 
+    reg_alu_dest_addr_reg <= reg_alu_dest_addr_i; 
   end
 end
 
 // Result muxing
-always_ff@(posedge clk_i)
+always_comb
 begin
-  if (rstn_i == 1'b0) begin
-    res_o <= 0;
-  end
-  else begin
-    case (alu_op_sel_i)
-      `ALU_OP_ADD: begin
-        res_o <= adder_res; 
-      end
+  case (alu_op_sel_i)
+    ALU_OP_ADD: begin
+      res_mux <= adder_res; 
+    end
 
-      `ALU_OP_SUB: begin
-        res_o <= adder_res;
-      end
+    ALU_OP_SUB: begin
+      res_mux <= adder_res;
+    end
 
-      `ALU_OP_SLL: begin
-        res_o <= shifter_left_res; 
-      end
+    ALU_OP_SLL: begin
+      res_mux <= shifter_left_res; 
+    end
 
-      `ALU_OP_SLT: begin
-        res_o <= less_than_sign_res;
-      end
+    ALU_OP_SLT: begin
+      res_mux <= less_than_sign_res;
+    end
 
-      `ALU_OP_SLTU: begin
-        res_o <= less_than_unsign_res;
-      end
+    ALU_OP_SLTU: begin
+      res_mux <= less_than_unsign_res;
+    end
 
-      `ALU_OP_XOR: begin
-        res_o <= xor_res;
-      end
+    ALU_OP_XOR: begin
+      res_mux <= xor_res;
+    end
 
-      `ALU_OP_SRL: begin
-        res_o <= shifter_right_res;
-      end
+    ALU_OP_SRL: begin
+      res_mux <= shifter_right_res;
+    end
 
-      `ALU_OP_SRA: begin
-        res_o <= shifter_right_res;
-      end
+    ALU_OP_SRA: begin
+      res_mux <= shifter_right_res;
+    end
 
-      `ALU_OP_OR: begin
-        res_o <= or_res;
-      end
+    ALU_OP_OR: begin
+      res_mux <= or_res;
+    end
 
-      `ALU_OP_AND: begin
-        res_o <= and_res; 
-      end
+    ALU_OP_AND: begin
+      res_mux <= and_res; 
+    end
 
-      default: begin 
-        res_o <= 32'b0;
-      end
-    endcase
-  end
+    default: begin 
+      res_mux <= 32'b0;
+    end
+  endcase
 end
 
 endmodule
