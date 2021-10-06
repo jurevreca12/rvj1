@@ -1,7 +1,7 @@
 .PHONY: all compile clean
 # We use find to search for all verilog and system verilog files.
-INC_FOLDER := ../../rtl/inc/
-JEDRO_1_DEFINES := $(INC_FOLDER)jedro_1_defines.sv
+INC_DIR := ../../rtl/inc
+JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.sv
 RTL_DIR := ../../rtl
 TB_DIR := ../.
 TB_SV_DIR := .
@@ -13,10 +13,14 @@ ALU_SHIFT_DIR := $(ALU_DIR)/shift
 ALU_SIGN_DIR := $(ALU_DIR)/sign_extension
 
 # Add directiores to search path for preqrequisits
-vpath %.sv $(RTL_DIR) $(INC_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) $(ALU_ADDER_DIR)\
- 					 $(ALU_COMP_DIR) $(ALU_SHIFT_DIR) $(ALU_SIGN_DIR)
-vpath %.v $(RTL_DIR) $(INC_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) $(ALU_ADDER_DIR)\
- 				 	$(ALU_COMP_DIR) $(ALU_SHIFT_DIR) $(ALU_SIGN_DIR)
+VPATH := $(RTL_DIR):\
+				 $(INC_DIR):\
+				 $(TB_SV_DIR):\
+				 $(TB_SUPPORT_DIR):\
+				 $(ALU_ADDER_DIR):\
+ 				 $(ALU_COMP_DIR):\
+				 $(ALU_SHIFT_DIR):\
+				 $(ALU_SIGN_DIR)
 
 #V_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v")
 V_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v" -print0 | xargs -0 basename -a)
@@ -35,10 +39,10 @@ all: compile
 compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
 $(COMPILED_SV_MODULES): xsim.dir/work/%.wdb: %.sv
-	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_FOLDER)
+	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 $(COMPILED_V_MODULES): xsim.dir/work/%.wdb: %.v
-	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_FOLDER)
+	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 clean:
 	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./

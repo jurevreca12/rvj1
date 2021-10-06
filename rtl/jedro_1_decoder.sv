@@ -40,6 +40,77 @@ module jedro_1_decoder
   output [REG_ADDR_WIDTH-1:0]   lsu_regdest_o
 );
 
+logic illegal_instr_reg;
+logic [ALU_OP_WIDTH-1:0] alu_op_sel_reg;
+logic alu_reg_op_a_reg;
+logic alu_reg_op_b_reg;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_op_a_addr_reg;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr_reg;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr_reg;
+logic [DATA_WIDTH-1:0]  alu_immediate_ext_reg;
+logic alu_wb_reg;
+logic lsu_new_ctrl_reg;
+logic [3:0] lsu_ctrl_reg;
+logic [REG_ADDR_WIDTH-1:0] lsu_regdest_reg;
+
+logic illegal_instr_w;
+logic [ALU_OP_WIDTH-1:0] alu_op_sel_w;
+logic alu_reg_op_a_w;
+logic alu_reg_op_b_w;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_op_a_addr_w;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr_w;
+logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr_w;
+logic [DATA_WIDTH-1:0]  alu_immediate_ext_w;
+logic alu_wb_w;
+logic lsu_new_ctrl_w;
+logic [3:0] lsu_ctrl_w;
+logic [REG_ADDR_WIDTH-1:0] lsu_regdest_w;
+
+assign illegal_instr_o = illegal_instr_reg;
+assign alu_op_sel_o = alu_op_sel_reg;
+assign alu_reg_op_a_o = alu_reg_op_a_reg;
+assign alu_reg_op_b_o = alu_reg_op_b_reg;
+assign alu_reg_op_a_addr_o = alu_reg_op_a_addr_reg;
+assign alu_reg_op_b_addr_o = alu_reg_op_b_addr_reg;
+assign alu_reg_dest_addr_o = alu_reg_dest_addr_reg;
+assign alu_immediate_ext_o = alu_immediate_ext_reg;
+assign alu_wb_o = alu_wb_reg;
+assign lsu_new_ctrl_o = lsu_new_ctrl_reg;
+assign lsu_ctrl_o = lsu_ctrl_reg;
+assign lsu_regdest_o = lsu_regdest_reg;
+
+always_ff@(posedge clk_i) begin
+  if (rstn_i == 1'b0) begin
+    illegal_instr_reg <= 0;
+    alu_op_sel_reg <= 0;
+    alu_reg_op_a_reg <= 0;
+    alu_reg_op_b_reg <= 0;
+    alu_reg_op_a_addr_reg <= 0;
+    alu_reg_op_b_addr_reg <= 0;
+    alu_reg_dest_addr_reg <= 0;
+    alu_immediate_ext_reg <= 0;
+    alu_wb_reg <= 0;
+    lsu_new_ctrl_reg <= 0;
+    lsu_ctrl_reg <= 0;
+    lsu_regdest_reg <= 0;
+  end
+  else begin
+    illegal_instr_reg <= illegal_instr_w;
+    alu_op_sel_reg <= alu_op_sel_w;
+    alu_reg_op_a_reg <= alu_reg_op_a_w;
+    alu_reg_op_b_reg <= alu_reg_op_b_w;
+    alu_reg_op_a_addr_reg <= alu_reg_op_a_addr_w;
+    alu_reg_op_b_addr_reg <= alu_reg_op_b_addr_w;
+    alu_reg_dest_addr_reg <= alu_reg_dest_addr_w;
+    alu_immediate_ext_reg <= alu_immediate_ext_w;
+    alu_wb_reg <= alu_wb_w;
+    lsu_new_ctrl_reg <= lsu_new_ctrl_w;
+    lsu_ctrl_reg <= lsu_ctrl_w;
+    lsu_regdest_reg <= lsu_regdest_w;
+  end
+
+end
+
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
 logic [6:0]   opcode   = instr_rdata_i[6:0];
 logic [11:7]  regdest  = instr_rdata_i[11:7];
@@ -53,19 +124,19 @@ logic [31:25] funct7   = instr_rdata_i[31:25];
 
 
 // Other signal definitions
-logic [`DATA_WIDTH-1:0] I_immediate_sign_extended_w;
-logic [`DATA_WIDTH-1:0] J_immediate_sign_extended_w;
-logic [`DATA_WIDTH-1:0] B_immediate_sign_extended_w;
-logic [`DATA_WIDTH-1:0] S_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] I_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] J_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] B_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] S_immediate_sign_extended_w;
 
 
 // COMBINATIONAL LOGIC
 // For the I instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_inst_I (.in_i(imm11_0),
+sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_inst_I (.in_i(imm11_0),
                                                                .out_o(I_immediate_sign_extended_w));
 
 // For the J instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(21)) sign_extender_inst_J (.in_i({instr_rdata_i[31], 
+sign_extender #(.N(DATA_WIDTH), .M(21)) sign_extender_inst_J (.in_i({instr_rdata_i[31], 
                                                                       instr_rdata_i[19:12], 
                                                                       instr_rdata_i[20], 
                                                                       instr_rdata_i[10:1], 
@@ -74,7 +145,7 @@ sign_extender #(.N(`DATA_WIDTH), .M(21)) sign_extender_inst_J (.in_i({instr_rdat
                                                              );
 
 // For the B instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_B (.in_i({instr_rdata_i[31], 
+sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_inst_B (.in_i({instr_rdata_i[31], 
                                                                       instr_rdata_i[7], 
                                                                       instr_rdata_i[30:25], 
                                                                       instr_rdata_i[11:8], 
@@ -82,98 +153,85 @@ sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_B (.in_i({instr_rdat
                                                                .out_o(B_immediate_sign_extended_w));
 
 // For the S instruction type immediate
-sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_inst_S (.in_i({instr_rdata_i[31:25], 
+sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_inst_S (.in_i({instr_rdata_i[31:25], 
                                                                       instr_rdata_i[11:7], 
                                                                       1'b0}),
                                                                .out_o(S_immediate_sign_extended_w));
 
 
 // Start decoding a new instruction
-always @(posedge clk_i)
+always_comb
 begin
-  if (rstn_i == 1'b0) begin
-    alu_op_sel_o        <= {ALU_OP_WIDTH{1'b0}};
-    alu_reg_op_a_o      <= 1'b0;
-    alu_reg_op_b_o      <= 1'b0;
-    alu_reg_op_a_addr_o <= {REG_ADDR_WIDTH{1'b0}};
-    alu_reg_op_b_addr_o <= {REG_ADDR_WIDTH{1'b0}}; 
-    alu_immediate_ext_o <= 0;
-    alu_wb_o            <= 0;
-    illegal_instr_o     <= 1'b0;
-    alu_reg_dest_addr_o <= 0;
-  end
-  else begin
-    case (opcode)
-      OPCODE_LOAD: begin
-        lsu_new_ctrl_o      <= 1'b1;
-        lsu_ctrl_o          <= {opcode[6], funct3};
-        lsu_regdest_o       <= regdest;
-        alu_reg_op_a_o      <= 1'b1;
-        alu_reg_op_a_addr_o <= regs1;
-        alu_immediate_ext_o <= I_immediate_sign_extended_w;   
-      end
+  case (opcode)
+    OPCODE_LOAD: begin
+      lsu_new_ctrl_w      = 1'b1;
+      lsu_ctrl_w          = {opcode[6], funct3};
+      lsu_regdest_w       = regdest;
+      alu_reg_op_a_w      = 1'b1;
+      alu_reg_op_a_addr_w = regs1;
+      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+    end
 
-      OPCODE_MISCMEM: begin 
-        alu_immediate_ext_o <= I_immediate_sign_extended_w;   
-      end
+    OPCODE_MISCMEM: begin 
+      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+    end
 
-      OPCODE_OPIMM: begin
-        alu_op_sel_o        <= {instr_rdata_i[30], funct3};
-        alu_reg_op_a_o      <= 1; 
-        alu_reg_op_a_addr_o <= regs1;
-        alu_reg_op_b_o      <= 0;
-        alu_wb_o            <= 1; 
-        alu_immediate_ext_o <= I_immediate_sign_extended_w;   
-        alu_reg_dest_addr_o <= regdest;
-      end
+    OPCODE_OPIMM: begin
+      alu_op_sel_w        = {instr_rdata_i[30], funct3};
+      alu_reg_op_a_w      = 1; 
+      alu_reg_op_a_addr_w = regs1;
+      alu_reg_op_b_w      = 0;
+      alu_wb_w            = 1; 
+      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+      alu_reg_dest_addr_w = regdest;
+    end
 
-      OPCODE_AUIPC: begin
-        alu_immediate_ext_o <= {imm31_12, 12'b0};
-      end
+    OPCODE_AUIPC: begin
+      alu_immediate_ext_w = {imm31_12, 12'b0};
+    end
 
-      OPCODE_STORE: begin
-        lsu_new_ctrl_o      <= 1;
-        lsu_ctrl_o          <= {opcode[6], funct3};
-        alu_reg_op_a_o      <= 1'b1;  
-        alu_reg_op_a_addr_o <= regs1; 
-        alu_immediate_ext_o <= S_immediate_sign_extended_w;
-      end
-      
-      OPCODE_OP: begin
-        alu_op_sel_o        <= {instr_rdata_i[30], funct3};
-        alu_reg_op_a_o      <= 1;
-        alu_reg_op_b_o      <= 1;
-        alu_reg_op_a_addr_o <= regs1;
-        alu_reg_op_b_addr_o <= regs2;
-        alu_immediate_ext_o <= 32'b0;
-      end
+    OPCODE_STORE: begin
+      lsu_new_ctrl_w      = 1;
+      lsu_ctrl_w          = {opcode[6], funct3};
+      alu_reg_op_a_w      = 1'b1;  
+      alu_reg_op_a_addr_w = regs1; 
+      alu_immediate_ext_w = S_immediate_sign_extended_w;
+    end
+    
+    OPCODE_OP: begin
+      alu_op_sel_w        = {instr_rdata_i[30], funct3};
+      alu_reg_op_a_w      = 1;
+      alu_reg_op_b_w      = 1;
+      alu_reg_op_a_addr_w = regs1;
+      alu_reg_op_b_addr_w = regs2;
+      alu_immediate_ext_w = 32'b0;
+    end
 
-      OPCODE_LUI: begin
-        alu_immediate_ext_o <= {imm31_12, 12'b0};
-      end
+    OPCODE_LUI: begin
+      alu_immediate_ext_w = {imm31_12, 12'b0};
+    end
 
-      OPCODE_BRANCH: begin
-        alu_immediate_ext_o <= B_immediate_sign_extended_w;   
-      end
+    OPCODE_BRANCH: begin
+      alu_immediate_ext_w = B_immediate_sign_extended_w;   
+    end
 
-      OPCODE_JALR: begin
-        alu_immediate_ext_o <= I_immediate_sign_extended_w;   
-      end
+    OPCODE_JALR: begin
+      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+    end
 
-      OPCODE_JAL: begin
-        alu_immediate_ext_o <= J_immediate_sign_extended_w;   
-      end
+    OPCODE_JAL: begin
+      alu_immediate_ext_w = J_immediate_sign_extended_w;   
+    end
 
-      OPCODE_SYSTEM: begin
-        // TODO kaj s alu_immediate_ext_o?
-      end
+    OPCODE_SYSTEM: begin
+      // TODO kaj s alu_immediate_ext_o?
+    end
 
-      default: begin
-        illegal_instr_o <= 1'b1;
-        alu_immediate_ext_o <= 32'b0;
-      end
-    endcase
-  end
+    default: begin
+      illegal_instr_w <= 1'b1;
+      alu_immediate_ext_w <= 32'b0;
+    end
+  endcase
 end
 
 endmodule // jedro_1_decoder

@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-`include "interfaces.sv"
+`include "if_ram_1way.sv"
 
 module jedro_1_ifu_tb_top
 #(

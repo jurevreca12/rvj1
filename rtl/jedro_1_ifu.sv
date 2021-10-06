@@ -16,7 +16,7 @@
 
 import jedro_1_defines::*;
 
-`include "interfaces.sv"
+`include "if_ram_1way.sv"
 
 
 module jedro_1_ifu 
