@@ -39,10 +39,10 @@ all: compile
 compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
 $(COMPILED_SV_MODULES): xsim.dir/work/%.wdb: %.sv
-	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
+	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 $(COMPILED_V_MODULES): xsim.dir/work/%.wdb: %.v
-	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
+	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 clean:
 	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./
