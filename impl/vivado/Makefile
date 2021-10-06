@@ -1,6 +1,10 @@
-.PHONY: all clean
+.PHONY: all synth clean
 
-all:
+all: synth
+
+synth: output/impl_netlist.v
+
+output/impl_netlist.v:
 	vivado -mode batch -source synth.tcl
 
 clean:
