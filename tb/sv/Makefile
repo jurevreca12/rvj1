@@ -35,7 +35,6 @@ all: compile
 compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
 $(COMPILED_SV_MODULES): xsim.dir/work/%.wdb: %.sv
-	echo $(SV_PATHS)
 	xvlog -sv $(JEDRO_1_DEFINES) $< -i $(INC_FOLDER)
 
 $(COMPILED_V_MODULES): xsim.dir/work/%.wdb: %.v
