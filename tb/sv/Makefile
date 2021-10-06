@@ -1,4 +1,4 @@
-.PHONY: all compile clean
+.PHONY: all compile elaborate sim clean
 # We use find to search for all verilog and system verilog files.
 INC_DIR := ../../rtl/inc
 JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.sv
@@ -26,22 +26,40 @@ VPATH := $(RTL_DIR):\
 V_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v" -print0 | xargs -0 basename -a)
 #SV_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv")
 SV_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
-COMPILED_SV_MODULES := $(SV_FILES:.sv=.wdb)
+COMPILED_SV_MODULES := $(SV_FILES:.sv=.sdb)
 COMPILED_SV_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_SV_MODULES))
-COMPILED_V_MODULES := $(V_FILES:.v=.wdb)
+COMPILED_V_MODULES := $(V_FILES:.v=.sdb)
 COMPILED_V_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_V_MODULES))
+TB_FILES := $(shell find $(TB_SV_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
+
+# Elaboration files are contained in xsim.dir/SIM_NAME/xsimk
+ELABORATED_TB_MODULES := $(TB_FILES:.sv=_simsnap/xsimk)
+ELABORATED_TB_MODULES := $(addprefix xsim.dir/, $(ELABORATED_TB_MODULES)) 
+
+# Contain the final simulation
+FIN_WDB_FILES := $(TB_FILES:.sv=_simsnap.wdb)
 
 ################################
 # TARGETS
 ################################
-all: compile
+all: compile elaborate sim
 
 compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
-$(COMPILED_SV_MODULES): xsim.dir/work/%.wdb: %.sv
+elaborate: $(ELABORATED_TB_MODULES)
+
+sim: $(FIN_WDB_FILES)
+
+$(FIN_WDB_FILES): %.wdb: xsim.dir/%/xsimk
+	xsim $* -t simulate.tcl
+
+$(ELABORATED_TB_MODULES): xsim.dir/%_simsnap/xsimk: %.sv
+	xelab --nolog -debug typical -i $(INC_DIR) $* -s $*_simsnap --O0
+
+$(COMPILED_SV_MODULES): xsim.dir/work/%.sdb: %.sv
 	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
-$(COMPILED_V_MODULES): xsim.dir/work/%.wdb: %.v
+$(COMPILED_V_MODULES): xsim.dir/work/%.sdb: %.v
 	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 clean:
