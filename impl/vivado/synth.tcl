@@ -9,10 +9,12 @@ set output_dir $script_path/output/.
 set_part xc7z010clg225-1
 # Out-of-context synthesis
 
-read_verilog [ glob $source_dir/*.v ] 
+read_verilog [ glob $source_dir/inc/*.sv ] 
+read_verilog [ glob $source_dir/*.sv ] 
 read_verilog [ glob $source_dir/alu/adder/*.v ] 
 read_verilog [ glob $source_dir/alu/compare/*.v ] 
 read_verilog [ glob $source_dir/alu/shift/*.v ] 
+read_verilog [ glob $source_dir/alu/sign_extension/sign_extender.v ]
 read_xdc     $script_path/constr.xdc
 
 # Run synthesis

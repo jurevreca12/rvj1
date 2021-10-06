@@ -20,7 +20,7 @@ module jedro_1_top
   input clk_i,
   input rstn_i,
 
-  if_ram_1way.MASTER          if_instr_mem,
+  if_ram_1way.MASTER          if_instr_ram,
   if_ram_2way_32b_data.MASTER if_data_ram
 
  // IRQ/Debug interface TODO
@@ -55,11 +55,11 @@ jedro_1_ifu ifu_inst(.clk_i         (clk_i),
                      .jmp_instr_i         (1'b0),
                      .jmp_address_i       (32'b0),
 
-                     // The instruction interface
-                     .if_instr_ram_o(if_instr_ram),
-                     
                      // The decoder interface
-                     .cinstr_o      (ifu_current_instr)
+                     .cinstr_o      (ifu_current_instr),
+                     
+                     // The instruction interface
+                     .if_instr_mem(if_instr_ram)
                      );  
 
 

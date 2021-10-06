@@ -1,7 +1,7 @@
 .PHONY: vivado clean
 
 vivado:
-	vivado -mode batch -source ./vivado/synth.tcl
+	cd vivado && $(MAKE) all
 
 clean:
 	rm *.jou -f
