@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreča - jurevreca12@gmail.com                         //
+// Engineer:       Jure Vreča - jurevreca12@gmail.com                       //
 //                                                                            //
 //                                                                            //
 //                                                                            //
@@ -51,7 +51,7 @@ jedro_1_ifu ifu_inst(.clk_i         (clk_i),
                      .rstn_i        (rstn_i),
 
                      // The interface to the FSM
-                     .get_next_instr_i    (1'b0), // TODO
+                     .get_next_instr_i    (1'b1), // TODO
                      .jmp_instr_i         (1'b0),
                      .jmp_address_i       (32'b0),
 

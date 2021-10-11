@@ -112,16 +112,25 @@ always_ff@(posedge clk_i) begin
 end
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
-logic [6:0]   opcode   = instr_rdata_i[6:0];
-logic [11:7]  regdest  = instr_rdata_i[11:7];
-logic [11:7]  imm4_0   = instr_rdata_i[11:7];
-logic [31:12] imm31_12 = instr_rdata_i[31:12]; // U-type immediate 
-logic [31:20] imm11_0  = instr_rdata_i[31:20]; // I-type immediate
-logic [14:12] funct3   = instr_rdata_i[14:12];
-logic [19:15] regs1    = instr_rdata_i[19:15];
-logic [24:20] regs2    = instr_rdata_i[24:20];
-logic [31:25] funct7   = instr_rdata_i[31:25];
+logic [6:0]   opcode; 
+logic [11:7]  regdest;  
+logic [11:7]  imm4_0; 
+logic [31:12] imm31_12; // U-type immediate 
+logic [31:20] imm11_0; // I-type immediate
+logic [14:12] funct3;
+logic [19:15] regs1;
+logic [24:20] regs2;
+logic [31:25] funct7;
 
+assign opcode   = instr_rdata_i[6:0];
+assign regdest  = instr_rdata_i[11:7];
+assign imm4_0   = instr_rdata_i[11:7];
+assign imm31_12 = instr_rdata_i[31:12]; // U-type immediate 
+assign imm11_0  = instr_rdata_i[31:20]; // I-type immediate
+assign funct3   = instr_rdata_i[14:12];
+assign regs1    = instr_rdata_i[19:15];
+assign regs2    = instr_rdata_i[24:20];
+assign funct7   = instr_rdata_i[31:25];
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_immediate_sign_extended_w;
@@ -164,72 +173,183 @@ always_comb
 begin
   case (opcode)
     OPCODE_LOAD: begin
-      lsu_new_ctrl_w      = 1'b1;
-      lsu_ctrl_w          = {opcode[6], funct3};
-      lsu_regdest_w       = regdest;
-      alu_reg_op_a_w      = 1'b1;
-      alu_reg_op_a_addr_w = regs1;
-      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = 1'b0;
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b0;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = 4'b0;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = I_immediate_sign_extended_w;
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_MISCMEM: begin 
-      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = 1'b0;
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b0;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = 4'b0;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = I_immediate_sign_extended_w;
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_OPIMM: begin
-      alu_op_sel_w        = {instr_rdata_i[30], funct3};
-      alu_reg_op_a_w      = 1; 
-      alu_reg_op_a_addr_w = regs1;
-      alu_reg_op_b_w      = 0;
-      alu_wb_w            = 1; 
-      alu_immediate_ext_w = I_immediate_sign_extended_w;   
-      alu_reg_dest_addr_w = regdest;
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b0;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = 4'b0;
+        alu_reg_dest_addr_w = regdest;
+        alu_immediate_ext_w = I_immediate_sign_extended_w;
+        alu_wb_w            = 1'b1; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_AUIPC: begin
-      alu_immediate_ext_w = {imm31_12, 12'b0};
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b0;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = 4'b0;
+        alu_reg_dest_addr_w = regdest;
+        alu_immediate_ext_w = {imm31_12, 12'b0};
+        alu_wb_w            = 1'b1; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_STORE: begin
-      lsu_new_ctrl_w      = 1;
-      lsu_ctrl_w          = {opcode[6], funct3};
-      alu_reg_op_a_w      = 1'b1;  
-      alu_reg_op_a_addr_w = regs1; 
-      alu_immediate_ext_w = S_immediate_sign_extended_w;
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b0;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = 4'b0;
+        alu_reg_dest_addr_w = regdest;
+        alu_immediate_ext_w = S_immediate_sign_extended_w;
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
     
     OPCODE_OP: begin
-      alu_op_sel_w        = {instr_rdata_i[30], funct3};
-      alu_reg_op_a_w      = 1;
-      alu_reg_op_b_w      = 1;
-      alu_reg_op_a_addr_w = regs1;
-      alu_reg_op_b_addr_w = regs2;
-      alu_immediate_ext_w = 32'b0;
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = 32'b0;
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_LUI: begin
-      alu_immediate_ext_w = {imm31_12, 12'b0};
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = {imm31_12, 12'b0};
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_BRANCH: begin
-      alu_immediate_ext_w = B_immediate_sign_extended_w;   
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = B_immediate_sign_extended_w;   
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_JALR: begin
-      alu_immediate_ext_w = I_immediate_sign_extended_w;   
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = I_immediate_sign_extended_w;   
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_JAL: begin
-      alu_immediate_ext_w = J_immediate_sign_extended_w;   
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = J_immediate_sign_extended_w;   
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     OPCODE_SYSTEM: begin
-      // TODO kaj s alu_immediate_ext_o?
+        illegal_instr_w     = 1'b0;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = J_immediate_sign_extended_w;   
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
 
     default: begin
-      illegal_instr_w <= 1'b1;
-      alu_immediate_ext_w <= 32'b0;
+        illegal_instr_w     = 1'b1;
+        alu_op_sel_w        = {instr_rdata_i[30], funct3};
+        alu_reg_op_a_w      = 1'b1;
+        alu_reg_op_b_w      = 1'b1;
+        alu_reg_op_a_addr_w = regs1;
+        alu_reg_op_b_addr_w = regs2;
+        alu_reg_dest_addr_w = 4'b0;
+        alu_immediate_ext_w = J_immediate_sign_extended_w;   
+        alu_wb_w            = 1'b0; 
+        lsu_new_ctrl_w      = 1'b1;
+        lsu_ctrl_w          = {opcode[6], funct3};
+        lsu_regdest_w       = regdest;
     end
   endcase
 end
