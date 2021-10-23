@@ -36,6 +36,7 @@ logic [DATA_WIDTH-1:0]     reg_op_a_data;
 logic [DATA_WIDTH-1:0]     reg_op_b_data;
 logic [DATA_WIDTH-1:0]     alu_result_data;
 logic [DATA_WIDTH-1:0]     decoder_immediate_extended;
+logic [DATA_WIDTH-1:0]     decoder_immediate_extended_reg;
 logic [DATA_WIDTH-1:0]     mux_alu_operand_b;
 logic                      alu_is_immediate;
 logic [DATA_WIDTH-1:0]     ifu_current_instr;
@@ -43,20 +44,23 @@ logic                      alu_overflow;
 logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr;
 logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr;
 logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr_2;
-logic                       writeback_to_reg;
-logic                       writeback_to_alu;
-logic                       writeback_we;
+logic                      writeback_to_reg;
+logic                      writeback_to_alu;
+logic                      writeback_we;
+logic                      decoder_ready; 
+logic                      cinstr_valid_ifu_dec;
 
 jedro_1_ifu ifu_inst(.clk_i         (clk_i),
                      .rstn_i        (rstn_i),
 
                      // The interface to the FSM
-                     .get_next_instr_i    (1'b1), // TODO
+                     .get_next_instr_i    (decoder_ready), 
                      .jmp_instr_i         (1'b0),
                      .jmp_address_i       (32'b0),
 
                      // The decoder interface
-                     .cinstr_o      (ifu_current_instr),
+                     .cinstr_o       (ifu_current_instr),
+                     .cinstr_valid_o (cinstr_valid_ifu_dec),
                      
                      // The instruction interface
                      .if_instr_mem(if_instr_ram)
@@ -67,6 +71,8 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
                              .rstn_i              (rstn_i),
                   
                              .instr_rdata_i       (ifu_current_instr),
+                             .cinstr_valid_i      (cinstr_valid_ifu_dec),
+                             .ready_o             (decoder_ready),
                              .illegal_instr_o     (), // TODO
             
                              .alu_op_sel_o        (alu_op_sel), 
@@ -86,7 +92,7 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
 
 
 jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst(.clk_i        (clk_i),
-                                                .rstn_i     (rstn_i),
+                                                .rstn_i       (rstn_i),
                                                 .rpa_addr_i   (alu_reg_op_a_addr),
                                                 .rpa_data_o   (reg_op_a_data),
                                                 .rpb_addr_i   (alu_reg_op_b_addr),
@@ -102,12 +108,20 @@ jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst(.clk_i        (clk_i),
                                               );   
 
 
+always_ff@(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        decoder_immediate_extended_reg <= 0;
+    end
+    else begin
+        decoder_immediate_extended_reg <= decoder_immediate_extended;
+    end
+end
 
 // alu_is_immediate signal tells if an operation is between 2 registers or an
 // register and an immediate. Based on this the 2:1 MUX bellow selects the 
 // mux_alu_operand_b
 assign alu_is_immediate = ~(alu_reg_op_a & alu_reg_op_b);
-assign mux_alu_operand_b = alu_is_immediate ? decoder_immediate_extended : reg_op_b_data;
+assign mux_alu_operand_b = alu_is_immediate ? decoder_immediate_extended_reg : reg_op_b_data;
 
 jedro_1_alu alu_inst(.clk_i         (clk_i),
                      .rstn_i        (rstn_i),

@@ -13,45 +13,36 @@
 
 import jedro_1_defines::*;
 
+
+
 module jedro_1_decoder
 (
-  input clk_i,
-  input rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // Interface to instruction interface 
-  input [DATA_WIDTH-1:0] instr_rdata_i,   // Instructions coming in from memory/cache
+  input logic [DATA_WIDTH-1:0] instr_rdata_i,   // Instructions coming in from memory/cache
+  input logic cinstr_valid_i,
+  output logic ready_o,                         // Ready for instructions.
 
   // Interface to the control unit
-  output illegal_instr_o, // Illegal instruction encountered      
+  output logic illegal_instr_o, // Illegal instruction encountered      
 
   // ALU interface
-  output [ALU_OP_WIDTH-1:0]     alu_op_sel_o,         // Combination of funct3 + 6-th bit of funct7
-  output                        alu_reg_op_a_o,
-  output                        alu_reg_op_b_o,
-  output [REG_ADDR_WIDTH-1:0]   alu_reg_op_a_addr_o,
-  output [REG_ADDR_WIDTH-1:0]   alu_reg_op_b_addr_o,
-  output [REG_ADDR_WIDTH-1:0]   alu_reg_dest_addr_o,  // So the ALU knows where to store the result after computing it.
-  output [DATA_WIDTH-1:0]       alu_immediate_ext_o,  // sign extended
-  output                        alu_wb_o,             // writeback to the register?
+  output logic [ALU_OP_WIDTH-1:0]     alu_op_sel_o,         // Combination of funct3 + 6-th bit of funct7
+  output logic                       alu_reg_op_a_o,
+  output logic                       alu_reg_op_b_o,
+  output logic [REG_ADDR_WIDTH-1:0]  alu_reg_op_a_addr_o,
+  output logic [REG_ADDR_WIDTH-1:0]  alu_reg_op_b_addr_o,
+  output logic [REG_ADDR_WIDTH-1:0]  alu_reg_dest_addr_o,  // So the ALU knows where to store the result after computing it.
+  output logic [DATA_WIDTH-1:0]      alu_immediate_ext_o,  // sign extended
+  output logic                       alu_wb_o,             // writeback to the register?
 
   // Interface to the load-store unit
-  output                        lsu_new_ctrl_o, 
-  output [3:0]                  lsu_ctrl_o,
-  output [REG_ADDR_WIDTH-1:0]   lsu_regdest_o
+  output logic                       lsu_new_ctrl_o, 
+  output logic [3:0]                 lsu_ctrl_o,
+  output logic [REG_ADDR_WIDTH-1:0]  lsu_regdest_o
 );
-
-logic illegal_instr_reg;
-logic [ALU_OP_WIDTH-1:0] alu_op_sel_reg;
-logic alu_reg_op_a_reg;
-logic alu_reg_op_b_reg;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_op_a_addr_reg;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr_reg;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr_reg;
-logic [DATA_WIDTH-1:0]  alu_immediate_ext_reg;
-logic alu_wb_reg;
-logic lsu_new_ctrl_reg;
-logic [3:0] lsu_ctrl_reg;
-logic [REG_ADDR_WIDTH-1:0] lsu_regdest_reg;
 
 logic illegal_instr_w;
 logic [ALU_OP_WIDTH-1:0] alu_op_sel_w;
@@ -66,50 +57,19 @@ logic lsu_new_ctrl_w;
 logic [3:0] lsu_ctrl_w;
 logic [REG_ADDR_WIDTH-1:0] lsu_regdest_w;
 
-assign illegal_instr_o = illegal_instr_reg;
-assign alu_op_sel_o = alu_op_sel_reg;
-assign alu_reg_op_a_o = alu_reg_op_a_reg;
-assign alu_reg_op_b_o = alu_reg_op_b_reg;
-assign alu_reg_op_a_addr_o = alu_reg_op_a_addr_reg;
-assign alu_reg_op_b_addr_o = alu_reg_op_b_addr_reg;
-assign alu_reg_dest_addr_o = alu_reg_dest_addr_reg;
-assign alu_immediate_ext_o = alu_immediate_ext_reg;
-assign alu_wb_o = alu_wb_reg;
-assign lsu_new_ctrl_o = lsu_new_ctrl_reg;
-assign lsu_ctrl_o = lsu_ctrl_reg;
-assign lsu_regdest_o = lsu_regdest_reg;
+// Other signal definitions
+logic [DATA_WIDTH-1:0] I_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] J_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] B_immediate_sign_extended_w;
+logic [DATA_WIDTH-1:0] S_immediate_sign_extended_w;
 
-always_ff@(posedge clk_i) begin
-  if (rstn_i == 1'b0) begin
-    illegal_instr_reg <= 0;
-    alu_op_sel_reg <= 0;
-    alu_reg_op_a_reg <= 0;
-    alu_reg_op_b_reg <= 0;
-    alu_reg_op_a_addr_reg <= 0;
-    alu_reg_op_b_addr_reg <= 0;
-    alu_reg_dest_addr_reg <= 0;
-    alu_immediate_ext_reg <= 0;
-    alu_wb_reg <= 0;
-    lsu_new_ctrl_reg <= 0;
-    lsu_ctrl_reg <= 0;
-    lsu_regdest_reg <= 0;
-  end
-  else begin
-    illegal_instr_reg <= illegal_instr_w;
-    alu_op_sel_reg <= alu_op_sel_w;
-    alu_reg_op_a_reg <= alu_reg_op_a_w;
-    alu_reg_op_b_reg <= alu_reg_op_b_w;
-    alu_reg_op_a_addr_reg <= alu_reg_op_a_addr_w;
-    alu_reg_op_b_addr_reg <= alu_reg_op_b_addr_w;
-    alu_reg_dest_addr_reg <= alu_reg_dest_addr_w;
-    alu_immediate_ext_reg <= alu_immediate_ext_w;
-    alu_wb_reg <= alu_wb_w;
-    lsu_new_ctrl_reg <= lsu_new_ctrl_w;
-    lsu_ctrl_reg <= lsu_ctrl_w;
-    lsu_regdest_reg <= lsu_regdest_w;
-  end
+// For generating stalling logic
+logic [REG_ADDR_WIDTH-1:0] prev_dest_reg_addr;
 
-end
+// FSM signals
+typedef enum logic [2:0] {eOK=3'b001, eSTALL=3'b010, eERROR=3'b100} fsmState_t; 
+fsmState_t curr_state;
+fsmState_t prev_state;
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
 logic [6:0]   opcode; 
@@ -132,11 +92,92 @@ assign regs1    = instr_rdata_i[19:15];
 assign regs2    = instr_rdata_i[24:20];
 assign funct7   = instr_rdata_i[31:25];
 
-// Other signal definitions
-logic [DATA_WIDTH-1:0] I_immediate_sign_extended_w;
-logic [DATA_WIDTH-1:0] J_immediate_sign_extended_w;
-logic [DATA_WIDTH-1:0] B_immediate_sign_extended_w;
-logic [DATA_WIDTH-1:0] S_immediate_sign_extended_w;
+
+// We save the previous destination register
+// address to see if we need to generate stalls.
+always_ff@(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        prev_dest_reg_addr <= 4'b0;
+    end
+    else begin
+       if (opcode == OPCODE_BRANCH ||
+           opcode == OPCODE_STORE) begin
+            prev_dest_reg_addr <= 4'b0;
+        end
+        else begin
+            prev_dest_reg_addr <= regdest;
+        end 
+    end
+end
+
+always_ff@(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        prev_state <= eOK;
+    end
+    else begin
+        prev_state <= curr_state;
+    end
+end
+
+// Imediate feedback to the IFU if we need to stall.
+always_comb begin
+    if (curr_state == eOK) begin
+        ready_o <= 1'b1;
+    end
+    else begin
+        ready_o <= 1'b0;
+    end
+end
+
+
+
+
+always_ff@(posedge clk_i) begin
+  if (rstn_i == 1'b0) begin
+    illegal_instr_o <= 0;
+    alu_op_sel_o <= 0;
+    alu_reg_op_a_o <= 0;
+    alu_reg_op_b_o <= 0;
+    alu_reg_op_a_addr_o <= 0;
+    alu_reg_op_b_addr_o <= 0;
+    alu_reg_dest_addr_o <= 0;
+    alu_immediate_ext_o <= 0;
+    alu_wb_o <= 0;
+    lsu_new_ctrl_o <= 0;
+    lsu_ctrl_o <= 0;
+    lsu_regdest_o <= 0;
+  end
+  else begin
+    if (cinstr_valid_i == 1'b1) begin
+        illegal_instr_o <= illegal_instr_w;
+        alu_op_sel_o <= alu_op_sel_w;
+        alu_reg_op_a_o <= alu_reg_op_a_w;
+        alu_reg_op_b_o <= alu_reg_op_b_w;
+        alu_reg_op_a_addr_o <= alu_reg_op_a_addr_w;
+        alu_reg_op_b_addr_o <= alu_reg_op_b_addr_w;
+        alu_reg_dest_addr_o <= alu_reg_dest_addr_w;
+        alu_immediate_ext_o <= alu_immediate_ext_w;
+        alu_wb_o <= alu_wb_w;
+        lsu_new_ctrl_o <= lsu_new_ctrl_w;
+        lsu_ctrl_o <= lsu_ctrl_w;
+        lsu_regdest_o <= lsu_regdest_w;
+    end
+    else begin
+        illegal_instr_o <= illegal_instr_o;
+        alu_op_sel_o <= alu_op_sel_o;
+        alu_reg_op_a_o <= alu_reg_op_a_o;
+        alu_reg_op_b_o <= alu_reg_op_b_o;
+        alu_reg_op_a_addr_o <= alu_reg_op_a_addr_o;
+        alu_reg_op_b_addr_o <= alu_reg_op_b_addr_o;
+        alu_reg_dest_addr_o <= alu_reg_dest_addr_o;
+        alu_immediate_ext_o <= alu_immediate_ext_o;
+        alu_wb_o <= alu_wb_o;
+        lsu_new_ctrl_o <= lsu_new_ctrl_o;
+        lsu_ctrl_o <= lsu_ctrl_o;
+        lsu_regdest_o <= lsu_regdest_o;
+    end
+  end
+end
 
 
 // COMBINATIONAL LOGIC
@@ -185,6 +226,12 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if (regs1 == prev_dest_reg_addr && regs1 != 0 && prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_MISCMEM: begin 
@@ -200,6 +247,12 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if (regs1 == prev_dest_reg_addr && regs1 != 0 && prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_OPIMM: begin
@@ -211,10 +264,18 @@ begin
         alu_reg_op_b_addr_w = 4'b0;
         alu_reg_dest_addr_w = regdest;
         alu_immediate_ext_w = I_immediate_sign_extended_w;
-        alu_wb_w            = 1'b1; 
+
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if (regs1 == prev_dest_reg_addr && regs1 != 0 && prev_state != eSTALL) begin
+            curr_state = eSTALL;
+            alu_wb_w   = 1'b0; 
+        end
+        else begin
+            curr_state = eOK;
+            alu_wb_w   = 1'b1; 
+        end
     end
 
     OPCODE_AUIPC: begin
@@ -230,6 +291,12 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if (regs1 == prev_dest_reg_addr && regs1 != 0 && prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_STORE: begin
@@ -245,6 +312,12 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if (regs1 == prev_dest_reg_addr && regs1 != 0 && prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
     
     OPCODE_OP: begin
@@ -260,6 +333,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_LUI: begin
@@ -275,6 +356,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_BRANCH: begin
@@ -290,6 +379,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_JALR: begin
@@ -305,6 +402,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_JAL: begin
@@ -320,6 +425,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     OPCODE_SYSTEM: begin
@@ -335,6 +448,14 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        if ((regs1 == prev_dest_reg_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_reg_addr && regs2 != 0 ) &&
+             prev_state != eSTALL) begin
+            curr_state = eSTALL;
+        end
+        else begin
+            curr_state = eOK;
+        end
     end
 
     default: begin
@@ -350,6 +471,7 @@ begin
         lsu_new_ctrl_w      = 1'b1;
         lsu_ctrl_w          = {opcode[6], funct3};
         lsu_regdest_w       = regdest;
+        curr_state          = eERROR;
     end
   endcase
 end

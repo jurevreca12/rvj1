@@ -24,10 +24,10 @@ module jedro_1_ifu
   input clk_i,
   input rstn_i,
 
-  input   get_next_instr_i, // A signal that specifys that we can get the next isntruction (controlled by the cores FSM)
-  input   jmp_instr_i,      // specify that we encountered a jump instruction and the program counter should be changed to jmp_address_i
+  input   get_next_instr_i, // A signal that specifys that we can get the next isntruction 
+  input   jmp_instr_i,      // specify that we encountered a jump instruction and the program 
+                            // counter should be changed to jmp_address_i.
   
-  // This address comes from the ALU (actually it comes from a mux after the ALU)
   input [DATA_WIDTH-1:0] jmp_address_i,   // The address to jump to, after we had encountered a jump instruction
   
   // Interface to the decoder
@@ -41,10 +41,11 @@ localparam CINSTR_SHIFTREG_DEPTH = 2;
 
 logic [DATA_WIDTH-1:0] pc_r;
 logic [DATA_WIDTH-1:0] cinstr_reg;
+logic [DATA_WIDTH-1:0] stall_save_reg;
+logic after_stall; // are we one cycle after the stall happened?
 logic [CINSTR_SHIFTREG_DEPTH-1:0] cinstr_valid_shiftreg;
 
 
-// PROGRAM COUNTER LOGIC
 // The output address just follows pc_r
 assign if_instr_mem.ram_addr = pc_r;
 
@@ -91,15 +92,46 @@ assign cinstr_o = cinstr_reg;
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    cinstr_reg <= 32'b0;
+    cinstr_reg <= 32'b000000000001_00000_000_00000_0010011; // we reset to the NOP operationi
   end
   else begin
-    cinstr_reg <= if_instr_mem.ram_rdata;
+    if (get_next_instr_i == 1'b1 && cinstr_valid_shiftreg[0] == 1'b1) begin
+        if (after_stall == 1'b0) begin
+            cinstr_reg <= if_instr_mem.ram_rdata;
+        end
+        else begin
+            cinstr_reg <= stall_save_reg;
+        end
+    end
+    else begin
+        cinstr_reg <= cinstr_reg;
+    end
   end
 end
 
-endmodule
+// STALL SAVE LOGIC
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        stall_save_reg <= 32'b000000000001_00000_000_00000_0010011;
+    end
+    else begin
+        stall_save_reg <= if_instr_mem.ram_rdata;
+    end
+end
 
+// After stall signal
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        after_stall <= 1'b0;
+    end
+    else begin
+        if (get_next_instr_i == 1'b0) begin
+            after_stall <= 1'b1;
+        end
+        else begin
+            after_stall <= 1'b0;
+        end
+    end
+end
 
-
-
+endmodule : jedro_1_ifu
