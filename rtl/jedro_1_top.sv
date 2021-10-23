@@ -17,8 +17,8 @@ import jedro_1_defines::*;
 
 module jedro_1_top
 (
-  input clk_i,
-  input rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   if_ram_1way.MASTER          if_instr_ram,
   if_ram_2way_32b_data.MASTER if_data_ram

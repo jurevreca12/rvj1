@@ -21,18 +21,18 @@ import jedro_1_defines::*;
 
 module jedro_1_ifu 
 (
-  input clk_i,
-  input rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
-  input   get_next_instr_i, // A signal that specifys that we can get the next isntruction 
-  input   jmp_instr_i,      // specify that we encountered a jump instruction and the program 
+  input logic get_next_instr_i, // A signal that specifys that we can get the next isntruction 
+  input logic jmp_instr_i,      // specify that we encountered a jump instruction and the program 
                             // counter should be changed to jmp_address_i.
   
-  input [DATA_WIDTH-1:0] jmp_address_i,   // The address to jump to, after we had encountered a jump instruction
+  input logic [DATA_WIDTH-1:0] jmp_address_i,   // The address to jump to, after we had encountered a jump instruction
   
   // Interface to the decoder
-  output [DATA_WIDTH-1:0] cinstr_o,    // The current instruction (to be decoded)
-  output                  cinstr_valid_o,
+  output logic [DATA_WIDTH-1:0] cinstr_o,    // The current instruction (to be decoded)
+  output logic                  cinstr_valid_o,
   
   // Interface to the ROM memory
   if_ram_1way.MASTER      if_instr_mem

@@ -15,21 +15,21 @@ import jedro_1_defines::*;
 
 module jedro_1_alu
 (
-  input clk_i,
-  input rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
-  input  [ALU_OP_WIDTH-1:0]   alu_op_sel_i,
+  input logic [ALU_OP_WIDTH-1:0]   alu_op_sel_i,
 
-  input  [DATA_WIDTH-1:0]     opa_i,
-  input  [DATA_WIDTH-1:0]     opb_i,
-  output [DATA_WIDTH-1:0]     res_o,
-  output                      overflow_o,
+  input logic [DATA_WIDTH-1:0]     opa_i,
+  input logic [DATA_WIDTH-1:0]     opb_i,
+  output logic [DATA_WIDTH-1:0]    res_o,
+  output logic                     overflow_o,
 
-  input [REG_ADDR_WIDTH-1:0]  reg_alu_dest_addr_i,
-  output [REG_ADDR_WIDTH-1:0] reg_alu_dest_addr_o,
+  input logic [REG_ADDR_WIDTH-1:0]  reg_alu_dest_addr_i,
+  output logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_addr_o,
   
-  input  alu_reg_wb_i,
-  output alu_reg_wb_o
+  input  logic alu_reg_wb_i,
+  output logic alu_reg_wb_o
 );
 
 
@@ -43,20 +43,14 @@ logic [DATA_WIDTH-1:0] shifter_right_res;
 logic [DATA_WIDTH-1:0] shifter_left_res;
 logic adder_overflow;
 
-logic [DATA_WIDTH-1:0] res_reg;
 logic [DATA_WIDTH-1:0] res_mux;
 
-logic overflow_reg;
-logic alu_reg_wb_reg;
-logic reg_alu_dest_addr_reg;
-
-assign res_o = res_reg;
 // Result buffering
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0)
-    res_reg <= 0;
+    res_o <= 0;
   else
-    res_reg <= res_mux;
+    res_o <= res_mux;
 end
 
 
@@ -111,20 +105,16 @@ barrel_shifter_right_32b shifter_right_32b_inst
   .out   (shifter_right_res)
 );
 
-assign overflow_o = overflow_reg;
-assign alu_reg_wb_o = alu_reg_wb_reg;
-assign reg_alu_dest_addr_o = reg_alu_dest_addr_reg;
-
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    overflow_reg <= 0;
-    alu_reg_wb_reg <= 0;
-    reg_alu_dest_addr_reg <= 0; 
+    overflow_o <= 0;
+    alu_reg_wb_o <= 0;
+    reg_alu_dest_addr_o <= 0; 
   end
   else begin
-    overflow_reg <= adder_overflow;
-    alu_reg_wb_reg <= alu_reg_wb_i; 
-    reg_alu_dest_addr_reg <= reg_alu_dest_addr_i; 
+    overflow_o <= adder_overflow;
+    alu_reg_wb_o <= alu_reg_wb_i; 
+    reg_alu_dest_addr_o <= reg_alu_dest_addr_i; 
   end
 end
 

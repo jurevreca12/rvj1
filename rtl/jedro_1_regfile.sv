@@ -18,29 +18,29 @@ module jedro_1_regfile
   parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH)
 )
 (
-  input clk_i,
-  input rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // Read port A
-  input  [REG_ADDR_WIDTH-1:0] rpa_addr_i,
-  output [DATA_WIDTH-1:0]     rpa_data_o,
+  input logic [REG_ADDR_WIDTH-1:0] rpa_addr_i,
+  output logic [DATA_WIDTH-1:0]     rpa_data_o,
 
   // Read port B
-  input  [REG_ADDR_WIDTH-1:0]   rpb_addr_i,
-  output [DATA_WIDTH-1:0]     rpb_data_o,
+  input logic [REG_ADDR_WIDTH-1:0] rpb_addr_i,
+  output logic [DATA_WIDTH-1:0]     rpb_data_o,
 
   // Write port C
-  input [REG_ADDR_WIDTH-1:0]  wpc_addr_i,
-  input [DATA_WIDTH-1:0]      wpc_data_i,
-  input                       wpc_we_i,
+  input logic [REG_ADDR_WIDTH-1:0]  wpc_addr_i,
+  input logic [DATA_WIDTH-1:0]      wpc_data_i,
+  input logic                       wpc_we_i,
 
   // Destination address register stage
-  input  [REG_ADDR_WIDTH-1:0] reg_alu_dest_i,
-  output [REG_ADDR_WIDTH-1:0] reg_alu_dest_o,
+  input logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_i,
+  output logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_o,
   
   // Write enable buffering
-  input  reg_alu_wb_i,
-  output reg_alu_wb_o
+  input logic reg_alu_wb_i,
+  output logic reg_alu_wb_o
 );
 
 localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
@@ -48,8 +48,6 @@ localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
 // Integer register file x0-x31
 logic [DATA_WIDTH-1:0] regfile [NUM_REGISTERS-1:0];
 
-logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_reg;
-logic reg_alu_wb_reg;
 
 // Mux the appropriate register to the data_o line
 assign rpa_data_o = regfile[rpa_addr_i];
@@ -69,16 +67,14 @@ end
 
 // Destination address register buffering
 // and writeback buffering
-assign reg_alu_dest_o = reg_alu_dest_reg;
-assign reg_alu_wb_o = reg_alu_wb_reg;
 always_ff@(posedge clk_i) begin
   if(rstn_i == 1'b0) begin
-    reg_alu_dest_reg <= 0;
-    reg_alu_wb_reg   <= 0;
+    reg_alu_dest_o <= 0;
+    reg_alu_wb_o   <= 0;
   end
   else begin
-    reg_alu_dest_reg <= reg_alu_dest_i;
-    reg_alu_wb_reg   <= reg_alu_wb_i;
+    reg_alu_dest_o <= reg_alu_dest_i;
+    reg_alu_wb_o   <= reg_alu_wb_i;
   end
 end
 
