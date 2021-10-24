@@ -8,17 +8,16 @@ module rams_init_file_wrap
 )
 (
   input clk,
-
-  if_ram_1way.SLAVE if_rom
+  ram_read_io.SLAVE rom_if
 );
 
 
   rams_init_file #(.MEM_INIT_FILE(MEM_INIT_FILE)) rom_memory (
                           .clk(clk), 
                           .we(1'b0), 
-                          .addr(if_rom.ram_addr[if_rom.ADDR_WIDTH-1:0]), 
+                          .addr(rom_if.addr[rom_if.ADDR_WIDTH-1:0]), 
                           .din(32'b0), 
-                          .dout(if_rom.ram_rdata[if_rom.DATA_WIDTH-1:0])
+                          .dout(rom_if.rdata[rom_if.DATA_WIDTH-1:0])
                         );
 
 endmodule

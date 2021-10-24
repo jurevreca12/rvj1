@@ -12,130 +12,118 @@
 ////////////////////////////////////////////////////////////////////////////////
   
 import jedro_1_defines::*;
-`include "if_ram_1way.sv"
-`include "if_ram_2way_32b_data.sv"
 
 module jedro_1_top
 (
   input logic clk_i,
   input logic rstn_i,
 
-  if_ram_1way.MASTER          if_instr_ram,
-  if_ram_2way_32b_data.MASTER if_data_ram
+  ram_read_io.MASTER instr_mem_if,
+  ram_rw_io.MASTER data_mem_if
 
  // IRQ/Debug interface TODO
 
 );
 
-logic [ALU_OP_WIDTH-1:0]   alu_op_sel;
-logic                      alu_reg_op_a;
-logic                      alu_reg_op_b;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_op_a_addr;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_op_b_addr;
-logic [DATA_WIDTH-1:0]     reg_op_a_data;
-logic [DATA_WIDTH-1:0]     reg_op_b_data;
-logic [DATA_WIDTH-1:0]     alu_result_data;
-logic [DATA_WIDTH-1:0]     decoder_immediate_extended;
-logic [DATA_WIDTH-1:0]     decoder_immediate_extended_reg;
-logic [DATA_WIDTH-1:0]     mux_alu_operand_b;
-logic                      alu_is_immediate;
-logic [DATA_WIDTH-1:0]     ifu_current_instr;
+/****************************************
+* SIGNAL DECLARATION
+****************************************/
+logic [ALU_OP_WIDTH-1:0]   decoder_alu_sel;
+logic                      decoder_alu_op_a;
+logic                      decoder_alu_op_b;
+logic [REG_ADDR_WIDTH-1:0] decoder_rf_addr_a;
+logic [REG_ADDR_WIDTH-1:0] decoder_rf_addr_b;
+logic [DATA_WIDTH-1:0]     rf_alu_data_a;
+logic [DATA_WIDTH-1:0]     rf_alu_data_b;
+logic [DATA_WIDTH-1:0]     alu_rf_res;
+logic [DATA_WIDTH-1:0]     decoder_mux_imm_ex;
+logic [DATA_WIDTH-1:0]     mux_alu_op_b;
+logic                      decoder_mux_is_imm;
+logic [DATA_WIDTH-1:0]     ifu_decoder_instr;
 logic                      alu_overflow;
-logic [REG_ADDR_WIDTH-1:0] alu_reg_dest_addr;
-logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr;
-logic [REG_ADDR_WIDTH-1:0] reg_writeback_addr_2;
-logic                      writeback_to_reg;
-logic                      writeback_to_alu;
-logic                      writeback_we;
-logic                      decoder_ready; 
-logic                      cinstr_valid_ifu_dec;
+logic [REG_ADDR_WIDTH-1:0] decoder_alu_dest_addr;
+logic [REG_ADDR_WIDTH-1:0] alu_rf_dest_addr;
+logic                      decoder_alu_wb;
+logic                      alu_rf_wb;
+logic                      decoder_ifu_ready; 
+logic                      ifu_decoder_instr_valid;
 
-jedro_1_ifu ifu_inst(.clk_i         (clk_i),
-                     .rstn_i        (rstn_i),
 
-                     // The interface to the FSM
-                     .get_next_instr_i    (decoder_ready), 
-                     .jmp_instr_i         (1'b0),
-                     .jmp_address_i       (32'b0),
-
-                     // The decoder interface
-                     .cinstr_o       (ifu_current_instr),
-                     .cinstr_valid_o (cinstr_valid_ifu_dec),
-                     
-                     // The instruction interface
-                     .if_instr_mem(if_instr_ram)
+/****************************************
+* INSTRUCTION FETCH STAGE
+****************************************/
+jedro_1_ifu ifu_inst(.clk_i          (clk_i),
+                     .rstn_i         (rstn_i),
+                     .jmp_instr_i    (1'b0),
+                     .jmp_address_i  (32'b0),
+                     .instr_ro       (ifu_decoder_instr),
+                     .instr_valid_ro (ifu_decoder_instr_valid), 
+                     .decoder_ready_i(decoder_ifu_ready), 
+                     .instr_mem_if   (instr_mem_if)
                      );  
 
 
-jedro_1_decoder decoder_inst(.clk_i               (clk_i),
-                             .rstn_i              (rstn_i),
-                  
-                             .instr_rdata_i       (ifu_current_instr),
-                             .cinstr_valid_i      (cinstr_valid_ifu_dec),
-                             .ready_o             (decoder_ready),
-                             .illegal_instr_o     (), // TODO
-            
-                             .alu_op_sel_o        (alu_op_sel), 
-                             .alu_reg_op_a_o      (alu_reg_op_a), 
-                             .alu_reg_op_b_o      (alu_reg_op_b), 
-                             .alu_reg_op_a_addr_o (alu_reg_op_a_addr), 
-                             .alu_reg_op_b_addr_o (alu_reg_op_b_addr),
-                             .alu_reg_dest_addr_o (alu_reg_dest_addr),
-                             .alu_immediate_ext_o (decoder_immediate_extended),
-                             .alu_wb_o            (writeback_to_reg),
-
-                             .lsu_new_ctrl_o      (), // TODO
-                             .lsu_ctrl_o          (),
-                             .lsu_regdest_o       ()
+/****************************************
+* INSTRUCTION DECODE STAGE
+****************************************/
+jedro_1_decoder decoder_inst(.clk_i           (clk_i),
+                             .rstn_i          (rstn_i),                  
+                             .instr_i         (ifu_decoder_instr),
+                             .instr_valid_i   (ifu_decoder_instr_valid),
+                             .ready_co        (decoder_ifu_ready),
+                             .illegal_instr_ro(), // TODO
+                             .alu_sel_ro      (decoder_alu_sel), 
+                             .alu_op_a_ro     (decoder_alu_op_a), 
+                             .alu_op_b_ro     (decoder_alu_op_b), 
+                             .alu_dest_addr_ro(decoder_alu_dest_addr),
+                             .alu_wb_ro       (decoder_alu_wb),
+                             .rf_addr_a_ro    (decoder_rf_addr_a), 
+                             .rf_addr_b_ro    (decoder_rf_addr_b),
+                             .is_imm_ro       (decoder_mux_is_imm), 
+                             .imm_ext_ro      (decoder_mux_imm_ex),
+                             .lsu_new_ctrl_ro (), 
+                             .lsu_ctrl_ro     (), // TODO
+                             .lsu_regdest_ro  ()
                            );
 
 
-
+/*********************************************
+* INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
+*********************************************/
 jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst(.clk_i        (clk_i),
                                                 .rstn_i       (rstn_i),
-                                                .rpa_addr_i   (alu_reg_op_a_addr),
-                                                .rpa_data_o   (reg_op_a_data),
-                                                .rpb_addr_i   (alu_reg_op_b_addr),
-                                                .rpb_data_o   (reg_op_b_data),
-                                                .wpc_addr_i   (reg_writeback_addr_2),  // TODO
-                                                .wpc_data_i   (alu_result_data),     // TODO
-                                                .wpc_we_i     (writeback_we),
-
-                                                .reg_alu_dest_i (alu_reg_dest_addr),
-                                                .reg_alu_dest_o (reg_writeback_addr),
-                                                .reg_alu_wb_i   (writeback_to_reg),
-                                                .reg_alu_wb_o   (writeback_to_alu)
+                                                .rpa_addr_i   (decoder_rf_addr_a),
+                                                .rpa_data_co  (rf_alu_data_a),
+                                                .rpb_addr_i   (decoder_rf_addr_b),
+                                                .rpb_data_co  (rf_alu_data_b),
+                                                .wpc_addr_i   (alu_rf_dest_addr),  
+                                                .wpc_data_i   (alu_rf_res),     
+                                                .wpc_we_i     (alu_rf_wb)
                                               );   
 
-
-always_ff@(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        decoder_immediate_extended_reg <= 0;
-    end
-    else begin
-        decoder_immediate_extended_reg <= decoder_immediate_extended;
-    end
-end
-
-// alu_is_immediate signal tells if an operation is between 2 registers or an
+// decoder_mux_is_imm signal tells if an operation is between 2 registers or an
 // register and an immediate. Based on this the 2:1 MUX bellow selects the 
-// mux_alu_operand_b
-assign alu_is_immediate = ~(alu_reg_op_a & alu_reg_op_b);
-assign mux_alu_operand_b = alu_is_immediate ? decoder_immediate_extended_reg : reg_op_b_data;
+// mux_alu_op_b
+assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
-jedro_1_alu alu_inst(.clk_i         (clk_i),
-                     .rstn_i        (rstn_i),
-                     .alu_op_sel_i  (alu_op_sel),
-                     .opa_i         (reg_op_a_data),
-                     .opb_i         (mux_alu_operand_b),
-                     .res_o         (alu_result_data),
-                     .overflow_o    (alu_overflow),
-
-                     .reg_alu_dest_addr_i (reg_writeback_addr),
-                     .reg_alu_dest_addr_o (reg_writeback_addr_2),
-                     .alu_reg_wb_i        (writeback_to_alu),
-                     .alu_reg_wb_o        (writeback_we) // overflow signal to the FSM?
+jedro_1_alu alu_inst(.clk_i       (clk_i),
+                     .rstn_i      (rstn_i),
+                     .sel_i       (decoder_alu_sel),
+                     .op_a_i      (rf_alu_data_a),
+                     .op_b_i      (mux_alu_op_b),
+                     .res_ro      (alu_rf_res),
+                     .overflow_ro (alu_overflow),
+                     .dest_addr_i (decoder_alu_dest_addr),
+                     .dest_addr_ro(alu_rf_dest_addr),
+                     .wb_i        (decoder_alu_wb),
+                     .wb_ro       (alu_rf_wb) 
                    ); 
+
+
+/*********************************************
+* WRITEBACK STAGE 
+*********************************************/
+// TODO
 
 
 // Note that the ICARUS flag needs to be set in the makefile arguments
@@ -148,4 +136,4 @@ end
 `endif
 `endif
 
-endmodule
+endmodule : jedro_1_top

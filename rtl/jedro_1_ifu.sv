@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreča - jurevreca12@gmail.com                         //
+// Engineer:       Jure Vreča - jurevreca12@gmail.com                       //
 //                                                                            //
 //                                                                            //
 //                                                                            //
@@ -16,120 +16,126 @@
 
 import jedro_1_defines::*;
 
-`include "if_ram_1way.sv"
-
-
 module jedro_1_ifu 
 (
   input logic clk_i,
   input logic rstn_i,
 
-  input logic get_next_instr_i, // A signal that specifys that we can get the next isntruction 
-  input logic jmp_instr_i,      // specify that we encountered a jump instruction and the program 
-                            // counter should be changed to jmp_address_i.
+
+  input logic jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
+                               // counter should be changed to jmp_address_i.
   
-  input logic [DATA_WIDTH-1:0] jmp_address_i,   // The address to jump to, after we had encountered a jump instruction
+  input logic [DATA_WIDTH-1:0] jmp_address_i,    // The address to jump to, after we had encountered a jump instruction.
   
   // Interface to the decoder
-  output logic [DATA_WIDTH-1:0] cinstr_o,    // The current instruction (to be decoded)
-  output logic                  cinstr_valid_o,
+  output logic [DATA_WIDTH-1:0] instr_ro,         // The current instruction (to be decoded)
+  output logic                  instr_valid_ro,
+  input  logic                  decoder_ready_i, // Decoder ready to accept new instruction
   
   // Interface to the ROM memory
-  if_ram_1way.MASTER      if_instr_mem
+  ram_read_io.MASTER            instr_mem_if
 );
-localparam CINSTR_SHIFTREG_DEPTH = 2;
+localparam INSTR_SHIFTREG_DEPTH = 2;
 
-logic [DATA_WIDTH-1:0] pc_r;
-logic [DATA_WIDTH-1:0] cinstr_reg;
+logic [DATA_WIDTH-1:0] pc_reg;
 logic [DATA_WIDTH-1:0] stall_save_reg;
-logic after_stall; // are we one cycle after the stall happened?
-logic [CINSTR_SHIFTREG_DEPTH-1:0] cinstr_valid_shiftreg;
+logic is_1cycle_after_stall; // are we one cycle after the stall happened?
+logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shiftreg;
 
 
-// The output address just follows pc_r
-assign if_instr_mem.ram_addr = pc_r;
+/***************************************
+* PROGRAM COUNTER LOGIC
+***************************************/
+assign instr_mem_if.addr = pc_reg; // The output address just follows pc_r
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    pc_r <= BOOT_ADDR;
+    pc_reg <= BOOT_ADDR;
   end
   else begin
-    if (get_next_instr_i == 1'b1) begin 
+    if (decoder_ready_i == 1'b1) begin 
       if (jmp_instr_i == 1'b1)
-        pc_r <= jmp_address_i;
+        pc_reg <= jmp_address_i;
       else
-        pc_r <= pc_r + 4;
+        pc_reg <= pc_reg + 4;
     end
     else begin
-      pc_r <= pc_r;
+      pc_reg <= pc_reg;
     end
   end
 end
 
-// VALID SIGNAL GENERATION
-assign cinstr_valid_o = cinstr_valid_shiftreg[CINSTR_SHIFTREG_DEPTH-1];
+
+/***************************************
+* VALID SIGNAL GENERATION
+***************************************/
+assign instr_valid_ro = instr_valid_shiftreg[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    cinstr_valid_shiftreg <= CINSTR_SHIFTREG_DEPTH'('b00);
+    instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b00);
   end
   else begin
-    if (get_next_instr_i == 1'b1) begin
-        cinstr_valid_shiftreg <= cinstr_valid_shiftreg << 1;
+    if (decoder_ready_i == 1'b1) begin
+        instr_valid_shiftreg <= instr_valid_shiftreg << 1;
         if (jmp_instr_i == 1'b1)
-          cinstr_valid_shiftreg[0] <= 1'b0;
+          instr_valid_shiftreg[0] <= 1'b0;
         else
-          cinstr_valid_shiftreg[0] <= 1'b1;
+          instr_valid_shiftreg[0] <= 1'b1;
     end
     else begin
-      cinstr_valid_shiftreg <= cinstr_valid_shiftreg;
+      instr_valid_shiftreg <= instr_valid_shiftreg;
     end
   end
 end
 
-// READING LOGIC
-assign cinstr_o = cinstr_reg;
 
+/***************************************
+* READING LOGIC
+***************************************/
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    cinstr_reg <= 32'b000000000001_00000_000_00000_0010011; // we reset to the NOP operationi
+    instr_ro <= 32'b000000000001_00000_000_00000_0010011; // we reset to the NOP operationi
   end
   else begin
-    if (get_next_instr_i == 1'b1 && cinstr_valid_shiftreg[0] == 1'b1) begin
-        if (after_stall == 1'b0) begin
-            cinstr_reg <= if_instr_mem.ram_rdata;
+    if (decoder_ready_i == 1'b1 && instr_valid_shiftreg[0] == 1'b1) begin
+        if (is_1cycle_after_stall == 1'b0) begin
+            instr_ro <= instr_mem_if.rdata;
         end
         else begin
-            cinstr_reg <= stall_save_reg;
+            instr_ro <= stall_save_reg;
         end
     end
     else begin
-        cinstr_reg <= cinstr_reg;
+        instr_ro <= instr_ro;
     end
   end
 end
 
-// STALL SAVE LOGIC
+
+/***************************************
+* STALL SAVE LOGIC
+***************************************/
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         stall_save_reg <= 32'b000000000001_00000_000_00000_0010011;
     end
     else begin
-        stall_save_reg <= if_instr_mem.ram_rdata;
+        stall_save_reg <= instr_mem_if.rdata;
     end
 end
 
 // After stall signal
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        after_stall <= 1'b0;
+        is_1cycle_after_stall <= 1'b0;
     end
     else begin
-        if (get_next_instr_i == 1'b0) begin
-            after_stall <= 1'b1;
+        if (decoder_ready_i == 1'b0) begin
+            is_1cycle_after_stall <= 1'b1;
         end
         else begin
-            after_stall <= 1'b0;
+            is_1cycle_after_stall <= 1'b0;
         end
     end
 end

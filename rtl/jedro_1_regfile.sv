@@ -23,24 +23,16 @@ module jedro_1_regfile
 
   // Read port A
   input logic [REG_ADDR_WIDTH-1:0] rpa_addr_i,
-  output logic [DATA_WIDTH-1:0]     rpa_data_o,
+  output logic [DATA_WIDTH-1:0]    rpa_data_co,
 
   // Read port B
   input logic [REG_ADDR_WIDTH-1:0] rpb_addr_i,
-  output logic [DATA_WIDTH-1:0]     rpb_data_o,
+  output logic [DATA_WIDTH-1:0]    rpb_data_co,
 
   // Write port C
-  input logic [REG_ADDR_WIDTH-1:0]  wpc_addr_i,
-  input logic [DATA_WIDTH-1:0]      wpc_data_i,
-  input logic                       wpc_we_i,
-
-  // Destination address register stage
-  input logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_i,
-  output logic [REG_ADDR_WIDTH-1:0] reg_alu_dest_o,
-  
-  // Write enable buffering
-  input logic reg_alu_wb_i,
-  output logic reg_alu_wb_o
+  input logic [REG_ADDR_WIDTH-1:0] wpc_addr_i,
+  input logic [DATA_WIDTH-1:0]     wpc_data_i,
+  input logic                      wpc_we_i
 );
 
 localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
@@ -48,11 +40,9 @@ localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
 // Integer register file x0-x31
 logic [DATA_WIDTH-1:0] regfile [NUM_REGISTERS-1:0];
 
-
-// Mux the appropriate register to the data_o line
-assign rpa_data_o = regfile[rpa_addr_i];
-assign rpb_data_o = regfile[rpb_addr_i];
-
+/******************************
+* WRITE LOGIC
+******************************/
 // Write to the registers (register x0 should always be zero)
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
@@ -65,18 +55,14 @@ always_ff@(posedge clk_i) begin
   end
 end
 
-// Destination address register buffering
-// and writeback buffering
-always_ff@(posedge clk_i) begin
-  if(rstn_i == 1'b0) begin
-    reg_alu_dest_o <= 0;
-    reg_alu_wb_o   <= 0;
-  end
-  else begin
-    reg_alu_dest_o <= reg_alu_dest_i;
-    reg_alu_wb_o   <= reg_alu_wb_i;
-  end
-end
+
+/******************************
+* READ LOGIC
+******************************/
+// Mux the appropriate register to the data_o line
+assign rpa_data_co = regfile[rpa_addr_i];
+assign rpb_data_co = regfile[rpb_addr_i];
+
 
 endmodule
 
