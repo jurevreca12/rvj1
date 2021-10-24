@@ -41,7 +41,7 @@ module jedro_1_addi_tb();
   end
 
   assert (dut.regfile_inst.regfile[1] == 1 + 2 + 3 + 4 + 5) 
-  else $display("After executing jedro_1_addi_tb.mem the value in register 1 should be 15, not %d.", 
+  else $display("ERROR: After executing jedro_1_addi_tb.mem the value in register 1 should be 15, not %d.", 
                 dut.regfile_inst.regfile[1]);
 
   $finish;
