@@ -35,7 +35,7 @@ module jedro_1_ifu_tb();
   initial begin
   clk            <= 1'b0;
   rstn           <= 1'b0;
-  decoder_ready <= 1'b0;
+  decoder_ready  <= 1'b0;
   jmp_instr      <= 1'b0;
   jmp_addr       <= 32'b0;
 
@@ -49,18 +49,12 @@ module jedro_1_ifu_tb();
   repeat (2) @ (posedge clk);
   for (int i = 0; i < 16; i++) begin
     repeat (1) @ (posedge clk) begin
-      if (instr_valid == 1'b0) begin
-        $display("ERROR 2, instr_valid should be asserted here.");
-      end
+      assert (instr_valid == 1'b1) else $display("ERROR 2, instr_valid should be asserted here.");
       if (i < 15) begin
-        if (!(instr == i)) begin
-          $display("ERROR 0: incorrect result at i:%d, instr:%d", i, instr);
-        end
+        assert (instr == i) else $display("ERROR 0: incorrect result at i:%d, instr:%d", i, instr);
       end
       else begin
-        if (!(instr == 32'hFFFF_FFFF)) begin
-          $display("ERROR 1: incorrect result at i:%d, instr:%d", i, instr);
-        end
+        assert (instr == 32'hFFFF_FFFF) else $display("ERROR 1: incorrect result at i:%d, instr:%d", i, instr);
       end
     end
   end
