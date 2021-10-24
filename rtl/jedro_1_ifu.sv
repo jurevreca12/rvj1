@@ -79,7 +79,7 @@ always_ff @(posedge clk_i) begin
     if (decoder_ready_i == 1'b1) begin
         instr_valid_shiftreg <= instr_valid_shiftreg << 1;
         if (jmp_instr_i == 1'b1)
-          instr_valid_shiftreg[0] <= 1'b0;
+          instr_valid_shiftreg <= 0;
         else
           instr_valid_shiftreg[0] <= 1'b1;
     end

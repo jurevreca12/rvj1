@@ -10,7 +10,7 @@ module ram_sp_rom_wrap
   ram_read_io.SLAVE rom_if
 );
 
-  rams_sp_rom rom_me (.clk(clk), 
+  rams_sp_rom rom_me (.clk(clk_i), 
                       .we(1'b0), 
                       .addr(rom_if.addr[rom_if.ADDR_WIDTH-1:0]), 
                       .di(32'b0), 

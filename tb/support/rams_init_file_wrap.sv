@@ -7,13 +7,13 @@ module rams_init_file_wrap
     parameter MEM_INIT_FILE =""
 )
 (
-  input clk,
+  input clk_i,
   ram_read_io.SLAVE rom_if
 );
 
 
   rams_init_file #(.MEM_INIT_FILE(MEM_INIT_FILE)) rom_memory (
-                          .clk(clk), 
+                          .clk(clk_i), 
                           .we(1'b0), 
                           .addr(rom_if.addr[rom_if.ADDR_WIDTH-1:0]), 
                           .din(32'b0), 

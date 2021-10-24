@@ -22,7 +22,7 @@ module jedro_1_slli_tb();
                   .data_mem_if (data_mem_if.MASTER)
                 );
 
-  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_slli_tb.mem")) rom_mem (.clk(clk),
+  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_slli_tb.mem")) rom_mem (.clk_i(clk),
                                                                         .rom_if(instr_mem_if));
 
   // Handle the clock signal

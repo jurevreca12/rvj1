@@ -22,9 +22,8 @@ module jedro_1_addi_tb();
                   .data_mem_if (data_mem_if.MASTER)
                 );
 
-  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_addi_tb.mem")) rom_mem (.clk(clk),
+  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_addi_tb.mem")) rom_mem (.clk_i(clk),
                                                                         .rom_if(instr_mem_if));
-
   // Handle the clock signal
   always #1 clk = ~clk;
 
@@ -33,7 +32,6 @@ module jedro_1_addi_tb();
   rstn <= 1'b0;
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
-  
 
   while (i < 32) begin
     @(posedge clk);

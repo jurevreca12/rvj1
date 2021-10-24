@@ -47,44 +47,26 @@ module jedro_1_ifu_jmp_tb();
   decoder_ready <= 1'b1;
   repeat (3) @ (posedge clk);
   for (int i = 0; i < 4; i++) begin
-    if (instr_valid == 1'b0) begin
-      $display("ERROR 0, instr_valid should be asserted here.");
-    end
-    repeat (1) @ (posedge clk) begin
-      if ( (i < 4) & (!(instr == i)) ) begin
-          $display("ERROR 1: incorrect result at i:%d, instr:%d", i, instr);
-      end
-    end
+    assert (instr_valid == 1'b1) else $display("ERROR 0, instr_valid should be asserted here.");
+    assert (instr == i) else $display("ERROR 1: incorrect result at i:%d, instr:%d", i, instr);
+    repeat (1) @ (posedge clk);
   end
-  
-  repeat (1) @ (posedge clk);
   
   jmp_instr <= 1'b1;
   jmp_addr  <= 32'h0000_0004;
-
   repeat (1) @ (posedge clk);
-  
   jmp_instr <= 1'b0;
-
-  if (instr_valid == 1'b1)
-    $display("ERROR 2: instr_valid should NOT be asserted one clock after jmp.");
-
   repeat (1) @ (posedge clk);
-
-  if (instr_valid == 1'b1)
-    $display("ERROR 3: instr_valid should NOT be asserted two clocks after jmp.");
-
-  repeat (2) @ (posedge clk);
-
-  if (instr_valid == 1'b0)
-    $display("ERROR 4: instr_valid should be asserted three clocks after jmp.");
-
-  if (!(instr == 1))
-    $display("ERROR 5: instr should be set to 1 (value at address 4)");
-
+  assert (instr_valid == 1'b0) else $display("ERROR 2: instr_valid should NOT be asserted one clock after jmp.");
+  repeat (1) @ (posedge clk);
+  assert (instr_valid == 1'b0) else $display("ERROR 3: instr_valid should NOT be asserted two clocks after jmp.");
+  repeat (1) @ (posedge clk);
+  assert (instr_valid == 1'b1) else $display("ERROR 4: instr_valid should be asserted three clocks after jmp.");
+  assert (instr == 1) else $display("ERROR 5: instr should be set to 1 (value at address 4)");
+  
   repeat (3) @ (posedge clk);
   $finish;
 
   end
 
-endmodule
+endmodule : jedro_1_ifu_jmp_tb
