@@ -45,6 +45,8 @@ parameter ALU_OP_SRA   = 4'b1101;
 parameter ALU_OP_OR    = 4'b0110;
 parameter ALU_OP_AND   = 4'b0111;
 
+// funct3 defines
+parameter FUNCT3_SHIFT_INSTR = 3'b101;
 
 // Load-Store Unit
 parameter LSU_CTRL_WIDTH = 4; // we need to encode 8 states 

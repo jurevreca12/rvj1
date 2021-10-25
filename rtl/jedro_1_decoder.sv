@@ -69,6 +69,7 @@ logic [REG_ADDR_WIDTH-1:0] lsu_regdest_w;
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
+logic [DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
 logic [DATA_WIDTH-1:0] J_imm_sign_extended_w;
 logic [DATA_WIDTH-1:0] B_imm_sign_extended_w;
 logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
@@ -159,7 +160,9 @@ end
 // For the I instruction type immediate
 sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_I_inst (.in_i(imm11_0),
                                                               .out_o(I_imm_sign_extended_w));
-
+// Used in shift instructions
+sign_extender #(.N(DATA_WIDTH), .M(5))  sign_extender_I_shift_inst(.in_i(imm11_0[24:20]),
+                                                                  .out_o(I_shift_imm_sign_extended_w));
 // For the J instruction type immediate
 sign_extender #(.N(DATA_WIDTH), .M(21)) sign_extender_J_inst (.in_i({instr_i[31], 
                                                                      instr_i[19:12], 
@@ -288,13 +291,20 @@ begin
 
     OPCODE_OPIMM: begin
         illegal_instr_w = 1'b0;
-        alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
         alu_op_b_w      = 1'b0;
         alu_dest_addr_w = regdest;
         rf_addr_a_w     = regs1;
         rf_addr_b_w     = 4'b0;
-        imm_ext_w       = I_imm_sign_extended_w;
+        if (funct3 == FUNCT3_SHIFT_INSTR && 
+           (imm11_0[31:25] == 0 || imm11_0[31:25] == 7'b0100000)) begin
+            imm_ext_w = I_shift_imm_sign_extended_w;
+            alu_sel_w  = {instr_i[30], funct3};
+        end
+        else begin
+            imm_ext_w = I_imm_sign_extended_w;
+            alu_sel_w  = {1'b0, funct3};
+        end
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
