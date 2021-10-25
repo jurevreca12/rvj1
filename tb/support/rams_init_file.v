@@ -5,7 +5,7 @@
 module rams_init_file #(parameter MEM_INIT_FILE="") (clk, we, addr, din, dout);
 input clk;
 input we;
-input [5:0] addr;
+input [31:0] addr;
 input [31:0] din;
 output [31:0] dout;
 
