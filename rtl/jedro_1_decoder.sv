@@ -305,7 +305,7 @@ begin
             imm_ext_w = I_imm_sign_extended_w;
             alu_sel_w  = {1'b0, funct3};
         end
-        lsu_new_ctrl_w  = 1'b1;
+        lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
         if (regs1 == prev_dest_addr && regs1 != 0 && prev_state != eSTALL) begin
@@ -365,21 +365,22 @@ begin
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
         alu_op_b_w      = 1'b1;
-        alu_dest_addr_w = 4'b0;
-        alu_wb_w        = 1'b0; 
+        alu_dest_addr_w = regdest;
         rf_addr_a_w     = regs1;
         rf_addr_b_w     = regs2;
         imm_ext_w       = 32'b0;
-        lsu_new_ctrl_w  = 1'b1;
+        lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
+            alu_wb_w   = 1'b0; 
         end
         else begin
             curr_state = eOK;
+            alu_wb_w   = 1'b1; 
         end
     end
 
@@ -396,8 +397,8 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
         end
@@ -419,8 +420,8 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
         end
@@ -442,8 +443,8 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
         end
@@ -465,8 +466,8 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
         end
@@ -488,8 +489,8 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 ) &&
+        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
+            (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
             curr_state = eSTALL;
         end
