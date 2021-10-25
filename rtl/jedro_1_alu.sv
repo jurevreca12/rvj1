@@ -132,47 +132,47 @@ always_comb
 begin
   case (sel_i)
     ALU_OP_ADD: begin
-      res_mux <= adder_res; 
+      res_mux = adder_res; 
     end
 
     ALU_OP_SUB: begin
-      res_mux <= adder_res;
+      res_mux = adder_res;
     end
 
     ALU_OP_SLL: begin
-      res_mux <= shifter_left_res; 
+      res_mux = shifter_left_res; 
     end
 
     ALU_OP_SLT: begin
-      res_mux <= less_than_sign_res;
+      res_mux = less_than_sign_res;
     end
 
     ALU_OP_SLTU: begin
-      res_mux <= less_than_unsign_res;
+      res_mux = less_than_unsign_res;
     end
 
     ALU_OP_XOR: begin
-      res_mux <= xor_res;
+      res_mux = xor_res;
     end
 
     ALU_OP_SRL: begin
-      res_mux <= shifter_right_res;
+      res_mux = shifter_right_res;
     end
 
     ALU_OP_SRA: begin
-      res_mux <= shifter_right_res;
+      res_mux = shifter_right_res;
     end
 
     ALU_OP_OR: begin
-      res_mux <= or_res;
+      res_mux = or_res;
     end
 
     ALU_OP_AND: begin
-      res_mux <= and_res; 
+      res_mux = and_res; 
     end
 
     default: begin 
-      res_mux <= 32'b0;
+      res_mux = 32'b0;
     end
   endcase
 end
