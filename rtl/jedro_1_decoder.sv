@@ -351,12 +351,7 @@ begin
         lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if (regs1 == prev_dest_addr && regs1 != 0 && prev_state != eSTALL) begin
-            curr_state = eSTALL;
-        end
-        else begin
-            curr_state = eOK;
-        end
+        curr_state      = eOK;
     end
 
     OPCODE_STORE: begin
@@ -420,14 +415,7 @@ begin
         lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 )) &&
-             prev_state != eSTALL) begin
-            curr_state = eSTALL;
-        end
-        else begin
-            curr_state = eOK;
-        end
+        curr_state      = eOK;
     end
 
     OPCODE_BRANCH: begin
@@ -492,14 +480,7 @@ begin
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 )) &&
-             prev_state != eSTALL) begin
-            curr_state = eSTALL;
-        end
-        else begin
-            curr_state = eOK;
-        end
+        curr_state      = eOK;
     end
 
     OPCODE_SYSTEM: begin
