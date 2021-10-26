@@ -386,15 +386,15 @@ begin
 
     OPCODE_LUI: begin
         illegal_instr_w = 1'b0;
-        alu_sel_w       = {instr_i[30], funct3};
+        alu_sel_w       = ALU_OP_ADD;
         alu_op_a_w      = 1'b1;
-        alu_op_b_w      = 1'b1;
-        alu_dest_addr_w = 4'b0;
-        alu_wb_w        = 1'b0; 
-        rf_addr_a_w     = regs1;
-        rf_addr_b_w     = regs2;
-        imm_ext_w       = {imm31_12, 12'b0};
-        lsu_new_ctrl_w  = 1'b1;
+        alu_op_b_w      = 1'b0;
+        alu_dest_addr_w = regdest;
+        alu_wb_w        = 1'b1; 
+        rf_addr_a_w     = 5'b00000;
+        rf_addr_b_w     = 5'b00000;
+        imm_ext_w       = {instr_i[31:12],12'b0000_0000_0000};
+        lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
         if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
