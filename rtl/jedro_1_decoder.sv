@@ -13,8 +13,6 @@
 
 import jedro_1_defines::*;
 
-
-
 module jedro_1_decoder
 (
   input logic clk_i,
@@ -22,7 +20,10 @@ module jedro_1_decoder
 
   // IFU INTERFACE
   input  logic [DATA_WIDTH-1:0] instr_i,        // Instructions coming in from memory/cache
+  input  logic [DATA_WIDTH-1:0] instr_addr_i,
+  output logic [DATA_WIDTH-1:0] instr_addr_ro,
   input  logic                  instr_valid_i,
+  output logic                  is_auipc_ro,
   output logic                  ready_co,       // Ready for instructions.
 
   // CONTROL UNIT INTERFACE
@@ -51,10 +52,11 @@ module jedro_1_decoder
 /*************************************
 * INTERNAL SIGNAL DEFINITION
 *************************************/
-logic                    illegal_instr_w;
-logic [ALU_OP_WIDTH-1:0] alu_sel_w;
-logic                    alu_op_a_w;
-logic                    alu_op_b_w;
+logic                      is_auipc_w;
+logic                      illegal_instr_w;
+logic [ALU_OP_WIDTH-1:0]   alu_sel_w;
+logic                      alu_op_a_w;
+logic                      alu_op_b_w;
 logic [REG_ADDR_WIDTH-1:0] alu_dest_addr_w;
 logic                      alu_wb_w;
 
@@ -106,6 +108,17 @@ assign regs1    = instr_i[19:15];
 assign regs2    = instr_i[24:20];
 assign funct7   = instr_i[31:25];
 
+/*************************************
+* BUFFER INSTR ADDR
+*************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        instr_addr_ro <= 32'b0;
+    end
+    else begin
+        instr_addr_ro <= instr_addr_i;
+    end
+end
 
 /*************************************
 * FSM UPDATE
@@ -192,6 +205,7 @@ sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_S_inst (.in_i({instr_i[31:
 *************************************/
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
+    is_auipc_ro <= 0;
     illegal_instr_ro <= 0;
     alu_sel_ro <= 0;
     alu_op_a_ro <= 0;
@@ -208,6 +222,7 @@ always_ff@(posedge clk_i) begin
   end
   else begin
     if (instr_valid_i == 1'b1) begin
+        is_auipc_ro <= is_auipc_w;
         illegal_instr_ro <= illegal_instr_w;
         alu_sel_ro <= alu_sel_w;
         alu_op_a_ro <= alu_op_a_w;
@@ -223,6 +238,7 @@ always_ff@(posedge clk_i) begin
         lsu_regdest_ro <= lsu_regdest_w;
     end
     else begin
+        is_auipc_ro <= is_auipc_ro;
         illegal_instr_ro <= illegal_instr_ro;
         alu_sel_ro <= alu_sel_ro;
         alu_op_a_ro <= alu_op_a_ro;
@@ -248,6 +264,7 @@ always_comb
 begin
   case (opcode)
     OPCODE_LOAD: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = 1'b0;
         alu_op_a_w      = 1'b1;
@@ -269,6 +286,7 @@ begin
     end
 
     OPCODE_MISCMEM: begin 
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = 1'b0;
         alu_op_a_w      = 1'b1;
@@ -290,6 +308,7 @@ begin
     end
 
     OPCODE_OPIMM: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_op_a_w      = 1'b1;
         alu_op_b_w      = 1'b0;
@@ -319,16 +338,17 @@ begin
     end
 
     OPCODE_AUIPC: begin
+        is_auipc_w      = 1'b1;
         illegal_instr_w = 1'b0;
-        alu_sel_w       = {instr_i[30], funct3};
+        alu_sel_w       = ALU_OP_ADD;
         alu_op_a_w      = 1'b1;
         alu_op_b_w      = 1'b0;
         alu_dest_addr_w = regdest;
         alu_wb_w        = 1'b1; 
-        rf_addr_a_w     = regs1;
-        rf_addr_b_w     = 4'b0;
-        imm_ext_w       = {imm31_12, 12'b0};
-        lsu_new_ctrl_w  = 1'b1;
+        rf_addr_a_w     = 5'b00000;
+        rf_addr_b_w     = 5'b00000;
+        imm_ext_w       = {imm31_12, 12'b0000_0000_0000};
+        lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
         if (regs1 == prev_dest_addr && regs1 != 0 && prev_state != eSTALL) begin
@@ -340,6 +360,7 @@ begin
     end
 
     OPCODE_STORE: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -361,6 +382,7 @@ begin
     end
     
     OPCODE_OP: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -385,6 +407,7 @@ begin
     end
 
     OPCODE_LUI: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = ALU_OP_ADD;
         alu_op_a_w      = 1'b1;
@@ -393,7 +416,7 @@ begin
         alu_wb_w        = 1'b1; 
         rf_addr_a_w     = 5'b00000;
         rf_addr_b_w     = 5'b00000;
-        imm_ext_w       = {instr_i[31:12],12'b0000_0000_0000};
+        imm_ext_w       = {imm31_12, 12'b0000_0000_0000};
         lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
@@ -408,6 +431,7 @@ begin
     end
 
     OPCODE_BRANCH: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -431,6 +455,7 @@ begin
     end
 
     OPCODE_JALR: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -454,6 +479,7 @@ begin
     end
 
     OPCODE_JAL: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -477,6 +503,7 @@ begin
     end
 
     OPCODE_SYSTEM: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -500,6 +527,7 @@ begin
     end
 
     default: begin
+        is_auipc_w      = 1'b0;
         illegal_instr_w = 1'b1;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;

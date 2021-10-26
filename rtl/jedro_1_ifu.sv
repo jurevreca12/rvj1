@@ -21,14 +21,14 @@ module jedro_1_ifu
   input logic clk_i,
   input logic rstn_i,
 
-
   input logic jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
                                // counter should be changed to jmp_address_i.
   
   input logic [DATA_WIDTH-1:0] jmp_address_i,    // The address to jump to, after we had encountered a jump instruction.
-  
+
   // Interface to the decoder
   output logic [DATA_WIDTH-1:0] instr_ro,         // The current instruction (to be decoded)
+  output logic [DATA_WIDTH-1:0] instr_addr_ro,    // Used by instructons that calculate on the PC.
   output logic                  instr_valid_ro,
   input  logic                  decoder_ready_i, // Decoder ready to accept new instruction
   
@@ -65,6 +65,14 @@ always_ff @(posedge clk_i) begin
   end
 end
 
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        instr_addr_ro <= BOOT_ADDR;
+    end
+    else begin
+        instr_addr_ro <= pc_reg - 4;
+    end
+end
 
 /***************************************
 * VALID SIGNAL GENERATION

@@ -27,6 +27,7 @@ module jedro_1_ifu_tb_top
                        .jmp_instr_i     (jmp_instr_i),
                        .jmp_address_i   (jmp_addr_i),
                        .instr_ro        (instr_ro),
+                       .instr_addr_ro   (),
                        .instr_valid_ro  (instr_valid_ro),
                        .decoder_ready_i (decoder_ready_i),
                        .instr_mem_if    (instr_mem_if.MASTER)
