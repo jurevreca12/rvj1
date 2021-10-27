@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreča - jurevreca12@gmail.com                       //
+// Engineer:       Jure Vreca - jurevreca12@gmail.com                         //
 //                                                                            //
 //                                                                            //
 //                                                                            //
@@ -31,9 +31,11 @@ module jedro_1_top
 logic                      ifu_decoder_instr_valid;
 logic [DATA_WIDTH-1:0]     ifu_decoder_instr_addr;
 logic [DATA_WIDTH-1:0]     ifu_decoder_instr;
+logic [DATA_WIDTH-1:0]     mux3_ifu_jmp_addr;
 logic                      decoder_ifu_ready; 
 logic                      decoder_ifu_jmp_instr;
 logic [DATA_WIDTH-1:0]     decoder_ifu_jmp_addr;
+logic                      decoder_mux3_use_alu_jmp_addr;
 logic [ALU_OP_WIDTH-1:0]   decoder_alu_sel;
 logic                      decoder_alu_op_a;
 logic                      decoder_alu_op_b;
@@ -60,8 +62,8 @@ logic [DATA_WIDTH-1:0]     mux2_alu_op_a;
 ****************************************/
 jedro_1_ifu ifu_inst(.clk_i          (clk_i),
                      .rstn_i         (rstn_i),
-                     .jmp_instr_i    (decoder_ifu_jmp_instr),
-                     .jmp_address_i  (decoder_ifu_jmp_addr),
+                     .jmp_instr_i    (decoder_ifu_jmp_instr | decoder_mux3_use_alu_jmp_addr),
+                     .jmp_address_i  (mux3_ifu_jmp_addr),
                      .instr_ro       (ifu_decoder_instr),
                      .instr_addr_ro  (ifu_decoder_instr_addr),
                      .instr_valid_ro (ifu_decoder_instr_valid), 
@@ -70,32 +72,35 @@ jedro_1_ifu ifu_inst(.clk_i          (clk_i),
                      );  
 
 
+assign mux3_ifu_jmp_addr = decoder_mux3_use_alu_jmp_addr ? alu_rf_res : decoder_ifu_jmp_addr;
+
 /****************************************
 * INSTRUCTION DECODE STAGE
 ****************************************/
-jedro_1_decoder decoder_inst(.clk_i           (clk_i),
-                             .rstn_i          (rstn_i),                  
-                             .instr_addr_i    (ifu_decoder_instr_addr),
-                             .instr_addr_ro   (decoder_mux2_instr_addr),
-                             .use_pc_ro       (decoder_mux2_use_pc),
-                             .instr_i         (ifu_decoder_instr),
-                             .instr_valid_i   (ifu_decoder_instr_valid),
-                             .ready_co        (decoder_ifu_ready),
-                             .jmp_instr_co    (decoder_ifu_jmp_instr),
-                             .jmp_addr_co     (decoder_ifu_jmp_addr),
-                             .illegal_instr_ro(), // TODO
-                             .alu_sel_ro      (decoder_alu_sel), 
-                             .alu_op_a_ro     (decoder_alu_op_a), 
-                             .alu_op_b_ro     (decoder_alu_op_b), 
-                             .alu_dest_addr_ro(decoder_alu_dest_addr),
-                             .alu_wb_ro       (decoder_alu_wb),
-                             .rf_addr_a_ro    (decoder_rf_addr_a), 
-                             .rf_addr_b_ro    (decoder_rf_addr_b),
-                             .is_imm_ro       (decoder_mux_is_imm), 
-                             .imm_ext_ro      (decoder_mux_imm_ex),
-                             .lsu_new_ctrl_ro (), 
-                             .lsu_ctrl_ro     (), // TODO
-                             .lsu_regdest_ro  ()
+jedro_1_decoder decoder_inst(.clk_i               (clk_i),
+                             .rstn_i              (rstn_i),                  
+                             .instr_addr_i        (ifu_decoder_instr_addr),
+                             .instr_addr_ro       (decoder_mux2_instr_addr),
+                             .use_pc_ro           (decoder_mux2_use_pc),
+                             .instr_i             (ifu_decoder_instr),
+                             .instr_valid_i       (ifu_decoder_instr_valid),
+                             .ready_co            (decoder_ifu_ready),
+                             .jmp_instr_co        (decoder_ifu_jmp_instr),
+                             .jmp_addr_co         (decoder_ifu_jmp_addr),
+                             .use_alu_jmp_addr_ro (decoder_mux3_use_alu_jmp_addr),
+                             .illegal_instr_ro    (), // TODO
+                             .alu_sel_ro          (decoder_alu_sel), 
+                             .alu_op_a_ro         (decoder_alu_op_a), 
+                             .alu_op_b_ro         (decoder_alu_op_b), 
+                             .alu_dest_addr_ro    (decoder_alu_dest_addr),
+                             .alu_wb_ro           (decoder_alu_wb),
+                             .rf_addr_a_ro        (decoder_rf_addr_a), 
+                             .rf_addr_b_ro        (decoder_rf_addr_b),
+                             .is_imm_ro           (decoder_mux_is_imm), 
+                             .imm_ext_ro          (decoder_mux_imm_ex),
+                             .lsu_new_ctrl_ro     (), 
+                             .lsu_ctrl_ro         (), // TODO
+                             .lsu_regdest_ro      ()
                            );
 
 
