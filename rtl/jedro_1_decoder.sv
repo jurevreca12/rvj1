@@ -23,8 +23,10 @@ module jedro_1_decoder
   input  logic [DATA_WIDTH-1:0] instr_addr_i,
   output logic [DATA_WIDTH-1:0] instr_addr_ro,
   input  logic                  instr_valid_i,
-  output logic                  is_auipc_ro,
+  output logic                  use_pc_ro,
   output logic                  ready_co,       // Ready for instructions.
+  output logic                  jmp_instr_co,
+  output logic [DATA_WIDTH-1:0] jmp_addr_co,
 
   // CONTROL UNIT INTERFACE
   output logic illegal_instr_ro, // Illegal instruction encountered.
@@ -52,7 +54,7 @@ module jedro_1_decoder
 /*************************************
 * INTERNAL SIGNAL DEFINITION
 *************************************/
-logic                      is_auipc_w;
+logic                      use_pc_w;
 logic                      illegal_instr_w;
 logic [ALU_OP_WIDTH-1:0]   alu_sel_w;
 logic                      alu_op_a_w;
@@ -80,7 +82,7 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [2:0] {eOK=3'b001, eSTALL=3'b010, eERROR=3'b100} fsmState_t; 
+typedef enum logic [3:0] {eOK=4'b0001, eSTALL=4'b0010, eJUMP=4'b0100, eERROR=4'b1000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -108,6 +110,7 @@ assign regs1    = instr_i[19:15];
 assign regs2    = instr_i[24:20];
 assign funct7   = instr_i[31:25];
 
+
 /*************************************
 * BUFFER INSTR ADDR
 *************************************/
@@ -120,6 +123,7 @@ always_ff @(posedge clk_i) begin
     end
 end
 
+
 /*************************************
 * FSM UPDATE
 *************************************/
@@ -130,6 +134,41 @@ always_ff@(posedge clk_i) begin
     else begin
         prev_state <= curr_state;
     end
+end
+
+// Signal ready_co is combinational to provied imediate feedback to the IFU, if we need to stall.
+always_comb begin
+    unique case(curr_state)
+        eOK: begin
+            ready_co     = 1;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+        
+        eSTALL: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+        
+        eJUMP: begin
+            ready_co     = 1;
+            jmp_instr_co = 1;
+            jmp_addr_co  = J_imm_sign_extended_w;
+        end
+
+        eERROR: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        default: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end   
+    endcase
 end
 
 
@@ -154,20 +193,6 @@ end
 
 
 /*************************************
-* READY SIGNAL
-*************************************/
-// Signal ready_co is combinational to provied imediate feedback to the IFU, if we need to stall.
-always_comb begin
-    if (curr_state == eOK) begin
-        ready_co <= 1'b1;
-    end
-    else begin
-        ready_co <= 1'b0;
-    end
-end
-
-
-/*************************************
 * SIGN EXTENDERS
 *************************************/
 // For the I instruction type immediate
@@ -180,7 +205,7 @@ sign_extender #(.N(DATA_WIDTH), .M(5))  sign_extender_I_shift_inst(.in_i(imm11_0
 sign_extender #(.N(DATA_WIDTH), .M(21)) sign_extender_J_inst (.in_i({instr_i[31], 
                                                                      instr_i[19:12], 
                                                                      instr_i[20], 
-                                                                     instr_i[10:1], 
+                                                                     instr_i[30:21], 
                                                                      1'b0}),
                                                                .out_o(J_imm_sign_extended_w)
                                                              );
@@ -205,7 +230,7 @@ sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_S_inst (.in_i({instr_i[31:
 *************************************/
 always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    is_auipc_ro <= 0;
+    use_pc_ro <= 0;
     illegal_instr_ro <= 0;
     alu_sel_ro <= 0;
     alu_op_a_ro <= 0;
@@ -222,7 +247,7 @@ always_ff@(posedge clk_i) begin
   end
   else begin
     if (instr_valid_i == 1'b1) begin
-        is_auipc_ro <= is_auipc_w;
+        use_pc_ro <= use_pc_w;
         illegal_instr_ro <= illegal_instr_w;
         alu_sel_ro <= alu_sel_w;
         alu_op_a_ro <= alu_op_a_w;
@@ -238,7 +263,7 @@ always_ff@(posedge clk_i) begin
         lsu_regdest_ro <= lsu_regdest_w;
     end
     else begin
-        is_auipc_ro <= is_auipc_ro;
+        use_pc_ro <= 1'b0;
         illegal_instr_ro <= illegal_instr_ro;
         alu_sel_ro <= alu_sel_ro;
         alu_op_a_ro <= alu_op_a_ro;
@@ -262,9 +287,9 @@ end
 *************************************/
 always_comb
 begin
-  case (opcode)
+  unique case (opcode)
     OPCODE_LOAD: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = 1'b0;
         alu_op_a_w      = 1'b1;
@@ -286,7 +311,7 @@ begin
     end
 
     OPCODE_MISCMEM: begin 
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = 1'b0;
         alu_op_a_w      = 1'b1;
@@ -308,7 +333,7 @@ begin
     end
 
     OPCODE_OPIMM: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_op_a_w      = 1'b1;
         alu_op_b_w      = 1'b0;
@@ -338,7 +363,7 @@ begin
     end
 
     OPCODE_AUIPC: begin
-        is_auipc_w      = 1'b1;
+        use_pc_w        = 1'b1;
         illegal_instr_w = 1'b0;
         alu_sel_w       = ALU_OP_ADD;
         alu_op_a_w      = 1'b1;
@@ -355,7 +380,7 @@ begin
     end
 
     OPCODE_STORE: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -377,7 +402,7 @@ begin
     end
     
     OPCODE_OP: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -402,7 +427,7 @@ begin
     end
 
     OPCODE_LUI: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = ALU_OP_ADD;
         alu_op_a_w      = 1'b1;
@@ -419,7 +444,7 @@ begin
     end
 
     OPCODE_BRANCH: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -443,7 +468,7 @@ begin
     end
 
     OPCODE_JALR: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -452,7 +477,7 @@ begin
         alu_wb_w        = 1'b0; 
         rf_addr_a_w     = regs1;
         rf_addr_b_w     = regs2;
-        imm_ext_w   = I_imm_sign_extended_w;   
+        imm_ext_w       = I_imm_sign_extended_w;   
         lsu_new_ctrl_w  = 1'b1;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
@@ -467,24 +492,24 @@ begin
     end
 
     OPCODE_JAL: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b1;
         illegal_instr_w = 1'b0;
-        alu_sel_w       = {instr_i[30], funct3};
-        alu_op_a_w      = 1'b1;
-        alu_op_b_w      = 1'b1;
-        alu_dest_addr_w = 4'b0;
-        alu_wb_w        = 1'b0; 
-        rf_addr_a_w     = regs1;
-        rf_addr_b_w     = regs2;
-        imm_ext_w       = J_imm_sign_extended_w;   
-        lsu_new_ctrl_w  = 1'b1;
+        alu_sel_w       = ALU_OP_ADD;
+        alu_op_a_w      = 1'b0;
+        alu_op_b_w      = 1'b0;
+        alu_dest_addr_w = regdest;
+        alu_wb_w        = 1'b1; 
+        rf_addr_a_w     = 5'b00000;
+        rf_addr_b_w     = 5'b00000;
+        imm_ext_w       = 32'b00000000_00000000_00000000_00000100;   
+        lsu_new_ctrl_w  = 1'b0;
         lsu_ctrl_w      = {opcode[6], funct3};
         lsu_regdest_w   = regdest;
-        curr_state      = eOK;
+        curr_state      = eJUMP;
     end
 
     OPCODE_SYSTEM: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b0;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
@@ -508,7 +533,7 @@ begin
     end
 
     default: begin
-        is_auipc_w      = 1'b0;
+        use_pc_w        = 1'b0;
         illegal_instr_w = 1'b1;
         alu_sel_w       = {instr_i[30], funct3};
         alu_op_a_w      = 1'b1;
