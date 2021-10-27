@@ -39,10 +39,12 @@ ELABORATED_TB_MODULES := $(addprefix xsim.dir/, $(ELABORATED_TB_MODULES))
 # Contain the final simulation
 FIN_WDB_FILES := $(TB_FILES:.sv=_simsnap.wdb)
 
+# Used for multithreading
 ################################
 # TARGETS
 ################################
-all: compile elaborate sim
+all:; @$(MAKE) _all -j8 --output-sync
+_all: compile elaborate sim
 
 compile: $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
 
@@ -50,11 +52,14 @@ elaborate: $(ELABORATED_TB_MODULES)
 
 sim: $(FIN_WDB_FILES)
 
-$(FIN_WDB_FILES): %.wdb: xsim.dir/%/xsimk
-	xsim $* -t simulate.tcl
+$(FIN_WDB_FILES): ${ELABORATED_TB_MODULES}
+	$(eval EL_MODULE=$(subst .wdb,, $@))
+	xsim ${EL_MODULE} -t simulate.tcl
 
-$(ELABORATED_TB_MODULES): xsim.dir/%_simsnap/xsimk: %.sv
-	xelab --nolog -debug typical -i $(INC_DIR) $* -s $*_simsnap --O0
+$(ELABORATED_TB_MODULES): $(COMPILED_SV_MODULES) $(COMPILED_V_MODULES)
+	$(eval C_MODULE=$(subst xsim.dir/,, $@))
+	$(eval C_MODULE=$(subst _simsnap/xsimk,, ${C_MODULE}))
+	xelab --nolog -debug typical -i $(INC_DIR) ${C_MODULE} -s ${C_MODULE}_simsnap --O0
 
 $(COMPILED_SV_MODULES): xsim.dir/work/%.sdb: %.sv
 	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
