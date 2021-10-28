@@ -70,7 +70,12 @@ always_ff @(posedge clk_i) begin
         instr_addr_ro <= BOOT_ADDR;
     end
     else begin
-        instr_addr_ro <= pc_reg - 4;
+        if (decoder_ready_i == 1'b1) begin
+            instr_addr_ro <= pc_reg - 4;
+        end
+        else begin
+            instr_addr_ro <= instr_addr_ro;
+        end
     end
 end
 
@@ -147,5 +152,6 @@ always_ff @(posedge clk_i) begin
         end
     end
 end
+
 
 endmodule : jedro_1_ifu

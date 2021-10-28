@@ -38,6 +38,7 @@ module jedro_1_decoder
   output logic                       alu_op_b_ro,        // Is operand b involved in the operation?
   output logic [REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
   output logic                       alu_wb_ro,          // Writeback to the register?
+  input  logic [DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
   
   // REGISTER FILE INTERFACE  
   output logic [REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
@@ -84,13 +85,18 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [6:0] {eOK                 = 7'b0000001, 
-                          eSTALL              = 7'b0000010, 
-                          eJAL                = 7'b0000100,
-                          eJALR_PC_CALC       = 7'b0001000,
-                          eJALR_JMP_ADDR_CALC = 7'b0010000,
-                          eJALR_JMP           = 7'b0100000,
-                          eERROR              = 7'b1000000} fsmState_t; 
+typedef enum logic [11:0] {eOK                 = 12'b000000000001, 
+                          eSTALL               = 12'b000000000010, 
+                          eJAL                 = 12'b000000000100,
+                          eJALR_PC_CALC        = 12'b000000001000,
+                          eJALR_JMP_ADDR_CALC  = 12'b000000010000,
+                          eJALR_JMP            = 12'b000000100000,
+                          eBRANCH_CALC_COND    = 12'b000001000000,
+                          eBRANCH_CALC_ADDR    = 12'b000010000000,
+                          eBRANCH_STALL        = 12'b000100000000,
+                          eBRANCH_JUMP         = 12'b001000000000,
+                          eBRANCH_STALL_2      = 12'b010000000000,
+                          eERROR               = 12'b100000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -182,6 +188,36 @@ always_comb begin
             jmp_instr_co = 0;
             jmp_addr_co  = 0;
         end
+
+        eBRANCH_CALC_COND: begin 
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        eBRANCH_CALC_ADDR: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+        
+        eBRANCH_STALL: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        eBRANCH_JUMP: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end 
+        
+        eBRANCH_STALL_2: begin
+            ready_co     = 1;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end   
 
         eERROR: begin
             ready_co     = 0;
@@ -480,27 +516,127 @@ begin
     end
 
     OPCODE_BRANCH: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
-        alu_sel_w          = {instr_i[30], funct3};
-        alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b1;
-        alu_dest_addr_w    = 4'b0;
-        alu_wb_w           = 1'b0; 
-        rf_addr_a_w        = regs1;
-        rf_addr_b_w        = regs2;
-        imm_ext_w          = B_imm_sign_extended_w;   
-        lsu_new_ctrl_w     = 1'b1;
-        lsu_ctrl_w         = {opcode[6], funct3};
-        lsu_regdest_w      = regdest;
+        // First cycle of all branch instructions calcules the condition, 
+        // the second cycle calculates the jump address, the third cycle
+        // stalls and finally if the condition holds, the fourth cycle jumps
+        // the fifth cycle is another stall.
         if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
             (regs2 == prev_dest_addr && regs2 != 0 )) &&
+             prev_state != eBRANCH_CALC_COND &&
+             prev_state != eBRANCH_CALC_ADDR &&
+             prev_state != eBRANCH_STALL &&
+             prev_state != eBRANCH_JUMP &&
+             prev_state != eBRANCH_STALL_2 &&
              prev_state != eSTALL) begin
-            curr_state = eSTALL;
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b0;
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = 4'b0000;
+            alu_op_a_w         = 1'b0;
+            alu_op_b_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = 5'b00000;
+            rf_addr_b_w        = 5'b00000;
+            imm_ext_w          = 0;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            curr_state         = eSTALL;
+        end
+        else if (prev_state != eBRANCH_CALC_COND &&
+                 prev_state != eBRANCH_CALC_ADDR &&
+                 prev_state != eBRANCH_STALL &&
+                 prev_state != eBRANCH_JUMP &&
+                 prev_state != eBRANCH_STALL_2) begin
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b0;
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = ALU_OP_SLT;
+            alu_op_a_w         = 1'b1;
+            alu_op_b_w         = 1'b1;
+            alu_dest_addr_w    = 4'b0;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = regs1;
+            rf_addr_b_w        = regs2;
+            imm_ext_w          = 0;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            curr_state         = eBRANCH_CALC_COND;
+        end
+        else if (prev_state == eBRANCH_CALC_COND) begin
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b1;
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = ALU_OP_ADD;
+            alu_op_a_w         = 1'b0;
+            alu_op_b_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = regs1;
+            rf_addr_b_w        = regs2;
+            imm_ext_w          = B_imm_sign_extended_w;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            curr_state         = eBRANCH_CALC_ADDR;
+        end
+        else if (prev_state == eBRANCH_CALC_ADDR) begin
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b1;
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = ALU_OP_ADD;
+            alu_op_a_w         = 1'b0;
+            alu_op_b_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = regs1;
+            rf_addr_b_w        = regs2;
+            imm_ext_w          = B_imm_sign_extended_w;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            if (alu_res_i == 1) begin
+                curr_state = eBRANCH_STALL;
+            end
+            else begin
+                curr_state = eBRANCH_STALL_2;
+            end
+        end
+        else if (prev_state == eBRANCH_STALL) begin
+            use_alu_jmp_addr_w = 1'b1;
+            use_pc_w           = 1'b0; 
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = 5'b00000;
+            alu_op_a_w         = 1'b0;
+            alu_op_b_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = 5'b00000;
+            rf_addr_b_w        = 5'b00000;
+            imm_ext_w          = 0;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            curr_state         = eBRANCH_JUMP;
         end
         else begin
-            curr_state = eOK;
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b0; 
+            illegal_instr_w    = 1'b0;
+            alu_sel_w          = 5'b00000;
+            alu_op_a_w         = 1'b0;
+            alu_op_b_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = 5'b00000;
+            rf_addr_b_w        = 5'b00000;
+            imm_ext_w          = 0;   
+            lsu_new_ctrl_w     = 1'b0;
+            lsu_ctrl_w         = {opcode[6], funct3};
+            lsu_regdest_w      = regdest;
+            curr_state         = eBRANCH_STALL_2;
         end
     end
 
