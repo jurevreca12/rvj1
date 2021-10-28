@@ -11,6 +11,18 @@
 //                 a single cycle read delay. The jmp_instr_i should only be  //
 //                 asserted for a single clock cycle (for every jmp instr).   //
 //                                                                            //
+//                                      _________                             //
+//                 ________             |       |                             //
+//                 |       |------------| pc[0] |                             //
+//                 |       |            |_______|                             //
+//                 |  RAM  |                                                  //
+//                 |       |            ____________                          //
+//                 |       |            |          |                          //
+//                 |       |------------| instr_ro |---                       //
+//                 |_______|            |__________|                          //
+//                                                                            //
+//                                                                            //
+//                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns/1ps
 
@@ -35,49 +47,43 @@ module jedro_1_ifu
   // Interface to the ROM memory
   ram_read_io.MASTER            instr_mem_if
 );
-localparam INSTR_SHIFTREG_DEPTH = 2;
+localparam INSTR_SHIFTREG_DEPTH = 3;
 
-logic [DATA_WIDTH-1:0] pc_reg;
+logic [DATA_WIDTH-1:0] pc_shift_reg [INSTR_SHIFTREG_DEPTH-1:0];
+logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shiftreg;
 logic [DATA_WIDTH-1:0] stall_save_reg;
 logic is_1cycle_after_stall; // are we one cycle after the stall happened?
-logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shiftreg;
 
 
 /***************************************
 * PROGRAM COUNTER LOGIC
 ***************************************/
-assign instr_mem_if.addr = pc_reg; // The output address just follows pc_r
+assign instr_mem_if.addr = pc_shift_reg[0]; // The output address just follows pc_shift_reg[0]
+assign instr_addr_ro = pc_shift_reg[2];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    pc_reg <= BOOT_ADDR;
+     pc_shift_reg[0] <= BOOT_ADDR;
+     pc_shift_reg[1] <= BOOT_ADDR;
+     pc_shift_reg[2] <= BOOT_ADDR;
   end
   else begin
-    if (decoder_ready_i == 1'b1) begin 
-      if (jmp_instr_i == 1'b1)
-        pc_reg <= jmp_address_i;
-      else
-        pc_reg <= pc_reg + 4;
+    if (decoder_ready_i == 1'b1) begin
+        if (jmp_instr_i == 1'b1) begin
+            pc_shift_reg[0] <= jmp_address_i;
+        end
+        else begin
+            pc_shift_reg[0] <= pc_shift_reg[0] + 4;
+        end
+        pc_shift_reg[1] <= pc_shift_reg[0];
+        pc_shift_reg[2] <= pc_shift_reg[1];
     end
     else begin
-      pc_reg <= pc_reg;
+      pc_shift_reg <= pc_shift_reg;
     end
   end
 end
 
-always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        instr_addr_ro <= BOOT_ADDR;
-    end
-    else begin
-        if (decoder_ready_i == 1'b1) begin
-            instr_addr_ro <= pc_reg - 4;
-        end
-        else begin
-            instr_addr_ro <= instr_addr_ro;
-        end
-    end
-end
 
 /***************************************
 * VALID SIGNAL GENERATION
@@ -86,15 +92,17 @@ assign instr_valid_ro = instr_valid_shiftreg[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b00);
+    instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b001);
   end
   else begin
     if (decoder_ready_i == 1'b1) begin
         instr_valid_shiftreg <= instr_valid_shiftreg << 1;
-        if (jmp_instr_i == 1'b1)
-          instr_valid_shiftreg <= 0;
-        else
+        if (jmp_instr_i == 1'b1) begin
+          instr_valid_shiftreg[0] <= 1'b0;
+        end
+        else begin
           instr_valid_shiftreg[0] <= 1'b1;
+        end
     end
     else begin
       instr_valid_shiftreg <= instr_valid_shiftreg;
