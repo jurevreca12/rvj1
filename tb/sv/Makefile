@@ -68,5 +68,5 @@ $(COMPILED_V_MODULES): xsim.dir/work/%.sdb: %.v
 	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 clean:
-	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./
+	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./ *.str
 
