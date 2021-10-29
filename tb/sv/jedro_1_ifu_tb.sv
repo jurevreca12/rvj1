@@ -46,7 +46,7 @@ module jedro_1_ifu_tb();
   repeat (1) @ (posedge clk);
   // Simple cycle through (no jumps)
   decoder_ready <= 1'b1;
-  repeat (2) @ (posedge clk);
+  repeat (1) @ (posedge clk);
   for (int i = 0; i < 16; i++) begin
     repeat (1) @ (posedge clk) begin
       assert (instr_valid == 1'b1) else $display("ERROR 2, instr_valid should be asserted here.");

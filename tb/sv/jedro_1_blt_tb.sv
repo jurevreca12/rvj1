@@ -39,7 +39,7 @@ module jedro_1_blt_tb();
   end
 
   assert (dut.regfile_inst.regfile[1] == 0) 
-  else $display("ERROR: After executing jedro_1_blt_tb.mem the value in register 1 should be -1, not %d.", 
+  else $display("ERROR: After executing jedro_1_blt_tb.mem the value in register 1 should be 0, not %d.", 
                 $signed(dut.regfile_inst.regfile[1]));
   
   assert (dut.regfile_inst.regfile[2] == 1 + 2 + 4) 

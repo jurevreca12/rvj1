@@ -53,13 +53,13 @@ logic [DATA_WIDTH-1:0] pc_shift_reg [INSTR_SHIFTREG_DEPTH-1:0];
 logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shiftreg;
 logic [DATA_WIDTH-1:0] stall_save_reg;
 logic is_1cycle_after_stall; // are we one cycle after the stall happened?
-
+logic prev_decoder_ready;
 
 /***************************************
 * PROGRAM COUNTER LOGIC
 ***************************************/
 assign instr_mem_if.addr = pc_shift_reg[0]; // The output address just follows pc_shift_reg[0]
-assign instr_addr_ro = pc_shift_reg[2];
+assign instr_addr_ro = pc_shift_reg[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
@@ -68,7 +68,17 @@ always_ff @(posedge clk_i) begin
      pc_shift_reg[2] <= BOOT_ADDR;
   end
   else begin
-    if (decoder_ready_i == 1'b1) begin
+    if (decoder_ready_i == 1'b0 && instr_valid_ro == 1'b1) begin
+        if (is_1cycle_after_stall == 1'b1) begin
+            pc_shift_reg[0] <= pc_shift_reg[1];
+            pc_shift_reg[1] <= pc_shift_reg[1];
+            pc_shift_reg[2] <= pc_shift_reg[2];
+        end
+        else begin
+            pc_shift_reg <= pc_shift_reg;
+        end
+    end
+    else begin
         if (jmp_instr_i == 1'b1) begin
             pc_shift_reg[0] <= jmp_address_i;
         end
@@ -77,9 +87,6 @@ always_ff @(posedge clk_i) begin
         end
         pc_shift_reg[1] <= pc_shift_reg[0];
         pc_shift_reg[2] <= pc_shift_reg[1];
-    end
-    else begin
-      pc_shift_reg <= pc_shift_reg;
     end
   end
 end
@@ -92,20 +99,25 @@ assign instr_valid_ro = instr_valid_shiftreg[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b001);
+    instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b0001);
   end
   else begin
-    if (decoder_ready_i == 1'b1) begin
+    if (decoder_ready_i == 1'b0 && instr_valid_ro == 1'b1) begin
+        if (is_1cycle_after_stall == 1'b1) begin
+            instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b001);
+        end
+        else begin
+            instr_valid_shiftreg <= instr_valid_shiftreg;
+        end
+    end
+    else begin
         instr_valid_shiftreg <= instr_valid_shiftreg << 1;
         if (jmp_instr_i == 1'b1) begin
-          instr_valid_shiftreg[0] <= 1'b0;
+          instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b0001);
         end
         else begin
           instr_valid_shiftreg[0] <= 1'b1;
         end
-    end
-    else begin
-      instr_valid_shiftreg <= instr_valid_shiftreg;
     end
   end
 end
@@ -152,7 +164,7 @@ always_ff @(posedge clk_i) begin
         is_1cycle_after_stall <= 1'b0;
     end
     else begin
-        if (decoder_ready_i == 1'b0) begin
+        if (prev_decoder_ready == 1'b1 && decoder_ready_i == 1'b0) begin
             is_1cycle_after_stall <= 1'b1;
         end
         else begin
@@ -161,5 +173,13 @@ always_ff @(posedge clk_i) begin
     end
 end
 
-
+// use for stall detection
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        prev_decoder_ready <= 1'b1;
+    end
+    else begin
+        prev_decoder_ready <= decoder_ready_i;
+    end
+end
 endmodule : jedro_1_ifu

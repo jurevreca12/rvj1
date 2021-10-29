@@ -85,18 +85,20 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [11:0] {eOK                 = 12'b000000000001, 
-                          eSTALL               = 12'b000000000010, 
-                          eJAL                 = 12'b000000000100,
-                          eJALR_PC_CALC        = 12'b000000001000,
-                          eJALR_JMP_ADDR_CALC  = 12'b000000010000,
-                          eJALR_JMP            = 12'b000000100000,
-                          eBRANCH_CALC_COND    = 12'b000001000000,
-                          eBRANCH_CALC_ADDR    = 12'b000010000000,
-                          eBRANCH_STALL        = 12'b000100000000,
-                          eBRANCH_JUMP         = 12'b001000000000,
-                          eBRANCH_STALL_2      = 12'b010000000000,
-                          eERROR               = 12'b100000000000} fsmState_t; 
+typedef enum logic [13:0] {eOK                 = 14'b00000000000001, 
+                           eSTALL              = 14'b00000000000010, 
+                           eJAL                = 14'b00000000000100,
+                           eJAL_WAIT_1         = 14'b00000000001000,
+                           eJAL_WAIT_2         = 14'b00000000010000,
+                           eJALR_PC_CALC       = 14'b00000000100000,
+                           eJALR_JMP_ADDR_CALC = 14'b00000001000000,
+                           eJALR_JMP           = 14'b00000010000000,
+                           eBRANCH_CALC_COND   = 14'b00000100000000,
+                           eBRANCH_CALC_ADDR   = 14'b00001000000000,
+                           eBRANCH_STALL       = 14'b00010000000000,
+                           eBRANCH_JUMP        = 14'b00100000000000,
+                           eBRANCH_STALL_2     = 14'b01000000000000,
+                           eERROR              = 14'b10000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -166,9 +168,21 @@ always_comb begin
         end
         
         eJAL: begin
-            ready_co     = 1;
+            ready_co     = 0;
             jmp_instr_co = 1;
             jmp_addr_co  = J_imm_sign_extended_w;
+        end
+
+        eJAL_WAIT_1: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        eJAL_WAIT_2: begin
+            ready_co     = 1;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
         end
         
         eJALR_PC_CALC: begin
@@ -716,7 +730,23 @@ begin
         lsu_new_ctrl_w     = 1'b0;
         lsu_ctrl_w         = {opcode[6], funct3};
         lsu_regdest_w      = regdest;
-        curr_state         = eJAL;
+        if (prev_state != eJAL &&
+            prev_state != eJAL_WAIT_1 &&
+            prev_state != eJAL_WAIT_2 &&
+            instr_valid_i == 1'b0) begin
+            curr_state = eSTALL;
+        end
+        else if (prev_state != eJAL &&
+                 prev_state != eJAL_WAIT_1 &&
+                 prev_state != eJAL_WAIT_2) begin
+            curr_state = eJAL;
+        end
+        else if (prev_state == eJAL) begin
+            curr_state = eJAL_WAIT_1;
+        end
+        else begin
+            curr_state = eJAL_WAIT_2;
+        end
     end
 
     OPCODE_SYSTEM: begin
