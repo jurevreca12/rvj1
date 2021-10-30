@@ -39,6 +39,7 @@ module jedro_1_decoder
   output logic [REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
   output logic                       alu_wb_ro,          // Writeback to the register?
   input  logic [DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
+  input  logic                       alu_ops_eq_i,
   
   // REGISTER FILE INTERFACE  
   output logic [REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
@@ -617,7 +618,9 @@ begin
             lsu_new_ctrl_w     = 1'b0;
             lsu_ctrl_w         = {opcode[6], funct3};
             lsu_regdest_w      = regdest;
-            if (alu_res_i == 1) begin
+            if (alu_res_i == 1 ||
+               (funct3 == 3'b000 && alu_ops_eq_i == 1'b1) ||
+               (funct3 == 3'b001 && alu_ops_eq_i == 1'b0)) begin
                 curr_state = eBRANCH_STALL;
             end
             else begin

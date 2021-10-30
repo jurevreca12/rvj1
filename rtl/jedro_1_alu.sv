@@ -23,6 +23,7 @@ module jedro_1_alu
   input logic [DATA_WIDTH-1:0]     op_a_i,
   input logic [DATA_WIDTH-1:0]     op_b_i,
   output logic [DATA_WIDTH-1:0]    res_ro,
+  output logic                     ops_eq_ro, // is 1 if op_a_i == op_b_i
   output logic                     overflow_ro,
 
   input logic [REG_ADDR_WIDTH-1:0]  dest_addr_i,
@@ -43,6 +44,7 @@ logic [DATA_WIDTH-1:0] less_than_sign_res;
 logic [DATA_WIDTH-1:0] less_than_unsign_res;
 logic [DATA_WIDTH-1:0] shifter_right_res;
 logic [DATA_WIDTH-1:0] shifter_left_res;
+logic                  ops_eq_res;
 logic adder_overflow;
 
 logic [DATA_WIDTH-1:0] res_mux;
@@ -55,10 +57,12 @@ always_ff@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     overflow_ro <= 0;
     res_ro <= 0;
+    ops_eq_ro <= 0;
   end
   else begin
     overflow_ro <= adder_overflow;
     res_ro <= res_mux;
+    ops_eq_ro <= ops_eq_res;
   end
 end
 
@@ -107,6 +111,12 @@ less_than_unsign_Nb #(.N(DATA_WIDTH)) less_than_unsign_32b_inst
   .a (op_a_i),
   .b (op_b_i),
   .r (less_than_unsign_res)
+);
+equality_Nb #(.N(DATA_WIDTH)) equality_32b_inst
+(
+  .a (op_a_i),
+  .b (op_b_i),
+  .r (ops_eq_res)
 );
 
 // shifters

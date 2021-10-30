@@ -1,7 +1,7 @@
-// A basic test of the bltu instruction.
+// A basic test of the beq instruction.
 `timescale 1ns/1ps
 
-module jedro_1_bltu_tb();
+module jedro_1_beq_tb();
   parameter DATA_WIDTH = 32;
   parameter ADDR_WIDTH = 32;
 
@@ -22,8 +22,8 @@ module jedro_1_bltu_tb();
                   .data_mem_if (data_mem_if.MASTER)
                 );
 
-  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_bltu_tb.mem")) rom_mem (.clk_i(clk),
-                                                                        .rom_if(instr_mem_if));
+  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_beq_tb.mem")) rom_mem (.clk_i(clk),
+                                                                       .rom_if(instr_mem_if));
   // Handle the clock signal
   always #1 clk = ~clk;
 
@@ -38,15 +38,19 @@ module jedro_1_bltu_tb();
     i++;
   end
 
-  assert (dut.regfile_inst.regfile[1] == 0) 
-  else $display("ERROR: After executing jedro_1_bltu_tb.mem the value in register 1 should be 0, not %d.", 
+  assert (dut.regfile_inst.regfile[1] == 2) 
+  else $display("ERROR: After executing jedro_1_beq_tb.mem the value in register 1 should be 2, not %d.", 
                 $signed(dut.regfile_inst.regfile[1]));
   
   assert (dut.regfile_inst.regfile[2] == 1 + 2 + 4) 
-  else $display("ERROR: After executing jedro_1_bltu_tb.mem the value in register 2 should be 7, not %d.", 
+  else $display("ERROR: After executing jedro_1_beq_tb.mem the value in register 2 should be 7, not %d.", 
                 dut.regfile_inst.regfile[2]);
+
+  assert (dut.regfile_inst.regfile[3] == 0) 
+  else $display("ERROR: After executing jedro_1_beq_tb.mem the value in register 3 should be 0, not %d.", 
+                dut.regfile_inst.regfile[3]);
 
   $finish;
   end
 
-endmodule : jedro_1_bltu_tb
+endmodule : jedro_1_beq_tb

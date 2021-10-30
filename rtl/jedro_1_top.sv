@@ -51,6 +51,7 @@ logic [DATA_WIDTH-1:0]     alu_rf_res;
 logic [REG_ADDR_WIDTH-1:0] alu_rf_dest_addr;
 logic                      alu_rf_wb;
 logic                      alu_overflow;
+logic                      alu_decoder_ops_eq;
 logic [DATA_WIDTH-1:0]     rf_alu_data_a;
 logic [DATA_WIDTH-1:0]     rf_alu_data_b;
 logic [DATA_WIDTH-1:0]     mux_alu_op_b;
@@ -95,6 +96,7 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
                              .alu_dest_addr_ro    (decoder_alu_dest_addr),
                              .alu_wb_ro           (decoder_alu_wb),
                              .alu_res_i           (alu_rf_res),
+                             .alu_ops_eq_i        (alu_decoder_ops_eq),
                              .rf_addr_a_ro        (decoder_rf_addr_a), 
                              .rf_addr_b_ro        (decoder_rf_addr_b),
                              .is_imm_ro           (decoder_mux_is_imm), 
@@ -132,6 +134,7 @@ jedro_1_alu alu_inst(.clk_i       (clk_i),
                      .op_a_i      (mux2_alu_op_a),
                      .op_b_i      (mux_alu_op_b),
                      .res_ro      (alu_rf_res),
+                     .ops_eq_ro   (alu_decoder_ops_eq),
                      .overflow_ro (alu_overflow),
                      .dest_addr_i (decoder_alu_dest_addr),
                      .dest_addr_ro(alu_rf_dest_addr),
