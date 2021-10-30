@@ -570,9 +570,15 @@ begin
             alu_op_a_w         = 1'b1;
             alu_op_b_w         = 1'b1;
             alu_dest_addr_w    = 4'b0;
-            alu_wb_w           = 1'b0; 
-            rf_addr_a_w        = regs1;
-            rf_addr_b_w        = regs2;
+            alu_wb_w           = 1'b0;
+            if (funct3[12] == 1'b0) begin 
+                rf_addr_a_w = regs1;
+                rf_addr_b_w = regs2;
+            end
+            else begin
+                rf_addr_a_w = regs2;
+                rf_addr_b_w = regs1;
+            end
             imm_ext_w          = 0;   
             lsu_new_ctrl_w     = 1'b0;
             lsu_ctrl_w         = {opcode[6], funct3};
