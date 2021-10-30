@@ -33,7 +33,7 @@ module jedro_1_jalr_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 32) begin
+  while (i < 64) begin
     @(posedge clk);
     i++;
   end
