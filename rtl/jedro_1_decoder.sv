@@ -566,7 +566,7 @@ begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0;
             illegal_instr_w    = 1'b0;
-            alu_sel_w          = ALU_OP_SLT;
+            alu_sel_w          = {2'b00, funct3[14:13]};
             alu_op_a_w         = 1'b1;
             alu_op_b_w         = 1'b1;
             alu_dest_addr_w    = 4'b0;
