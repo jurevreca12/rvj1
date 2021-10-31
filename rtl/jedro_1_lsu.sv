@@ -5,7 +5,7 @@
 //                                                                            //
 // Design Name:    jedro_1_lsu                                                //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The load-store unit of the jedro-1 riscv core.             //
 //                                                                            //

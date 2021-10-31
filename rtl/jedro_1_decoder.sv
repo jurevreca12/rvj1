@@ -1,11 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreca - jurevreca12@gmail.com                       //
+// Engineer:       Jure Vreca - jurevreca12@gmail.com                         //
 //                                                                            //
 //                                                                            //
 //                                                                            //
 // Design Name:    jedro_1_decoder                                            //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    Decoder for the RV32I instructions.                        //
 //                                                                            //

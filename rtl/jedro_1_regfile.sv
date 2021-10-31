@@ -5,7 +5,7 @@
 //                                                                            //
 // Design Name:    jedro_1_regfile                                            //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The register file and its interface.                       //
 //                                                                            //

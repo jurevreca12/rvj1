@@ -5,7 +5,7 @@
 //                                                                            //
 // Design Name:    jedro_1_top                                                //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The top file of the jedro_1 riscv core.                    //
 //                                                                            //

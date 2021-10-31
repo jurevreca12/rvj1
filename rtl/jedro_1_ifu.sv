@@ -1,11 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreca - jurevreca12@gmail.com                       //
+// Engineer:       Jure Vreca - jurevreca12@gmail.com                         //
 //                                                                            //
 //                                                                            //
 //                                                                            //
 // Design Name:    jedro_1_ifu                                                //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The instruction fetch unit for SPROM memory with           //
 //                 a single cycle read delay. The jmp_instr_i should only be  //

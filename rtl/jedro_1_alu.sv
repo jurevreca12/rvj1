@@ -5,7 +5,7 @@
 //                                                                            //
 // Design Name:    jedro_1_alu                                                //
 // Project Name:   riscv-jedro-1                                              //
-// Language:       Verilog                                                    //
+// Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The arithmetic logic unit is defined here.                 //
 //                                                                            //
