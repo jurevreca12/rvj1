@@ -50,5 +50,13 @@ parameter FUNCT3_SHIFT_INSTR = 3'b101;
 
 // Load-Store Unit
 parameter LSU_CTRL_WIDTH = 4; // we need to encode 8 states 
+parameter LSU_LOAD_BYTE            = 4'b0000;
+parameter LSU_LOAD_HALF_WORD       = 4'b0001;
+parameter LSU_LOAD_WORD            = 4'b0010;
+parameter LSU_LOAD_BYTE_UPPER      = 4'b0100;
+parameter LSU_LOAD_HALF_WORD_UPPER = 4'b0101;
+parameter LSU_STORE_BYTE           = 4'b1000;
+parameter LSU_STORE_HALF_WORD      = 4'b1001;
+parameter LSU_STORE_WORD           = 4'b1010;
 
 endpackage
