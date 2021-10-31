@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Engineer:       Jure Vreča - jurevreca12@gmail.com                       //
+// Engineer:       Jure Vreca - jurevreca12@gmail.com                       //
 //                                                                            //
 //                                                                            //
 //                                                                            //
