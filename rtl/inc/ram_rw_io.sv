@@ -5,15 +5,14 @@ interface ram_rw_io #(
     parameter DATA_WIDTH=32
 );	
 	logic 				            we;
-	logic [$clog2(DATA_WIDTH)-1:0]  be;
 	logic [ADDR_WIDTH-1:0]          addr;
 	logic [DATA_WIDTH-1:0]          wdata;
 	logic [DATA_WIDTH-1:0]          rdata;
 
 	modport MASTER(input rdata,
-				   output we, be, addr, wdata);
+				   output we, addr, wdata);
 	modport SLAVE (output rdata,
-				   input  we, be, addr, wdata);
+				   input  we, addr, wdata);
 
 endinterface: ram_rw_io
 

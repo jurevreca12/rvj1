@@ -6,12 +6,12 @@ module rams_sp_nc (clk, we, en, addr, di, dout);
 input clk; 
 input we; 
 input en;
-input [9:0] addr; 
-input [15:0] di; 
-output [15:0] dout;
+input [32:0] addr; 
+input [32:0] di; 
+output [32:0] dout;
 
-reg	[15:0] RAM [1023:0];
-reg	[15:0] dout;
+reg	[32:0] RAM [1023:0];
+reg	[32:0] dout;
 
 always @(posedge clk)
 begin
