@@ -24,13 +24,14 @@ module jedro_1_lsu
   // Inputs from the decoder/ALU
   input                       ctrl_valid_i,
   input  [LSU_CTRL_WIDTH-1:0] ctrl_i,
-  input  [ADDR_WIDTH-1:0]     addr_i,        // Address of the memory to ready/write.
+  input  [DATA_WIDTH-1:0]     addr_i,        // Address of the memory to ready/write.
   input  [DATA_WIDTH-1:0]     wdata_i,       // The data to write to memory.
  
   // Interface to the register file
   output [DATA_WIDTH-1:0]     rdata_o,       // Goes to the register file.
   output                      rf_wb_o,       // Enables the write pin of the reg file.
   input  [REG_ADDR_WIDTH-1:0] regdest_i,     // Writeback to which register?
+  output [REG_ADDR_WIDTH-1:0] regdest_o,
 
   // Interface to data RAM
   ram_rw_io.MASTER            data_mem_if
