@@ -37,5 +37,56 @@ module jedro_1_lsu
   ram_rw_io.MASTER            data_mem_if
 );
 
+/**************************************
+* SIGNAL DECLARATION & SHORTHANDS
+**************************************/
+logic is_write; // Is the current ctrl input a writei
+
+assign is_write = ctrl_i[LSU_CTRL_WIDTH-1];
+
+
+/**************************************
+* DESTINATIONAL ADDRESS BUFFERING
+**************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        regdest_o <= 0;
+    end
+    else begin
+        regdest_o <= regdest_i;
+    end
+end
+
+
+/**************************************
+* REGISTER WRITEBACK
+**************************************/
+
+
+/**************************************
+* HANDLE MEM INTERFACE
+**************************************/
+assign data_mem_if.addr  = addr_i;
+assign data_mem_if.we    = is_write;
+assign data_mem_if.wdata = wdata_i;
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        rdata_o <= 0;
+    end
+    else begin
+        rdata_o <= data_mem_if.rdata;
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        
+    end
+    else begin
+    
+    end
+end
 
 endmodule : jedro_1_lsu
+

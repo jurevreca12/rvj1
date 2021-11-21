@@ -18,9 +18,9 @@ begin
   if (en)
   begin
     if (we)
-      RAM[addr] <= di;
+      RAM[addr >> 2] <= di;
     else
-      dout <= RAM[addr];
+      dout <= RAM[addr >> 2];
   end
 end
 endmodule
