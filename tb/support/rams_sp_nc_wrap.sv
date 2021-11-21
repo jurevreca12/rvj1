@@ -10,6 +10,7 @@ module rams_sp_nc_wrap
 
   rams_sp_nc data_ram (.clk(clk_i), 
                        .we(ram_if.we), 
+                       .en(1'b1),
                        .addr(ram_if.addr[ram_if.ADDR_WIDTH-1:0]), 
                        .di(ram_if.wdata[ram_if.ADDR_WIDTH-1:0]), 
                        .dout(ram_if.rdata[ram_if.DATA_WIDTH-1:0])

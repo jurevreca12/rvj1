@@ -21,7 +21,7 @@ module jedro_1_sw_tb();
   // Data interface
   ram_rw_io data_mem_if();
   rams_sp_nc_wrap data_mem (.clk_i (clk),
-                            .ram_if(data_mem_if.SLAVE);
+                            .ram_if(data_mem_if.SLAVE));
 
 
   jedro_1_top dut(.clk_i       (clk),
@@ -39,29 +39,16 @@ module jedro_1_sw_tb();
   rstn <= 1'b0;
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
-
-  
-  assert (data_mem.data_mem.RAM[0] == 32'b00000000_00000000_00000000_00000000 &&
-          data_mem.data_mem.RAM[4] == 32'b00000000_00000000_00000000_00000000) 
-  else $display("ERROR: At reset data memory should be set to zero. Instead the value
-                 at address 0 and 4 were %d, and $d, respectively.", 
-                 data_mem.data_mem.RAM[0], data_mem.data_mem.RAM[4]);
-
+ 
   while (i < 64) begin
     @(posedge clk);
     i++;
   end
 
-  assert (dut.regfile_inst.regfile[1] == 0) 
-  else $display("ERROR: After executing jedro_1_sw_tb.mem the value in register 1 should be 0, not %d.", 
-                $signed(dut.regfile_inst.regfile[1]));
-  
-
-  assert (data_mem.data_mem.RAM[0] == 32'b00000000_00000000_00000000_00001101 &&
-          data_mem.data_mem.RAM[4] == 32'b11111111_11111111_11111111_11111111) 
-  else $display("ERROR: At reset data memory should be set to 13 and 4294967295. Instead the value
-                 at address 0 and 4 were %d, and $d, respectively.", 
-                 data_mem.data_mem.RAM[0], data_mem.data_mem.RAM[4]);
+  assert (data_mem.data_ram.RAM[0] == 32'b00000000_00000000_00000000_00001101 &&
+          data_mem.data_ram.RAM[1] == 32'b00000000_00000000_00000000_00001101) 
+  else $display("ERROR: After executing jedro_1_sw_tb.mem the values in data memory at addresses 0 and 4 should both be 13 . Not %d and %d.", 
+                 data_mem.data_ram.RAM[0], data_mem.data_ram.RAM[4]);
 
   $finish;
   end

@@ -56,12 +56,9 @@ logic [DATA_WIDTH-1:0]     rf_alu_data_a;
 logic [DATA_WIDTH-1:0]     rf_alu_data_b;
 logic [DATA_WIDTH-1:0]     mux_alu_op_b;
 logic [DATA_WIDTH-1:0]     mux2_alu_op_a;
-logic                      decoder_1_lsu_ctrl_valid;
 logic                      decoder_lsu_ctrl_valid;
-logic                      decoder_1_lsu_ctrl;
-logic                      decoder_lsu_ctrl;
-logic                      decoder_1_lsu_regdest;
-logic                      decoder_lsu_regdest;
+logic [LSU_CTRL_WIDTH-1:0] decoder_lsu_ctrl;
+logic [REG_ADDR_WIDTH-1:0] decoder_lsu_regdest;
 logic                      decoder_1_mux4_is_alu_write;
 logic                      decoder_mux4_is_alu_write;
 logic [DATA_WIDTH-1:0]     lsu_mux4_rdata;
@@ -167,15 +164,9 @@ jedro_1_alu alu_inst(.clk_i       (clk_i),
 // for computing the target address.
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin        
-        decoder_1_lsu_ctrl_valid <= 1'b0;
-        decoder_1_lsu_ctrl <= 4'b0000;
-        decoder_1_lsu_regdest <= 5'b00000;
         decoder_1_mux4_is_alu_write <= 1'b1;
     end
     else begin
-        decoder_1_lsu_ctrl_valid <= decoder_lsu_ctrl_valid;
-        decoder_1_lsu_ctrl <= decoder_lsu_ctrl;
-        decoder_1_lsu_regdest <= decoder_lsu_regdest;
         decoder_1_mux4_is_alu_write <= decoder_mux4_is_alu_write;
     end
 end
@@ -197,13 +188,13 @@ end
 
 jedro_1_lsu lsu_inst(.clk_i       (clk_i),
                      .rstn_i      (rstn_i),
-                     .ctrl_valid_i(decoder_1_lsu_ctrl_valid),
-                     .ctrl_i      (decoder_1_lsu_ctrl),
+                     .ctrl_valid_i(decoder_lsu_ctrl_valid),
+                     .ctrl_i      (decoder_lsu_ctrl),
                      .addr_i      (alu_mux4_res),
-                     .wdata_i     (rf_alu_data_a),
+                     .wdata_i     (rf_alu_data_b),
                      .rdata_o     (lsu_mux4_rdata),
                      .rf_wb_o     (lsu_mux4_wb),
-                     .regdest_i   (decoder_1_lsu_regdest),
+                     .regdest_i   (decoder_lsu_regdest),
                      .regdest_o   (lsu_mux4_regdest),
                      .data_mem_if (data_mem_if)
                     );
