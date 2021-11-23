@@ -48,7 +48,7 @@ module jedro_1_sw_tb();
   assert (data_mem.data_ram.RAM[0] == 32'b00000000_00000000_00000000_00001101 &&
           data_mem.data_ram.RAM[1] == 32'b00000000_00000000_00000000_00001101) 
   else $display("ERROR: After executing jedro_1_sw_tb.mem the values in data memory at addresses 0 and 4 should both be 13 . Not %d and %d.", 
-                 data_mem.data_ram.RAM[0], data_mem.data_ram.RAM[4]);
+                 data_mem.data_ram.RAM[0], data_mem.data_ram.RAM[1]);
 
   $finish;
   end

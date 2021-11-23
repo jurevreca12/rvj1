@@ -83,7 +83,7 @@ always_ff @(posedge clk_i) begin
     end
     else begin
        data_mem_if.addr <= addr_i;
-       data_mem_if.we <= is_write & ctrl_valid_i;
+       data_mem_if.we <= {3'b111, is_write & ctrl_valid_i};
        data_mem_if.wdata <= wdata_i; 
     end
 end
