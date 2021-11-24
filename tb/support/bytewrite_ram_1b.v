@@ -34,7 +34,7 @@ begin
 always @(posedge clk)
 begin
     if (we[i])
-        RAM[addr][(i+1)*COL_WIDTH-1:i*COL_WIDTH] <= di[(i+1)*COL_WIDTH-1:i*COL_WIDTH];
+        RAM[addr >> 2][(i+1)*COL_WIDTH-1:i*COL_WIDTH] <= di[(i+1)*COL_WIDTH-1:i*COL_WIDTH];
     end 
 end
 endgenerate

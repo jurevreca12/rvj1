@@ -1,7 +1,7 @@
-// A basic test of the sw (store word) instruction.
+// A basic test of the sh (store half-word) instruction.
 `timescale 1ns/1ps
 
-module jedro_1_sw_tb();
+module jedro_1_sh_tb();
   parameter DATA_WIDTH = 32;
   parameter ADDR_WIDTH = 32;
 
@@ -15,7 +15,7 @@ module jedro_1_sw_tb();
   ram_read_io #(.ADDR_WIDTH(ADDR_WIDTH), 
                 .DATA_WIDTH(DATA_WIDTH)) instr_mem_if();
 
-  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_sw_tb.mem")) rom_mem (.clk_i(clk),
+  rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_sh_tb.mem")) rom_mem (.clk_i(clk),
                                                                       .rom_if(instr_mem_if.SLAVE));
 
   // Data interface
@@ -35,6 +35,8 @@ module jedro_1_sw_tb();
   always #1 clk = ~clk;
 
   initial begin
+  data_mem.data_ram.RAM[0] = 0;
+  data_mem.data_ram.RAM[1] = 0;
   clk <= 1'b0;
   rstn <= 1'b0;
   repeat (3) @ (posedge clk);
@@ -45,12 +47,12 @@ module jedro_1_sw_tb();
     i++;
   end
 
-  assert (data_mem.data_ram.RAM[0] == 32'b00000000_00000000_00000000_00001101 &&
-          data_mem.data_ram.RAM[1] == 32'b00000000_00000000_00000000_00001101) 
-  else $display("ERROR: After executing jedro_1_sw_tb.mem the values in data memory at addresses 0 and 4 should both be 13 . Not %d and %d.", 
+  assert (data_mem.data_ram.RAM[0] == 32'b00000000_00000000_11111111_11111111 &&
+          data_mem.data_ram.RAM[1] == 32'b00000000_00000000_11111111_11111111) 
+  else $display("ERROR: After executing jedro_1_sh_tb.mem the values in data memory at addresses 0 and 4 should both be  65535. Not %d and %d.", 
                  data_mem.data_ram.RAM[0], data_mem.data_ram.RAM[1]);
 
   $finish;
   end
 
-endmodule : jedro_1_sw_tb
+endmodule : jedro_1_sh_tb

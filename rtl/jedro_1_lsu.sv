@@ -38,11 +38,32 @@ module jedro_1_lsu
 );
 
 /**************************************
-* SIGNAL DECLARATION & SHORTHANDS
+* WRITE ENABLE SIGNAL
 **************************************/
-logic is_write; // Is the current ctrl input a writei
+logic is_write; // Is the current ctrl input a write
+logic [DATA_WIDTH/8 -1:0] we; // write enable signal
 
 assign is_write = ctrl_i[LSU_CTRL_WIDTH-1];
+
+always_comb begin
+    if (is_write == 1'b1) begin
+        if (ctrl_i[LSU_CTRL_WIDTH-2:0] == 3'b010) begin
+            we = 4'b1111; // word write
+        end
+        else if (ctrl_i[LSU_CTRL_WIDTH-2:0] == 3'b001) begin
+            we = 4'b0011; // half-word write
+        end
+        else if (ctrl_i[LSU_CTRL_WIDTH-2:0] == 3'b000) begin
+            we = 4'b0001; // byte write
+        end
+        else begin
+            we = 4'b0000;
+        end
+    end
+    else begin
+        we = 4'b0000;
+    end
+end
 
 
 /**************************************
@@ -83,7 +104,7 @@ always_ff @(posedge clk_i) begin
     end
     else begin
        data_mem_if.addr <= addr_i;
-       data_mem_if.we <= {3'b111, is_write & ctrl_valid_i};
+       data_mem_if.we <= we & {4{ctrl_valid_i}};
        data_mem_if.wdata <= wdata_i; 
     end
 end
