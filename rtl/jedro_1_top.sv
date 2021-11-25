@@ -192,10 +192,10 @@ jedro_1_lsu lsu_inst(.clk_i       (clk_i),
                      .ctrl_i      (decoder_lsu_ctrl),
                      .addr_i      (alu_mux4_res),
                      .wdata_i     (rf_alu_data_b),
-                     .rdata_o     (lsu_mux4_rdata),
-                     .rf_wb_o     (lsu_mux4_wb),
+                     .rdata_ro    (lsu_mux4_rdata),
+                     .rf_wb_ro    (lsu_mux4_wb),
                      .regdest_i   (decoder_lsu_regdest),
-                     .regdest_o   (lsu_mux4_regdest),
+                     .regdest_ro  (lsu_mux4_regdest),
                      .data_mem_if (data_mem_if)
                     );
 

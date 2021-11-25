@@ -28,14 +28,20 @@ module jedro_1_lsu
   input logic  [DATA_WIDTH-1:0]     wdata_i,       // The data to write to memory.
  
   // Interface to the register file
-  output logic [DATA_WIDTH-1:0]     rdata_o,       // Goes to the register file.
-  output logic                      rf_wb_o,       // Enables the write pin of the reg file.
+  output logic [DATA_WIDTH-1:0]     rdata_ro,       // Goes to the register file.
+  output logic                      rf_wb_ro,       // Enables the write pin of the reg file.
   input  logic [REG_ADDR_WIDTH-1:0] regdest_i,     // Writeback to which register?
-  output logic [REG_ADDR_WIDTH-1:0] regdest_o,
+  output logic [REG_ADDR_WIDTH-1:0] regdest_ro,
 
   // Interface to data RAM
   ram_rw_io.MASTER                  data_mem_if
 );
+
+localparam READ_CYCLE_DELAY = 3;
+
+logic [REG_ADDR_WIDTH-1:0] regdest_shift_reg [READ_CYCLE_DELAY-1:0];
+logic                      wb_shift_reg [READ_CYCLE_DELAY-1:0];
+
 
 /**************************************
 * WRITE ENABLE SIGNAL
@@ -69,12 +75,18 @@ end
 /**************************************
 * DESTINATIONAL ADDRESS BUFFERING
 **************************************/
+assign regdest_ro = regdest_shift_reg[READ_CYCLE_DELAY-1];
+
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        regdest_o <= 0;
+        regdest_shift_reg[0] <= 0;
+        regdest_shift_reg[1] <= 0;
+        regdest_shift_reg[2] <= 0;
     end
     else begin
-        regdest_o <= regdest_i;
+        regdest_shift_reg[0] <= regdest_i;
+        regdest_shift_reg[1] <= regdest_shift_reg[0];
+        regdest_shift_reg[2] <= regdest_shift_reg[1];
     end
 end
 
@@ -82,6 +94,18 @@ end
 /**************************************
 * REGISTER WRITEBACK
 **************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        wb_shift_reg[0] <= 0;
+        wb_shift_reg[1] <= 0;
+        wb_shift_reg[2] <= 0;
+    end
+    else begin
+        wb_shift_reg[0] <= ctrl_valid_i & ~is_write;
+        wb_shift_reg[1] <= wb_shift_reg[0];
+        wb_shift_reg[2] <= wb_shift_reg[1];
+    end
+end
 
 
 /**************************************
@@ -89,10 +113,10 @@ end
 **************************************/
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        rdata_o <= 0;
+        rdata_ro <= 0;
     end
     else begin
-        rdata_o <= data_mem_if.rdata;
+        rdata_ro <= data_mem_if.rdata;
     end
 end
 
