@@ -88,22 +88,27 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [15:0] {eOK                 = 16'b0000000000000001, 
-                           eSTALL              = 16'b0000000000000010, 
-                           eJAL                = 16'b0000000000000100,
-                           eJAL_WAIT_1         = 16'b0000000000001000,
-                           eJAL_WAIT_2         = 16'b0000000000010000,
-                           eJALR_PC_CALC       = 16'b0000000000100000,
-                           eJALR_JMP_ADDR_CALC = 16'b0000000001000000,
-                           eJALR_JMP           = 16'b0000000010000000,
-                           eBRANCH_CALC_COND   = 16'b0000000100000000,
-                           eBRANCH_CALC_ADDR   = 16'b0000001000000000,
-                           eBRANCH_STALL       = 16'b0000010000000000,
-                           eBRANCH_JUMP        = 16'b0000100000000000,
-                           eBRANCH_STALL_2     = 16'b0001000000000000,
-                           eLSU_CALC_ADDR      = 16'b0010000000000000,
-                           eLSU_STORE          = 16'b0100000000000000,
-                           eERROR              = 16'b1000000000000000} fsmState_t; 
+typedef enum logic [20:0] {eOK                 = 21'b000000000000000000001, 
+                           eSTALL              = 21'b000000000000000000010, 
+                           eJAL                = 21'b000000000000000000100,
+                           eJAL_WAIT_1         = 21'b000000000000000001000,
+                           eJAL_WAIT_2         = 21'b000000000000000010000,
+                           eJALR_PC_CALC       = 21'b000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 21'b000000000000001000000,
+                           eJALR_JMP           = 21'b000000000000010000000,
+                           eBRANCH_CALC_COND   = 21'b000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 21'b000000000001000000000,
+                           eBRANCH_STALL       = 21'b000000000010000000000,
+                           eBRANCH_JUMP        = 21'b000000000100000000000,
+                           eBRANCH_STALL_2     = 21'b000000001000000000000,
+                           eLSU_CALC_ADDR      = 21'b000000010000000000000,
+                           eLSU_STORE          = 21'b000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 21'b000001000000000000000,
+                           eLSU_LOAD           = 21'b000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 21'b000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 21'b001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 21'b010000000000000000000,
+                           eERROR              = 21'b100000000000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -250,6 +255,36 @@ always_comb begin
             jmp_addr_co  = 0;
         end
 
+        eLSU_LOAD_CALC_ADDR: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+        
+        eLSU_LOAD: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        eLSU_LOAD_WAIT_0: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+    
+        eLSU_LOAD_WAIT_1: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+    
+        eLSU_LOAD_WAIT_2: begin
+            ready_co     = 1;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
         eERROR: begin
             ready_co     = 0;
             jmp_instr_co = 0;
@@ -389,23 +424,64 @@ begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
-        is_alu_write_w     = 1'b1;
-        alu_sel_w          = 1'b0;
-        alu_op_a_w         = 1'b1;
+        is_alu_write_w     = 1'b0;
+        alu_sel_w          = ALU_OP_ADD;
         alu_op_b_w         = 1'b0;
-        alu_dest_addr_w    = 4'b0;
+        alu_dest_addr_w    = 5'b00000;
         alu_wb_w           = 1'b0; 
         rf_addr_a_w        = regs1;
-        rf_addr_b_w        = 4'b0;
-        imm_ext_w          = I_imm_sign_extended_w;
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = {opcode[5], funct3};
-        lsu_regdest_w      = regdest;
+        rf_addr_b_w        = 5'b00000;
         if (regs1 == prev_dest_addr && regs1 != 0 && prev_state != eSTALL) begin
-            curr_state = eSTALL;
+            curr_state       = eSTALL;
+            alu_op_a_w       = 1'b0;
+            imm_ext_w        = 0;
+            lsu_ctrl_valid_w = 1'b0;
+            lsu_ctrl_w       = 4'b0000;
+            lsu_regdest_w    = 5'b00000;
+        end
+        else if(prev_state != eLSU_LOAD_CALC_ADDR &&
+                prev_state != eLSU_LOAD &&
+                prev_state != eLSU_LOAD_WAIT_0 &&
+                prev_state != eLSU_LOAD_WAIT_1) begin
+            curr_state       = eLSU_LOAD_CALC_ADDR;
+            alu_op_a_w       = 1'b1;
+            imm_ext_w        = I_imm_sign_extended_w;
+            lsu_ctrl_valid_w = 1'b0;
+            lsu_ctrl_w       = 4'b0000;
+            lsu_regdest_w    = 5'b00000;
+        end
+        else if (prev_state == eLSU_LOAD_CALC_ADDR) begin
+            curr_state       = eLSU_LOAD;
+            alu_op_a_w       = 1'b0;
+            imm_ext_w        = 0;
+            lsu_ctrl_valid_w = 1'b1;
+            lsu_ctrl_w       = {opcode[5], funct3};
+            lsu_regdest_w    = regdest;
+        end
+        else if (prev_state == eLSU_LOAD) begin
+            curr_state       = eLSU_LOAD_WAIT_0;
+            alu_op_a_w       = 1'b0;
+            imm_ext_w        = 0;
+            lsu_ctrl_valid_w = 1'b0;
+            lsu_ctrl_w       = 4'b0000;
+            lsu_regdest_w    = 5'b00000;
+
+        end
+        else if (prev_state == eLSU_LOAD_WAIT_0) begin
+            curr_state       = eLSU_LOAD_WAIT_1;
+            alu_op_a_w       = 1'b0;
+            imm_ext_w        = 0;
+            lsu_ctrl_valid_w = 1'b0;
+            lsu_ctrl_w       = 4'b0000;
+            lsu_regdest_w    = 5'b00000;
         end
         else begin
-            curr_state = eOK;
+            curr_state       = eLSU_LOAD_WAIT_2;
+            alu_op_a_w       = 1'b0;
+            imm_ext_w        = 0;
+            lsu_ctrl_valid_w = 1'b0;
+            lsu_ctrl_w       = 4'b0000;
+            lsu_regdest_w    = 5'b00000;
         end
     end
 
@@ -414,7 +490,7 @@ begin
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
         is_alu_write_w     = 1'b1;
-        alu_sel_w          = 1'b0;
+        alu_sel_w          = 4'b0000;
         alu_op_a_w         = 1'b1;
         alu_op_b_w         = 1'b0;
         alu_dest_addr_w    = 4'b0;

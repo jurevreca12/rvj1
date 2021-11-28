@@ -94,6 +94,8 @@ end
 /**************************************
 * REGISTER WRITEBACK
 **************************************/
+assign rf_wb_ro = wb_shift_reg[2];
+
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         wb_shift_reg[0] <= 0;
