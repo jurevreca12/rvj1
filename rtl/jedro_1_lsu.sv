@@ -41,6 +41,12 @@ localparam READ_CYCLE_DELAY = 3;
 
 logic [REG_ADDR_WIDTH-1:0] regdest_shift_reg [READ_CYCLE_DELAY-1:0];
 logic                      wb_shift_reg [READ_CYCLE_DELAY-1:0];
+logic [3:0]                load_mask_shift_reg [READ_CYCLE_DELAY-1:0];
+logic                      load_mask_shift_w;
+logic [DATA_WIDTH-1:0]     load_mask_final_w;
+logic                      is_unsigned_sign_ext_reg [READ_CYCLE_DELAY-2:0];
+logic [DATA_WIDTH-1:0]     byte_sign_extended_w;
+logic [DATA_WIDTH-1:0]     hword_sign_extended_w;
 
 
 /**************************************
@@ -71,6 +77,75 @@ always_comb begin
     end
 end
 
+
+/**************************************
+* READ MASKING
+**************************************/
+always_comb begin
+    if (is_write == 1'b1) begin
+        load_mask_shift_w = 4'b0000;
+    end
+    else begin
+        if (ctrl_i[1:0] == 3'b10) begin
+            load_mask_shift_w = 4'b1111; // word 
+        end
+        else if (ctrl_i[1:0] == 2'b01) begin
+            load_mask_shift_w = 4'b0011; // half-word 
+        end
+        else if (ctrl_i[1:0] == 2'b00) begin
+            load_mask_shift_w = 4'b0001; // byte write
+        end
+        else begin
+            load_mask_shift_w = 4'b0000;
+        end
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        is_unsigned_sign_ext_reg[0] <= 0;
+        is_unsigned_sign_ext_reg[1] <= 0;
+    end
+    else begin
+        is_unsigned_sign_ext_reg[0] <= ctrl_i[2] & ctrl_valid_i;
+        is_unsigned_sign_ext_reg[1] <= is_unsigned_sign_ext_reg[0];
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        load_mask_shift_reg[0] = 4'b0000;
+        load_mask_shift_reg[1] = 4'b0000;
+        load_mask_shift_reg[2] = 4'b0000;
+    end
+    else begin
+        load_mask_shift_reg[0] = load_mask_shift_w;
+        load_mask_shift_reg[1] = load_mask_shift_reg[0];
+        load_mask_shift_reg[2] = load_mask_shift_reg[1];
+    end
+end
+
+always_comb begin
+    if (load_mask_shift_reg[2] == 4'b0000) begin
+        load_mask_final_w = 32'b00000000_00000000_00000000_00000000;
+    end 
+    else if (load_mask_shift_reg[2] == 4'b0001) begin
+        load_mask_final_w = 32'b00000000_00000000_00000000_11111111;
+    end 
+    else if (load_mask_shift_reg[2] == 4'b0011) begin
+        load_mask_final_w = 32'b00000000_00000000_11111111_11111111;
+    end 
+    else begin
+        load_mask_final_w = 32'b11111111_11111111_11111111_11111111;
+    end 
+end
+
+sign_extender #(.N(DATA_WIDTH), .M(8)) sign_extender_byte(.in_i(data_mem_if.rdata[7:0] & 
+                                                                load_mask_final_w[7:0]),
+                                                          .out_o(byte_sign_extended_w));
+sign_extender #(.N(DATA_WIDTH), .M(16)) sign_extender_halfword(.in_i(data_mem_if.rdata[15:0] & 
+                                                                load_mask_final_w[15:0]),
+                                                               .out_o(hword_sign_extended_w));
 
 /**************************************
 * DESTINATIONAL ADDRESS BUFFERING
@@ -118,7 +193,20 @@ always_ff @(posedge clk_i) begin
         rdata_ro <= 0;
     end
     else begin
-        rdata_ro <= data_mem_if.rdata;
+        if (is_unsigned_sign_ext_reg[1] == 1'b1) begin
+            rdata_ro <= data_mem_if.rdata & load_mask_final_w;
+        end
+        else begin
+            if (load_mask_shift_reg[2] == 4'b0001) begin
+                rdata_ro <= byte_sign_extended_w;
+            end
+            else if (load_mask_shift_reg[2] == 4'b0011) begin
+                rdata_ro <= hword_sign_extended_w;
+            end
+            else begin
+                rdata_ro <= data_mem_if.rdata & load_mask_final_w;
+            end
+        end
     end
 end
 
