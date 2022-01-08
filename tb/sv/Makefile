@@ -3,7 +3,7 @@
 INC_DIR := ../../rtl/inc
 JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.sv
 RTL_DIR := ../../rtl
-TB_DIR := ../.
+TB_DIR := ..
 TB_SV_DIR := .
 TB_SUPPORT_DIR := ../support/.
 ALU_DIR := $(RTL_DIR)/alu
@@ -23,9 +23,9 @@ VPATH := $(RTL_DIR):\
 				 $(ALU_SIGN_DIR)
 
 #V_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v")
-V_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v" -print0 | xargs -0 basename -a)
+V_FILES := $(shell find $(RTL_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) -name "*.v" -print0 | xargs -0 basename -a)
 #SV_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv")
-SV_FILES := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
+SV_FILES := $(shell find $(RTL_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
 COMPILED_SV_MODULES := $(SV_FILES:.sv=.sdb)
 COMPILED_SV_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_SV_MODULES))
 COMPILED_V_MODULES := $(V_FILES:.v=.sdb)
