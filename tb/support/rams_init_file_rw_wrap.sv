@@ -2,7 +2,7 @@
 //
 `timescale 1ns/1ps
 
-module bytewrite_init_file_wrap
+module rams_init_file_rw_wrap
 #(
     parameter MEM_INIT_FILE =""
 )
