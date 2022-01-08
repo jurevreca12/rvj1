@@ -23,6 +23,12 @@ output reg [NB_COL*COL_WIDTH-1:0] dout;
 
 reg [NB_COL*COL_WIDTH-1:0] RAM [SIZE-1:0];
 
+initial begin
+    if (MEM_INIT_FILE != "") begin
+        $readmemb(MEM_INIT_FILE, RAM);
+    end
+end
+
 always @(posedge clk)
 begin
     dout <= RAM[addr >> 2];
