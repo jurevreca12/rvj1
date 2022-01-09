@@ -5,7 +5,7 @@
 module rams_init_file_rw_wrap
 #(
     parameter MEM_INIT_FILE="",
-    parameter MEM_SIZE=2**12
+    parameter MEM_SIZE_WORDS=2**12
 )
 (
   input clk_i,
@@ -13,7 +13,7 @@ module rams_init_file_rw_wrap
 );
 
 
-  bytewrite_ram_1b #(.SIZE(MEM_SIZE),
+  bytewrite_ram_1b #(.SIZE(MEM_SIZE_WORDS),
                      .MEM_INIT_FILE(MEM_INIT_FILE)) ram_memory (
                           .clk(clk_i), 
                           .we(ram_if.we[3:0]), 
