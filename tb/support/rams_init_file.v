@@ -16,9 +16,18 @@ output [31:0] dout;
 reg [31:0] ram [0:MEM_SIZE];
 reg [31:0] dout;
 
+integer flen;
+string file;
 initial begin
     if (MEM_INIT_FILE != "") begin
-        $readmemb(MEM_INIT_FILE, ram);
+        file = MEM_INIT_FILE;
+        flen = file.len();
+        if (file.substr(flen-4, flen-1) == ".mem") begin
+            $readmemb(MEM_INIT_FILE, ram);
+        end
+        else begin
+            $readmemh(MEM_INIT_FILE, ram);
+        end
     end
 end
 
