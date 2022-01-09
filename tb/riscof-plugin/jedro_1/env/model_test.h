@@ -1,8 +1,8 @@
 #ifndef _COMPLIANCE_MODEL_H
 #define _COMPLIANCE_MODEL_H
 
-#define RVMODEL_MEM_SIZE_BYTES ( 1 << 20 )
-#define RVMODEL_LAST_ADDR      ( RVMODEL_MEM_SIZE_BYTES - 4 )
+#define RVMODEL_MEM_SIZE_WORDS ( 1 << 18 )
+#define RVMODEL_LAST_ADDR      ( RVMODEL_MEM_SIZE_WORDS - 4 )
 #define RVOMDEL_BEGIN_SIG_ADDR ( RVMODEL_LAST_ADDR )
 #define RVMODEL_END_SIG_ADDR   ( RVMODEL_LAST_ADDR - 4 )
 #define RVMODEL_HALT_COND_ADDR ( RVMODEL_LAST_ADDR - 8 )
@@ -18,10 +18,16 @@
         .word 4;
 
 //RV_COMPLIANCE_HALT
-#define RVMODEL_HALT                                              \
-  li x1, 1;                                                                   \
-  write_tohost:                                                               \
-    sw x1, tohost, t5;                                                        \
+#define RVMODEL_HALT                            \
+  la x1, begin_signature;                       \
+  la x2, end_signature;                         \
+  li x3, RVMODEL_HALT_COND_ADDR;                \
+  sw x0, 0(x3);                                 \
+  sw x2, 4(x3);                                 \
+  sw x1, 8(x3);                                 \
+  li x1, 1;                                     \
+  write_tohost:                                 \
+    sw x1, tohost, t5;                          \
     j write_tohost;
 
 //RV_COMPLIANCE_DATA_BEGIN
@@ -40,13 +46,7 @@
 // and set the BEGIN_SIG and END_SIG fields,
 // so that the simulator will be able to extract
 // the signature.
-#define RVMODEL_BOOT                       \
-    li x1, RVMODEL_DATA_BEGIN;             \
-    li x2, RVMODEL_DATA_END;               \
-    li x3, RVMODEL_HALT_COND_ADDR;         \
-    sw x3, x0, 0;                          \
-    sw x3, x2, 4;                          \
-    sw x3, x1, 8;  
+#define RVMODEL_BOOT                       
 
 //RVTEST_IO_INIT
 #define RVMODEL_IO_INIT

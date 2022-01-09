@@ -573,7 +573,8 @@ begin
         rf_addr_b_w        = regs2;
         if (((regs1 == prev_dest_addr && regs1 != 0) ||
              (regs2 == prev_dest_addr && regs2 != 0)) && 
-              prev_state != eSTALL) begin
+              (prev_state != eSTALL && 
+              prev_state != eLSU_CALC_ADDR)) begin
             curr_state       = eSTALL;
             alu_op_a_w       = 1'b0;
             imm_ext_w        = 0;
