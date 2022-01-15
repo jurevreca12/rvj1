@@ -20,7 +20,7 @@ class jedro_1(pluginTemplate):
     __model__ = "jedro_1"
 
     #TODO: please update the below to indicate family, version, etc of your DUT.
-    __version__ = "XXX"
+    __version__ = "0.3"
 
     def __init__(self, *args, **kwargs):
         sclass = super().__init__(*args, **kwargs)
@@ -33,16 +33,9 @@ class jedro_1(pluginTemplate):
             print("Please enter input file paths in configuration.")
             raise SystemExit(1)
 
-        # In case of an RTL based DUT, this would be point to the final binary executable of your
-        # test-bench produced by a simulator (like verilator, vcs, incisive, etc). In case of an iss or
-        # emulator, this variable could point to where the iss binary is located. If 'PATH variable
-        # is missing in the config.ini we can hardcode the alternate here.
-        self.dut_exe = os.path.join(config['PATH'] if 'PATH' in config else "","jedro_1")
-
-        # Number of parallel jobs that can be spawned off by RISCOF
-        # for various actions performed in later functions, specifically to run the tests in
-        # parallel on the DUT executable. Can also be used in the build function if required.
-        self.num_jobs = str(config['jobs'] if 'jobs' in config else 1)
+        # Because of te limitations of the vivado simulator, we limit this to 1.
+        # (we are running the same simulation snapshot over and over in same directory)
+        self.num_jobs = "1"
 
         # Path to the directory where this python file is located. Collect it from the config.ini
         self.pluginpath=os.path.abspath(config['pluginpath'])
@@ -73,6 +66,9 @@ class jedro_1(pluginTemplate):
        # capture the architectural test-suite directory.
        self.suite_dir = suite
 
+       # The location of the testbench.
+       self.tb_dir = os.path.join(self.pluginpath, "..", "tb")
+
        # Directory of the elf2hex script
        self.scripts_dir = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "..", "..", "scripts")
        self.elf2hex = os.path.join(self.scripts_dir, "elf2hex")
@@ -86,7 +82,6 @@ class jedro_1(pluginTemplate):
          -I '+self.pluginpath+'/env/\
          -I ' + archtest_env + ' {2} -o {3} {4}'
 
-       # add more utility snippets here
 
     def build(self, isa_yaml, platform_yaml):
 
@@ -147,6 +142,13 @@ class jedro_1(pluginTemplate):
           # name of the hex file used later in simulation
           hex_file = 'out.hex'
 
+          # result in tb dir
+          sim_result = os.path.join(self.tb_dir, "dut.signature") 
+
+          # simulation snapshot is the result of the simulation, we delete it so that the make
+          # file in the tb dir can be used normally in the next test.
+          sim_snap = os.path.join(self.tb_dir, "jedro_1_riscof_tb_simsnap.wdb")
+          
           # name of the signature file as per requirement of RISCOF. RISCOF expects the signature to
           # be named as DUT-<dut-name>.signature. The below variable creates an absolute path of
           # signature file.
@@ -169,12 +171,27 @@ class jedro_1(pluginTemplate):
 	      # echo statement.
           if self.target_run:
             # set up the simulation command. Template is for spike. Please change.
-            simcmd = self.dut_exe + ' --isa={0} +signature={1} +signature-granularity=4 {2}'.format(self.isa, sig_file, elf)
+            simcmd = 'cd {0}; make; cd {1}'.format(self.tb_dir, self.work_dir)
           else:
             simcmd = 'echo "NO RUN"'
 
           # concatenate all commands that need to be executed within a make-target.
-          execute = '@cd {0}; {1}; {2}; {3};'.format(testentry['work_dir'], cmd, elf2hexcmd, simcmd)
+          # 0 - go to work dir
+          # 1 - compile test to elf
+          # 2 - elf2hex
+          # 3,4 - copy hex to tb_dir
+          # 5 - simulate in tb_dir
+          # 6,7 - move result back to work_dir
+          # 8 - remove simulation snapshot for next simulation
+          execute = '@cd {0}; {1}; {2}; cp {3} {4}; {5}; cp {6} {7}; rm {8}'.format(testentry['work_dir'], # 0
+                                                                             cmd, # 1
+                                                                             elf2hexcmd, # 2 
+                                                                             hex_file, # 3
+                                                                             self.tb_dir, # 4
+                                                                             simcmd,  # 5
+                                                                             sim_result, # 6
+                                                                             sig_file, # 7
+                                                                             sim_snap) # 8
 
           # create a target. The makeutil will create a target with the name "TARGET<num>" where num
           # starts from 0 and increments automatically for each new target that is added
@@ -193,72 +210,3 @@ class jedro_1(pluginTemplate):
       if not self.target_run:
           raise SystemExit(0)
 
-#The following is an alternate template that can be used instead of the above.
-#The following template only uses shell commands to compile and run the tests.
-
-#    def runTests(self, testList):
-#
-#      # we will iterate over each entry in the testList. Each entry node will be referred to by the
-#      # variable testname.
-#      for testname in testList:
-#
-#          logger.debug('Running Test: {0} on DUT'.format(testname))
-#          # for each testname we get all its fields (as described by the testList format)
-#          testentry = testList[testname]
-#
-#          # we capture the path to the assembly file of this test
-#          test = testentry['test_path']
-#
-#          # capture the directory where the artifacts of this test will be dumped/created.
-#          test_dir = testentry['work_dir']
-#
-#          # name of the elf file after compilation of the test
-#          elf = 'my.elf'
-#
-#          # name of the signature file as per requirement of RISCOF. RISCOF expects the signature to
-#          # be named as DUT-<dut-name>.signature. The below variable creates an absolute path of
-#          # signature file.
-#          sig_file = os.path.join(test_dir, self.name[:-1] + ".signature")
-#
-#          # for each test there are specific compile macros that need to be enabled. The macros in
-#          # the testList node only contain the macros/values. For the gcc toolchain we need to
-#          # prefix with "-D". The following does precisely that.
-#          compile_macros= ' -D' + " -D".join(testentry['macros'])
-#
-#          # collect the march string required for the compiler
-#          marchstr = testentry['isa'].lower()
-#
-#          # substitute all variables in the compile command that we created in the initialize
-#          # function
-#          cmd = self.compile_cmd.format(marchstr, self.xlen, test, elf, compile_macros)
-#
-#          # just a simple logger statement that shows up on the terminal
-#          logger.debug('Compiling test: ' + test)
-#
-#          # the following command spawns a process to run the compile command. Note here, we are
-#          # changing the directory for this command to that pointed by test_dir. If you would like
-#          # the artifacts to be dumped else where change the test_dir variable to the path of your
-#          # choice.
-#          utils.shellCommand(cmd).run(cwd=test_dir)
-#
-#          # for debug purposes if you would like stop the DUT plugin after compilation, you can
-#          # comment out the lines below and raise a SystemExit
-#
-#          if self.target_run:
-#            # build the command for running the elf on the DUT. In this case we use spike and indicate
-#            # the isa arg that we parsed in the build stage, elf filename and signature filename.
-#            # Template is for spike. Please change for your DUT
-#            execute = self.dut_exe + ' --isa={0} +signature={1} +signature-granularity=4 {2}'.format(self.isa, sig_file, elf)
-#            logger.debug('Executing on Spike ' + execute)
-#
-#          # launch the execute command. Change the test_dir if required.
-#          utils.shellCommand(execute).run(cwd=test_dir)
-#
-#          # post-processing steps can be added here in the template below
-#          #postprocess = 'mv {0} temp.sig'.format(sig_file)'
-#          #utils.shellCommand(postprocess).run(cwd=test_dir)
-#
-#      # if target runs are not required then we simply exit as this point after running all
-#      # the makefile targets.
-#      if not self.target_run:
-#          raise SystemExit

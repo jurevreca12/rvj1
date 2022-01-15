@@ -1,0 +1,7 @@
+*.log
+*.jou
+*.pb
+*.wdb
+dut.signature
+out.hex
+xsim.dir/
