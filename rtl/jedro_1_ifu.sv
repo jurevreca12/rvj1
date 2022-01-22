@@ -74,7 +74,7 @@ always_ff @(posedge clk_i) begin
         pc_shift_reg[1] <= pc_shift_reg[1];
         pc_shift_reg[2] <= pc_shift_reg[2];
     end
-    else if (decoder_ready_i == 1'b1) begin
+    else if (decoder_ready_i == 1'b1 || instr_valid_shiftreg[2] == 1'b0) begin
         pc_shift_reg[0] <= pc_shift_reg[0] + 4;
         pc_shift_reg[1] <= pc_shift_reg[0];
         pc_shift_reg[2] <= pc_shift_reg[1];

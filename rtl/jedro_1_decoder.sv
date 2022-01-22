@@ -88,27 +88,28 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [20:0] {eOK                 = 21'b000000000000000000001, 
-                           eSTALL              = 21'b000000000000000000010, 
-                           eJAL                = 21'b000000000000000000100,
-                           eJAL_WAIT_1         = 21'b000000000000000001000,
-                           eJAL_WAIT_2         = 21'b000000000000000010000,
-                           eJALR_PC_CALC       = 21'b000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 21'b000000000000001000000,
-                           eJALR_JMP           = 21'b000000000000010000000,
-                           eBRANCH_CALC_COND   = 21'b000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 21'b000000000001000000000,
-                           eBRANCH_STALL       = 21'b000000000010000000000,
-                           eBRANCH_JUMP        = 21'b000000000100000000000,
-                           eBRANCH_STALL_2     = 21'b000000001000000000000,
-                           eLSU_CALC_ADDR      = 21'b000000010000000000000,
-                           eLSU_STORE          = 21'b000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 21'b000001000000000000000,
-                           eLSU_LOAD           = 21'b000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 21'b000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 21'b001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 21'b010000000000000000000,
-                           eERROR              = 21'b100000000000000000000} fsmState_t; 
+typedef enum logic [21:0] {eOK                 = 22'b0000000000000000000001, 
+                           eSTALL              = 22'b0000000000000000000010, 
+                           eJAL                = 22'b0000000000000000000100,
+                           eJAL_WAIT_1         = 22'b0000000000000000001000,
+                           eJAL_WAIT_2         = 22'b0000000000000000010000,
+                           eJALR_PC_CALC       = 22'b0000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 22'b0000000000000001000000,
+                           eJALR_JMP           = 22'b0000000000000010000000,
+                           eBRANCH_CALC_COND   = 22'b0000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 22'b0000000000001000000000,
+                           eBRANCH_STALL       = 22'b0000000000010000000000,
+                           eBRANCH_JUMP        = 22'b0000000000100000000000,
+                           eBRANCH_STALL_2     = 22'b0000000001000000000000,
+                           eLSU_CALC_ADDR      = 22'b0000000010000000000000,
+                           eLSU_STORE          = 22'b0000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 22'b0000001000000000000000,
+                           eLSU_LOAD           = 22'b0000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 22'b0000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 22'b0001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 22'b0010000000000000000000,
+                           eERROR              = 22'b0100000000000000000000,
+                           eINSTR_NOT_VALID    = 22'b1000000000000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -180,7 +181,7 @@ always_comb begin
         eJAL: begin
             ready_co     = 0;
             jmp_instr_co = 1;
-            jmp_addr_co  = J_imm_sign_extended_w;
+            jmp_addr_co  = J_imm_sign_extended_w + instr_addr_i;
         end
 
         eJAL_WAIT_1: begin
@@ -286,6 +287,12 @@ always_comb begin
         end
 
         eERROR: begin
+            ready_co     = 0;
+            jmp_instr_co = 0;
+            jmp_addr_co  = 0;
+        end
+
+        eINSTR_NOT_VALID: begin
             ready_co     = 0;
             jmp_instr_co = 0;
             jmp_addr_co  = 0;
@@ -418,9 +425,9 @@ end
 * DECODER - COMBINATIONAL LOGIC
 *************************************/
 always_comb
-begin
-  unique case (opcode)
-    OPCODE_LOAD: begin
+begin 
+  unique casez ({instr_valid_i, opcode})
+    {1'b1, OPCODE_LOAD}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -485,7 +492,7 @@ begin
         end
     end
 
-    OPCODE_MISCMEM: begin 
+    {1'b1, OPCODE_MISCMEM}: begin 
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -509,7 +516,7 @@ begin
         end
     end
 
-    OPCODE_OPIMM: begin
+    {1'b1, OPCODE_OPIMM}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -541,7 +548,7 @@ begin
         end
     end
 
-    OPCODE_AUIPC: begin
+    {1'b1, OPCODE_AUIPC}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b1;
         illegal_instr_w    = 1'b0;
@@ -560,7 +567,7 @@ begin
         curr_state         = eOK;
     end
 
-    OPCODE_STORE: begin
+    {1'b1, OPCODE_STORE}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -600,7 +607,7 @@ begin
         end
     end
     
-    OPCODE_OP: begin
+    {1'b1, OPCODE_OP}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -627,7 +634,7 @@ begin
         end
     end
 
-    OPCODE_LUI: begin
+    {1'b1, OPCODE_LUI}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -646,7 +653,7 @@ begin
         curr_state         = eOK;
     end
 
-    OPCODE_BRANCH: begin
+    {1'b1, OPCODE_BRANCH}: begin
         // First cycle of all branch instructions calcules the condition, 
         // the second cycle calculates the jump address, the third cycle
         // stalls and finally if the condition holds, the fourth cycle jumps
@@ -780,7 +787,7 @@ begin
         end
     end
 
-    OPCODE_JALR: begin
+    {1'b1, OPCODE_JALR}: begin
         // First cycle of JALR instr calculates pc+4 and stores it to rd,
         // in the next cycle the offset is calculated. This way stalls are
         // impossible, as we only use regs1 in the second cycle (instr can
@@ -842,7 +849,7 @@ begin
 
     end
 
-    OPCODE_JAL: begin
+    {1'b1, OPCODE_JAL}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b1;
         illegal_instr_w    = 1'b0;
@@ -877,7 +884,7 @@ begin
         end
     end
 
-    OPCODE_SYSTEM: begin
+    {1'b1, OPCODE_SYSTEM}: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b0;
@@ -902,6 +909,25 @@ begin
             curr_state = eOK;
         end
     end
+
+    {1'b0, 6'b???????}: begin
+        use_alu_jmp_addr_w = 1'b0;
+        use_pc_w           = 1'b0;
+        illegal_instr_w    = 1'b1;
+        is_alu_write_w     = 1'b1;
+        alu_sel_w          = {instr_i[30], funct3};
+        alu_op_a_w         = 1'b1;
+        alu_op_b_w         = 1'b1;
+        alu_dest_addr_w    = 4'b0;
+        alu_wb_w           = 1'b0; 
+        rf_addr_a_w        = regs1;
+        rf_addr_b_w        = regs2;
+        imm_ext_w          = J_imm_sign_extended_w;   
+        lsu_ctrl_valid_w   = 1'b0;
+        lsu_ctrl_w         = 4'b0000;
+        lsu_regdest_w      = regdest;
+        curr_state         = eINSTR_NOT_VALID;
+    end 
 
     default: begin
         use_alu_jmp_addr_w = 1'b0;
