@@ -612,7 +612,7 @@ begin
             rf_addr_a_w        = regs1;
             rf_addr_b_w        = regs2;
             imm_ext_w          = B_imm_sign_extended_w;   
-            if (alu_res_i == 1 ||
+            if (funct3 != 3'b000 && funct3 != 3'b001 && alu_res_i == 1 ||
                (funct3 == 3'b000 && alu_ops_eq_i == 1'b1) ||
                (funct3 == 3'b001 && alu_ops_eq_i == 1'b0)) begin
                 curr_state = eBRANCH_STALL;
