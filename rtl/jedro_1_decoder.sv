@@ -530,35 +530,19 @@ begin
     end
 
     {1'b1, OPCODE_AUIPC}: begin
-        use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b1;
-        illegal_instr_w    = 1'b0;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
         alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b0;
         alu_dest_addr_w    = regdest;
         alu_wb_w           = 1'b1; 
-        rf_addr_a_w        = 5'b00000;
-        rf_addr_b_w        = 5'b00000;
         imm_ext_w          = {imm31_12, 12'b0000_0000_0000};
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
         curr_state         = eOK;
     end
 
     {1'b1, OPCODE_STORE}: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
-        is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
-        alu_op_b_w         = 1'b0;
-        alu_dest_addr_w    = 5'b00000;
-        alu_wb_w           = 1'b0; 
         rf_addr_a_w        = regs1;
-        rf_addr_b_w        = regs2;
         if (((regs1 == prev_dest_addr && regs1 != 0) ||
              (regs2 == prev_dest_addr && regs2 != 0)) && 
               (prev_state != eSTALL && 
@@ -589,9 +573,6 @@ begin
     end
     
     {1'b1, OPCODE_OP}: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = {instr_i[30], funct3};
         alu_op_a_w         = 1'b1;
@@ -599,10 +580,6 @@ begin
         alu_dest_addr_w    = regdest;
         rf_addr_a_w        = regs1;
         rf_addr_b_w        = regs2;
-        imm_ext_w          = 32'b0;
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
         if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
             (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eSTALL) begin
@@ -616,21 +593,12 @@ begin
     end
 
     {1'b1, OPCODE_LUI}: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
         alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b0;
         alu_dest_addr_w    = regdest;
         alu_wb_w           = 1'b1; 
-        rf_addr_a_w        = 5'b00000;
-        rf_addr_b_w        = 5'b00000;
         imm_ext_w          = {imm31_12, 12'b0000_0000_0000};
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
         curr_state         = eOK;
     end
 
@@ -639,7 +607,6 @@ begin
         // the second cycle calculates the jump address, the third cycle
         // stalls and finally if the condition holds, the fourth cycle jumps
         // the fifth cycle is another stall.
-        is_alu_write_w     = 1'b1;
         if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
             (regs2 == prev_dest_addr && regs2 != 0 )) &&
              prev_state != eBRANCH_CALC_COND &&
@@ -650,18 +617,12 @@ begin
              prev_state != eSTALL) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0;
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = 4'b0000;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
-            alu_dest_addr_w    = 5'b00000;
-            alu_wb_w           = 1'b0; 
             rf_addr_a_w        = 5'b00000;
             rf_addr_b_w        = 5'b00000;
             imm_ext_w          = 0;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eSTALL;
         end
         else if (prev_state != eBRANCH_CALC_COND &&
@@ -671,12 +632,9 @@ begin
                  prev_state != eBRANCH_STALL_2) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0;
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = {2'b00, funct3[14:13]};
             alu_op_a_w         = 1'b1;
             alu_op_b_w         = 1'b1;
-            alu_dest_addr_w    = 4'b0;
-            alu_wb_w           = 1'b0;
             if (funct3[12] == 1'b0) begin 
                 rf_addr_a_w = regs1;
                 rf_addr_b_w = regs2;
@@ -686,43 +644,28 @@ begin
                 rf_addr_b_w = regs1;
             end
             imm_ext_w          = 0;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eBRANCH_CALC_COND;
         end
         else if (prev_state == eBRANCH_CALC_COND) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b1;
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = ALU_OP_ADD;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
-            alu_dest_addr_w    = 5'b00000;
-            alu_wb_w           = 1'b0; 
             rf_addr_a_w        = regs1;
             rf_addr_b_w        = regs2;
             imm_ext_w          = B_imm_sign_extended_w;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eBRANCH_CALC_ADDR;
         end
         else if (prev_state == eBRANCH_CALC_ADDR) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b1;
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = ALU_OP_ADD;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
-            alu_dest_addr_w    = 5'b00000;
-            alu_wb_w           = 1'b0; 
             rf_addr_a_w        = regs1;
             rf_addr_b_w        = regs2;
             imm_ext_w          = B_imm_sign_extended_w;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             if (alu_res_i == 1 ||
                (funct3 == 3'b000 && alu_ops_eq_i == 1'b1) ||
                (funct3 == 3'b001 && alu_ops_eq_i == 1'b0)) begin
@@ -735,35 +678,23 @@ begin
         else if (prev_state == eBRANCH_STALL) begin
             use_alu_jmp_addr_w = 1'b1;
             use_pc_w           = 1'b0; 
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = 5'b00000;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
-            alu_dest_addr_w    = 5'b00000;
-            alu_wb_w           = 1'b0; 
             rf_addr_a_w        = 5'b00000;
             rf_addr_b_w        = 5'b00000;
             imm_ext_w          = 0;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eBRANCH_JUMP;
         end
         else begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0; 
-            illegal_instr_w    = 1'b0;
             alu_sel_w          = 5'b00000;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
-            alu_dest_addr_w    = 5'b00000;
-            alu_wb_w           = 1'b0; 
             rf_addr_a_w        = 5'b00000;
             rf_addr_b_w        = 5'b00000;
             imm_ext_w          = 0;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eBRANCH_STALL_2;
         end
     end
@@ -774,78 +705,49 @@ begin
         // impossible, as we only use regs1 in the second cycle (instr can
         // be delayed at most 1 cycle). The third cycle takes the jump.
         is_alu_write_w     = 1'b1;
+        alu_sel_w          = ALU_OP_ADD;
         if (prev_state != eJALR_PC_CALC &&
             prev_state != eJALR_JMP_ADDR_CALC &&
             prev_state != eJALR_JMP) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b1;
-            illegal_instr_w    = 1'b0;
-            alu_sel_w          = ALU_OP_ADD;
             alu_op_a_w         = 1'b0;
-            alu_op_b_w         = 1'b0;
             alu_dest_addr_w    = regdest;
             alu_wb_w           = 1'b1; 
             rf_addr_a_w        = 5'b00000;
-            rf_addr_b_w        = 5'b00000;
             imm_ext_w          = 32'b00000000_00000000_00000000_00000100;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eJALR_PC_CALC;
         end
         else if (prev_state == eJALR_PC_CALC) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0; 
-            illegal_instr_w    = 1'b0;
-            alu_sel_w          = ALU_OP_ADD;
             alu_op_a_w         = 1'b1;
-            alu_op_b_w         = 1'b0;
             alu_dest_addr_w    = 5'b00000;
             alu_wb_w           = 1'b0; 
             rf_addr_a_w        = regs1;
-            rf_addr_b_w        = 5'b00000;
             imm_ext_w          = I_imm_sign_extended_w;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eJALR_JMP_ADDR_CALC;
         end
         else begin
             use_alu_jmp_addr_w = 1'b1;
             use_pc_w           = 1'b0; 
-            illegal_instr_w    = 1'b0;
-            alu_sel_w          = {instr_i[30], funct3};
             alu_op_a_w         = 1'b0;
-            alu_op_b_w         = 1'b0;
             alu_dest_addr_w    = 5'b00000;
             alu_wb_w           = 1'b0; 
             rf_addr_a_w        = 5'b00000;
-            rf_addr_b_w        = 5'b00000;
             imm_ext_w          = I_imm_sign_extended_w;   
-            lsu_ctrl_valid_w   = 1'b0;
-            lsu_ctrl_w         = 4'b0000;
-            lsu_regdest_w      = regdest;
             curr_state         = eJALR_JMP;
         end
 
     end
 
     {1'b1, OPCODE_JAL}: begin
-        use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b1;
-        illegal_instr_w    = 1'b0;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
-        alu_op_a_w         = 1'b0;
-        alu_op_b_w         = 1'b0;
         alu_dest_addr_w    = regdest;
         alu_wb_w           = 1'b1; 
-        rf_addr_a_w        = 5'b00000;
-        rf_addr_b_w        = 5'b00000;
         imm_ext_w          = 32'b00000000_00000000_00000000_00000100;   
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
         if (prev_state != eJAL &&
             prev_state != eJAL_WAIT_1 &&
             prev_state != eJAL_WAIT_2 &&
@@ -866,66 +768,30 @@ begin
     end
 
     {1'b1, OPCODE_SYSTEM}: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
-        is_alu_write_w     = 1'b1;
-        alu_sel_w          = {instr_i[30], funct3};
-        alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b1;
-        alu_dest_addr_w    = 4'b0;
-        alu_wb_w           = 1'b0; 
-        rf_addr_a_w        = regs1;
-        rf_addr_b_w        = regs2;
-        imm_ext_w          = J_imm_sign_extended_w;   
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
-        if (((regs1 == prev_dest_addr && regs1 != 0 ) || 
-            (regs2 == prev_dest_addr && regs2 != 0 )) &&
-             prev_state != eSTALL) begin
-            curr_state = eSTALL;
-        end
-        else begin
-            curr_state = eOK;
-        end
+        curr_state = eOK;
     end
 
     {1'b0, 6'b???????}: begin
-        use_alu_jmp_addr_w = 1'b0;
-        use_pc_w           = 1'b0;
         illegal_instr_w    = 1'b1;
-        is_alu_write_w     = 1'b1;
-        alu_sel_w          = {instr_i[30], funct3};
-        alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b1;
-        alu_dest_addr_w    = 4'b0;
-        alu_wb_w           = 1'b0; 
-        rf_addr_a_w        = regs1;
-        rf_addr_b_w        = regs2;
-        imm_ext_w          = J_imm_sign_extended_w;   
-        lsu_ctrl_valid_w   = 1'b0;
-        lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
         curr_state         = eINSTR_NOT_VALID;
     end 
 
     default: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b1;
-        is_alu_write_w     = 1'b1;
-        alu_sel_w          = {instr_i[30], funct3};
-        alu_op_a_w         = 1'b1;
-        alu_op_b_w         = 1'b1;
+        illegal_instr_w    = 1'b0;
+        is_alu_write_w     = 1'b0;
+        alu_sel_w          = 4'b0000;
+        alu_op_a_w         = 1'b0;
+        alu_op_b_w         = 1'b0;
         alu_dest_addr_w    = 4'b0;
         alu_wb_w           = 1'b0; 
-        rf_addr_a_w        = regs1;
-        rf_addr_b_w        = regs2;
-        imm_ext_w          = J_imm_sign_extended_w;   
+        rf_addr_a_w        = 5'b00000;
+        rf_addr_b_w        = 5'b00000;
+        imm_ext_w          = 0;   
         lsu_ctrl_valid_w   = 1'b0;
         lsu_ctrl_w         = 4'b0000;
-        lsu_regdest_w      = regdest;
+        lsu_regdest_w      = 5'b00000;
         curr_state         = eERROR;
     end
   endcase
