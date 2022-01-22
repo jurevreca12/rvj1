@@ -165,137 +165,81 @@ end
 
 // Signal ready_co is combinational to provied imediate feedback to the IFU, if we need to stall.
 always_comb begin
+    ready_co     = 0;
+    jmp_instr_co = 0;
+    jmp_addr_co  = 0;
     unique case(curr_state)
         eOK: begin
             ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
         
         eSTALL: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
         
         eJAL: begin
-            ready_co     = 0;
             jmp_instr_co = 1;
             jmp_addr_co  = J_imm_sign_extended_w + instr_addr_i;
         end
 
         eJAL_WAIT_1: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eJAL_WAIT_2: begin
-            ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
         
         eJALR_PC_CALC: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eJALR_JMP_ADDR_CALC: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eJALR_JMP: begin
             ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eBRANCH_CALC_COND: begin 
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eBRANCH_CALC_ADDR: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
         
         eBRANCH_STALL: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eBRANCH_JUMP: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end 
         
         eBRANCH_STALL_2: begin
             ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eLSU_CALC_ADDR: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eLSU_STORE: begin
             ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eLSU_LOAD_CALC_ADDR: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
         
         eLSU_LOAD: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eLSU_LOAD_WAIT_0: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
     
         eLSU_LOAD_WAIT_1: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
     
         eLSU_LOAD_WAIT_2: begin
             ready_co     = 1;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eERROR: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         eINSTR_NOT_VALID: begin
-            ready_co     = 0;
-            jmp_instr_co = 0;
-            jmp_addr_co  = 0;
         end
 
         default: begin
