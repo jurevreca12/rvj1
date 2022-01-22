@@ -170,7 +170,7 @@ always_comb begin
     jmp_addr_co  = 0;
     unique case(curr_state)
         eOK: begin
-            ready_co     = 1;
+            ready_co = 1;
         end
         
         eSTALL: begin
@@ -194,7 +194,7 @@ always_comb begin
         end
 
         eJALR_JMP: begin
-            ready_co     = 1;
+            ready_co = 1;
         end
 
         eBRANCH_CALC_COND: begin 
@@ -210,14 +210,14 @@ always_comb begin
         end 
         
         eBRANCH_STALL_2: begin
-            ready_co     = 1;
+            ready_co = 1;
         end
 
         eLSU_CALC_ADDR: begin
         end
 
         eLSU_STORE: begin
-            ready_co     = 1;
+            ready_co = 1;
         end
 
         eLSU_LOAD_CALC_ADDR: begin
@@ -233,13 +233,14 @@ always_comb begin
         end
     
         eLSU_LOAD_WAIT_2: begin
-            ready_co     = 1;
+            ready_co = 1;
         end
 
         eERROR: begin
         end
 
         eINSTR_NOT_VALID: begin
+            ready_co = 1;
         end
 
         default: begin
@@ -487,32 +488,33 @@ begin
     {1'b1, OPCODE_STORE}: begin
         alu_sel_w          = ALU_OP_ADD;
         rf_addr_a_w        = regs1;
+        rf_addr_b_w        = regs2;
         if (((regs1 == prev_dest_addr && regs1 != 0) ||
              (regs2 == prev_dest_addr && regs2 != 0)) && 
               (prev_state != eSTALL && 
               prev_state != eLSU_CALC_ADDR)) begin
             curr_state       = eSTALL;
             alu_op_a_w       = 1'b0;
+            alu_op_b_w       = 1'b0;
             imm_ext_w        = 0;
             lsu_ctrl_valid_w = 1'b0;
             lsu_ctrl_w       = 4'b0000;
-            lsu_regdest_w    = 5'b00000;
         end
         else if (prev_state != eLSU_CALC_ADDR) begin
             curr_state      = eLSU_CALC_ADDR;
             alu_op_a_w      = 1'b1;
+            alu_op_b_w      = 1'b0;
             imm_ext_w       = S_imm_sign_extended_w;
             lsu_ctrl_valid_w = 1'b0;
             lsu_ctrl_w       = 4'b0000;
-            lsu_regdest_w    = 5'b00000;
         end
         else begin
             curr_state       = eLSU_STORE;
             alu_op_a_w       = 1'b0;
+            alu_op_b_w       = 1'b1;
             imm_ext_w        = 0;
             lsu_ctrl_valid_w = 1'b1;
             lsu_ctrl_w       = {opcode[5], funct3};
-            lsu_regdest_w    = 5'b00000;
         end
     end
     
@@ -715,7 +717,7 @@ begin
         curr_state = eOK;
     end
 
-    {1'b0, 6'b???????}: begin
+    {1'b0, 7'b???????}: begin
         illegal_instr_w    = 1'b1;
         curr_state         = eINSTR_NOT_VALID;
     end 
