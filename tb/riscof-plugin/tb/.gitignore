@@ -5,3 +5,5 @@
 dut.signature
 out.hex
 xsim.dir/
+.Xil/
+*.str
