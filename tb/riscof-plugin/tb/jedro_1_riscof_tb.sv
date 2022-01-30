@@ -4,7 +4,7 @@
 module jedro_1_riscof_tb();
   parameter DATA_WIDTH     = 32;
   parameter ADDR_WIDTH     = 32;
-  parameter MEM_SIZE_WORDS = 1 << 18;
+  parameter MEM_SIZE_WORDS = 1 << 19;
   parameter TIMEOUT        = 1000000;
  
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;

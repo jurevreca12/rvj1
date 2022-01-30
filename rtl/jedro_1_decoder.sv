@@ -653,6 +653,20 @@ begin
         // be delayed at most 1 cycle). The third cycle takes the jump.
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
+        if ((regs1 == prev_dest_addr && regs1 != 0 ) &&
+             prev_state != eJALR_PC_CALC &&
+             prev_state != eJALR_JMP_ADDR_CALC &&
+             prev_state != eJALR_JMP &&
+             prev_state != eSTALL) begin
+            use_alu_jmp_addr_w = 1'b0;
+            use_pc_w           = 1'b0;
+            alu_op_a_w         = 1'b0;
+            alu_dest_addr_w    = 5'b00000;
+            alu_wb_w           = 1'b0; 
+            rf_addr_a_w        = 5'b00000;
+            imm_ext_w          = 0;   
+            curr_state         = eSTALL;
+        end
         if (prev_state != eJALR_PC_CALC &&
             prev_state != eJALR_JMP_ADDR_CALC &&
             prev_state != eJALR_JMP) begin
@@ -689,6 +703,9 @@ begin
     end
 
     {1'b1, OPCODE_JAL}: begin
+        // The JAL instruction has a dedicated adder but the JALR instruction does not.
+        // This is intentional, because I wanted to explore different implementation
+        // options.
         use_pc_w           = 1'b1;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
@@ -697,13 +714,7 @@ begin
         imm_ext_w          = 32'b00000000_00000000_00000000_00000100;   
         if (prev_state != eJAL &&
             prev_state != eJAL_WAIT_1 &&
-            prev_state != eJAL_WAIT_2 &&
-            instr_valid_i == 1'b0) begin
-            curr_state = eSTALL;
-        end
-        else if (prev_state != eJAL &&
-                 prev_state != eJAL_WAIT_1 &&
-                 prev_state != eJAL_WAIT_2) begin
+            prev_state != eJAL_WAIT_2) begin
             curr_state = eJAL;
         end
         else if (prev_state == eJAL) begin
