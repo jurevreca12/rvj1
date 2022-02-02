@@ -1,0 +1,19 @@
+{signal: [
+  {name: 'clk', 				  wave: 'P..................'},
+  {name: 'rst',     			  wave: '01.................'},
+  {name: 'pc_r[0]', 			  wave: 'x22222.222222..2.2.', 	data: [0, 4, 8, 12, 16, 20, 24, 40, 44, 48, 52, 56, 60, 64]},
+  {name: 'pc_r[1]', 			  wave: 'x2.222.222.22..2.2.', 	data: [0, 4, 8, 12, 16, 20, 40, 44, 48, 52, 56, 60]},
+  {name: 'pc_r[2]', 			  wave: 'x2..22.222..2..2.2.', 	data: [0, 4, 8, 12, 16, 40, 44, 48, 52, 54]},
+  {name: 'dout', 				  wave: 'x.22222.222222..2.2', 	data: ['add0', 'add1', 'add2', 'jp40', 'nop0', 'nop1', 'nop2', 'add3', 'add4', 'add5', 'add6', 'add7', 'add8']},
+  {name: 'dout_r', 			  wave: 'x..33333.333333..3.', 	data: ['add0', 'add1', 'add2', 'jp40', 'nop0', 'nop1', 'nop2', 'add3', 'add4', 'add5', 'add6', 'add7']},
+  {name: 'stall_r', 	  		  wave: 'x...44.44.444..4..4',	data: ['add0', 'add1', 'jp40', 'nop0', 'nop1', 'nop2', 'add3', 'add6', 'add7']},
+  {name: 'after_stall_r_0', 	  wave: 'x5....5......5.....', 	data: ['nop', 'add2', 'add4']},
+  {name: 'after_stall_r_1', 	  wave: 'x7.....7......7....', 	data: ['nop', 'jp40', 'add5']},
+  {name: 'ready_i', 			  wave: '1....01.....0.10101'},
+  {name: 'valid_o', 		      wave: '0..1....0..1.......'},
+  {name: 'instr_o', 		      wave: 'x.233457.2.34.5.7.3',	data: ['nop', 'add0', 'add1', 'add1', 'add2', 'jp40', 'nop', 'add3', 'add3', 'add4', 'add5', 'add6', 'add7']},
+  {name: 'addr_o', 				  wave: "x.222.22.2.2..2.2.2",	data: [0, 0, 4, 8, 12, 0, 40, 44, 48, 52, 56]},
+  {name: 'jmp_instr_i', 		  wave: '0.......10.........'}, 
+  {name: 'next',			  	  wave: 'x22..2222.2.2.2.2.2',	data: ['NV', 'DV', 'S0', 'S1', 'S2', 'NV', 'DV', 'S0', 'S1', 'S2', 'DV']},
+  {name: 'state', 			      wave: 'xx22..2222.2.2.2.2.',	data: ['NV', 'DV', 'S0', 'S1', 'S2', 'NV', 'DV', 'S0', 'S1', 'S2']}
+]}
