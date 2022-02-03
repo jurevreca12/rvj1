@@ -83,12 +83,14 @@ logic stall_begin_pulse;   // generates a pulse event on the clock cycle at whic
 logic stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
 logic prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
 
+logic stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
+logic stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets deasserted when state=DV
+logic stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
 
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
 ***************************************/
 assign instr_mem_if.addr = pc_shift_r[0]; // The output address just follows pc_shift_r[0]
-assign valid_o = instr_valid_shift_r[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
@@ -104,16 +106,23 @@ always_ff @(posedge clk_i) begin
         pc_shift_r[2] <= jmp_address_i;
         instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
     end
-    else if (ready_i == 1'b1 || instr_valid_shift_r[2] == 1'b0) begin
+    else if (stall_in_stall_pulse == 1'b1) begin
+        pc_shift_r[0] <= pc_shift_r[1];
+        pc_shift_r[1] <= pc_shift_r[1];
+        pc_shift_r[2] <= pc_shift_r[1];
+        instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
+    end
+    else if ((stall_in_stall_r == 1'b1) ||
+             (stall_in_stall_r == 1'b0 && ready_i == 1'b0)) begin
+        pc_shift_r <= pc_shift_r;
+        instr_valid_shift_r <= instr_valid_shift_r;
+    end
+    else begin
         pc_shift_r[0] <= pc_shift_r[0] + 4;
         pc_shift_r[1] <= pc_shift_r[0];
         pc_shift_r[2] <= pc_shift_r[1];
         instr_valid_shift_r <= instr_valid_shift_r << 1;
         instr_valid_shift_r[0] <= 1'b1;
-    end
-    else begin
-        pc_shift_r <= pc_shift_r;
-        instr_valid_shift_r <= instr_valid_shift_r;
     end
   end
 end
@@ -150,7 +159,7 @@ always_ff @(posedge clk_i) begin
         after_stall_r0 <= 0;
     end
     else begin
-        if (stall_begin_pulse == 1'b1) begin
+        if (stall_begin_pulse == 1'b1 && state == DV) begin
             after_stall_r0 <= dout_r;
         end
         else begin
@@ -164,7 +173,7 @@ always_ff @(posedge clk_i) begin
         after_stall_r1 <= 0;
     end
     else begin
-        if (stall_begin_pulse_r == 1'b1) begin
+        if (stall_begin_pulse_r == 1'b1 && state == S0) begin
             after_stall_r1 <= dout_r;
         end
         else begin
@@ -196,6 +205,18 @@ always_ff @(posedge clk_i) begin
     end
 end
 
+assign stall_in_stall = stall_in_stall_r || stall_in_stall_pulse;
+assign stall_in_stall_pulse = prev_ready & (~ready_i) & (state == S1 || state == S2);
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        stall_in_stall_r <= 0;
+    end
+    else begin
+        if (stall_in_stall_pulse == 1'b1) stall_in_stall_r <= 1'b1;
+        else if (next == NV)              stall_in_stall_r <= 1'b0;
+        else                              stall_in_stall_r <= stall_in_stall_r;
+    end
+end
 
 /***************************************
 * FINITE STATE MACHINE/OUTPUT MUXING
@@ -228,6 +249,8 @@ always_comb begin
 
         S2 : if (jmp_instr_i == 1'b1)            next = NV;
              else if (ready_i == 1'b0)           next = S2;
+             else if (ready_i == 1'b1 && 
+                      stall_in_stall == 1'b1)    next = NV;
              else                                next = DV;
         
         default :                                next = XXX;
@@ -253,6 +276,11 @@ always_comb begin
 
         default:                    out = {'x, 'x};
     endcase
+end
+
+always_comb begin
+    if (state == NV || jmp_instr_i == 1'b1) valid_o = 1'b0;
+    else                                    valid_o = 1'b1;
 end
 
 endmodule : jedro_1_ifu

@@ -652,7 +652,7 @@ begin
             curr_state = eJAL;
         end
         else if (prev_state == eJAL) begin
-            ready_w    = 1'b0;
+            ready_w    = 1'b1;
             curr_state = eJAL_WAIT_1;
         end
         else begin
