@@ -7,6 +7,8 @@ parameter DATA_WIDTH     = 32;
 parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH);
 parameter BOOT_ADDR      = 32'h0000_0000;
 
+parameter NOP_INSTR      = 32'b000000000001_00000_000_00000_0010011;
+
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 parameter OPCODE_LOAD    = 7'b0000011;
 parameter OPCODE_LOADFP  = 7'b0000111;

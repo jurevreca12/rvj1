@@ -17,14 +17,13 @@
 //                 |       |            |_______|                             //
 //                 |  RAM  |                                                  //
 //                 |       |            ____________        _________         //
-//                 |       |            |          |        |       |         //
-//                 |       |----------->| rdata_r  |------->|  M    |         //
+//                 |       | dout       |          |        |       |         //
+//                 |       |----------->| dout_r   |------->|  M    |         //
 //                 |_______|            |__________|  |     |  U    | instr_o //
 //                                                    |     |  X    |-------> //
 //                                    <_______________| |-->|       |         //
 //                                   |                  |   |       |         //
-//                           stalled_instr_save_reg,----| |>|_______|         //
-//                           after_stall_instr_save_reg---|                   //
+//                          stall_r, after_stall_r_0/1  |-->|_______|         //
 //                                                                            //
 //                                                                            //
 //                                                                            //
@@ -47,60 +46,74 @@ module jedro_1_ifu
   input logic [DATA_WIDTH-1:0] jmp_address_i,    // The address to jump to, after we had encountered a jump instruction.
 
   // Interface to the decoder
-  output logic [DATA_WIDTH-1:0] instr_o,         // The current instruction (to be decoded)
-  output logic [DATA_WIDTH-1:0] instr_addr_ro,    // Used by instructons that calculate on the PC.
-  output logic                  instr_valid_ro,
-  input  logic                  decoder_ready_i, // Decoder ready to accept new instruction
+  output logic [DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
+  output logic [DATA_WIDTH-1:0] addr_o,      // Used by instructons that calculate on the PC.
+  output logic                  valid_o,
+  input  logic                  ready_i,     // Decoder ready to accept new instruction
   
   // Interface to the ROM memory
   ram_read_io.MASTER            instr_mem_if
 );
 localparam INSTR_SHIFTREG_DEPTH = 3;
 
-logic [DATA_WIDTH-1:0] pc_shift_reg [INSTR_SHIFTREG_DEPTH-1:0];
-logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shiftreg;
+typedef enum logic [4:0] {NV = 5'b00001, 
+                          DV = 5'b00010,
+                          S0 = 5'b00100,
+                          S1 = 5'b01000,
+                          S2 = 5'b10000,
+                          XXX= 'x      } state_e;
 
-logic [DATA_WIDTH-1:0] rdata_r; // buffered output from RAM
-logic [DATA_WIDTH-1:0] stall_instr_save_reg; // saves the instruciton causing the stall
-logic [DATA_WIDTH-1:0] after_stall_instr_save_reg; // saves the instruction after the stall
+typedef struct packed {
+   logic [DATA_WIDTH-1:0] instr;
+   logic [DATA_WIDTH-1:0] addr; 
+} instr_addr_pair_t;
 
-logic stall_begin_pulse; // generates a pulse event on the clock cycle at which the stall happened
-logic stall_end_pulse; // generates a pulse event on the clock ycle at which the stalling instr ended
-logic prev_ready; // used to generate the stall_begin_pulse (ready low indicates stall)
-logic is_first_cycle; // used to make sure no stall pullses are generated on reset.
-logic process_after_stall_instr; // control signal that indicates the processing of the after stall instr
+state_e state, next;
+
+logic [DATA_WIDTH-1:0] pc_shift_r [INSTR_SHIFTREG_DEPTH-1:0];
+logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shift_r;
+
+instr_addr_pair_t out;     // the final muxed output (it gets comb assigned to instr_o and addr_o)
+instr_addr_pair_t dout_r;  // buffered output from RAM
+instr_addr_pair_t stall_r; // saves the instruciton causing the stall
+instr_addr_pair_t after_stall_r0; // saves the first instruction after the stall
+instr_addr_pair_t after_stall_r1; // saves the second instruction after the stall
+
+logic stall_begin_pulse;   // generates a pulse event on the clock cycle at which the stall happened
+logic stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
+logic prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
+
 
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
 ***************************************/
-assign instr_mem_if.addr = pc_shift_reg[0]; // The output address just follows pc_shift_reg[0]
-assign instr_addr_ro = pc_shift_reg[INSTR_SHIFTREG_DEPTH-1];
-assign instr_valid_ro = instr_valid_shiftreg[INSTR_SHIFTREG_DEPTH-1];
+assign instr_mem_if.addr = pc_shift_r[0]; // The output address just follows pc_shift_r[0]
+assign valid_o = instr_valid_shift_r[INSTR_SHIFTREG_DEPTH-1];
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-     pc_shift_reg[0] <= BOOT_ADDR;
-     pc_shift_reg[1] <= BOOT_ADDR;
-     pc_shift_reg[2] <= BOOT_ADDR;
-     instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b001);
+     pc_shift_r[0] <= BOOT_ADDR;
+     pc_shift_r[1] <= BOOT_ADDR;
+     pc_shift_r[2] <= BOOT_ADDR;
+     instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
   end
   else begin
     if (jmp_instr_i == 1'b1) begin
-        pc_shift_reg[0] <= jmp_address_i;
-        pc_shift_reg[1] <= jmp_address_i;
-        pc_shift_reg[2] <= jmp_address_i;
-        instr_valid_shiftreg <= INSTR_SHIFTREG_DEPTH'('b001);
+        pc_shift_r[0] <= jmp_address_i;
+        pc_shift_r[1] <= jmp_address_i;
+        pc_shift_r[2] <= jmp_address_i;
+        instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
     end
-    else if (decoder_ready_i == 1'b1 || instr_valid_shiftreg[2] == 1'b0) begin
-        pc_shift_reg[0] <= pc_shift_reg[0] + 4;
-        pc_shift_reg[1] <= pc_shift_reg[0];
-        pc_shift_reg[2] <= pc_shift_reg[1];
-        instr_valid_shiftreg <= instr_valid_shiftreg << 1;
-        instr_valid_shiftreg[0] <= 1'b1;
+    else if (ready_i == 1'b1 || instr_valid_shift_r[2] == 1'b0) begin
+        pc_shift_r[0] <= pc_shift_r[0] + 4;
+        pc_shift_r[1] <= pc_shift_r[0];
+        pc_shift_r[2] <= pc_shift_r[1];
+        instr_valid_shift_r <= instr_valid_shift_r << 1;
+        instr_valid_shift_r[0] <= 1'b1;
     end
     else begin
-        pc_shift_reg <= pc_shift_reg;
-        instr_valid_shiftreg <= instr_valid_shiftreg;
+        pc_shift_r <= pc_shift_r;
+        instr_valid_shift_r <= instr_valid_shift_r;
     end
   end
 end
@@ -111,97 +124,135 @@ end
 ***************************************/
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    rdata_r <= 32'b000000000001_00000_000_00000_0010011; // we reset to the NOP operation
+    dout_r <= {NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
   else begin
-    rdata_r <= instr_mem_if.rdata;
+    dout_r <= {instr_mem_if.rdata, pc_shift_r[2]};
   end
 end
 
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        stall_instr_save_reg <= 32'b0;
+        stall_r <= 0;
     end
     else begin
-        if (decoder_ready_i == 1'b1 || instr_valid_shiftreg[2] == 1'b0) begin
-            stall_instr_save_reg <= rdata_r; 
+        if (ready_i == 1'b1) begin
+            stall_r <= dout_r; 
         end
         else begin
-            stall_instr_save_reg <= stall_instr_save_reg;
+            stall_r <= stall_r;
         end
     end
 end
 
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        after_stall_instr_save_reg <= 32'b0;
+        after_stall_r0 <= 0;
     end
     else begin
         if (stall_begin_pulse == 1'b1) begin
-            after_stall_instr_save_reg <= rdata_r;
+            after_stall_r0 <= dout_r;
         end
         else begin
-            after_stall_instr_save_reg <= after_stall_instr_save_reg;
+            after_stall_r0 <= after_stall_r0;
+        end
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        after_stall_r1 <= 0;
+    end
+    else begin
+        if (stall_begin_pulse_r == 1'b1) begin
+            after_stall_r1 <= dout_r;
+        end
+        else begin
+            after_stall_r1 <= after_stall_r1;
         end
     end
 end
 
 
 /***************************************
-* OUTPUT MUX and CONTROL LOGIC
+* CONTROL LOGIC 
 ***************************************/
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         prev_ready <= 1'b0;
     end
     else begin
-        prev_ready <= decoder_ready_i;
+        prev_ready <= ready_i;
     end
 end
 
+assign stall_begin_pulse = prev_ready  & (~ready_i) & valid_o;
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        is_first_cycle <= 1'b1;
+        stall_begin_pulse_r <= 1'b0;
     end
     else begin
-        is_first_cycle <= 1'b0;
+        stall_begin_pulse_r <= stall_begin_pulse;
     end
 end
+
+
+/***************************************
+* FINITE STATE MACHINE/OUTPUT MUXING
+***************************************/
+assign instr_o = out.instr;
+assign addr_o  = out.addr;
 
 always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        process_after_stall_instr <= 1'b0;
-    end
-    else begin
-        if (stall_end_pulse == 1'b1) begin
-            process_after_stall_instr <= 1'b1;
-        end
-        else if (instr_valid_ro == 1'b1 && decoder_ready_i == 1'b1) begin
-            process_after_stall_instr <= 1'b0;
-        end
-        else begin
-            process_after_stall_instr <= process_after_stall_instr;
-        end
-    end
+    if (rstn_i == 1'b0) state <= NV;
+    else                state <= next;
 end
 
-assign stall_begin_pulse = prev_ready  & (~decoder_ready_i) & (~is_first_cycle) & instr_valid_ro;
-assign stall_end_pulse = (~prev_ready) & decoder_ready_i & (~is_first_cycle) & instr_valid_ro;
+always_comb begin
+    next = XXX;
+    case (state)
+        NV : if (instr_valid_shift_r[1] == 1'b1) next = DV;
+             else                                next = NV;
 
-always_comb 
-begin
-    if ( (process_after_stall_instr == 1'b0 && stall_end_pulse == 1'b1) ||
-         (process_after_stall_instr == 1'b1 && ~(decoder_ready_i == 1'b1 && instr_valid_ro == 1'b1))
-       ) 
-    begin
-        instr_o = after_stall_instr_save_reg;
-    end
-    else if (decoder_ready_i == 1'b0 && ~is_first_cycle) begin
-        instr_o = stall_instr_save_reg;
-    end
-    else begin
-        instr_o = rdata_r;
-    end
+        DV : if (jmp_instr_i == 1'b1)            next = NV;
+             else if (ready_i == 1'b1)           next = DV;
+             else                                next = S0;
+                
+        S0 : if (jmp_instr_i == 1'b1)            next = NV;
+             else if (ready_i == 1'b0)           next = S0;
+             else                                next = S1;
+
+        S1 : if (jmp_instr_i == 1'b1)            next = NV;
+             else if (ready_i == 1'b0)           next = S1;
+             else                                next = S2;
+
+        S2 : if (jmp_instr_i == 1'b1)            next = NV;
+             else if (ready_i == 1'b0)           next = S2;
+             else                                next = DV;
+        
+        default :                                next = XXX;
+    endcase 
+end
+
+always_comb begin
+    out  = {NOP_INSTR, 32'b0};
+    case (state)
+        NV:                         out = {NOP_INSTR, 32'b0};
+
+        DV: if (ready_i == 1'b1)    out = dout_r;
+            else                    out = stall_r;
+
+        S0: if (ready_i == 1'b0)    out = stall_r;
+            else                    out = after_stall_r0;
+
+        S1: if (ready_i == 1'b0)    out = after_stall_r0;
+            else                    out = after_stall_r1;
+
+        S2: if (ready_i == 1'b0)    out = after_stall_r1;
+            else                    out = dout_r;
+
+        default:                    out = {'x, 'x};
+    endcase
 end
 
 endmodule : jedro_1_ifu

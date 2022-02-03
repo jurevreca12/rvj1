@@ -77,9 +77,9 @@ jedro_1_ifu ifu_inst(.clk_i          (clk_i),
                      .jmp_instr_i    (decoder_ifu_jmp_instr | decoder_mux3_use_alu_jmp_addr),
                      .jmp_address_i  (mux3_ifu_jmp_addr),
                      .instr_o        (ifu_decoder_instr),
-                     .instr_addr_ro  (ifu_decoder_instr_addr),
-                     .instr_valid_ro (ifu_decoder_instr_valid), 
-                     .decoder_ready_i(decoder_ifu_ready), 
+                     .addr_o         (ifu_decoder_instr_addr),
+                     .valid_o        (ifu_decoder_instr_valid), 
+                     .ready_i        (decoder_ifu_ready), 
                      .instr_mem_if   (instr_mem_if)
                      );  
 
