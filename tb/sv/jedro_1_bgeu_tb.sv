@@ -38,14 +38,10 @@ module jedro_1_bgeu_tb();
     i++;
   end
 
-  assert (dut.regfile_inst.regfile[1] == 0) 
+  assert (dut.regfile_inst.regfile[1] == -4) 
   else $display("ERROR: After executing jedro_1_bgeu_tb.mem the value in register 1 should be 0, not %d.", 
                 $signed(dut.regfile_inst.regfile[1]));
   
-  assert (dut.regfile_inst.regfile[2] == 1 + 2 + 4) 
-  else $display("ERROR: After executing jedro_1_bgeu_tb.mem the value in register 2 should be 7, not %d.", 
-                dut.regfile_inst.regfile[2]);
-
   $finish;
   end
 

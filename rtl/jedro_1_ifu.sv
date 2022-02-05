@@ -86,6 +86,7 @@ logic prev_ready;          // used to generate the stall_begin_pulse (ready low 
 logic stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
 logic stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets deasserted when state=DV
 logic stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
+logic [DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
 
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
@@ -107,9 +108,9 @@ always_ff @(posedge clk_i) begin
         instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
     end
     else if (stall_in_stall_pulse == 1'b1) begin
-        pc_shift_r[0] <= pc_shift_r[1];
-        pc_shift_r[1] <= pc_shift_r[1];
-        pc_shift_r[2] <= pc_shift_r[1];
+        pc_shift_r[0] <= after_stall_addr;
+        pc_shift_r[1] <= after_stall_addr;
+        pc_shift_r[2] <= after_stall_addr;
         instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
     end
     else if ((stall_in_stall_r == 1'b1) ||
@@ -136,7 +137,7 @@ always_ff @(posedge clk_i) begin
     dout_r <= {NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
   else begin
-    dout_r <= {instr_mem_if.rdata, pc_shift_r[2]};
+    dout_r <= {instr_mem_if.rdata, pc_shift_r[1]};
   end
 end
 
@@ -182,6 +183,19 @@ always_ff @(posedge clk_i) begin
     end
 end
 
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        after_stall_addr <= 0;
+    end
+    else begin
+        if (state == DV && ready_i == 1'b0) begin
+            after_stall_addr <= pc_shift_r[0];
+        end
+        else begin
+            after_stall_addr <= after_stall_addr;
+        end
+    end
+end
 
 /***************************************
 * CONTROL LOGIC 
@@ -206,7 +220,7 @@ always_ff @(posedge clk_i) begin
 end
 
 assign stall_in_stall = stall_in_stall_r || stall_in_stall_pulse;
-assign stall_in_stall_pulse = prev_ready & (~ready_i) & (state == S1 || state == S2);
+assign stall_in_stall_pulse = prev_ready & (~ready_i) & (state == S1 || state == S2) & (~stall_in_stall_r);
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         stall_in_stall_r <= 0;
@@ -260,27 +274,31 @@ end
 always_comb begin
     out  = {NOP_INSTR, 32'b0};
     case (state)
-        NV:                         out = {NOP_INSTR, 32'b0};
+        NV:                                  out = {NOP_INSTR, 32'b0};
 
-        DV: if (ready_i == 1'b1)    out = dout_r;
-            else                    out = stall_r;
+        DV: if (ready_i == 1'b1)             out = dout_r;
+            else                             out = stall_r;
 
-        S0: if (ready_i == 1'b0)    out = stall_r;
-            else                    out = after_stall_r0;
+        S0: if (ready_i == 1'b0)             out = stall_r;
+            else                             out = after_stall_r0;
 
-        S1: if (ready_i == 1'b0)    out = after_stall_r0;
-            else                    out = after_stall_r1;
+        S1: if (ready_i == 1'b0)             out = after_stall_r0;
+            else                             out = after_stall_r1;
 
-        S2: if (ready_i == 1'b0)    out = after_stall_r1;
-            else                    out = dout_r;
+        S2: if (ready_i == 1'b0)             out = after_stall_r1;
+            else if (ready_i == 1'b1 &&
+                     stall_in_stall == 1'b1) out = {NOP_INSTR, 32'b0};
+            else                             out = dout_r;
 
-        default:                    out = {'x, 'x};
+        default:                             out = {'x, 'x};
     endcase
 end
 
 always_comb begin
-    if (state == NV || jmp_instr_i == 1'b1) valid_o = 1'b0;
-    else                                    valid_o = 1'b1;
+    if ((state == NV) || 
+        (jmp_instr_i == 1'b1) ||
+        (state == S2 && ready_i == 1'b1 && stall_in_stall== 1'b1)) valid_o = 1'b0;
+    else                                                           valid_o = 1'b1;
 end
 
 endmodule : jedro_1_ifu

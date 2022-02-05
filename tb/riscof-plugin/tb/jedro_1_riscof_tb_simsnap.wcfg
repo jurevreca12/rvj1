@@ -32,23 +32,23 @@
       <obj_property name="label">IFU</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/instr_addr_ro">
+   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/addr_o">
       <obj_property name="ElementShortName">instr_addr_ro[31:0]</obj_property>
       <obj_property name="ObjectShortName">instr_addr_ro[31:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/instr_ro">
+   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/instr_o">
       <obj_property name="ElementShortName">instr_ro[31:0]</obj_property>
       <obj_property name="ObjectShortName">instr_ro[31:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/instr_valid_ro">
+   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/valid_o">
       <obj_property name="ElementShortName">instr_valid_ro</obj_property>
       <obj_property name="ObjectShortName">instr_valid_ro</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/decoder_ready_i">
+   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/ready_i">
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="ElementShortName">decoder_ready_i</obj_property>
-      <obj_property name="ObjectShortName">decoder_ready_i</obj_property>
-      <obj_property name="label">decoder_ready_i</obj_property>
+      <obj_property name="ElementShortName">ready_i</obj_property>
+      <obj_property name="ObjectShortName">ready_i</obj_property>
+      <obj_property name="label">ready_i</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/ifu_inst/jmp_instr_i">
       <obj_property name="ElementShortName">jmp_instr_i</obj_property>
@@ -83,15 +83,15 @@
       <obj_property name="ElementShortName">use_pc_ro</obj_property>
       <obj_property name="ObjectShortName">use_pc_ro</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/ready_co">
+   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/ready_ro">
       <obj_property name="ElementShortName">ready_co</obj_property>
       <obj_property name="ObjectShortName">ready_co</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/jmp_instr_co">
+   <wvobject type="logic" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/jmp_instr_ro">
       <obj_property name="ElementShortName">jmp_instr_co</obj_property>
       <obj_property name="ObjectShortName">jmp_instr_co</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/jmp_addr_co">
+   <wvobject type="array" fp_name="/jedro_1_riscof_tb/dut/decoder_inst/jmp_addr_ro">
       <obj_property name="ElementShortName">jmp_addr_co[31:0]</obj_property>
       <obj_property name="ObjectShortName">jmp_addr_co[31:0]</obj_property>
    </wvobject>
