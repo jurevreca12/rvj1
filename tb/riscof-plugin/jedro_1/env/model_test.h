@@ -22,10 +22,10 @@
   la x1, begin_signature;                       \
   la x2, end_signature;                         \
   li x3, RVMODEL_HALT_COND_ADDR;                \
-  sw x0, 0(x3);                                 \
   sw x2, 4(x3);                                 \
   sw x1, 8(x3);                                 \
   li x1, 1;                                     \
+  sw x1, 0(x3);                                 \
   write_tohost:                                 \
     sw x1, tohost, t5;                          \
     j write_tohost;

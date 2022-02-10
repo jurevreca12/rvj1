@@ -50,7 +50,7 @@ module jedro_1_riscof_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
  
-  while (i < TIMEOUT) begin
+  while (i < TIMEOUT && data_mem.ram_memory.RAM[HALT_COND_CELLNUM] !== 1) begin
     @(posedge clk);
     i++;
   end
