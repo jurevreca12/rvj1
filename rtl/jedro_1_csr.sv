@@ -62,6 +62,19 @@ logic csr_mie_meie_n;
 logic [DATA_WIDTH-1:0] csr_mscratch_r;
 logic [DATA_WIDTH-1:0] csr_mscratch_n;
 
+// MEPC
+logic [DATA_WIDTH-1:0] csr_mepc_r;
+logic [DATA_WIDTH-1:0] csr_mepc_n;
+
+// MCAUSE
+logic [DATA_WIDTH-1:0] csr_mcause_r;
+logic [DATA_WIDTH-1:0] csr_mcause_n;
+
+// MTVAL
+logic [DATA_WIDTH-1:0] csr_mtval_r;
+logic [DATA_WIDTH-1:0] csr_mtval_n;
+
+
 always_comb @(posedge clk_i) begin
     data_n = 0;
     csr_mstatus_mie_n = csr_mstatus_mie_r;
@@ -71,6 +84,9 @@ always_comb @(posedge clk_i) begin
     csr_mie_mtie_n = csr_mie_mtie_r;
     csr_mie_meie_n = csr_mie_meie_r;
     csr_mscratch_n = csr_mscratch_r;
+    csr_mepc_n = csr_mepc_r;
+    csr_mcause_n = csr_mcause_r;
+    csr_mtval_n = csr_mtval_r;
     unique casez (addr_i)
     {
         CSR_ADDR_MVENDORID: begin
@@ -137,6 +153,28 @@ always_comb @(posedge clk_i) begin
                 csr_mscratch_n = data_i;
             end
         end
+
+        CSR_ADDR_MEPC: begin
+            data_n = csr_mepc_r;
+            if (we_i == 1'b1) begin
+                csr_mepc_n = data_i;
+            end
+        end
+
+        CSR_ADDR_MCAUSE: begin
+            data_n = csr_mcause_r;
+       
+            if (we_i == 1'b1) begin
+                csr_mcause_n = data_i;
+            end
+        end
+
+        CSR_ADDR_MTVAL: begin
+            data_n = csr_mtval_r;
+            if (we_i = 1'b1) begin
+                csr_mtval_n = data_i;
+            end
+        end
     }
 end
 
@@ -154,6 +192,9 @@ always_ff @(posedge clk_i) begin
         csr_mie_mtie_r <= 1'b0;
         csr_mie_meie_r <= 1'b0;
         csr_mscratch_r <= CSR_DEF_VAL_MSCRATCH;
+        csr_mepc_r <= CSR_DEF_VAL_MEPC;
+        csr_mcause_r <= CSR_DEF_VAL_MCAUSE;
+        csr_mtval_r <= CSR_DEF_VAL_MTVAL;
     end
     else begin
         data_ro <= data_n;
@@ -167,6 +208,9 @@ always_ff @(posedge clk_i) begin
         csr_mie_mtie_r <= csr_mie_mtie_n;
         csr_mie_meie_r <= csr_mie_meie_n;
         csr_mscratch_r <= csr_mscratch_n;
+        csr_mepc_r <= csr_mepc_n;
+        csr_mcause_r <= csr_mcause_n;
+        csr_mtval_r <= csr_mtval_n;
     end
 end
 
