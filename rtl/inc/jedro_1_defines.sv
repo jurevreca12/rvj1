@@ -93,4 +93,12 @@ parameter CSR_MIP_BIT_MSIP         = 3; // machine software interrupt pending
 parameter CSR_MIP_BIT_MTIP         = 7; // machine timer interrupt pending
 parameter CSR_MIP_BIT_MEIP         = 11; // machine external interrupt pending
 parameter CSR_DEF_VAL_MIP          = 32'b00000000_00000000_00000000_00000000;
+
+parameter CSR_ADDR_MIE             = 12'h304;
+parameter CSR_MIE_BIT_MSIE         = 3; // machine software interrupt enabled
+parameter CSR_MIE_BIT_MTIE         = 7; // machine timer interrupt enabled
+parameter CSR_MIE_BIT_MEIE         = 11; // machine external interrupt enabled
+parameter CSR_DEF_VAL_MIE          = 32'b00000000_00000000_00000000_00000000;
+
+
 endpackage

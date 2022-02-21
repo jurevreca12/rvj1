@@ -25,7 +25,12 @@ module jedro_1_csr
   input logic [REG_ADDR_WIDTH-1:0] addr_i,
   input logic [DATA_WIDTH-1:0]     data_i,
   output logic [DATA_WIDTH-1-:0]   data_ro,
-  input logic                      we_i
+  input logic                      we_i,
+
+  // interrupt lines
+  input logic sw_irq_i,
+  input logic timer_irq_i,
+  input logic ext_irq_i
 );
 
 logic [DATA_WIDTH-1:0] data_n;
@@ -40,9 +45,28 @@ logic csr_mstatus_mpie_n;
 logic [CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_r;
 logic [CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_n;
 
+// MIP
+logic csr_mip_msip_r; // machine software interrupt pending
+logic csr_mip_mtip_r; // machine timmer interrupt pending
+logic csr_mip_meip_r; // machine external interrupt pending
+
+// MIE
+logic csr_mie_msie_r; // machine software interrupt enable
+logic csr_mie_msie_n;
+logic csr_mie_mtie_r; // machine timer interrupt enable
+logic csr_mie_mtie_n;
+logic csr_mie_meie_r; // machine external interrupt enable
+logic csr_mie_meie_n;
+
 
 always_comb @(posedge clk_i) begin
-    data_n <= 0;
+    data_n = 0;
+    csr_mstatus_mie_n = csr_mstatus_mie_r;
+    csr_mstatus_mpie_n = csr_mstatus_mpie_r;
+    csr_mtvec_base_n = csr_mtvec_base_r;
+    csr_mie_msie_n = csr_mie_msie_r;
+    csr_mie_mtie_n = csr_mie_mtie_r;
+    csr_mie_meie_n = csr_mie_meie_r;
     unique casez (addr_i)
     {
         CSR_ADDR_MVENDORID: begin
@@ -70,10 +94,6 @@ always_comb @(posedge clk_i) begin
                 csr_mstatus_mie_n = data_i[CSR_MSTATUS_BIT_MIE];
                 csr_mstatus_mpie_n = data_i[CSR_MSTATUS_BIT_MPIE];
             end
-            else begin
-                csr_mstatus_mie_n = csr_mstatus_mie_r;
-                csr_mstatus_mpie_n = csr_mstatus_mpie_r;
-            end
         end
 
         CSR_ADDR_MISA: begin
@@ -85,8 +105,25 @@ always_comb @(posedge clk_i) begin
             if (we_i == 1'b1) begin
                 csr_mtvec_base_n = data_n[DATA_WIDTH-1:DATA_WIDTH-1-CSR_MTVEC_BASE_LEN];
             end
-            else begin
-                csr_mtvec_base_n = csr_mtvec_base_r;
+        end
+
+        CSR_ADDR_MIP: begin
+            data_n = 32'b{20'b0, 
+                          csr_mip_meip_r, 3'b0, 
+                          csr_mip_mtip_r, 3'b0, 
+                          csr_mip_msip_r, 3'b0}; // read-only
+        end
+
+        CSR_ADDR_MIE: begin
+            data_n = 32'b0{20'b0,
+                           csr_mie_meie_r, 3'b0,
+                           csr_mie_mtie_r, 3'b0,
+                           csr_mie_msie_r, 3'b0};
+
+            if (we_i == 1'b1) begin
+                csr_mie_msie_n = data_i[CSR_MIE_BIT_MSIE];
+                csr_mie_mtie_n = data_i[CSR_MIE_BIT_MTIE];
+                csr_mie_meie_n = data_i[CSR_MIE_BIT_MEIE];
             end
         end
     }
@@ -99,12 +136,24 @@ always_ff @(posedge clk_i) begin
         csr_mstatus_mie_r <= 0;
         csr_mstatus_mpie_r <= 0;
         csr_mtvec_base_r  <= TRAP_VEC_BASE_ADDR;
+        csr_mip_meip_r <= 1'b0;
+        csr_mip_mtip_r <= 1'b0;
+        csr_mip_msip_r <= 1'b0;
+        csr_mie_msie_r <= 1'b0;
+        csr_mie_mtie_r <= 1'b0;
+        csr_mie_meie_r <= 1'b0;
     end
     else begin
         data_ro <= data_n;
         csr_mstatus_mie_r <= csr_mstatus_mie_n;
         csr_mstatus_mpie_r <= csr_mstatus_mpie_n;
         csr_mtvec_base_r  <= csr_mtvec_base_n;
+        csr_mip_meip_r <= ext_irq_i;
+        csr_mip_mtip_r <= timer_irq_i;
+        csr_mip_msip_r <= sw_irq_i;
+        csr_mie_msie_r <= csr_mie_msie_n;
+        csr_mie_mtie_r <= csr_mie_mtie_n;
+        csr_mie_meie_r <= csr_mie_meie_n;
     end
 end
 
