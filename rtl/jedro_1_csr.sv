@@ -58,6 +58,9 @@ logic csr_mie_mtie_n;
 logic csr_mie_meie_r; // machine external interrupt enable
 logic csr_mie_meie_n;
 
+// MSCRATCH
+logic [DATA_WIDTH-1:0] csr_mscratch_r;
+logic [DATA_WIDTH-1:0] csr_mscratch_n;
 
 always_comb @(posedge clk_i) begin
     data_n = 0;
@@ -67,6 +70,7 @@ always_comb @(posedge clk_i) begin
     csr_mie_msie_n = csr_mie_msie_r;
     csr_mie_mtie_n = csr_mie_mtie_r;
     csr_mie_meie_n = csr_mie_meie_r;
+    csr_mscratch_n = csr_mscratch_r;
     unique casez (addr_i)
     {
         CSR_ADDR_MVENDORID: begin
@@ -126,6 +130,13 @@ always_comb @(posedge clk_i) begin
                 csr_mie_meie_n = data_i[CSR_MIE_BIT_MEIE];
             end
         end
+
+        CSR_ADDR_MSCRATCH: begin
+            data_n = csr_msratch_r;
+            if (we_i == 1'b1) begin
+                csr_mscratch_n = data_i;
+            end
+        end
     }
 end
 
@@ -142,6 +153,7 @@ always_ff @(posedge clk_i) begin
         csr_mie_msie_r <= 1'b0;
         csr_mie_mtie_r <= 1'b0;
         csr_mie_meie_r <= 1'b0;
+        csr_mscratch_r <= CSR_DEF_VAL_MSCRATCH;
     end
     else begin
         data_ro <= data_n;
@@ -154,6 +166,7 @@ always_ff @(posedge clk_i) begin
         csr_mie_msie_r <= csr_mie_msie_n;
         csr_mie_mtie_r <= csr_mie_mtie_n;
         csr_mie_meie_r <= csr_mie_meie_n;
+        csr_mscratch_r <= csr_mscratch_n;
     end
 end
 

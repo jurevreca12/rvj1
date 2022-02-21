@@ -100,5 +100,8 @@ parameter CSR_MIE_BIT_MTIE         = 7; // machine timer interrupt enabled
 parameter CSR_MIE_BIT_MEIE         = 11; // machine external interrupt enabled
 parameter CSR_DEF_VAL_MIE          = 32'b00000000_00000000_00000000_00000000;
 
+parameter CSR_ADDR_MSCRATCH        = 12'h340;
+parameter CSR_DEF_VAL_MSCRATCH     = 32'b00000000_00000000_00000000_00000000;
+
 
 endpackage
