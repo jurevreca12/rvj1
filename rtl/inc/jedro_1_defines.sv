@@ -61,4 +61,36 @@ parameter LSU_STORE_BYTE           = 4'b1000;
 parameter LSU_STORE_HALF_WORD      = 4'b1001;
 parameter LSU_STORE_WORD           = 4'b1010;
 
+
+// CONTROL AND STATUS REGISTERS
+parameter TRAP_VEC_BASE_ADDR       = 30'h0010_0000;
+parameter TRAP_VEC_MODE            = 2'b00; // direct mode (vectored == 01)
+
+// Machine Information Registers 
+parameter CSR_ADDR_MVENDORID       = 12'hF11;
+parameter CSR_DEF_VAL_MVENDORID    = 32'b0;
+parameter CSR_ADDR_MARCHID         = 12'hF12;
+parameter CSR_DEF_VAL_MARCHID      = 32'b0;
+parameter CSR_ADDR_MIMPID          = 12'hF13;
+parameter CSR_DEF_VAL_MIMPID       = 32'b0;
+parameter CSR_ADDR_MHARTID         = 12'hF14;
+parameter CSR_DEF_VAL_MHARTID      = 32'b0;
+
+// Machine Trap Registers
+parameter CSR_ADDR_MSTATUS         = 12'h300;
+parameter CSR_MSTATUS_BIT_MIE      = 3; // machine interrupt enable
+parameter CSR_MSTATUS_BIT_MPIE     = 7; // previous machine interrupt enable
+parameter CSR_DEF_VAL_MSTATUS      = 32'b00000000_0000000_0000000_0000000;
+parameter CSR_ADDR_MISA            = 12'h301;
+parameter CSR_DEF_VAL_MISA         = 32'b01_0000_00000000000000000100000000;
+
+parameter CSR_ADDR_MTVEC           = 12'h305;
+parameter CSR_MTVEC_BASE_LEN       = 30;
+parameter CSR_DEF_VAL_MTVEC        = 32'b{TRAP_VEC_BASE_ADDR, TRAP_VEC_MODE};
+
+parameter CSR_ADDR_MIP             = 12'h344;
+parameter CSR_MIP_BIT_MSIP         = 3; // machine software interrupt pending
+parameter CSR_MIP_BIT_MTIP         = 7; // machine timer interrupt pending
+parameter CSR_MIP_BIT_MEIP         = 11; // machine external interrupt pending
+parameter CSR_DEF_VAL_MIP          = 32'b00000000_00000000_00000000_00000000;
 endpackage
