@@ -11,20 +11,20 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+import jedro_1_defines::*;
 
 module jedro_1_csr
 #(
-  parameter DATA_WIDTH = 32,
-  parameter REG_ADDR_WIDTH = 12
+  parameter DATA_WIDTH = 32
 )
 (
   input logic clk_i,
   input logic rstn_i,
 
   // Read/write port
-  input logic [REG_ADDR_WIDTH-1:0] addr_i,
+  input logic [CSR_ADDR_WIDTH-1:0] addr_i,
   input logic [DATA_WIDTH-1:0]     data_i,
-  output logic [DATA_WIDTH-1-:0]   data_ro,
+  output logic [DATA_WIDTH-1:0]    data_ro,
   input logic                      we_i,
 
   // interrupt lines
@@ -75,7 +75,7 @@ logic [DATA_WIDTH-1:0] csr_mtval_r;
 logic [DATA_WIDTH-1:0] csr_mtval_n;
 
 
-always_comb @(posedge clk_i) begin
+always_comb begin
     data_n = 0;
     csr_mstatus_mie_n = csr_mstatus_mie_r;
     csr_mstatus_mpie_n = csr_mstatus_mpie_r;
@@ -88,7 +88,6 @@ always_comb @(posedge clk_i) begin
     csr_mcause_n = csr_mcause_r;
     csr_mtval_n = csr_mtval_r;
     unique casez (addr_i)
-    {
         CSR_ADDR_MVENDORID: begin
             data_n = CSR_DEF_VAL_MVENDORID; // read-only
         end
@@ -128,17 +127,17 @@ always_comb @(posedge clk_i) begin
         end
 
         CSR_ADDR_MIP: begin
-            data_n = 32'b{20'b0, 
-                          csr_mip_meip_r, 3'b0, 
-                          csr_mip_mtip_r, 3'b0, 
-                          csr_mip_msip_r, 3'b0}; // read-only
+            data_n = {20'b0, 
+                      csr_mip_meip_r, 3'b0, 
+                      csr_mip_mtip_r, 3'b0, 
+                      csr_mip_msip_r, 3'b0}; // read-only
         end
 
         CSR_ADDR_MIE: begin
-            data_n = 32'b0{20'b0,
-                           csr_mie_meie_r, 3'b0,
-                           csr_mie_mtie_r, 3'b0,
-                           csr_mie_msie_r, 3'b0};
+            data_n = {20'b0,
+                      csr_mie_meie_r, 3'b0,
+                      csr_mie_mtie_r, 3'b0,
+                      csr_mie_msie_r, 3'b0};
 
             if (we_i == 1'b1) begin
                 csr_mie_msie_n = data_i[CSR_MIE_BIT_MSIE];
@@ -148,7 +147,7 @@ always_comb @(posedge clk_i) begin
         end
 
         CSR_ADDR_MSCRATCH: begin
-            data_n = csr_msratch_r;
+            data_n = csr_mscratch_r;
             if (we_i == 1'b1) begin
                 csr_mscratch_n = data_i;
             end
@@ -162,8 +161,7 @@ always_comb @(posedge clk_i) begin
         end
 
         CSR_ADDR_MCAUSE: begin
-            data_n = csr_mcause_r;
-       
+            data_n = csr_mcause_r; 
             if (we_i == 1'b1) begin
                 csr_mcause_n = data_i;
             end
@@ -171,11 +169,15 @@ always_comb @(posedge clk_i) begin
 
         CSR_ADDR_MTVAL: begin
             data_n = csr_mtval_r;
-            if (we_i = 1'b1) begin
+            if (we_i == 1'b1) begin
                 csr_mtval_n = data_i;
             end
         end
-    }
+
+        default: begin
+            // TODO
+        end
+    endcase
 end
 
 

@@ -35,8 +35,6 @@ module jedro_1_decoder
   // ALU INTERFACE
   output logic                       is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
   output logic [ALU_OP_WIDTH-1:0]    alu_sel_ro,         // Select operation that ALU should perform.
-  output logic                       alu_op_a_ro,        // Is operand a involved in the operation?
-  output logic                       alu_op_b_ro,        // Is operand b involved in the operation?
   output logic [REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
   output logic                       alu_wb_ro,          // Writeback to the register?
   input  logic [DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
@@ -52,7 +50,12 @@ module jedro_1_decoder
   // LSU INTERFACE
   output logic                       lsu_ctrl_valid_ro, 
   output logic [LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
-  output logic [REG_ADDR_WIDTH-1:0]  lsu_regdest_ro
+  output logic [REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
+
+  // CSR INTERFACE
+  output logic [CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
+  output logic [DATA_WIDTH-1:0]      csr_we_ro,
+  input  logic [DATA_WIDTH-1:0]      csr_data_i
 );
 
 /*************************************
@@ -81,6 +84,10 @@ logic                      ready_w;
 logic                      jmp_instr_w;
 logic [DATA_WIDTH-1:0]     jmp_addr_w;
 
+logic [CSR_ADDR_WIDTH-1:0]  csr_addr_w;
+logic [DATA_WIDTH-1:0]      csr_we_w;
+logic [DATA_WIDTH-1:0]      csr_temp_r;
+
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
 logic [DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
@@ -92,28 +99,31 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [21:0] {eOK                 = 22'b0000000000000000000001, 
-                           eSTALL              = 22'b0000000000000000000010, 
-                           eJAL                = 22'b0000000000000000000100,
-                           eJAL_WAIT_1         = 22'b0000000000000000001000,
-                           eJAL_WAIT_2         = 22'b0000000000000000010000,
-                           eJALR_PC_CALC       = 22'b0000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 22'b0000000000000001000000,
-                           eJALR_JMP           = 22'b0000000000000010000000,
-                           eBRANCH_CALC_COND   = 22'b0000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 22'b0000000000001000000000,
-                           eBRANCH_STALL       = 22'b0000000000010000000000,
-                           eBRANCH_JUMP        = 22'b0000000000100000000000,
-                           eBRANCH_STALL_2     = 22'b0000000001000000000000,
-                           eLSU_CALC_ADDR      = 22'b0000000010000000000000,
-                           eLSU_STORE          = 22'b0000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 22'b0000001000000000000000,
-                           eLSU_LOAD           = 22'b0000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 22'b0000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 22'b0001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 22'b0010000000000000000000,
-                           eERROR              = 22'b0100000000000000000000,
-                           eINSTR_NOT_VALID    = 22'b1000000000000000000000} fsmState_t; 
+typedef enum logic [24:0] {eOK                 = 25'b0000000000000000000000001, 
+                           eSTALL              = 25'b0000000000000000000000010, 
+                           eJAL                = 25'b0000000000000000000000100,
+                           eJAL_WAIT_1         = 25'b0000000000000000000001000,
+                           eJAL_WAIT_2         = 25'b0000000000000000000010000,
+                           eJALR_PC_CALC       = 25'b0000000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 25'b0000000000000000001000000,
+                           eJALR_JMP           = 25'b0000000000000000010000000,
+                           eBRANCH_CALC_COND   = 25'b0000000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 25'b0000000000000001000000000,
+                           eBRANCH_STALL       = 25'b0000000000000010000000000,
+                           eBRANCH_JUMP        = 25'b0000000000000100000000000,
+                           eBRANCH_STALL_2     = 25'b0000000000001000000000000,
+                           eLSU_CALC_ADDR      = 25'b0000000000010000000000000,
+                           eLSU_STORE          = 25'b0000000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 25'b0000000001000000000000000,
+                           eLSU_LOAD           = 25'b0000000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 25'b0000000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 25'b0000001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 25'b0000010000000000000000000,
+                           eCSRRW_READ_CSR     = 25'b0000100000000000000000000,
+                           eCSRRW_WRITE_CSR    = 25'b0001000000000000000000000,
+                           eCSRRW_WRITE_RF     = 25'b0010000000000000000000000,
+                           eERROR              = 25'b0100000000000000000000000,
+                           eINSTR_NOT_VALID    = 25'b1000000000000000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -221,6 +231,21 @@ sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_S_inst (.in_i({instr_i[31:
 
 
 /*************************************
+* CSR temporary register reading logic
+*************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        csr_temp_r <= 0;
+    end
+    else begin
+        if (prev_state == eCSRRW_READ_CSR) 
+            csr_temp_r <= csr_data_i;
+        else 
+            csr_temp_r <= csr_temp_r;
+    end
+end
+
+/*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff@(posedge clk_i) begin
@@ -230,8 +255,6 @@ always_ff@(posedge clk_i) begin
     illegal_instr_ro <= 0;
     is_alu_write_ro <= 1'b1;
     alu_sel_ro <= 0;
-    alu_op_a_ro <= 0;
-    alu_op_b_ro <= 0;
     alu_dest_addr_ro <= 0;
     alu_wb_ro <= 0;
     rf_addr_a_ro <= 0;
@@ -244,6 +267,8 @@ always_ff@(posedge clk_i) begin
     ready_ro <= 1'b1;
     jmp_instr_ro <= 1'b0;
     jmp_addr_ro <= 0;
+    csr_addr_ro <= 0;
+    csr_we_ro <= 0;
   end
   else begin
     use_alu_jmp_addr_ro <= use_alu_jmp_addr_w;
@@ -251,8 +276,6 @@ always_ff@(posedge clk_i) begin
     illegal_instr_ro <= illegal_instr_w;
     is_alu_write_ro <= is_alu_write_w;
     alu_sel_ro <= alu_sel_w;
-    alu_op_a_ro <= alu_op_a_w;
-    alu_op_b_ro <= alu_op_b_w;
     alu_dest_addr_ro <= alu_dest_addr_w;
     alu_wb_ro <= alu_wb_w;
     rf_addr_a_ro <= rf_addr_a_w;
@@ -265,6 +288,8 @@ always_ff@(posedge clk_i) begin
     ready_ro <= ready_w;
     jmp_instr_ro <= jmp_instr_w;
     jmp_addr_ro <= jmp_addr_w;
+    csr_addr_ro <= csr_addr_w;
+    csr_we_ro <= csr_we_w;
   end
 end
 
@@ -662,8 +687,44 @@ begin
     end
 
     {1'b1, OPCODE_SYSTEM}: begin
-        ready_w    = 1'b1;
-        curr_state = eOK;
+        if (funct3 != 3'b000) begin // CSR INSTRUCTIONS
+            if (funct3 == CSRRW_INSTR_FUNCT3  |
+                funct3 == CSRRWI_INSTR_FUNCT3) begin // CSRRW and CSRRWI instructions
+                if (prev_state != eCSRRW_READ_CSR &&
+                    regdest != 5'b00000) begin
+                    csr_addr_w = {20'b0, imm11_0};
+                    curr_state = eCSRRW_READ_CSR;
+                    ready_w    = 1'b0;
+                end
+                else if (prev_state == eCSRRW_READ_CSR) begin
+                    if (funct3 == CSRRW_INSTR_FUNCT3) begin
+                       rf_addr_b_w = regs1;
+                       alu_op_b_w = 1'b1;
+                    end
+                    else begin
+                       alu_op_b_w = 1'b1;
+                    end
+                    curr_state = eCSRRW_WRITE_CSR;
+                    ready_w    = 1'b0;
+                end
+                else begin
+                    is_alu_write_w  = 1'b1;
+                    rf_addr_a_w     = regdest;
+                    alu_sel_w       = ALU_OP_ADD;
+                    alu_dest_addr_w = regdest;
+                    alu_wb_w        = 1'b1;
+                    curr_state      = eCSRRW_WRITE_RF;
+                    ready_w         = 1'b1;
+                end
+            end
+            else begin // CSRRS/I and CSRRC/I instructions
+
+            end
+        end
+        else begin // Other instructions
+
+
+        end
     end
 
     {1'b0, 7'b???????}: begin

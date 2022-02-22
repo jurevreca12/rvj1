@@ -37,8 +37,6 @@ logic                      decoder_ifu_jmp_instr;
 logic [DATA_WIDTH-1:0]     decoder_ifu_jmp_addr;
 logic                      decoder_mux3_use_alu_jmp_addr;
 logic [ALU_OP_WIDTH-1:0]   decoder_alu_sel;
-logic                      decoder_alu_op_a;
-logic                      decoder_alu_op_b;
 logic [REG_ADDR_WIDTH-1:0] decoder_alu_dest_addr;
 logic                      decoder_alu_wb;
 logic [REG_ADDR_WIDTH-1:0] decoder_rf_addr_a;
@@ -47,6 +45,10 @@ logic [DATA_WIDTH-1:0]     decoder_mux_imm_ex;
 logic                      decoder_mux_is_imm;
 logic [DATA_WIDTH-1:0]     decoder_mux2_instr_addr;
 logic                      decoder_mux2_use_pc;
+logic [CSR_ADDR_WIDTH-1:0] decoder_csr_addr;
+logic [DATA_WIDTH-1:0]     decoder_csr_data;
+logic [DATA_WIDTH-1:0]     csr_decoder_data;
+logic                      decoder_csr_we;
 logic [DATA_WIDTH-1:0]     alu_mux4_res;
 logic [REG_ADDR_WIDTH-1:0] alu_mux4_dest_addr;
 logic                      alu_mux4_wb;
@@ -67,6 +69,7 @@ logic [REG_ADDR_WIDTH-1:0] lsu_mux4_regdest;
 logic [DATA_WIDTH-1:0]     mux4_rf_data;
 logic                      mux4_rf_wb;
 logic [REG_ADDR_WIDTH-1:0] mux4_rf_dest_addr;
+
 
 
 /****************************************
@@ -103,8 +106,6 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
                              .illegal_instr_ro    (), // TODO
                              .is_alu_write_ro     (decoder_mux4_is_alu_write),
                              .alu_sel_ro          (decoder_alu_sel), 
-                             .alu_op_a_ro         (decoder_alu_op_a), 
-                             .alu_op_b_ro         (decoder_alu_op_b), 
                              .alu_dest_addr_ro    (decoder_alu_dest_addr),
                              .alu_wb_ro           (decoder_alu_wb),
                              .alu_res_i           (alu_mux4_res),
@@ -115,10 +116,11 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
                              .imm_ext_ro          (decoder_mux_imm_ex),
                              .lsu_ctrl_valid_ro   (decoder_lsu_ctrl_valid), 
                              .lsu_ctrl_ro         (decoder_lsu_ctrl),
-                             .lsu_regdest_ro      (decoder_lsu_regdest)
+                             .lsu_regdest_ro      (decoder_lsu_regdest),
+                             .csr_addr_ro         (decoder_csr_addr),
+                             .csr_we_ro           (decoder_csr_we),
+                             .csr_data_i          (csr_decoder_data)
                            );
-
-
 
 
 /*********************************************
@@ -141,6 +143,17 @@ assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_da
 // mux_alu_op_b
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
+jedro_1_csr csr_inst (.clk_i       (clk_i),
+                      .rstn_i      (rstn_i),
+                      .addr_i      (decoder_csr_addr), 
+                      .data_i      (mux_alu_op_b),
+                      .data_ro     (csr_decoder_data),
+                      .we_i        (decoder_csr_we),
+                        
+                      .sw_irq_i    (), // TODO
+                      .timer_irq_i (),
+                      .ext_irq_i   ()
+                     );
 
 jedro_1_alu alu_inst(.clk_i       (clk_i),
                      .rstn_i      (rstn_i),

@@ -65,6 +65,9 @@ parameter LSU_STORE_WORD           = 4'b1010;
 // CONTROL AND STATUS REGISTERS
 parameter TRAP_VEC_BASE_ADDR       = 30'h0010_0000;
 parameter TRAP_VEC_MODE            = 2'b00; // direct mode (vectored == 01)
+parameter CSRRW_INSTR_FUNCT3       = 3'b001;
+parameter CSRRWI_INSTR_FUNCT3      = 3'b101;
+parameter CSR_ADDR_WIDTH           = 12;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;
@@ -86,7 +89,7 @@ parameter CSR_DEF_VAL_MISA         = 32'b01_0000_00000000000000000100000000;
 
 parameter CSR_ADDR_MTVEC           = 12'h305;
 parameter CSR_MTVEC_BASE_LEN       = 30;
-parameter CSR_DEF_VAL_MTVEC        = 32'b{TRAP_VEC_BASE_ADDR, TRAP_VEC_MODE};
+parameter CSR_DEF_VAL_MTVEC        = {TRAP_VEC_BASE_ADDR, TRAP_VEC_MODE};
 
 parameter CSR_ADDR_MIP             = 12'h344;
 parameter CSR_MIP_BIT_MSIP         = 3; // machine software interrupt pending
