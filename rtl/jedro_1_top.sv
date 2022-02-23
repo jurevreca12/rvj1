@@ -155,6 +155,7 @@ jedro_1_csr csr_inst (.clk_i       (clk_i),
                       .uimm_we_i   (decoder_csr_uimm_we),
                       .data_ro     (csr_decoder_data),
                       .we_i        (decoder_csr_we),
+                      //.wmode_i     (decoder_csr_wmode),
                         
                       .sw_irq_i    (), // TODO
                       .timer_irq_i (),

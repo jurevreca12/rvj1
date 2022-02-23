@@ -103,33 +103,38 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [26:0] {eOK                 = 27'b000000000000000000000000001, 
-                           eSTALL              = 27'b000000000000000000000000010, 
-                           eJAL                = 27'b000000000000000000000000100,
-                           eJAL_WAIT_1         = 27'b000000000000000000000001000,
-                           eJAL_WAIT_2         = 27'b000000000000000000000010000,
-                           eJALR_PC_CALC       = 27'b000000000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 27'b000000000000000000001000000,
-                           eJALR_JMP           = 27'b000000000000000000010000000,
-                           eBRANCH_CALC_COND   = 27'b000000000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 27'b000000000000000001000000000,
-                           eBRANCH_STALL       = 27'b000000000000000010000000000,
-                           eBRANCH_JUMP        = 27'b000000000000000100000000000,
-                           eBRANCH_STALL_2     = 27'b000000000000001000000000000,
-                           eLSU_CALC_ADDR      = 27'b000000000000010000000000000,
-                           eLSU_STORE          = 27'b000000000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 27'b000000000001000000000000000,
-                           eLSU_LOAD           = 27'b000000000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 27'b000000000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 27'b000000001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 27'b000000010000000000000000000,
-                           eCSRRW_READ_CSR     = 27'b000000100000000000000000000,
-                           eCSRRW_READ_WAIT_0  = 27'b000001000000000000000000000,
-                           eCSRRW_READ_WAIT_1  = 27'b000010000000000000000000000,
-                           eCSRRW_WRITE_RF     = 27'b000100000000000000000000000,
-                           eCSRRW_WRITE_CSR    = 27'b001000000000000000000000000,
-                           eERROR              = 27'b010000000000000000000000000,
-                           eINSTR_NOT_VALID    = 27'b100000000000000000000000000} fsmState_t; 
+typedef enum logic [31:0] {eOK                 = 32'b00000000000000000000000000000001, 
+                           eSTALL              = 32'b00000000000000000000000000000010, 
+                           eJAL                = 32'b00000000000000000000000000000100,
+                           eJAL_WAIT_1         = 32'b00000000000000000000000000001000,
+                           eJAL_WAIT_2         = 32'b00000000000000000000000000010000,
+                           eJALR_PC_CALC       = 32'b00000000000000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 32'b00000000000000000000000001000000,
+                           eJALR_JMP           = 32'b00000000000000000000000010000000,
+                           eBRANCH_CALC_COND   = 32'b00000000000000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 32'b00000000000000000000001000000000,
+                           eBRANCH_STALL       = 32'b00000000000000000000010000000000,
+                           eBRANCH_JUMP        = 32'b00000000000000000000100000000000,
+                           eBRANCH_STALL_2     = 32'b00000000000000000001000000000000,
+                           eLSU_CALC_ADDR      = 32'b00000000000000000010000000000000,
+                           eLSU_STORE          = 32'b00000000000000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 32'b00000000000000001000000000000000,
+                           eLSU_LOAD           = 32'b00000000000000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 32'b00000000000000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 32'b00000000000001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 32'b00000000000010000000000000000000,
+                           eCSRRW_READ_CSR     = 32'b00000000000100000000000000000000,
+                           eCSRRW_READ_WAIT_0  = 32'b00000000001000000000000000000000,
+                           eCSRRW_READ_WAIT_1  = 32'b00000000010000000000000000000000,
+                           eCSRRW_WRITE_CSR    = 32'b00000000100000000000000000000000,
+                           eCSRRW_WRITE_RF     = 32'b00000001000000000000000000000000,
+                           eCSRRSC_READ_CSR    = 32'b00000010000000000000000000000000,
+                           eCSRRSC_READ_WAIT_0 = 32'b00000100000000000000000000000000,
+                           eCSRRSC_READ_WAIT_1 = 32'b00001000000000000000000000000000,
+                           eCSRRSC_WRITE_CSR   = 32'b00010000000000000000000000000000,
+                           eCSRRSC_WRITE_RF    = 32'b00100000000000000000000000000000,
+                           eERROR              = 32'b01000000000000000000000000000000,
+                           eINSTR_NOT_VALID    = 32'b10000000000000000000000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -708,7 +713,7 @@ begin
                 if (prev_state != eCSRRW_READ_CSR &&
                     prev_state != eCSRRW_READ_WAIT_0 &&
                     prev_state != eCSRRW_READ_WAIT_1 &&
-                    prev_state != eCSRRW_WRITE_RF &&
+                    prev_state != eCSRRW_WRITE_CSR &&
                     regdest != 5'b00000) begin
                     curr_state = eCSRRW_READ_CSR;
                     ready_w    = 1'b0;
@@ -722,18 +727,13 @@ begin
                     curr_state = eCSRRW_READ_WAIT_1;
                     ready_w = 1'b0;
                 end
-                else if (prev_state == eCSRRW_READ_WAIT_1) begin
-                    alu_op_a_w  = 1'b1;
-                    rf_addr_a_w = 5'b00000;                                   
-                    is_alu_write_w  = 1'b1;
-                    alu_sel_w       = ALU_OP_ADD;
-                    alu_dest_addr_w = regdest;
-                    alu_wb_w        = 1'b1;
-                    imm_ext_w       = csr_temp_r;
-                    curr_state      = eCSRRW_WRITE_RF;
-                    ready_w         = 1'b0;
+                else if (regdest == 5'b00000 &&
+                         prev_dest_addr == regs1) begin
+                    curr_state = eSTALL;
+                    ready_w = 1'b0;
                 end
-                else begin
+                else if (prev_state == eCSRRW_READ_WAIT_1 ||
+                         regdest == 5'b00000) begin
                     if (funct3 == CSRRW_INSTR_FUNCT3) begin
                         rf_addr_a_w = regs1;
                         alu_op_a_w = 1'b1;
@@ -744,11 +744,47 @@ begin
                         csr_uimm_we_w   = 1'b1;
                     end
                     curr_state = eCSRRW_WRITE_CSR;
-                    ready_w    = 1'b1;
+                    if (regdest == 5'b00000)
+                        ready_w = 1'b1;
+                    else
+                        ready_w = 1'b0;
                 end
+                else begin
+                    alu_op_a_w  = 1'b1;
+                    rf_addr_a_w = 5'b00000;                                   
+                    is_alu_write_w  = 1'b1;
+                    alu_sel_w       = ALU_OP_ADD;
+                    alu_dest_addr_w = regdest;
+                    alu_wb_w        = 1'b1;
+                    imm_ext_w       = csr_temp_r;
+                    curr_state      = eCSRRW_WRITE_RF;
+                    ready_w         = 1'b1;
+                end
+
             end
             else begin // CSRRS/I and CSRRC/I instructions
-
+                csr_addr_w = {20'b0, imm11_0};
+                if (prev_state != eCSRRSC_READ_CSR &&
+                    prev_state != eCSRRSC_READ_WAIT_0 &&
+                    prev_state != eCSRRSC_READ_WAIT_1 &&
+                    prev_state != eCSRRSC_WRITE_RF) begin
+                    curr_state = eCSRRSC_READ_CSR;
+                    ready_w = 1'b0;
+                end
+                else if (prev_state == eCSRRSC_READ_CSR) begin
+                    curr_state = eCSRRSC_READ_WAIT_0;
+                    ready_w = 1'b0;
+                end
+                else if (prev_state == eCSRRSC_READ_WAIT_0) begin
+                    curr_state = eCSRRSC_READ_WAIT_1;
+                    ready_w = 1'b0;
+                end
+                else if (prev_state == eCSRRSC_READ_WAIT_1) begin
+                    curr_state = eCSRRSC_WRITE_RF;
+                    ready_w = 1'b0;
+                end 
+                else begin
+                end 
             end
         end
         else begin // Other instructions
