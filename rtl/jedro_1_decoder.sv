@@ -56,7 +56,8 @@ module jedro_1_decoder
   output logic [CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
   output logic                       csr_we_ro,
   input  logic [DATA_WIDTH-1:0]      csr_data_i,
-  output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro
+  output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
+  output logic                       csr_uimm_we_ro
 );
 
 /*************************************
@@ -89,6 +90,7 @@ logic [CSR_ADDR_WIDTH-1:0]  csr_addr_w;
 logic                       csr_we_w;
 logic [DATA_WIDTH-1:0]      csr_temp_r;
 logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
+logic                       csr_uimm_we_w;
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
@@ -124,8 +126,8 @@ typedef enum logic [26:0] {eOK                 = 27'b000000000000000000000000001
                            eCSRRW_READ_CSR     = 27'b000000100000000000000000000,
                            eCSRRW_READ_WAIT_0  = 27'b000001000000000000000000000,
                            eCSRRW_READ_WAIT_1  = 27'b000010000000000000000000000,
-                           eCSRRW_WRITE_CSR    = 27'b000100000000000000000000000,
-                           eCSRRW_WRITE_RF     = 27'b001000000000000000000000000,
+                           eCSRRW_WRITE_RF     = 27'b000100000000000000000000000,
+                           eCSRRW_WRITE_CSR    = 27'b001000000000000000000000000,
                            eERROR              = 27'b010000000000000000000000000,
                            eINSTR_NOT_VALID    = 27'b100000000000000000000000000} fsmState_t; 
 fsmState_t curr_state;
@@ -272,7 +274,9 @@ always_ff@(posedge clk_i) begin
     jmp_instr_ro <= 1'b0;
     jmp_addr_ro <= 0;
     csr_addr_ro <= 0;
+    csr_uimm_data_ro <= 0;
     csr_we_ro <= 0;
+    csr_uimm_we_ro <= 0;
   end
   else begin
     use_alu_jmp_addr_ro <= use_alu_jmp_addr_w;
@@ -293,7 +297,9 @@ always_ff@(posedge clk_i) begin
     jmp_instr_ro <= jmp_instr_w;
     jmp_addr_ro <= jmp_addr_w;
     csr_addr_ro <= csr_addr_w;
+    csr_uimm_data_ro <= csr_uimm_data_w;
     csr_we_ro <= csr_we_w;
+    csr_uimm_we_ro <= csr_uimm_we_w;
   end
 end
 
@@ -324,6 +330,7 @@ begin
   csr_addr_w         = 0;
   csr_we_w           = 0;
   csr_uimm_data_w    = 0;
+  csr_uimm_we_w      = 0;
   curr_state         = eERROR;
 
   unique casez ({instr_valid_i, opcode})
@@ -701,7 +708,7 @@ begin
                 if (prev_state != eCSRRW_READ_CSR &&
                     prev_state != eCSRRW_READ_WAIT_0 &&
                     prev_state != eCSRRW_READ_WAIT_1 &&
-                    prev_state != eCSRRW_WRITE_CSR &&
+                    prev_state != eCSRRW_WRITE_RF &&
                     regdest != 5'b00000) begin
                     curr_state = eCSRRW_READ_CSR;
                     ready_w    = 1'b0;
@@ -715,19 +722,7 @@ begin
                     curr_state = eCSRRW_READ_WAIT_1;
                     ready_w = 1'b0;
                 end
-                else if (prev_state != eCSRRW_WRITE_CSR) begin
-                    if (funct3 == CSRRW_INSTR_FUNCT3) begin
-                        rf_addr_a_w = regs1;
-                        alu_op_a_w = 1'b1;
-                    end
-                    else begin // funct3 == CSRRWI
-                        csr_uimm_data_w = regs1; // regs1 encodes the uimm 
-                    end
-                    csr_we_w   = 1'b1;
-                    curr_state = eCSRRW_WRITE_CSR;
-                    ready_w    = 1'b0;
-                end
-                else begin
+                else if (prev_state == eCSRRW_READ_WAIT_1) begin
                     alu_op_a_w  = 1'b1;
                     rf_addr_a_w = 5'b00000;                                   
                     is_alu_write_w  = 1'b1;
@@ -736,7 +731,20 @@ begin
                     alu_wb_w        = 1'b1;
                     imm_ext_w       = csr_temp_r;
                     curr_state      = eCSRRW_WRITE_RF;
-                    ready_w         = 1'b1;
+                    ready_w         = 1'b0;
+                end
+                else begin
+                    if (funct3 == CSRRW_INSTR_FUNCT3) begin
+                        rf_addr_a_w = regs1;
+                        alu_op_a_w = 1'b1;
+                        csr_we_w   = 1'b1;
+                    end
+                    else begin // funct3 == CSRRWI
+                        csr_uimm_data_w = regs1; // regs1 encodes the uimm 
+                        csr_uimm_we_w   = 1'b1;
+                    end
+                    curr_state = eCSRRW_WRITE_CSR;
+                    ready_w    = 1'b1;
                 end
             end
             else begin // CSRRS/I and CSRRC/I instructions
