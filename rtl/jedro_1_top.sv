@@ -49,6 +49,7 @@ logic [CSR_ADDR_WIDTH-1:0] decoder_csr_addr;
 logic [DATA_WIDTH-1:0]     decoder_csr_data;
 logic [DATA_WIDTH-1:0]     csr_decoder_data;
 logic                      decoder_csr_we;
+logic [CSR_UIMM_WIDTH-1:0] decoder_csr_uimm;
 logic [DATA_WIDTH-1:0]     alu_mux4_res;
 logic [REG_ADDR_WIDTH-1:0] alu_mux4_dest_addr;
 logic                      alu_mux4_wb;
@@ -119,7 +120,8 @@ jedro_1_decoder decoder_inst(.clk_i               (clk_i),
                              .lsu_regdest_ro      (decoder_lsu_regdest),
                              .csr_addr_ro         (decoder_csr_addr),
                              .csr_we_ro           (decoder_csr_we),
-                             .csr_data_i          (csr_decoder_data)
+                             .csr_data_i          (csr_decoder_data),
+                             .csr_uimm_data_ro    (decoder_csr_uimm)
                            );
 
 
@@ -146,7 +148,8 @@ assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 jedro_1_csr csr_inst (.clk_i       (clk_i),
                       .rstn_i      (rstn_i),
                       .addr_i      (decoder_csr_addr), 
-                      .data_i      (mux_alu_op_b),
+                      .data_i      (mux2_alu_op_a),
+                      .uimm_data_i (decoder_csr_uimm),
                       .data_ro     (csr_decoder_data),
                       .we_i        (decoder_csr_we),
                         

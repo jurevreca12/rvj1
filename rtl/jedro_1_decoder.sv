@@ -54,8 +54,9 @@ module jedro_1_decoder
 
   // CSR INTERFACE
   output logic [CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
-  output logic [DATA_WIDTH-1:0]      csr_we_ro,
-  input  logic [DATA_WIDTH-1:0]      csr_data_i
+  output logic                       csr_we_ro,
+  input  logic [DATA_WIDTH-1:0]      csr_data_i,
+  output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro
 );
 
 /*************************************
@@ -85,8 +86,9 @@ logic                      jmp_instr_w;
 logic [DATA_WIDTH-1:0]     jmp_addr_w;
 
 logic [CSR_ADDR_WIDTH-1:0]  csr_addr_w;
-logic [DATA_WIDTH-1:0]      csr_we_w;
+logic                       csr_we_w;
 logic [DATA_WIDTH-1:0]      csr_temp_r;
+logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
@@ -99,31 +101,33 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [24:0] {eOK                 = 25'b0000000000000000000000001, 
-                           eSTALL              = 25'b0000000000000000000000010, 
-                           eJAL                = 25'b0000000000000000000000100,
-                           eJAL_WAIT_1         = 25'b0000000000000000000001000,
-                           eJAL_WAIT_2         = 25'b0000000000000000000010000,
-                           eJALR_PC_CALC       = 25'b0000000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 25'b0000000000000000001000000,
-                           eJALR_JMP           = 25'b0000000000000000010000000,
-                           eBRANCH_CALC_COND   = 25'b0000000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 25'b0000000000000001000000000,
-                           eBRANCH_STALL       = 25'b0000000000000010000000000,
-                           eBRANCH_JUMP        = 25'b0000000000000100000000000,
-                           eBRANCH_STALL_2     = 25'b0000000000001000000000000,
-                           eLSU_CALC_ADDR      = 25'b0000000000010000000000000,
-                           eLSU_STORE          = 25'b0000000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 25'b0000000001000000000000000,
-                           eLSU_LOAD           = 25'b0000000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 25'b0000000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 25'b0000001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 25'b0000010000000000000000000,
-                           eCSRRW_READ_CSR     = 25'b0000100000000000000000000,
-                           eCSRRW_WRITE_CSR    = 25'b0001000000000000000000000,
-                           eCSRRW_WRITE_RF     = 25'b0010000000000000000000000,
-                           eERROR              = 25'b0100000000000000000000000,
-                           eINSTR_NOT_VALID    = 25'b1000000000000000000000000} fsmState_t; 
+typedef enum logic [26:0] {eOK                 = 27'b000000000000000000000000001, 
+                           eSTALL              = 27'b000000000000000000000000010, 
+                           eJAL                = 27'b000000000000000000000000100,
+                           eJAL_WAIT_1         = 27'b000000000000000000000001000,
+                           eJAL_WAIT_2         = 27'b000000000000000000000010000,
+                           eJALR_PC_CALC       = 27'b000000000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 27'b000000000000000000001000000,
+                           eJALR_JMP           = 27'b000000000000000000010000000,
+                           eBRANCH_CALC_COND   = 27'b000000000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 27'b000000000000000001000000000,
+                           eBRANCH_STALL       = 27'b000000000000000010000000000,
+                           eBRANCH_JUMP        = 27'b000000000000000100000000000,
+                           eBRANCH_STALL_2     = 27'b000000000000001000000000000,
+                           eLSU_CALC_ADDR      = 27'b000000000000010000000000000,
+                           eLSU_STORE          = 27'b000000000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 27'b000000000001000000000000000,
+                           eLSU_LOAD           = 27'b000000000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 27'b000000000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 27'b000000001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 27'b000000010000000000000000000,
+                           eCSRRW_READ_CSR     = 27'b000000100000000000000000000,
+                           eCSRRW_READ_WAIT_0  = 27'b000001000000000000000000000,
+                           eCSRRW_READ_WAIT_1  = 27'b000010000000000000000000000,
+                           eCSRRW_WRITE_CSR    = 27'b000100000000000000000000000,
+                           eCSRRW_WRITE_RF     = 27'b001000000000000000000000000,
+                           eERROR              = 27'b010000000000000000000000000,
+                           eINSTR_NOT_VALID    = 27'b100000000000000000000000000} fsmState_t; 
 fsmState_t curr_state;
 fsmState_t prev_state;
 
@@ -238,7 +242,7 @@ always_ff @(posedge clk_i) begin
         csr_temp_r <= 0;
     end
     else begin
-        if (prev_state == eCSRRW_READ_CSR) 
+        if (curr_state == eCSRRW_READ_WAIT_1) 
             csr_temp_r <= csr_data_i;
         else 
             csr_temp_r <= csr_temp_r;
@@ -317,6 +321,9 @@ begin
   ready_w            = 1'b1;
   jmp_instr_w        = 1'b0;
   jmp_addr_w         = 0;
+  csr_addr_w         = 0;
+  csr_we_w           = 0;
+  csr_uimm_data_w    = 0;
   curr_state         = eERROR;
 
   unique casez ({instr_valid_i, opcode})
@@ -690,29 +697,44 @@ begin
         if (funct3 != 3'b000) begin // CSR INSTRUCTIONS
             if (funct3 == CSRRW_INSTR_FUNCT3  |
                 funct3 == CSRRWI_INSTR_FUNCT3) begin // CSRRW and CSRRWI instructions
+                csr_addr_w = {20'b0, imm11_0};
                 if (prev_state != eCSRRW_READ_CSR &&
+                    prev_state != eCSRRW_READ_WAIT_0 &&
+                    prev_state != eCSRRW_READ_WAIT_1 &&
+                    prev_state != eCSRRW_WRITE_CSR &&
                     regdest != 5'b00000) begin
-                    csr_addr_w = {20'b0, imm11_0};
                     curr_state = eCSRRW_READ_CSR;
                     ready_w    = 1'b0;
                 end
                 else if (prev_state == eCSRRW_READ_CSR) begin
+                    curr_state = eCSRRW_READ_WAIT_0;
+                    ready_w = 1'b0;
+                end
+                else if (prev_state == eCSRRW_READ_WAIT_0) begin
+                    // csr read result gets stored into csr_temp_r here
+                    curr_state = eCSRRW_READ_WAIT_1;
+                    ready_w = 1'b0;
+                end
+                else if (prev_state != eCSRRW_WRITE_CSR) begin
                     if (funct3 == CSRRW_INSTR_FUNCT3) begin
-                       rf_addr_b_w = regs1;
-                       alu_op_b_w = 1'b1;
+                        rf_addr_a_w = regs1;
+                        alu_op_a_w = 1'b1;
                     end
-                    else begin
-                       alu_op_b_w = 1'b1;
+                    else begin // funct3 == CSRRWI
+                        csr_uimm_data_w = regs1; // regs1 encodes the uimm 
                     end
+                    csr_we_w   = 1'b1;
                     curr_state = eCSRRW_WRITE_CSR;
                     ready_w    = 1'b0;
                 end
                 else begin
+                    alu_op_a_w  = 1'b1;
+                    rf_addr_a_w = 5'b00000;                                   
                     is_alu_write_w  = 1'b1;
-                    rf_addr_a_w     = regdest;
                     alu_sel_w       = ALU_OP_ADD;
                     alu_dest_addr_w = regdest;
                     alu_wb_w        = 1'b1;
+                    imm_ext_w       = csr_temp_r;
                     curr_state      = eCSRRW_WRITE_RF;
                     ready_w         = 1'b1;
                 end

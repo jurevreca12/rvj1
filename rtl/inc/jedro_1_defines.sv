@@ -7,7 +7,7 @@ parameter DATA_WIDTH     = 32;
 parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH);
 parameter BOOT_ADDR      = 32'h0000_0000;
 
-parameter NOP_INSTR      = 32'b000000000001_00000_000_00000_0010011;
+parameter NOP_INSTR      = 32'b000000000000_00000_000_00000_0010011;
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 parameter OPCODE_LOAD    = 7'b0000011;
@@ -68,6 +68,7 @@ parameter TRAP_VEC_MODE            = 2'b00; // direct mode (vectored == 01)
 parameter CSRRW_INSTR_FUNCT3       = 3'b001;
 parameter CSRRWI_INSTR_FUNCT3      = 3'b101;
 parameter CSR_ADDR_WIDTH           = 12;
+parameter CSR_UIMM_WIDTH           = 5;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;

@@ -24,6 +24,7 @@ module jedro_1_csr
   // Read/write port
   input logic [CSR_ADDR_WIDTH-1:0] addr_i,
   input logic [DATA_WIDTH-1:0]     data_i,
+  input logic [CSR_UIMM_WIDTH-1:0] uimm_data_i,
   output logic [DATA_WIDTH-1:0]    data_ro,
   input logic                      we_i,
 
