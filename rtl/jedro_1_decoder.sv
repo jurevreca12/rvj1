@@ -57,7 +57,8 @@ module jedro_1_decoder
   output logic                       csr_we_ro,
   input  logic [DATA_WIDTH-1:0]      csr_data_i,
   output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
-  output logic                       csr_uimm_we_ro
+  output logic                       csr_uimm_we_ro,
+  output logic [CSR_WMODE_WIDTH-1:0] csr_wmode_ro
 );
 
 /*************************************
@@ -91,6 +92,7 @@ logic                       csr_we_w;
 logic [DATA_WIDTH-1:0]      csr_temp_r;
 logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
 logic                       csr_uimm_we_w;
+logic [CSR_WMODE_WIDTH-1:0] csr_wmode_w;
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
@@ -248,7 +250,7 @@ always_ff @(posedge clk_i) begin
         csr_temp_r <= 0;
     end
     else begin
-        if (next == eCSRRW_READ_WAIT_1) 
+        if (next == eCSRRW_READ_WAIT_1 || next == eCSRRSC_READ_WAIT_1) 
             csr_temp_r <= csr_data_i;
         else 
             csr_temp_r <= csr_temp_r;
@@ -281,6 +283,7 @@ always_ff@(posedge clk_i) begin
     csr_uimm_data_ro <= 0;
     csr_we_ro <= 0;
     csr_uimm_we_ro <= 0;
+    csr_wmode_ro <= 0;
   end
   else begin
     use_alu_jmp_addr_ro <= use_alu_jmp_addr_w;
@@ -304,6 +307,7 @@ always_ff@(posedge clk_i) begin
     csr_uimm_data_ro <= csr_uimm_data_w;
     csr_we_ro <= csr_we_w;
     csr_uimm_we_ro <= csr_uimm_we_w;
+    csr_wmode_ro <= csr_wmode_w;
   end
 end
 
@@ -313,29 +317,30 @@ end
 *************************************/
 always_comb
 begin 
-  use_alu_jmp_addr_w = 1'b0;
-  use_pc_w           = 1'b0;
-  illegal_instr_w    = 1'b0;
-  is_alu_write_w     = 1'b0;
-  alu_sel_w          = 4'b0000;
-  alu_op_a_w         = 1'b0;
-  alu_op_b_w         = 1'b0;
-  alu_dest_addr_w    = 4'b0;
-  alu_wb_w           = 1'b0; 
-  rf_addr_a_w        = 5'b00000;
-  rf_addr_b_w        = 5'b00000;
-  imm_ext_w          = 0; 
-  lsu_ctrl_valid_w   = 1'b0;
-  lsu_ctrl_w         = 4'b0000;
-  lsu_regdest_w      = 5'b00000;
-  ready_w            = 1'b1;
-  jmp_instr_w        = 1'b0;
-  jmp_addr_w         = 0;
-  csr_addr_w         = 0;
-  csr_we_w           = 0;
-  csr_uimm_data_w    = 0;
-  csr_uimm_we_w      = 0;
-  next               = eERROR;
+  use_alu_jmp_addr_w  = 1'b0;
+  use_pc_w            = 1'b0;
+  illegal_instr_w     = 1'b0;
+  is_alu_write_w      = 1'b0;
+  alu_sel_w           = 4'b0000;
+  alu_op_a_w          = 1'b0;
+  alu_op_b_w          = 1'b0;
+  alu_dest_addr_w     = 4'b0;
+  alu_wb_w            = 1'b0; 
+  rf_addr_a_w         = 5'b00000;
+  rf_addr_b_w         = 5'b00000;
+  imm_ext_w           = 0; 
+  lsu_ctrl_valid_w    = 1'b0;
+  lsu_ctrl_w          = 4'b0000;
+  lsu_regdest_w       = 5'b00000;
+  ready_w             = 1'b1;
+  jmp_instr_w         = 1'b0;
+  jmp_addr_w          = 0;
+  csr_addr_w          = 0;
+  csr_we_w            = 0;
+  csr_uimm_data_w     = 0;
+  csr_uimm_we_w       = 0;
+  csr_wmode_w         = CSR_WMODE_NORMAL;
+  next                = eERROR;
 
   unique casez ({instr_valid_i, opcode})
     {1'b1, OPCODE_LOAD}: begin
@@ -766,7 +771,7 @@ begin
                 if (state != eCSRRSC_READ_CSR &&
                     state != eCSRRSC_READ_WAIT_0 &&
                     state != eCSRRSC_READ_WAIT_1 &&
-                    state != eCSRRSC_WRITE_RF) begin
+                    state != eCSRRSC_WRITE_CSR) begin
                     next = eCSRRSC_READ_CSR;
                     ready_w = 1'b0;
                 end
@@ -778,11 +783,35 @@ begin
                     next = eCSRRSC_READ_WAIT_1;
                     ready_w = 1'b0;
                 end
-                else if (state == eCSRRSC_READ_WAIT_1) begin
-                    next = eCSRRSC_WRITE_RF;
+                else if (state == eCSRRSC_READ_WAIT_1 &&
+                         regs1 != 5'b00000) begin
+                    if (funct3[12] == 1'b0)
+                        csr_wmode_w = CSR_WMODE_SET_BITS;
+                    else
+                        csr_wmode_w = CSR_WMODE_CLEAR_BITS;
+                    
+                    if (funct3[14] == 1'b0) begin // register form
+                        alu_op_a_w = 1'b1;
+                        rf_addr_a_w = regs1;
+                        csr_we_w = 1'b1;
+                    end
+                    else begin // immidiate form
+                        csr_uimm_data_w = regs1;
+                        csr_uimm_we_w = 1'b1;
+                    end
+                    next = eCSRRSC_WRITE_CSR;
                     ready_w = 1'b0;
                 end 
                 else begin
+                    alu_op_a_w  = 1'b1;
+                    rf_addr_a_w = 5'b00000;
+                    is_alu_write_w  = 1'b1;
+                    alu_sel_w       = ALU_OP_ADD;
+                    alu_dest_addr_w = regdest;
+                    alu_wb_w        = 1'b1;
+                    imm_ext_w       = csr_temp_r;
+                    next            = eCSRRSC_WRITE_RF;
+                    ready_w         = 1'b1;
                 end 
             end
         end

@@ -67,8 +67,14 @@ parameter TRAP_VEC_BASE_ADDR       = 30'h0010_0000;
 parameter TRAP_VEC_MODE            = 2'b00; // direct mode (vectored == 01)
 parameter CSRRW_INSTR_FUNCT3       = 3'b001;
 parameter CSRRWI_INSTR_FUNCT3      = 3'b101;
+parameter CSRRS_INSTR_FUCNT3       = 3'b010;
+parameter CSRRSI_INSTR_FUCNT3      = 3'b110;
 parameter CSR_ADDR_WIDTH           = 12;
 parameter CSR_UIMM_WIDTH           = 5;
+parameter CSR_WMODE_WIDTH          = 2;
+parameter CSR_WMODE_NORMAL         = 2'b00;
+parameter CSR_WMODE_SET_BITS       = 2'b01;
+parameter CSR_WMODE_CLEAR_BITS     = 2'b10;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;

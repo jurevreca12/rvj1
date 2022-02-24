@@ -22,12 +22,13 @@ module jedro_1_csr
   input logic rstn_i,
 
   // Read/write port
-  input logic [CSR_ADDR_WIDTH-1:0] addr_i,
-  input logic [DATA_WIDTH-1:0]     data_i,
-  input logic [CSR_UIMM_WIDTH-1:0] uimm_data_i,
-  input logic                      uimm_we_i,
-  output logic [DATA_WIDTH-1:0]    data_ro,
-  input logic                      we_i,
+  input logic [CSR_ADDR_WIDTH-1:0]  addr_i,
+  input logic [DATA_WIDTH-1:0]      data_i,
+  input logic [CSR_UIMM_WIDTH-1:0]  uimm_data_i,
+  input logic                       uimm_we_i,
+  output logic [DATA_WIDTH-1:0]     data_ro,
+  input logic                       we_i,
+  input logic [CSR_WMODE_WIDTH-1:0] wmode_i,
 
   // interrupt lines
   input logic sw_irq_i,
@@ -36,6 +37,8 @@ module jedro_1_csr
 );
 
 logic [DATA_WIDTH-1:0] data_n;
+logic [DATA_WIDTH-1:0] data_mod;
+logic [DATA_WIDTH-1:0] data_mux;
 
 // MSTATUS
 logic csr_mstatus_mie_r;  // machine interrupt enable
@@ -78,7 +81,16 @@ logic [DATA_WIDTH-1:0] csr_mtval_n;
 
 logic [DATA_WIDTH-1:0] uimm_data_ext;
 
-assign uimm_data_ext = {27'b0, uimm_data_i};
+
+assign data_mux = uimm_we_i ? {27'b0, uimm_data_i} : data_i;
+always_comb begin
+    if (wmode_i == CSR_WMODE_NORMAL)
+        data_mod = data_mux;
+    else if (wmode_i == CSR_WMODE_SET_BITS)
+        data_mod = data_ro | data_mux; // the old value is always read before writing
+    else
+        data_mod = data_ro & (~data_mux);
+end
 
 always_comb begin
     data_n = 0;
@@ -114,13 +126,9 @@ always_comb begin
             data_n = CSR_DEF_VAL_MSTATUS | 
                      (csr_mstatus_mie_r << CSR_MSTATUS_BIT_MIE) |
                      (csr_mstatus_mpie_r << CSR_MSTATUS_BIT_MPIE);
-            if (we_i == 1'b1) begin
-                csr_mstatus_mie_n = data_i[CSR_MSTATUS_BIT_MIE];
-                csr_mstatus_mpie_n = data_i[CSR_MSTATUS_BIT_MPIE];
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mstatus_mie_n = uimm_data_ext[CSR_MSTATUS_BIT_MIE];
-                csr_mstatus_mpie_n = uimm_data_ext[CSR_MSTATUS_BIT_MPIE];
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mstatus_mie_n = data_mod[CSR_MSTATUS_BIT_MIE];
+                csr_mstatus_mpie_n = data_mod[CSR_MSTATUS_BIT_MPIE];
             end
         end
 
@@ -130,11 +138,8 @@ always_comb begin
 
         CSR_ADDR_MTVEC: begin
             data_n = {csr_mtvec_base_r, TRAP_VEC_MODE};
-            if (we_i == 1'b1) begin
-                csr_mtvec_base_n = data_n[DATA_WIDTH-1:DATA_WIDTH-1-CSR_MTVEC_BASE_LEN];
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mtvec_base_n = uimm_data_ext[DATA_WIDTH-1:DATA_WIDTH-1-CSR_MTVEC_BASE_LEN];
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mtvec_base_n = data_mod[DATA_WIDTH-1:DATA_WIDTH-1-CSR_MTVEC_BASE_LEN];
             end
         end
 
@@ -151,55 +156,38 @@ always_comb begin
                       csr_mie_mtie_r, 3'b0,
                       csr_mie_msie_r, 3'b0};
 
-            if (we_i == 1'b1) begin
-                csr_mie_msie_n = data_i[CSR_MIE_BIT_MSIE];
-                csr_mie_mtie_n = data_i[CSR_MIE_BIT_MTIE];
-                csr_mie_meie_n = data_i[CSR_MIE_BIT_MEIE];
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mie_msie_n = uimm_data_ext[CSR_MIE_BIT_MSIE];
-                csr_mie_mtie_n = uimm_data_ext[CSR_MIE_BIT_MTIE];
-                csr_mie_meie_n = uimm_data_ext[CSR_MIE_BIT_MEIE];
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mie_msie_n = data_mod[CSR_MIE_BIT_MSIE];
+                csr_mie_mtie_n = data_mod[CSR_MIE_BIT_MTIE];
+                csr_mie_meie_n = data_mod[CSR_MIE_BIT_MEIE];
             end
         end
 
         CSR_ADDR_MSCRATCH: begin
             data_n = csr_mscratch_r;
-            if (we_i == 1'b1) begin
-                csr_mscratch_n = data_i;
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mscratch_n = uimm_data_ext; 
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mscratch_n = data_mod;
             end
         end
 
         CSR_ADDR_MEPC: begin
             data_n = csr_mepc_r;
-            if (we_i == 1'b1) begin
-                csr_mepc_n = data_i;
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mepc_n = uimm_data_ext;
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mepc_n = data_mod;
             end
         end
 
         CSR_ADDR_MCAUSE: begin
             data_n = csr_mcause_r; 
-            if (we_i == 1'b1) begin
-                csr_mcause_n = data_i;
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mcause_n = uimm_data_ext;
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mcause_n = data_mod;
             end
         end
 
         CSR_ADDR_MTVAL: begin
             data_n = csr_mtval_r;
-            if (we_i == 1'b1) begin
-                csr_mtval_n = data_i;
-            end
-            else if (uimm_we_i == 1'b1) begin
-                csr_mtval_n = uimm_data_ext;
+            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+                csr_mtval_n = data_mod;
             end
         end
 
