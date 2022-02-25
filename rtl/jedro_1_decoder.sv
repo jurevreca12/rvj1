@@ -346,7 +346,13 @@ begin
     {1'b1, OPCODE_LOAD}: begin
         alu_sel_w          = ALU_OP_ADD;
         rf_addr_a_w        = regs1;
-        if (regs1 == prev_dest_addr && regs1 != 0 && state != eSTALL) begin
+        if (regs1 == prev_dest_addr &&
+            regs1 != 0 && 
+            state != eSTALL &&
+            state != eLSU_LOAD_CALC_ADDR &&
+            state != eLSU_LOAD &&
+            state != eLSU_LOAD_WAIT_0 &&
+            state != eLSU_LOAD_WAIT_1) begin
             next             = eSTALL;
             alu_op_a_w       = 1'b0;
             imm_ext_w        = 0;
