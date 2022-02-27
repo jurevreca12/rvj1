@@ -91,7 +91,7 @@ jedro_1_ifu ifu_inst(.clk_i          (clk_i),
                      );  
 
 
-assign mux3_ifu_jmp_addr = decoder_mux3_use_alu_jmp_addr ? alu_mux4_res : decoder_ifu_jmp_addr;
+assign mux3_ifu_jmp_addr = decoder_mux3_use_alu_jmp_addr ? {alu_mux4_res[31:1], 1'b0} : decoder_ifu_jmp_addr;
 
 /****************************************
 * INSTRUCTION DECODE STAGE
