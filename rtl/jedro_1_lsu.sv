@@ -42,14 +42,14 @@ localparam READ_CYCLE_DELAY = 3;
 logic [DATA_WIDTH-1:0]     data_r; // stores unaligned data directly from memory
 logic [DATA_WIDTH-1:0]     byte_sign_extended_w;
 logic [DATA_WIDTH-1:0]     hword_sign_extended_w;
-logic [DATA_WIDTH/8 - 1:0] byte_select; 
-logic                      hword_select;
 logic                      read_enable;
 logic [7:0]                active_byte;
 logic [15:0]               active_hword;
 logic [1:0]                byte_addr_r;
+logic                      ram_start_decode_r;
+logic [LSU_CTRL_WIDTH-1:0] ctrl_save_r;
 
-
+ 
 /**************************************
 * WRITE ENABLE SIGNAL
 **************************************/
@@ -74,10 +74,27 @@ always_comb begin
     end
 end
 
+
+/**************************************
+* CONTROL SAVE
+**************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        ctrl_save_r <= 0;
+    end
+    else begin
+        if (ctrl_valid_i == 1'b1)
+            ctrl_save_r <= ctrl_i;
+        else
+            ctrl_save_r <= ctrl_save_r;
+    end
+end
+
+
 /**************************************
 * REGDEST
 **************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         regdest_ro <= 0;
     end
@@ -90,15 +107,24 @@ end
 /**************************************
 * READ_ENABLE / REGISTER WRITEBACK / BYTE_ADDR
 **************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        ram_start_decode_r <= 1'b0;
+    end
+    else begin
+        if (ctrl_valid_i == 1'b1 && is_write == 1'b0 && read_enable == 1'b0) 
+            ram_start_decode_r <= 1'b1;
+        else
+            ram_start_decode_r <= 1'b0;
+    end
+end
+
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         read_enable <= 1'b0;
     end
     else begin
-        if (ctrl_valid_i == 1'b1 && is_write == 1'b0 && read_enable == 1'b0) 
-            read_enable <= 1'b1;
-        else
-            read_enable <= 1'b0;    
+        read_enable <= ram_start_decode_r;
     end
 end
 
@@ -159,30 +185,24 @@ end
 always_comb begin
     active_byte  = 8'b00000000;
     active_hword = 16'b00000000_00000000;
-    unique casez (ctrl_i)
-        LSU_LOAD_BYTE: begin
-            if      (byte_addr_r == 2'b00) 
-                active_byte = data_r[7:0];
-            else if (byte_addr_r == 2'b01)
-                active_byte = data_r[15:8];
-            else if (byte_addr_r == 2'b10)
-                active_byte = data_r[23:16];
-            else
-                active_byte = data_r[31:24];
-        end
-        
-        LSU_LOAD_HALF_WORD: begin
-            if      (byte_addr_r == 2'b00)
-                active_hword = data_r[15:0];
-            else 
-                active_hword = data_r[31:16];
-        end
-
-        default: begin
-            active_byte  = 8'b00000000;
-            active_hword = 16'b00000000_00000000;
-        end
-    endcase
+    if (ctrl_save_r == LSU_LOAD_BYTE ||
+        ctrl_save_r == LSU_LOAD_BYTE_U) begin
+        if      (byte_addr_r == 2'b00) 
+            active_byte = data_r[7:0];
+        else if (byte_addr_r == 2'b01)
+            active_byte = data_r[15:8];
+        else if (byte_addr_r == 2'b10)
+            active_byte = data_r[23:16];
+        else
+            active_byte = data_r[31:24];
+    end
+    else if (ctrl_save_r == LSU_LOAD_HALF_WORD ||
+             ctrl_save_r == LSU_LOAD_HALF_WORD_U) begin
+        if (byte_addr_r == 2'b00)
+            active_hword = data_r[15:0];
+        else 
+            active_hword = data_r[31:16];
+    end
 end
 
 sign_extender #(.N(DATA_WIDTH), .M(8)) sign_extender_byte(.in_i(active_byte),
@@ -196,11 +216,13 @@ always_comb begin
     end 
     else begin
         rdata_ro = 0;
-        unique casez (ctrl_i)
-            LSU_LOAD_BYTE:      rdata_ro = byte_sign_extended_w;
-            LSU_LOAD_HALF_WORD: rdata_ro = hword_sign_extended_w;
-            LSU_LOAD_WORD:      rdata_ro = data_r;
-            default:            rdata_ro = 0;
+        unique casez (ctrl_save_r)
+            LSU_LOAD_BYTE:        rdata_ro = byte_sign_extended_w;
+            LSU_LOAD_BYTE_U:      rdata_ro = {24'b0, active_byte};
+            LSU_LOAD_HALF_WORD:   rdata_ro = hword_sign_extended_w;
+            LSU_LOAD_HALF_WORD_U: rdata_ro = {16'b0, active_hword};
+            LSU_LOAD_WORD:        rdata_ro = data_r;
+            default:              rdata_ro = 0;
         endcase
     end
 end
