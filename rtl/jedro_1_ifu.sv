@@ -43,7 +43,10 @@ module jedro_1_ifu
   input logic jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
                                // counter should be changed to jmp_address_i.
   
-  input logic [DATA_WIDTH-1:0] jmp_address_i,    // The address to jump to, after we had encountered a jump instruction.
+  input logic [DATA_WIDTH-1:0] jmp_address_i,    // The jump address
+
+  output logic                  exception_ro,  // Signals to the controller an instruction-addr-misaligned exception
+  output logic [DATA_WIDTH-1:0] fault_addr_ro, // the address that caused the misaligned exception
 
   // Interface to the decoder
   output logic [DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
@@ -56,11 +59,12 @@ module jedro_1_ifu
 );
 localparam INSTR_SHIFTREG_DEPTH = 3;
 
-typedef enum logic [4:0] {NV = 5'b00001, 
-                          DV = 5'b00010,
-                          S0 = 5'b00100,
-                          S1 = 5'b01000,
-                          S2 = 5'b10000,
+typedef enum logic [5:0] {NV = 6'b000001, 
+                          DV = 6'b000010,
+                          S0 = 6'b000100,
+                          S1 = 6'b001000,
+                          S2 = 6'b010000,
+                          EX = 6'b100000,
                           XXX= 'x      } state_e;
 
 typedef struct packed {
@@ -88,6 +92,40 @@ logic stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets
 logic stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
 logic [DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
 
+logic jmp_instr; // this signal filters incorrect jumps
+logic is_exception;
+
+/***************************************
+* MISALIGNED JUMPS EXCEPTION GENERATION
+***************************************/
+always_comb begin
+    if (jmp_instr_i == 1'b1) begin
+        if (jmp_address_i[1:0] == 2'b00) begin
+            jmp_instr = 1'b1;
+            is_exception = 1'b0;
+        end
+        else begin
+            jmp_instr = 1'b0;
+            is_exception = 1'b1;
+        end
+    end
+    else begin
+        jmp_instr = 1'b0;
+        is_exception = 1'b0;
+    end 
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        exception_ro <= 0;
+        fault_addr_ro <= 0;       
+    end 
+    else begin
+        exception_ro <= is_exception;
+        fault_addr_ro <= jmp_address_i;
+    end
+end
+
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
 ***************************************/
@@ -101,7 +139,7 @@ always_ff @(posedge clk_i) begin
      instr_valid_shift_r <= INSTR_SHIFTREG_DEPTH'('b001);
   end
   else begin
-    if (jmp_instr_i == 1'b1) begin
+    if (jmp_instr == 1'b1) begin
         pc_shift_r[0] <= jmp_address_i;
         pc_shift_r[1] <= jmp_address_i;
         pc_shift_r[2] <= jmp_address_i;
@@ -249,23 +287,30 @@ always_comb begin
         NV : if (instr_valid_shift_r[1] == 1'b1) next = DV;
              else                                next = NV;
 
-        DV : if (jmp_instr_i == 1'b1)            next = NV;
+        DV : if      (is_exception)              next = EX;
+             else if (jmp_instr == 1'b1)         next = NV;
              else if (ready_i == 1'b1)           next = DV;
              else                                next = S0;
                 
-        S0 : if (jmp_instr_i == 1'b1)            next = NV;
+        S0 : if      (is_exception)              next = EX;
+             else if (jmp_instr == 1'b1)         next = NV;
              else if (ready_i == 1'b0)           next = S0;
              else                                next = S1;
 
-        S1 : if (jmp_instr_i == 1'b1)            next = NV;
+        S1 : if      (is_exception)              next = EX;
+             else if (jmp_instr == 1'b1)         next = NV;
              else if (ready_i == 1'b0)           next = S1;
              else                                next = S2;
 
-        S2 : if (jmp_instr_i == 1'b1)            next = NV;
+        S2 : if      (is_exception)              next = EX;
+             else if (jmp_instr == 1'b1)         next = NV;
              else if (ready_i == 1'b0)           next = S2;
              else if (ready_i == 1'b1 && 
                       stall_in_stall == 1'b1)    next = NV;
              else                                next = DV;
+        
+        EX : if    (jmp_instr)                   next = NV;
+             else                                next = EX;
         
         default :                                next = XXX;
     endcase 
@@ -290,14 +335,18 @@ always_comb begin
                      stall_in_stall == 1'b1) out = {NOP_INSTR, 32'b0};
             else                             out = dout_r;
 
+        EX:                                  out = dout_r;
+
         default:                             out = {'x, 'x};
     endcase
 end
 
 always_comb begin
     if ((state == NV) || 
-        (jmp_instr_i == 1'b1) ||
-        (state == S2 && ready_i == 1'b1 && stall_in_stall== 1'b1)) valid_o = 1'b0;
+        (jmp_instr == 1'b1) ||
+        (state == S2 && ready_i == 1'b1 && 
+         stall_in_stall == 1'b1) ||
+        (state == EX))                                             valid_o = 1'b0;
     else                                                           valid_o = 1'b1;
 end
 

@@ -8,6 +8,7 @@ parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH);
 parameter BOOT_ADDR      = 32'h0000_0000;
 
 parameter NOP_INSTR      = 32'b000000000000_00000_000_00000_0010011;
+parameter MRET_INSTR     = 32'b001100000010_00000_000_00000_1110011;
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 parameter OPCODE_LOAD    = 7'b0000011;
@@ -75,6 +76,8 @@ parameter CSR_WMODE_WIDTH          = 2;
 parameter CSR_WMODE_NORMAL         = 2'b00;
 parameter CSR_WMODE_SET_BITS       = 2'b01;
 parameter CSR_WMODE_CLEAR_BITS     = 2'b10;
+
+parameter CSR_MCAUSE_INSTR_ADDR_MISALIGNED = 0;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;

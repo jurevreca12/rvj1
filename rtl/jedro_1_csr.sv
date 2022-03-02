@@ -29,11 +29,27 @@ module jedro_1_csr
   output logic [DATA_WIDTH-1:0]     data_ro,
   input logic                       we_i,
   input logic [CSR_WMODE_WIDTH-1:0] wmode_i,
+ 
+  // IFU interface main
+  input  logic [DATA_WIDTH-1:0] curr_pc_i,
+  output logic [DATA_WIDTH-1:0] traphandler_addr_ro,
+  output logic                  trap_ro,
+
+  // IFU exception interface
+  input  logic                  ifu_exception_i,
+  input  logic [DATA_WIDTH-1:0] ifu_mtval_i,
+
+  // LSU exception iterface
+  input logic                   lsu_exception_i,
+  input logic [DATA_WIDTH-1:0]  lsu_mtval_i,
+
 
   // interrupt lines
-  input logic sw_irq_i,
-  input logic timer_irq_i,
-  input logic ext_irq_i
+  input logic                   sw_irq_i,
+  input logic                   timer_irq_i,
+  input logic                   ext_irq_i,
+
+  input logic                   mret_i
 );
 
 logic [DATA_WIDTH-1:0] data_n;
@@ -41,14 +57,11 @@ logic [DATA_WIDTH-1:0] data_mod;
 logic [DATA_WIDTH-1:0] data_mux;
 
 // MSTATUS
-logic csr_mstatus_mie_r;  // machine interrupt enable
-logic csr_mstatus_mie_n;  
-logic csr_mstatus_mpie_r; // previous machine interrupt enable
-logic csr_mstatus_mpie_n; 
+logic csr_mstatus_mie_r, csr_mstatus_mie_n, csr_mstatus_mie_exc;  // machine interrupt enable
+logic csr_mstatus_mpie_r, csr_mstatus_mpie_n, csr_mstatus_mpie_exc; // previous machine interrupt enable
 
 // MTVEC
-logic [CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_r;
-logic [CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_n;
+logic [CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_r, csr_mtvec_base_n;
 
 // MIP
 logic csr_mip_msip_r; // machine software interrupt pending
@@ -56,30 +69,26 @@ logic csr_mip_mtip_r; // machine timmer interrupt pending
 logic csr_mip_meip_r; // machine external interrupt pending
 
 // MIE
-logic csr_mie_msie_r; // machine software interrupt enable
-logic csr_mie_msie_n;
-logic csr_mie_mtie_r; // machine timer interrupt enable
-logic csr_mie_mtie_n;
-logic csr_mie_meie_r; // machine external interrupt enable
-logic csr_mie_meie_n;
+logic csr_mie_msie_r, csr_mie_msie_n; // machine software interrupt enable
+logic csr_mie_mtie_r, csr_mie_mtie_n; // machine timer interrupt enable
+logic csr_mie_meie_r, csr_mie_meie_n; // machine external interrupt enable
 
 // MSCRATCH
-logic [DATA_WIDTH-1:0] csr_mscratch_r;
-logic [DATA_WIDTH-1:0] csr_mscratch_n;
+logic [DATA_WIDTH-1:0] csr_mscratch_r, csr_mscratch_n;
 
 // MEPC
-logic [DATA_WIDTH-1:0] csr_mepc_r;
-logic [DATA_WIDTH-1:0] csr_mepc_n;
+logic [DATA_WIDTH-1:0] csr_mepc_r, csr_mepc_n, csr_mepc_exc;
 
 // MCAUSE
-logic [DATA_WIDTH-1:0] csr_mcause_r;
-logic [DATA_WIDTH-1:0] csr_mcause_n;
+logic [DATA_WIDTH-1:0] csr_mcause_r, csr_mcause_n, csr_mcause_exc;
 
 // MTVAL
-logic [DATA_WIDTH-1:0] csr_mtval_r;
-logic [DATA_WIDTH-1:0] csr_mtval_n;
+logic [DATA_WIDTH-1:0] csr_mtval_r, csr_mtval_n, csr_mtval_exc;
 
+// Other signals
 logic [DATA_WIDTH-1:0] uimm_data_ext;
+logic                  is_exception;
+logic                  is_write;
 
 
 assign data_mux = uimm_we_i ? {27'b0, uimm_data_i} : data_i;
@@ -91,6 +100,10 @@ always_comb begin
     else
         data_mod = data_ro & (~data_mux);
 end
+
+
+assign is_exception = ifu_exception_i;
+assign is_write = (!ifu_exception_i) && (we_i || uimm_we_i);
 
 always_comb begin
     data_n = 0;
@@ -126,7 +139,7 @@ always_comb begin
             data_n = CSR_DEF_VAL_MSTATUS | 
                      (csr_mstatus_mie_r << CSR_MSTATUS_BIT_MIE) |
                      (csr_mstatus_mpie_r << CSR_MSTATUS_BIT_MPIE);
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mstatus_mie_n = data_mod[CSR_MSTATUS_BIT_MIE];
                 csr_mstatus_mpie_n = data_mod[CSR_MSTATUS_BIT_MPIE];
             end
@@ -138,8 +151,8 @@ always_comb begin
 
         CSR_ADDR_MTVEC: begin
             data_n = {csr_mtvec_base_r, TRAP_VEC_MODE};
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
-                csr_mtvec_base_n = data_mod[DATA_WIDTH-1:DATA_WIDTH-1-CSR_MTVEC_BASE_LEN];
+            if (is_write) begin
+                csr_mtvec_base_n = data_mod[DATA_WIDTH-1:DATA_WIDTH-CSR_MTVEC_BASE_LEN];
             end
         end
 
@@ -156,7 +169,7 @@ always_comb begin
                       csr_mie_mtie_r, 3'b0,
                       csr_mie_msie_r, 3'b0};
 
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mie_msie_n = data_mod[CSR_MIE_BIT_MSIE];
                 csr_mie_mtie_n = data_mod[CSR_MIE_BIT_MTIE];
                 csr_mie_meie_n = data_mod[CSR_MIE_BIT_MEIE];
@@ -165,28 +178,28 @@ always_comb begin
 
         CSR_ADDR_MSCRATCH: begin
             data_n = csr_mscratch_r;
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mscratch_n = data_mod;
             end
         end
 
         CSR_ADDR_MEPC: begin
             data_n = csr_mepc_r;
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mepc_n = data_mod;
             end
         end
 
         CSR_ADDR_MCAUSE: begin
             data_n = csr_mcause_r; 
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mcause_n = data_mod;
             end
         end
 
         CSR_ADDR_MTVAL: begin
             data_n = csr_mtval_r;
-            if (we_i == 1'b1 || uimm_we_i == 1'b1) begin
+            if (is_write) begin
                 csr_mtval_n = data_mod;
             end
         end
@@ -195,6 +208,25 @@ always_comb begin
             // TODO
         end
     endcase
+end
+
+// Exception value generation
+always_comb begin
+    csr_mepc_exc = 0;
+    csr_mcause_exc = 0;
+    csr_mtval_exc = 0;
+    csr_mstatus_mie_exc = 0;
+    csr_mstatus_mpie_exc = 0;
+    if (ifu_exception_i) begin
+        csr_mepc_exc = curr_pc_i;
+        csr_mcause_exc = CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
+        csr_mtval_exc = ifu_mtval_i; // faulting address
+        csr_mstatus_mie_exc = 1'b0;
+        csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
+    end
+    else if (mret_i) begin
+        csr_mstatus_mie_exc = csr_mstatus_mpie_r;
+    end
 end
 
 
@@ -217,8 +249,6 @@ always_ff @(posedge clk_i) begin
     end
     else begin
         data_ro <= data_n;
-        csr_mstatus_mie_r <= csr_mstatus_mie_n;
-        csr_mstatus_mpie_r <= csr_mstatus_mpie_n;
         csr_mtvec_base_r  <= csr_mtvec_base_n;
         csr_mip_meip_r <= ext_irq_i;
         csr_mip_mtip_r <= timer_irq_i;
@@ -227,9 +257,37 @@ always_ff @(posedge clk_i) begin
         csr_mie_mtie_r <= csr_mie_mtie_n;
         csr_mie_meie_r <= csr_mie_meie_n;
         csr_mscratch_r <= csr_mscratch_n;
-        csr_mepc_r <= csr_mepc_n;
-        csr_mcause_r <= csr_mcause_n;
-        csr_mtval_r <= csr_mtval_n;
+        if (is_exception | mret_i) begin
+            csr_mepc_r <= csr_mepc_exc;
+            csr_mcause_r <= csr_mcause_exc;
+            csr_mtval_r <= csr_mtval_exc;
+            csr_mstatus_mie_r <= csr_mstatus_mie_exc;
+            csr_mstatus_mpie_r <= csr_mstatus_mpie_exc;
+        end
+        else begin
+            csr_mepc_r <= csr_mepc_n;
+            csr_mcause_r <= csr_mcause_n;
+            csr_mtval_r <= csr_mtval_n;
+            csr_mstatus_mie_r <= csr_mstatus_mie_n;
+            csr_mstatus_mpie_r <= csr_mstatus_mpie_n;
+        end
+    end
+end
+
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        trap_ro <= 1'b0;
+        traphandler_addr_ro <= 0;
+    end
+    else begin
+        trap_ro <= is_exception | mret_i;
+        if (is_exception)
+            traphandler_addr_ro <= {csr_mtvec_base_r, 2'b00};
+        else if (mret_i)
+            traphandler_addr_ro <= csr_mepc_r;
+        else
+            traphandler_addr_ro <= 0;
     end
 end
 

@@ -53,6 +53,7 @@ logic [CSR_WMODE_WIDTH-1:0] decoder_csr_wtype;
 logic [CSR_UIMM_WIDTH-1:0]  decoder_csr_uimm;
 logic                       decoder_csr_uimm_we;
 logic [CSR_WMODE_WIDTH-1:0] decoder_csr_wmode;
+logic                       decoder_csr_mret;
 logic [DATA_WIDTH-1:0]      alu_mux4_res;
 logic [REG_ADDR_WIDTH-1:0]  alu_mux4_dest_addr;
 logic                       alu_mux4_wb;
@@ -73,25 +74,35 @@ logic [REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
 logic [DATA_WIDTH-1:0]      mux4_rf_data;
 logic                       mux4_rf_wb;
 logic [REG_ADDR_WIDTH-1:0]  mux4_rf_dest_addr;
-
+logic                       csr_ifu_trap;
+logic [DATA_WIDTH-1:0]      csr_ifu_mtvec;
+logic                       ifu_csr_exception;
+logic [DATA_WIDTH-1:0]      ifu_csr_fault_addr;
 
 
 /****************************************
 * INSTRUCTION FETCH STAGE
 ****************************************/
-jedro_1_ifu ifu_inst(.clk_i          (clk_i),
-                     .rstn_i         (rstn_i),
-                     .jmp_instr_i    (decoder_ifu_jmp_instr | decoder_mux3_use_alu_jmp_addr),
-                     .jmp_address_i  (mux3_ifu_jmp_addr),
-                     .instr_o        (ifu_decoder_instr),
-                     .addr_o         (ifu_decoder_instr_addr),
-                     .valid_o        (ifu_decoder_instr_valid), 
-                     .ready_i        (decoder_ifu_ready), 
-                     .instr_mem_if   (instr_mem_if)
+jedro_1_ifu ifu_inst(.clk_i            (clk_i),
+                     .rstn_i           (rstn_i),
+                     .jmp_instr_i      (decoder_ifu_jmp_instr | 
+                                        decoder_mux3_use_alu_jmp_addr |
+                                        csr_ifu_trap),
+                     .jmp_address_i    (mux3_ifu_jmp_addr),
+                     .exception_ro     (ifu_csr_exception),
+                     .fault_addr_ro     (ifu_csr_fault_addr),
+                     .instr_o          (ifu_decoder_instr),
+                     .addr_o           (ifu_decoder_instr_addr),
+                     .valid_o          (ifu_decoder_instr_valid), 
+                     .ready_i          (decoder_ifu_ready), 
+                     .instr_mem_if     (instr_mem_if)
                      );  
 
-
-assign mux3_ifu_jmp_addr = decoder_mux3_use_alu_jmp_addr ? {alu_mux4_res[31:1], 1'b0} : decoder_ifu_jmp_addr;
+always_comb begin
+    if      (csr_ifu_trap)                  mux3_ifu_jmp_addr = csr_ifu_mtvec;
+    else if (decoder_mux3_use_alu_jmp_addr) mux3_ifu_jmp_addr = {alu_mux4_res[31:1], 1'b0};
+    else                                    mux3_ifu_jmp_addr = decoder_ifu_jmp_addr;
+end
 
 /****************************************
 * INSTRUCTION DECODE STAGE
@@ -126,7 +137,8 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
                              .csr_data_i           (csr_decoder_data),
                              .csr_uimm_data_ro     (decoder_csr_uimm),
                              .csr_uimm_we_ro       (decoder_csr_uimm_we),
-                             .csr_wmode_ro         (decoder_csr_wmode) 
+                             .csr_wmode_ro         (decoder_csr_wmode),
+                             .csr_mret_ro          (decoder_csr_mret) 
                            );
 
 
@@ -150,19 +162,29 @@ assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_da
 // mux_alu_op_b
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
-jedro_1_csr csr_inst (.clk_i       (clk_i),
-                      .rstn_i      (rstn_i),
-                      .addr_i      (decoder_csr_addr), 
-                      .data_i      (mux2_alu_op_a),
-                      .uimm_data_i (decoder_csr_uimm),
-                      .uimm_we_i   (decoder_csr_uimm_we),
-                      .data_ro     (csr_decoder_data),
-                      .we_i        (decoder_csr_we),
-                      .wmode_i     (decoder_csr_wmode),
-                        
+
+jedro_1_csr csr_inst (.clk_i               (clk_i),
+                      .rstn_i              (rstn_i),
+                      .addr_i              (decoder_csr_addr), 
+                      .data_i              (mux2_alu_op_a),
+                      .uimm_data_i         (decoder_csr_uimm),
+                      .uimm_we_i           (decoder_csr_uimm_we),
+                      .data_ro             (csr_decoder_data),
+                      .we_i                (decoder_csr_we),
+                      .wmode_i             (decoder_csr_wmode),
+                      
+                      .curr_pc_i           (decoder_mux2_instr_addr),
+                      .traphandler_addr_ro (csr_ifu_mtvec),
+                      .trap_ro             (csr_ifu_trap),
+
+                      .ifu_exception_i     (ifu_csr_exception),
+                      .ifu_mtval_i         (ifu_csr_fault_addr),
+    
                       .sw_irq_i    (), // TODO
                       .timer_irq_i (),
-                      .ext_irq_i   ()
+                      .ext_irq_i   (),
+
+                      .mret_i      (decoder_csr_mret)
                      );
 
 jedro_1_alu alu_inst(.clk_i       (clk_i),

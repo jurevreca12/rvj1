@@ -58,7 +58,8 @@ module jedro_1_decoder
   input  logic [DATA_WIDTH-1:0]      csr_data_i,
   output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
   output logic                       csr_uimm_we_ro,
-  output logic [CSR_WMODE_WIDTH-1:0] csr_wmode_ro
+  output logic [CSR_WMODE_WIDTH-1:0] csr_wmode_ro,
+  output logic                       csr_mret_ro
 );
 
 /*************************************
@@ -93,6 +94,7 @@ logic [DATA_WIDTH-1:0]      csr_temp_r;
 logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
 logic                       csr_uimm_we_w;
 logic [CSR_WMODE_WIDTH-1:0] csr_wmode_w;
+logic                       csr_mret_w;
 
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
@@ -105,38 +107,40 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [31:0] {eOK                 = 32'b00000000000000000000000000000001, 
-                           eSTALL              = 32'b00000000000000000000000000000010, 
-                           eJAL                = 32'b00000000000000000000000000000100,
-                           eJAL_WAIT_1         = 32'b00000000000000000000000000001000,
-                           eJAL_WAIT_2         = 32'b00000000000000000000000000010000,
-                           eJALR_PC_CALC       = 32'b00000000000000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 32'b00000000000000000000000001000000,
-                           eJALR_JMP           = 32'b00000000000000000000000010000000,
-                           eBRANCH_CALC_COND   = 32'b00000000000000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 32'b00000000000000000000001000000000,
-                           eBRANCH_STALL       = 32'b00000000000000000000010000000000,
-                           eBRANCH_JUMP        = 32'b00000000000000000000100000000000,
-                           eBRANCH_STALL_2     = 32'b00000000000000000001000000000000,
-                           eLSU_CALC_ADDR      = 32'b00000000000000000010000000000000,
-                           eLSU_STORE          = 32'b00000000000000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 32'b00000000000000001000000000000000,
-                           eLSU_LOAD           = 32'b00000000000000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 32'b00000000000000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 32'b00000000000001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 32'b00000000000010000000000000000000,
-                           eCSRRW_READ_CSR     = 32'b00000000000100000000000000000000,
-                           eCSRRW_READ_WAIT_0  = 32'b00000000001000000000000000000000,
-                           eCSRRW_READ_WAIT_1  = 32'b00000000010000000000000000000000,
-                           eCSRRW_WRITE_CSR    = 32'b00000000100000000000000000000000,
-                           eCSRRW_WRITE_RF     = 32'b00000001000000000000000000000000,
-                           eCSRRSC_READ_CSR    = 32'b00000010000000000000000000000000,
-                           eCSRRSC_READ_WAIT_0 = 32'b00000100000000000000000000000000,
-                           eCSRRSC_READ_WAIT_1 = 32'b00001000000000000000000000000000,
-                           eCSRRSC_WRITE_CSR   = 32'b00010000000000000000000000000000,
-                           eCSRRSC_WRITE_RF    = 32'b00100000000000000000000000000000,
-                           eERROR              = 32'b01000000000000000000000000000000,
-                           eINSTR_NOT_VALID    = 32'b10000000000000000000000000000000} fsmState_t; 
+typedef enum logic [33:0] {eOK                 = 34'b0000000000000000000000000000000001, 
+                           eSTALL              = 34'b0000000000000000000000000000000010, 
+                           eJAL                = 34'b0000000000000000000000000000000100,
+                           eJAL_WAIT_1         = 34'b0000000000000000000000000000001000,
+                           eJAL_WAIT_2         = 34'b0000000000000000000000000000010000,
+                           eJALR_PC_CALC       = 34'b0000000000000000000000000000100000,
+                           eJALR_JMP_ADDR_CALC = 34'b0000000000000000000000000001000000,
+                           eJALR_JMP           = 34'b0000000000000000000000000010000000,
+                           eBRANCH_CALC_COND   = 34'b0000000000000000000000000100000000,
+                           eBRANCH_CALC_ADDR   = 34'b0000000000000000000000001000000000,
+                           eBRANCH_STALL       = 34'b0000000000000000000000010000000000,
+                           eBRANCH_JUMP        = 34'b0000000000000000000000100000000000,
+                           eBRANCH_STALL_2     = 34'b0000000000000000000001000000000000,
+                           eLSU_CALC_ADDR      = 34'b0000000000000000000010000000000000,
+                           eLSU_STORE          = 34'b0000000000000000000100000000000000,
+                           eLSU_LOAD_CALC_ADDR = 34'b0000000000000000001000000000000000,
+                           eLSU_LOAD           = 34'b0000000000000000010000000000000000,
+                           eLSU_LOAD_WAIT_0    = 34'b0000000000000000100000000000000000,
+                           eLSU_LOAD_WAIT_1    = 34'b0000000000000001000000000000000000,
+                           eLSU_LOAD_WAIT_2    = 34'b0000000000000010000000000000000000,
+                           eCSRRW_READ_CSR     = 34'b0000000000000100000000000000000000,
+                           eCSRRW_READ_WAIT_0  = 34'b0000000000001000000000000000000000,
+                           eCSRRW_READ_WAIT_1  = 34'b0000000000010000000000000000000000,
+                           eCSRRW_WRITE_CSR    = 34'b0000000000100000000000000000000000,
+                           eCSRRW_WRITE_RF     = 34'b0000000001000000000000000000000000,
+                           eCSRRSC_READ_CSR    = 34'b0000000010000000000000000000000000,
+                           eCSRRSC_READ_WAIT_0 = 34'b0000000100000000000000000000000000,
+                           eCSRRSC_READ_WAIT_1 = 34'b0000001000000000000000000000000000,
+                           eCSRRSC_WRITE_CSR   = 34'b0000010000000000000000000000000000,
+                           eCSRRSC_WRITE_RF    = 34'b0000100000000000000000000000000000,
+                           eMRET               = 34'b0001000000000000000000000000000000,
+                           eMRET_WAIT          = 34'b0010000000000000000000000000000000,
+                           eERROR              = 34'b0100000000000000000000000000000000,
+                           eINSTR_NOT_VALID    = 34'b1000000000000000000000000000000000} fsmState_t; 
 fsmState_t next, state;
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -284,6 +288,7 @@ always_ff@(posedge clk_i) begin
     csr_we_ro <= 0;
     csr_uimm_we_ro <= 0;
     csr_wmode_ro <= 0;
+    csr_mret_ro <= 0;
   end
   else begin
     use_alu_jmp_addr_ro <= use_alu_jmp_addr_w;
@@ -308,6 +313,7 @@ always_ff@(posedge clk_i) begin
     csr_we_ro <= csr_we_w;
     csr_uimm_we_ro <= csr_uimm_we_w;
     csr_wmode_ro <= csr_wmode_w;
+    csr_mret_ro <= csr_mret_w;
   end
 end
 
@@ -340,6 +346,7 @@ begin
   csr_uimm_data_w     = 0;
   csr_uimm_we_w       = 0;
   csr_wmode_w         = CSR_WMODE_NORMAL;
+  csr_mret_w          = 0;
   next                = eERROR;
 
   unique casez ({instr_valid_i, opcode})
@@ -807,8 +814,21 @@ begin
             end
         end
         else begin // Other instructions
-
-
+            if (instr_i == MRET_INSTR) begin
+                if (state != eMRET && state != eMRET_WAIT) begin
+                    csr_mret_w = 1'b1;
+                    ready_w    = 1'b0;
+                    next       = eMRET;
+                end
+                else begin
+                    csr_mret_w = 1'b0;
+                    ready_w    = 1'b1;
+                    next       = eMRET_WAIT;
+                end
+            end
+            else begin
+            
+            end
         end
     end
 
@@ -834,6 +854,7 @@ begin
         lsu_ctrl_valid_w   = 1'b0;
         lsu_ctrl_w         = 4'b0000;
         lsu_regdest_w      = 5'b00000;
+        csr_mret_w         = 0;
         ready_w            = 1'b1;
         jmp_instr_w        = 1'b0;
         jmp_addr_w         = 0;
