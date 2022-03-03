@@ -96,6 +96,8 @@ logic                       csr_uimm_we_w;
 logic [CSR_WMODE_WIDTH-1:0] csr_wmode_w;
 logic                       csr_mret_w;
 
+logic [DATA_WIDTH-1:0]      jmp_addr_save_r;
+
 // Other signal definitions
 logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
 logic [DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
@@ -107,40 +109,42 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [33:0] {eOK                 = 34'b0000000000000000000000000000000001, 
-                           eSTALL              = 34'b0000000000000000000000000000000010, 
-                           eJAL                = 34'b0000000000000000000000000000000100,
-                           eJAL_WAIT_1         = 34'b0000000000000000000000000000001000,
-                           eJAL_WAIT_2         = 34'b0000000000000000000000000000010000,
-                           eJALR_PC_CALC       = 34'b0000000000000000000000000000100000,
-                           eJALR_JMP_ADDR_CALC = 34'b0000000000000000000000000001000000,
-                           eJALR_JMP           = 34'b0000000000000000000000000010000000,
-                           eBRANCH_CALC_COND   = 34'b0000000000000000000000000100000000,
-                           eBRANCH_CALC_ADDR   = 34'b0000000000000000000000001000000000,
-                           eBRANCH_STALL       = 34'b0000000000000000000000010000000000,
-                           eBRANCH_JUMP        = 34'b0000000000000000000000100000000000,
-                           eBRANCH_STALL_2     = 34'b0000000000000000000001000000000000,
-                           eLSU_CALC_ADDR      = 34'b0000000000000000000010000000000000,
-                           eLSU_STORE          = 34'b0000000000000000000100000000000000,
-                           eLSU_LOAD_CALC_ADDR = 34'b0000000000000000001000000000000000,
-                           eLSU_LOAD           = 34'b0000000000000000010000000000000000,
-                           eLSU_LOAD_WAIT_0    = 34'b0000000000000000100000000000000000,
-                           eLSU_LOAD_WAIT_1    = 34'b0000000000000001000000000000000000,
-                           eLSU_LOAD_WAIT_2    = 34'b0000000000000010000000000000000000,
-                           eCSRRW_READ_CSR     = 34'b0000000000000100000000000000000000,
-                           eCSRRW_READ_WAIT_0  = 34'b0000000000001000000000000000000000,
-                           eCSRRW_READ_WAIT_1  = 34'b0000000000010000000000000000000000,
-                           eCSRRW_WRITE_CSR    = 34'b0000000000100000000000000000000000,
-                           eCSRRW_WRITE_RF     = 34'b0000000001000000000000000000000000,
-                           eCSRRSC_READ_CSR    = 34'b0000000010000000000000000000000000,
-                           eCSRRSC_READ_WAIT_0 = 34'b0000000100000000000000000000000000,
-                           eCSRRSC_READ_WAIT_1 = 34'b0000001000000000000000000000000000,
-                           eCSRRSC_WRITE_CSR   = 34'b0000010000000000000000000000000000,
-                           eCSRRSC_WRITE_RF    = 34'b0000100000000000000000000000000000,
-                           eMRET               = 34'b0001000000000000000000000000000000,
-                           eMRET_WAIT          = 34'b0010000000000000000000000000000000,
-                           eERROR              = 34'b0100000000000000000000000000000000,
-                           eINSTR_NOT_VALID    = 34'b1000000000000000000000000000000000} fsmState_t; 
+typedef enum logic [35:0] {eOK, 
+                           eSTALL, 
+                           eJAL_JMP_ADDR_CALC,
+                           eJAL_WAIT_1,
+                           eJAL_WRITE_RF_JMP,
+                           eJAL_WAIT_2,
+                           eJALR_JMP_ADDR_CALC,
+                           eJALR_WAIT,
+                           eJALR_PC_CALC,
+                           eJALR_JMP,
+                           eBRANCH_CALC_COND,
+                           eBRANCH_CALC_ADDR,
+                           eBRANCH_STALL,
+                           eBRANCH_JUMP,
+                           eBRANCH_STALL_2,
+                           eLSU_CALC_ADDR,
+                           eLSU_STORE,
+                           eLSU_LOAD_CALC_ADDR,
+                           eLSU_LOAD,
+                           eLSU_LOAD_WAIT_0,
+                           eLSU_LOAD_WAIT_1,
+                           eLSU_LOAD_WAIT_2,
+                           eCSRRW_READ_CSR,
+                           eCSRRW_READ_WAIT_0,
+                           eCSRRW_READ_WAIT_1,
+                           eCSRRW_WRITE_CSR,
+                           eCSRRW_WRITE_RF,
+                           eCSRRSC_READ_CSR,
+                           eCSRRSC_READ_WAIT_0,
+                           eCSRRSC_READ_WAIT_1,
+                           eCSRRSC_WRITE_CSR,
+                           eCSRRSC_WRITE_RF,
+                           eMRET,
+                           eMRET_WAIT,
+                           eERROR,
+                           eINSTR_NOT_VALID} fsmState_t; 
 fsmState_t next, state;
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
@@ -213,6 +217,23 @@ always_ff@(posedge clk_i) begin
     end
 end
 
+
+/*************************************
+* SAVING THE CALCULATED JUMP ADDRESS
+*************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        jmp_addr_save_r <= 0;
+    end
+    else begin
+        if (state == eJALR_WAIT) begin
+            jmp_addr_save_r <= {alu_res_i[31:1], 1'b0};
+        end
+        else begin
+            jmp_addr_save_r <= jmp_addr_save_r;
+        end
+    end
+end
 
 /*************************************
 * SIGN EXTENDERS
@@ -626,12 +647,12 @@ begin
         // be delayed at most 1 cycle). The third cycle takes the jump.
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
-        if ((regs1 == prev_dest_addr && regs1 != 0 ) &&
-             state != eJALR_PC_CALC &&
+        if ((regs1 == prev_dest_addr && regs1 != 0) &&
              state != eJALR_JMP_ADDR_CALC &&
+             state != eJALR_WAIT &&
+             state != eJALR_PC_CALC &&
              state != eJALR_JMP &&
              state != eSTALL) begin
-            use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0;
             alu_op_a_w         = 1'b0;
             alu_dest_addr_w    = 5'b00000;
@@ -641,21 +662,10 @@ begin
             ready_w            = 1'b0; 
             next               = eSTALL;
         end
-        if (state != eJALR_PC_CALC &&
-            state != eJALR_JMP_ADDR_CALC &&
+        else if (state != eJALR_JMP_ADDR_CALC &&
+            state != eJALR_WAIT &&
+            state != eJALR_PC_CALC &&
             state != eJALR_JMP) begin
-            use_alu_jmp_addr_w = 1'b0;
-            use_pc_w           = 1'b1;
-            alu_op_a_w         = 1'b0;
-            alu_dest_addr_w    = regdest;
-            alu_wb_w           = 1'b1; 
-            rf_addr_a_w        = 5'b00000;
-            imm_ext_w          = 32'b00000000_00000000_00000000_00000100;   
-            ready_w            = 1'b0; 
-            next               = eJALR_PC_CALC;
-        end
-        else if (state == eJALR_PC_CALC) begin
-            use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0; 
             alu_op_a_w         = 1'b1;
             alu_dest_addr_w    = 5'b00000;
@@ -665,8 +675,23 @@ begin
             ready_w            = 1'b0; 
             next               = eJALR_JMP_ADDR_CALC;
         end
+        else if (state == eJALR_JMP_ADDR_CALC) begin
+            ready_w = 1'b0;
+            next    = eJALR_WAIT;
+        end
+        else if (state == eJALR_WAIT) begin
+            use_pc_w           = 1'b1;
+            alu_op_a_w         = 1'b0;
+            alu_dest_addr_w    = regdest;
+            alu_wb_w           = ~alu_res_i[1]; // proper alignment check
+            rf_addr_a_w        = 5'b00000;
+            imm_ext_w          = 32'b00000000_00000000_00000000_00000100; // pc + 4 
+            ready_w            = 1'b0; 
+            next               = eJALR_PC_CALC;
+        end
         else begin
-            use_alu_jmp_addr_w = 1'b1;
+            jmp_instr_w        = 1'b1;
+            jmp_addr_w         = jmp_addr_save_r;
             use_pc_w           = 1'b0; 
             alu_op_a_w         = 1'b0;
             alu_dest_addr_w    = 5'b00000;
@@ -680,26 +705,30 @@ begin
     end
 
     {1'b1, OPCODE_JAL}: begin
-        // The JAL instruction has a dedicated adder but the JALR instruction does not.
-        // This is intentional, because I wanted to explore different implementation
-        // options.
-        use_pc_w           = 1'b1;
         is_alu_write_w     = 1'b1;
         alu_sel_w          = ALU_OP_ADD;
-        alu_dest_addr_w    = regdest;
-        alu_wb_w           = 1'b1; 
-        imm_ext_w          = 32'b00000000_00000000_00000000_00000100;   
-        if (state != eJAL &&
+        use_pc_w           = 1'b1;
+        if (state != eJAL_JMP_ADDR_CALC &&
             state != eJAL_WAIT_1 &&
+            state != eJAL_WRITE_RF_JMP &&
             state != eJAL_WAIT_2) begin
-            ready_w     = 1'b0;
-            jmp_instr_w = 1'b1;
-            jmp_addr_w  = J_imm_sign_extended_w + instr_addr_i;
-            next = eJAL;
+            imm_ext_w = J_imm_sign_extended_w;  
+            alu_wb_w  = 1'b1;
+            ready_w   = 1'b0;
+            next      = eJAL_JMP_ADDR_CALC;
         end
-        else if (state == eJAL) begin
-            ready_w = 1'b1;
+        else if (state == eJAL_JMP_ADDR_CALC) begin
+            ready_w = 1'b0;
             next = eJAL_WAIT_1;
+        end
+        else if (state == eJAL_WAIT_1) begin
+            alu_wb_w        = ~alu_res_i[1];
+            imm_ext_w       = 32'b00000000_00000000_00000000_00000100;  
+            alu_dest_addr_w = regdest;
+            jmp_instr_w     = 1'b1;
+            jmp_addr_w      = {alu_res_i[31:1],1'b0};
+            ready_w         = 1'b0;
+            next            = eJAL_WRITE_RF_JMP;
         end
         else begin
             ready_w = 1'b1;
