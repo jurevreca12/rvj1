@@ -17,7 +17,7 @@ module rams_init_file_wrap
                    .MEM_INIT_FILE(MEM_INIT_FILE)) rom_memory (
                           .clk(clk_i), 
                           .we(1'b0), 
-                          .addr(rom_if.addr[rom_if.ADDR_WIDTH-1:0]), 
+                          .addr(rom_if.addr[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
                           .din(32'b0), 
                           .dout(rom_if.rdata[rom_if.DATA_WIDTH-1:0])
                         );

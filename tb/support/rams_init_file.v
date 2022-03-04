@@ -8,7 +8,7 @@ module rams_init_file #(
 
 input clk;
 input we;
-input [31:0] addr;
+input [$clog2(MEM_SIZE*4)-1:0] addr;
 input [31:0] din;
 output [31:0] dout;
 

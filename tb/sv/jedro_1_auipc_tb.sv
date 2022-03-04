@@ -37,17 +37,17 @@ module jedro_1_auipc_tb();
     @(posedge clk);
     i++;
   end
-
-  assert (dut.regfile_inst.regfile[1] == 32'b00000000000000000001_000000000000) 
-  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 1 should be 4096, not %d.", 
+  
+  assert (dut.regfile_inst.regfile[1] == 32'b10000000000000000001_000000000000) 
+  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 1 should be 0x80001000, not %d.", 
                 dut.regfile_inst.regfile[1]);
 
-  assert (dut.regfile_inst.regfile[2] == 32'b00000000000000000010_000000000100) 
-  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 2 should be 8196, not %d.", 
+  assert (dut.regfile_inst.regfile[2] == 32'b10000000000000000010_000000000100) 
+  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 2 should be 0x80002004, not %d.", 
                 dut.regfile_inst.regfile[2]);
 
-  assert (dut.regfile_inst.regfile[3] == 32'b00000000000000000011_000000001000) 
-  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 3 should be 12296, not %d.", 
+  assert (dut.regfile_inst.regfile[3] == 32'b10000000000000000011_000000001000) 
+  else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 3 should be 0x80003008, not %d.", 
                 dut.regfile_inst.regfile[3]);
 
   $finish;

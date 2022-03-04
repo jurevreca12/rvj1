@@ -5,7 +5,7 @@ package jedro_1_defines;
 // General defines
 parameter DATA_WIDTH     = 32;
 parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH);
-parameter BOOT_ADDR      = 32'h0000_0000;
+parameter BOOT_ADDR      = 32'h8000_0000;
 
 parameter NOP_INSTR      = 32'b000000000000_00000_000_00000_0010011;
 parameter MRET_INSTR     = 32'b001100000010_00000_000_00000_1110011;

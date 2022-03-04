@@ -17,8 +17,8 @@ module rams_init_file_rw_wrap
                      .MEM_INIT_FILE(MEM_INIT_FILE)) ram_memory (
                           .clk(clk_i), 
                           .we(ram_if.we[3:0]), 
-                          .addr(ram_if.addr[ram_if.ADDR_WIDTH-1:0]), 
-                          .di(ram_if.wdata[ram_if.ADDR_WIDTH-1:0]), 
+                          .addr(ram_if.addr[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
+                          .di(ram_if.wdata[ram_if.DATA_WIDTH-1:0]), 
                           .dout(ram_if.rdata[ram_if.DATA_WIDTH-1:0])
                         );
 

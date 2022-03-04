@@ -56,8 +56,8 @@ module jedro_1_riscof_tb();
   end
 
   // get stard and end address of the signature region
-  start_addr = data_mem.ram_memory.RAM[SIG_START_ADDR_CELLNUM];
-  end_addr   = data_mem.ram_memory.RAM[SIG_END_ADDR_CELLNUM];
+  start_addr = data_mem.ram_memory.RAM[SIG_START_ADDR_CELLNUM][20-1:0];
+  end_addr   = data_mem.ram_memory.RAM[SIG_END_ADDR_CELLNUM][20-1:0];
 
   sig_file = $fopen("dut.signature", "w");
   for (j=start_addr; j < end_addr; j=j+4) begin

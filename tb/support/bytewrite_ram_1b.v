@@ -12,7 +12,7 @@ module bytewrite_ram_1b (clk, we, addr, di, dout);
 
 parameter MEM_INIT_FILE="";
 parameter SIZE = 2**12; 
-parameter ADDR_WIDTH = 32; 
+parameter ADDR_WIDTH = $clog2(SIZE*4); 
 parameter COL_WIDTH = 8; 
 parameter NB_COL = 4;
 
