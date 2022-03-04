@@ -116,9 +116,10 @@ typedef enum logic [35:0] {eOK,
                            eJAL_WRITE_RF_JMP,
                            eJAL_WAIT_2,
                            eJALR_JMP_ADDR_CALC,
-                           eJALR_WAIT,
+                           eJALR_WAIT_1,
                            eJALR_PC_CALC,
                            eJALR_JMP,
+                           eJALR_WAIT_2,
                            eBRANCH_CALC_COND,
                            eBRANCH_CALC_ADDR,
                            eBRANCH_STALL,
@@ -226,7 +227,7 @@ always_ff @(posedge clk_i) begin
         jmp_addr_save_r <= 0;
     end
     else begin
-        if (state == eJALR_WAIT) begin
+        if (state == eJALR_WAIT_1) begin
             jmp_addr_save_r <= {alu_res_i[31:1], 1'b0};
         end
         else begin
@@ -649,9 +650,10 @@ begin
         alu_sel_w          = ALU_OP_ADD;
         if ((regs1 == prev_dest_addr && regs1 != 0) &&
              state != eJALR_JMP_ADDR_CALC &&
-             state != eJALR_WAIT &&
+             state != eJALR_WAIT_1 &&
              state != eJALR_PC_CALC &&
              state != eJALR_JMP &&
+             state != eJALR_WAIT_2 &&
              state != eSTALL) begin
             use_pc_w           = 1'b0;
             alu_op_a_w         = 1'b0;
@@ -663,9 +665,10 @@ begin
             next               = eSTALL;
         end
         else if (state != eJALR_JMP_ADDR_CALC &&
-            state != eJALR_WAIT &&
+            state != eJALR_WAIT_1 &&
             state != eJALR_PC_CALC &&
-            state != eJALR_JMP) begin
+            state != eJALR_JMP &&
+            state != eJALR_WAIT_2) begin
             use_pc_w           = 1'b0; 
             alu_op_a_w         = 1'b1;
             alu_dest_addr_w    = 5'b00000;
@@ -677,9 +680,9 @@ begin
         end
         else if (state == eJALR_JMP_ADDR_CALC) begin
             ready_w = 1'b0;
-            next    = eJALR_WAIT;
+            next    = eJALR_WAIT_1;
         end
-        else if (state == eJALR_WAIT) begin
+        else if (state == eJALR_WAIT_1) begin
             use_pc_w           = 1'b1;
             alu_op_a_w         = 1'b0;
             alu_dest_addr_w    = regdest;
@@ -689,7 +692,7 @@ begin
             ready_w            = 1'b0; 
             next               = eJALR_PC_CALC;
         end
-        else begin
+        else if (state == eJALR_PC_CALC) begin
             jmp_instr_w        = 1'b1;
             jmp_addr_w         = jmp_addr_save_r;
             use_pc_w           = 1'b0; 
@@ -698,10 +701,13 @@ begin
             alu_wb_w           = 1'b0; 
             rf_addr_a_w        = 5'b00000;
             imm_ext_w          = I_imm_sign_extended_w;   
-            ready_w            = 1'b1; 
+            ready_w            = 1'b0; 
             next               = eJALR_JMP;
         end
-
+        else begin
+            ready_w = 0;
+            next = eJALR_WAIT_2;
+        end
     end
 
     {1'b1, OPCODE_JAL}: begin
