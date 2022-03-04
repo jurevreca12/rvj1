@@ -55,6 +55,9 @@ logic [CSR_UIMM_WIDTH-1:0]  decoder_csr_uimm;
 logic                       decoder_csr_uimm_we;
 logic [CSR_WMODE_WIDTH-1:0] decoder_csr_wmode;
 logic                       decoder_csr_mret;
+logic                       decoder_csr_illegal_instr;
+logic                       decoder_csr_ecall;
+logic                       decoder_csr_ebreak;
 logic [DATA_WIDTH-1:0]      alu_mux4_res;
 logic [REG_ADDR_WIDTH-1:0]  alu_mux4_dest_addr;
 logic                       alu_mux4_wb;
@@ -108,6 +111,7 @@ always_comb begin
     else                                    mux3_ifu_jmp_addr = decoder_ifu_jmp_addr;
 end
 
+
 /****************************************
 * INSTRUCTION DECODE STAGE
 ****************************************/
@@ -122,7 +126,9 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
                              .jmp_instr_ro         (decoder_ifu_jmp_instr),
                              .jmp_addr_ro          (decoder_ifu_jmp_addr),
                              .use_alu_jmp_addr_ro  (decoder_mux3_use_alu_jmp_addr),
-                             .illegal_instr_ro     (), // TODO
+                             .illegal_instr_ro     (decoder_csr_illegal_instr), 
+                             .ecall_ro             (decoder_csr_ecall),
+                             .ebreak_ro            (decoder_csr_ebreak),
                              .is_alu_write_ro      (decoder_mux4_is_alu_write),
                              .alu_sel_ro           (decoder_alu_sel), 
                              .alu_dest_addr_ro     (decoder_alu_dest_addr),
@@ -192,6 +198,10 @@ jedro_1_csr csr_inst (.clk_i                 (clk_i),
                       .lsu_exception_load_i  (lsu_csr_misaligned_load),
                       .lsu_exception_store_i (lsu_csr_misaligned_store),
                       .lsu_exception_addr_i  (lsu_csr_misaligned_addr),
+
+                      .decoder_exc_illegal_instr_i (decoder_csr_illegal_instr),
+                      .decoder_exc_ecall_i         (decoder_csr_ecall),
+                      .decoder_exc_ebreak_i        (decoder_csr_ebreak),
 
                       .sw_irq_i    (), // TODO
                       .timer_irq_i (),

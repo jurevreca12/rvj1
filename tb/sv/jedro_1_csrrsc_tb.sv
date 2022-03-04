@@ -34,7 +34,7 @@ module jedro_1_csrrsc_tb();
   rstn <= 1'b1;
   dut.csr_inst.csr_mscratch_n = 3;
 
-  while (i < 64) begin
+  while (i < 64 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end

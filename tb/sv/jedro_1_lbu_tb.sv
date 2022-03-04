@@ -40,10 +40,11 @@ module jedro_1_lbu_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
  
-  while (i < 64) begin
+  while (i < 64 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
 
   assert (dut.regfile_inst.regfile[30] == 32'b00000000_00000000_00000000_11111111 &&
           dut.regfile_inst.regfile[31] == 32'b00000000_00000000_00000000_11111111) 

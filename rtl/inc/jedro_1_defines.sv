@@ -9,6 +9,10 @@ parameter BOOT_ADDR      = 32'h8000_0000;
 
 parameter NOP_INSTR      = 32'b000000000000_00000_000_00000_0010011;
 parameter MRET_INSTR     = 32'b001100000010_00000_000_00000_1110011;
+parameter ECALL_INSTR    = 32'b000000000000_00000_000_00000_1110011; 
+parameter EBREAK_INSTR   = 32'b000000000001_00000_000_00000_1110011;
+parameter WFI_INSTR      = 32'b000100000101_00000_000_00000_1110011;
+
 
 // OPCODES for RV32G/RV64G (All are defined but not necessarily implemented)
 parameter OPCODE_LOAD    = 7'b0000011;
@@ -78,8 +82,11 @@ parameter CSR_WMODE_SET_BITS       = 2'b01;
 parameter CSR_WMODE_CLEAR_BITS     = 2'b10;
 
 parameter CSR_MCAUSE_INSTR_ADDR_MISALIGNED = 0;
+parameter CSR_MCAUSE_ILLEGAL_INSTRUCTION   = 2;
+parameter CSR_MCAUSE_EBREAK                = 3;
 parameter CSR_MCAUSE_LOAD_ADDR_MISALIGNED  = 4;
 parameter CSR_MCAUSE_STORE_ADDR_MISALIGNED = 6;
+parameter CSR_MCAUSE_ECALL_M_MODE          = 11;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;

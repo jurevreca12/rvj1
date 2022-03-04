@@ -33,11 +33,12 @@ module jedro_1_misaligned_jmp_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 64) begin
+  while (i < 64 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end
-
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
+ 
   assert (dut.regfile_inst.regfile[1] == 14) 
   else $display("ERROR: After executing jedro_1_misaligned_jmp_tb.mem the value in register 1 should be 14, not %d.", 
                 $signed(dut.regfile_inst.regfile[1]));

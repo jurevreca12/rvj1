@@ -44,6 +44,9 @@ module jedro_1_csr
   input logic                   lsu_exception_store_i,
   input logic [DATA_WIDTH-1:0]  lsu_exception_addr_i,
 
+  input logic                   decoder_exc_illegal_instr_i,
+  input logic                   decoder_exc_ecall_i,
+  input logic                   decoder_exc_ebreak_i,
 
   // interrupt lines
   input logic                   sw_irq_i,
@@ -90,7 +93,8 @@ logic [DATA_WIDTH-1:0] csr_mtval_r, csr_mtval_n, csr_mtval_exc;
 logic [DATA_WIDTH-1:0] uimm_data_ext;
 logic                  is_exception;
 logic                  is_write;
-
+logic [DATA_WIDTH-1:0] exception_code;
+logic [DATA_WIDTH-1:0] exception_mtval;
 
 assign data_mux = uimm_we_i ? {27'b0, uimm_data_i} : data_i;
 always_comb begin
@@ -103,8 +107,34 @@ always_comb begin
 end
 
 
-assign is_exception = ifu_exception_i | lsu_exception_load_i | lsu_exception_store_i;
+assign is_exception = ifu_exception_i | 
+                      lsu_exception_load_i | 
+                      lsu_exception_store_i |
+                      decoder_exc_illegal_instr_i |
+                      decoder_exc_ecall_i |
+                      decoder_exc_ebreak_i;
+
 assign is_write = (!is_exception) && (we_i || uimm_we_i);
+
+always_comb begin
+    if      (decoder_exc_illegal_instr_i) exception_code = CSR_MCAUSE_ILLEGAL_INSTRUCTION;
+    else if (ifu_exception_i)             exception_code = CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
+    else if (decoder_exc_ecall_i)         exception_code = CSR_MCAUSE_ECALL_M_MODE;
+    else if (decoder_exc_ebreak_i)        exception_code = CSR_MCAUSE_EBREAK;
+    else if (lsu_exception_store_i)       exception_code = CSR_MCAUSE_STORE_ADDR_MISALIGNED;
+    else if (lsu_exception_load_i)        exception_code = CSR_MCAUSE_LOAD_ADDR_MISALIGNED;
+    else                                  exception_code = 'x;
+end
+
+always_comb begin
+    if      (decoder_exc_illegal_instr_i) exception_mtval = curr_pc_i;
+    else if (ifu_exception_i)             exception_mtval = ifu_mtval_i;
+    else if (decoder_exc_ecall_i)         exception_mtval = 0;
+    else if (decoder_exc_ebreak_i)        exception_mtval = curr_pc_i;
+    else if (lsu_exception_store_i)       exception_mtval = lsu_exception_addr_i;
+    else if (lsu_exception_load_i)        exception_mtval = lsu_exception_addr_i;
+    else                                  exception_mtval = 'x;
+end
 
 always_comb begin
     data_n = 0;
@@ -218,24 +248,10 @@ always_comb begin
     csr_mtval_exc = 0;
     csr_mstatus_mie_exc = 0;
     csr_mstatus_mpie_exc = 0;
-    if (ifu_exception_i) begin
+    if (is_exception) begin 
         csr_mepc_exc = curr_pc_i;
-        csr_mcause_exc = CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
-        csr_mtval_exc = ifu_mtval_i; // faulting address
-        csr_mstatus_mie_exc = 1'b0;
-        csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
-    end
-    else if (lsu_exception_load_i) begin
-        csr_mepc_exc = curr_pc_i;
-        csr_mcause_exc = CSR_MCAUSE_LOAD_ADDR_MISALIGNED;
-        csr_mtval_exc = lsu_exception_addr_i; // faulting address
-        csr_mstatus_mie_exc = 1'b0;
-        csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
-    end
-    else if (lsu_exception_store_i) begin
-        csr_mepc_exc = curr_pc_i;
-        csr_mcause_exc = CSR_MCAUSE_STORE_ADDR_MISALIGNED;
-        csr_mtval_exc = lsu_exception_addr_i; // faulting address
+        csr_mcause_exc = exception_code;
+        csr_mtval_exc = exception_mtval;
         csr_mstatus_mie_exc = 1'b0;
         csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
     end

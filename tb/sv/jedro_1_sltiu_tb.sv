@@ -38,6 +38,7 @@ module jedro_1_sltiu_tb();
     @(posedge clk);
     i++;
   end
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
 
   assert ( dut.regfile_inst.regfile[8] == 1 ) 
   else $display("ERROR: After executing jedro_1_sltiu_tb.mem the value in register 8 should be 1, not %d.", 

@@ -31,6 +31,8 @@ module jedro_1_decoder
 
   // CONTROL UNIT INTERFACE
   output logic illegal_instr_ro, // Illegal instruction encountered.
+  output logic ecall_ro,         // ecall instruction encountered
+  output logic ebreak_ro,        // ebreak instruction encountered
 
   // ALU INTERFACE
   output logic                       is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
@@ -67,13 +69,16 @@ module jedro_1_decoder
 *************************************/
 logic                      use_alu_jmp_addr_w;
 logic                      use_pc_w;
-logic                      illegal_instr_w;
 logic                      is_alu_write_w;
 logic [ALU_OP_WIDTH-1:0]   alu_sel_w;
 logic                      alu_op_a_w;
 logic                      alu_op_b_w;
 logic [REG_ADDR_WIDTH-1:0] alu_dest_addr_w;
 logic                      alu_wb_w;
+
+logic                      illegal_instr_w;
+logic                      ecall_w;
+logic                      ebreak_w;
 
 logic [REG_ADDR_WIDTH-1:0] rf_addr_a_w;
 logic [REG_ADDR_WIDTH-1:0] rf_addr_b_w;
@@ -109,7 +114,7 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 // FSM signals
-typedef enum logic [35:0] {eOK, 
+typedef enum logic [40:0] {eOK, 
                            eSTALL, 
                            eJAL_JMP_ADDR_CALC,
                            eJAL_WAIT_1,
@@ -144,6 +149,12 @@ typedef enum logic [35:0] {eOK,
                            eCSRRSC_WRITE_RF,
                            eMRET,
                            eMRET_WAIT,
+                           eCALL_SET_ADDR,
+                           eCALL,
+                           eCALL_WAIT,
+                           eBREAK_SET_ADDR,
+                           eBREAK,
+                           eBREAK_WAIT,
                            eERROR,
                            eINSTR_NOT_VALID} fsmState_t; 
 fsmState_t next, state;
@@ -291,6 +302,8 @@ always_ff@(posedge clk_i) begin
     use_alu_jmp_addr_ro <= 0;
     use_pc_ro <= 0;
     illegal_instr_ro <= 0;
+    ecall_ro <= 0;
+    ebreak_ro <= 0;
     is_alu_write_ro <= 1'b1;
     alu_sel_ro <= 0;
     alu_dest_addr_ro <= 0;
@@ -316,6 +329,8 @@ always_ff@(posedge clk_i) begin
     use_alu_jmp_addr_ro <= use_alu_jmp_addr_w;
     use_pc_ro <= use_pc_w;
     illegal_instr_ro <= illegal_instr_w;
+    ecall_ro <= ecall_w;
+    ebreak_ro <= ebreak_w;
     is_alu_write_ro <= is_alu_write_w;
     alu_sel_ro <= alu_sel_w;
     alu_dest_addr_ro <= alu_dest_addr_w;
@@ -348,6 +363,8 @@ begin
   use_alu_jmp_addr_w  = 1'b0;
   use_pc_w            = 1'b0;
   illegal_instr_w     = 1'b0;
+  ecall_w             = 1'b0;
+  ebreak_w            = 1'b0;
   is_alu_write_w      = 1'b0;
   alu_sel_w           = 4'b0000;
   alu_op_a_w          = 1'b0;
@@ -861,22 +878,62 @@ begin
                     next       = eMRET_WAIT;
                 end
             end
+            else if (instr_i == ECALL_INSTR) begin
+                if (state != eCALL_SET_ADDR &&
+                    state != eCALL &&
+                    state != eCALL_WAIT) begin
+                    ready_w = 0;
+                    next = eCALL_SET_ADDR;
+                end
+                else if (state == eCALL_SET_ADDR) begin
+                    ecall_w = 1;
+                    ready_w = 0;
+                    next    = eCALL;
+                end
+                else begin
+                    ready_w = 0;
+                    next    = eCALL_WAIT;
+                end
+            end
+            else if (instr_i == EBREAK_INSTR) begin
+                if (state != eBREAK_SET_ADDR &&
+                    state != eBREAK &&
+                    state != eBREAK_WAIT) begin
+                    ready_w = 0;
+                    next = eBREAK_SET_ADDR;
+                end
+                else if (state == eBREAK_SET_ADDR) begin
+                    ebreak_w = 1;
+                    ready_w = 0;
+                    next = eBREAK;
+                end
+                else begin
+                    ready_w = 0;
+                    next = eBREAK_WAIT;
+                end
+            end
+            else if (instr_i == WFI_INSTR) begin
+                ready_w = 1'b1;
+                next = eOK;
+            end
             else begin
-            
+                ready_w         = 1'b0;
+                illegal_instr_w = 1'b1;
+                next            = eERROR;
             end
         end
     end
 
     {1'b0, 7'b???????}: begin
         ready_w            = 1'b1;
-        illegal_instr_w    = 1'b1;
+        illegal_instr_w    = 1'b0;
         next               = eINSTR_NOT_VALID;
     end 
 
     default: begin
         use_alu_jmp_addr_w = 1'b0;
         use_pc_w           = 1'b0;
-        illegal_instr_w    = 1'b0;
+        illegal_instr_w    = 1'b1;
         is_alu_write_w     = 1'b0;
         alu_sel_w          = 4'b0000;
         alu_op_a_w         = 1'b0;
@@ -890,7 +947,7 @@ begin
         lsu_ctrl_w         = 4'b0000;
         lsu_regdest_w      = 5'b00000;
         csr_mret_w         = 0;
-        ready_w            = 1'b1;
+        ready_w            = 1'b0;
         jmp_instr_w        = 1'b0;
         jmp_addr_w         = 0;
         next               = eERROR;

@@ -33,7 +33,7 @@ module jedro_1_csrrsci_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 64) begin
+  while (i < 64 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end

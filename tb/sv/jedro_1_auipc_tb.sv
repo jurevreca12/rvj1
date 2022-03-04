@@ -33,10 +33,11 @@ module jedro_1_auipc_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 32) begin
+  while (i < 32 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
   
   assert (dut.regfile_inst.regfile[1] == 32'b10000000000000000001_000000000000) 
   else $display("ERROR: After executing jedro_1_lui_tb.mem the value in register 1 should be 0x80001000, not %d.", 

@@ -33,12 +33,13 @@ module jedro_1_jalr_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 64) begin
+  while (i < 64 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
 
-  assert (dut.regfile_inst.regfile[2] == 8) 
+  assert (dut.regfile_inst.regfile[2] == 32'h80000008) 
   else $display("ERROR: After executing jedro_1_jalr_tb.mem the value in register 2 should be 8, not %d.", 
                 dut.regfile_inst.regfile[2]);
   

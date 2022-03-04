@@ -33,10 +33,11 @@ module jedro_1_srl_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
 
-  while (i < 32) begin
+  while (i < 32 && dut.decoder_inst.illegal_instr_ro == 0) begin
     @(posedge clk);
     i++;
   end
+  repeat (3) @ (posedge clk); // finish instructions in the pipeline
 
   assert (dut.regfile_inst.regfile[31] == 1) 
   else $display("ERROR: After executing jedro_1_srl_tb.mem the value in register 31 should be 1, not %d.", 
