@@ -78,6 +78,8 @@ parameter CSR_WMODE_SET_BITS       = 2'b01;
 parameter CSR_WMODE_CLEAR_BITS     = 2'b10;
 
 parameter CSR_MCAUSE_INSTR_ADDR_MISALIGNED = 0;
+parameter CSR_MCAUSE_LOAD_ADDR_MISALIGNED  = 4;
+parameter CSR_MCAUSE_STORE_ADDR_MISALIGNED = 6;
 
 // Machine Information Registers 
 parameter CSR_ADDR_MVENDORID       = 12'hF11;

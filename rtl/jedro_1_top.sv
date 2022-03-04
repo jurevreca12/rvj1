@@ -44,6 +44,7 @@ logic [REG_ADDR_WIDTH-1:0]  decoder_rf_addr_b;
 logic [DATA_WIDTH-1:0]      decoder_mux_imm_ex;
 logic                       decoder_mux_is_imm;
 logic [DATA_WIDTH-1:0]      decoder_mux2_instr_addr;
+logic [DATA_WIDTH-1:0]      decoder_1_mux2_instr_addr;
 logic                       decoder_mux2_use_pc;
 logic [CSR_ADDR_WIDTH-1:0]  decoder_csr_addr;
 logic [DATA_WIDTH-1:0]      decoder_csr_data;
@@ -71,6 +72,9 @@ logic                       decoder_mux4_is_alu_write;
 logic [DATA_WIDTH-1:0]      lsu_mux4_rdata;
 logic                       lsu_mux4_wb;
 logic [REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
+logic                       lsu_csr_misaligned_load;
+logic                       lsu_csr_misaligned_store;
+logic [DATA_WIDTH-1:0]      lsu_csr_misaligned_addr;
 logic [DATA_WIDTH-1:0]      mux4_rf_data;
 logic                       mux4_rf_wb;
 logic [REG_ADDR_WIDTH-1:0]  mux4_rf_dest_addr;
@@ -163,23 +167,32 @@ assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_da
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
 
-jedro_1_csr csr_inst (.clk_i               (clk_i),
-                      .rstn_i              (rstn_i),
-                      .addr_i              (decoder_csr_addr), 
-                      .data_i              (mux2_alu_op_a),
-                      .uimm_data_i         (decoder_csr_uimm),
-                      .uimm_we_i           (decoder_csr_uimm_we),
-                      .data_ro             (csr_decoder_data),
-                      .we_i                (decoder_csr_we),
-                      .wmode_i             (decoder_csr_wmode),
-                      
-                      .curr_pc_i           (decoder_mux2_instr_addr),
-                      .traphandler_addr_ro (csr_ifu_mtvec),
-                      .trap_ro             (csr_ifu_trap),
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) decoder_1_mux2_instr_addr <= 0;
+    else                decoder_1_mux2_instr_addr <= decoder_mux2_instr_addr;
+end
 
-                      .ifu_exception_i     (ifu_csr_exception),
-                      .ifu_mtval_i         (ifu_csr_fault_addr),
+jedro_1_csr csr_inst (.clk_i                 (clk_i),
+                      .rstn_i                (rstn_i),
+                      .addr_i                (decoder_csr_addr), 
+                      .data_i                (mux2_alu_op_a),
+                      .uimm_data_i           (decoder_csr_uimm),
+                      .uimm_we_i             (decoder_csr_uimm_we),
+                      .data_ro               (csr_decoder_data),
+                      .we_i                  (decoder_csr_we),
+                      .wmode_i               (decoder_csr_wmode),
+                      
+                      .curr_pc_i             (decoder_1_mux2_instr_addr),
+                      .traphandler_addr_ro   (csr_ifu_mtvec),
+                      .trap_ro               (csr_ifu_trap),
+
+                      .ifu_exception_i       (ifu_csr_exception),
+                      .ifu_mtval_i           (ifu_csr_fault_addr),
     
+                      .lsu_exception_load_i  (lsu_csr_misaligned_load),
+                      .lsu_exception_store_i (lsu_csr_misaligned_store),
+                      .lsu_exception_addr_i  (lsu_csr_misaligned_addr),
+
                       .sw_irq_i    (), // TODO
                       .timer_irq_i (),
                       .ext_irq_i   (),
@@ -231,17 +244,20 @@ always_comb begin
 end
 
 
-jedro_1_lsu lsu_inst(.clk_i       (clk_i),
-                     .rstn_i      (rstn_i),
-                     .ctrl_valid_i(decoder_lsu_ctrl_valid),
-                     .ctrl_i      (decoder_lsu_ctrl),
-                     .addr_i      (alu_mux4_res),
-                     .wdata_i     (rf_alu_data_b),
-                     .rdata_ro    (lsu_mux4_rdata),
-                     .rf_wb_ro    (lsu_mux4_wb),
-                     .regdest_i   (decoder_lsu_regdest),
-                     .regdest_ro  (lsu_mux4_regdest),
-                     .data_mem_if (data_mem_if)
+jedro_1_lsu lsu_inst(.clk_i               (clk_i),
+                     .rstn_i              (rstn_i),
+                     .ctrl_valid_i        (decoder_lsu_ctrl_valid),
+                     .ctrl_i              (decoder_lsu_ctrl),
+                     .addr_i              (alu_mux4_res),
+                     .wdata_i             (rf_alu_data_b),
+                     .rdata_ro            (lsu_mux4_rdata),
+                     .rf_wb_ro            (lsu_mux4_wb),
+                     .regdest_i           (decoder_lsu_regdest),
+                     .regdest_ro          (lsu_mux4_regdest),
+                     .misaligned_load_ro  (lsu_csr_misaligned_load),
+                     .misaligned_store_ro (lsu_csr_misaligned_store),
+                     .misaligned_addr_ro  (lsu_csr_misaligned_addr),
+                     .data_mem_if         (data_mem_if)
                     );
 
 // Note that the ICARUS flag needs to be set in the makefile arguments

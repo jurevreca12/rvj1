@@ -33,6 +33,10 @@ module jedro_1_lsu
   output logic                      rf_wb_ro,       // Enables the write pin of the reg file.
   output logic [REG_ADDR_WIDTH-1:0] regdest_ro,
 
+  output logic                      misaligned_load_ro,
+  output logic                      misaligned_store_ro,
+  output logic [DATA_WIDTH-1:0]     misaligned_addr_ro,
+
   // Interface to data RAM
   ram_rw_io.MASTER                  data_mem_if
 );
@@ -50,7 +54,56 @@ logic                      ram_start_decode_r;
 logic [LSU_CTRL_WIDTH-1:0] ctrl_save_r;
 
 logic [31:0]               active_write_word;
- 
+
+logic                      misaligned_load;
+logic                      misaligned_store;
+
+
+/**************************************
+* EXCEPTION CHECKING
+**************************************/
+always_comb begin
+    if (ctrl_valid_i == 1'b1) begin
+        misaligned_load  = 1'b0;
+        misaligned_store = 1'b0;
+        unique casez (ctrl_i)
+            LSU_LOAD_BYTE        : misaligned_load = 1'b0;
+            LSU_LOAD_BYTE_U      : misaligned_load = 1'b0;
+            LSU_LOAD_HALF_WORD   : misaligned_load = addr_i[0];
+            LSU_LOAD_HALF_WORD_U : misaligned_load = addr_i[0];
+            LSU_LOAD_WORD        : misaligned_load = |addr_i[1:0];
+            LSU_STORE_BYTE       : misaligned_store = 1'b0;
+            LSU_STORE_HALF_WORD  : misaligned_store = addr_i[0];
+            LSU_STORE_WORD       : misaligned_store = |addr_i[1:0];
+        endcase
+    end
+    else begin
+        misaligned_load  = 1'b0;
+        misaligned_store = 1'b0;
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        misaligned_load_ro  <= 1'b0;
+        misaligned_store_ro <= 1'b0;
+    end
+    else begin
+        misaligned_load_ro  <= misaligned_load;
+        misaligned_store_ro <= misaligned_store;
+    end
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        misaligned_addr_ro <= 0;
+    end
+    else begin
+        if (ctrl_valid_i)   misaligned_addr_ro <= addr_i;
+        else                misaligned_addr_ro <= misaligned_addr_ro;
+    end
+end
+
 /**************************************
 * WRITE ENABLE SIGNAL / INPUT MUXING
 **************************************/
@@ -138,7 +191,10 @@ always_ff @(posedge clk_i) begin
         ram_start_decode_r <= 1'b0;
     end
     else begin
-        if (ctrl_valid_i == 1'b1 && is_write == 1'b0 && read_enable == 1'b0) 
+        if (ctrl_valid_i == 1'b1 && 
+            is_write == 1'b0 && 
+            read_enable == 1'b0 &&
+            misaligned_load == 1'b0) 
             ram_start_decode_r <= 1'b1;
         else
             ram_start_decode_r <= 1'b0;
@@ -199,7 +255,7 @@ always_ff @(posedge clk_i) begin
     end
     else begin
        data_mem_if.addr <= addr_i;
-       data_mem_if.we <= we & {4{ctrl_valid_i}};
+       data_mem_if.we <= we & {4{ctrl_valid_i&(~misaligned_store)}};
        data_mem_if.wdata <= active_write_word; 
     end
 end

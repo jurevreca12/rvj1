@@ -40,8 +40,9 @@ module jedro_1_csr
   input  logic [DATA_WIDTH-1:0] ifu_mtval_i,
 
   // LSU exception iterface
-  input logic                   lsu_exception_i,
-  input logic [DATA_WIDTH-1:0]  lsu_mtval_i,
+  input logic                   lsu_exception_load_i,
+  input logic                   lsu_exception_store_i,
+  input logic [DATA_WIDTH-1:0]  lsu_exception_addr_i,
 
 
   // interrupt lines
@@ -102,8 +103,8 @@ always_comb begin
 end
 
 
-assign is_exception = ifu_exception_i;
-assign is_write = (!ifu_exception_i) && (we_i || uimm_we_i);
+assign is_exception = ifu_exception_i | lsu_exception_load_i | lsu_exception_store_i;
+assign is_write = (!is_exception) && (we_i || uimm_we_i);
 
 always_comb begin
     data_n = 0;
@@ -221,6 +222,20 @@ always_comb begin
         csr_mepc_exc = curr_pc_i;
         csr_mcause_exc = CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
         csr_mtval_exc = ifu_mtval_i; // faulting address
+        csr_mstatus_mie_exc = 1'b0;
+        csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
+    end
+    else if (lsu_exception_load_i) begin
+        csr_mepc_exc = curr_pc_i;
+        csr_mcause_exc = CSR_MCAUSE_LOAD_ADDR_MISALIGNED;
+        csr_mtval_exc = lsu_exception_addr_i; // faulting address
+        csr_mstatus_mie_exc = 1'b0;
+        csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
+    end
+    else if (lsu_exception_store_i) begin
+        csr_mepc_exc = curr_pc_i;
+        csr_mcause_exc = CSR_MCAUSE_STORE_ADDR_MISALIGNED;
+        csr_mtval_exc = lsu_exception_addr_i; // faulting address
         csr_mstatus_mie_exc = 1'b0;
         csr_mstatus_mpie_exc = csr_mstatus_mie_r;  
     end
