@@ -97,7 +97,7 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                                         csr_ifu_trap),
                      .jmp_address_i    (mux3_ifu_jmp_addr),
                      .exception_ro     (ifu_csr_exception),
-                     .fault_addr_ro     (ifu_csr_fault_addr),
+                     .fault_addr_ro    (ifu_csr_fault_addr),
                      .instr_o          (ifu_decoder_instr),
                      .addr_o           (ifu_decoder_instr_addr),
                      .valid_o          (ifu_decoder_instr_valid), 
@@ -172,7 +172,6 @@ assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_da
 // mux_alu_op_b
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
-
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) decoder_1_mux2_instr_addr <= 0;
     else                decoder_1_mux2_instr_addr <= decoder_mux2_instr_addr;
@@ -188,7 +187,8 @@ jedro_1_csr csr_inst (.clk_i                 (clk_i),
                       .we_i                  (decoder_csr_we),
                       .wmode_i               (decoder_csr_wmode),
                       
-                      .curr_pc_i             (decoder_1_mux2_instr_addr),
+                      .curr_pc_i             (decoder_mux2_instr_addr),
+                      .prev_pc_i             (decoder_1_mux2_instr_addr),
                       .traphandler_addr_ro   (csr_ifu_mtvec),
                       .trap_ro               (csr_ifu_trap),
 
@@ -220,7 +220,7 @@ jedro_1_alu alu_inst(.clk_i       (clk_i),
                      .overflow_ro (alu_overflow),
                      .dest_addr_i (decoder_alu_dest_addr),
                      .dest_addr_ro(alu_mux4_dest_addr),
-                     .wb_i        (decoder_alu_wb),
+                     .wb_i        (decoder_alu_wb & ~csr_ifu_trap),
                      .wb_ro       (alu_mux4_wb) 
                    ); 
 

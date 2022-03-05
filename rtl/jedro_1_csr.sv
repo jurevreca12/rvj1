@@ -30,8 +30,10 @@ module jedro_1_csr
   input logic                       we_i,
   input logic [CSR_WMODE_WIDTH-1:0] wmode_i,
  
+  input  logic [DATA_WIDTH-1:0] curr_pc_i, // current pc in decoder
+  input  logic [DATA_WIDTH-1:0] prev_pc_i, // previous clock cycle pc
+
   // IFU interface main
-  input  logic [DATA_WIDTH-1:0] curr_pc_i,
   output logic [DATA_WIDTH-1:0] traphandler_addr_ro,
   output logic                  trap_ro,
 
@@ -91,10 +93,12 @@ logic [DATA_WIDTH-1:0] csr_mtval_r, csr_mtval_n, csr_mtval_exc;
 
 // Other signals
 logic [DATA_WIDTH-1:0] uimm_data_ext;
+logic                  csr_illegal_instr_exc; // Signals illegal csr write 
 logic                  is_exception;
 logic                  is_write;
 logic [DATA_WIDTH-1:0] exception_code;
 logic [DATA_WIDTH-1:0] exception_mtval;
+logic [DATA_WIDTH-1:0] exception_addr;
 
 assign data_mux = uimm_we_i ? {27'b0, uimm_data_i} : data_i;
 always_comb begin
@@ -112,12 +116,14 @@ assign is_exception = ifu_exception_i |
                       lsu_exception_store_i |
                       decoder_exc_illegal_instr_i |
                       decoder_exc_ecall_i |
-                      decoder_exc_ebreak_i;
+                      decoder_exc_ebreak_i |
+                      csr_illegal_instr_exc;
 
 assign is_write = (!is_exception) && (we_i || uimm_we_i);
 
 always_comb begin
     if      (decoder_exc_illegal_instr_i) exception_code = CSR_MCAUSE_ILLEGAL_INSTRUCTION;
+    else if (csr_illegal_instr_exc)       exception_code = CSR_MCAUSE_ILLEGAL_INSTRUCTION;
     else if (ifu_exception_i)             exception_code = CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
     else if (decoder_exc_ecall_i)         exception_code = CSR_MCAUSE_ECALL_M_MODE;
     else if (decoder_exc_ebreak_i)        exception_code = CSR_MCAUSE_EBREAK;
@@ -128,6 +134,7 @@ end
 
 always_comb begin
     if      (decoder_exc_illegal_instr_i) exception_mtval = curr_pc_i;
+    else if (csr_illegal_instr_exc)       exception_mtval = curr_pc_i;
     else if (ifu_exception_i)             exception_mtval = ifu_mtval_i;
     else if (decoder_exc_ecall_i)         exception_mtval = 0;
     else if (decoder_exc_ebreak_i)        exception_mtval = curr_pc_i;
@@ -137,7 +144,19 @@ always_comb begin
 end
 
 always_comb begin
+    if      (decoder_exc_illegal_instr_i) exception_addr = curr_pc_i;
+    else if (csr_illegal_instr_exc)       exception_addr = curr_pc_i;
+    else if (ifu_exception_i)             exception_addr = prev_pc_i;
+    else if (decoder_exc_ecall_i)         exception_addr = curr_pc_i;
+    else if (decoder_exc_ebreak_i)        exception_addr = curr_pc_i;
+    else if (lsu_exception_store_i)       exception_addr = prev_pc_i;
+    else if (lsu_exception_load_i)        exception_addr = prev_pc_i;
+    else                                  exception_addr = 'x;
+end
+
+always_comb begin
     data_n = 0;
+    csr_illegal_instr_exc = 0;
     csr_mstatus_mie_n = csr_mstatus_mie_r;
     csr_mstatus_mpie_n = csr_mstatus_mpie_r;
     csr_mtvec_base_n = csr_mtvec_base_r;
@@ -236,7 +255,8 @@ always_comb begin
         end
 
         default: begin
-            // TODO
+            data_n = 0;
+            csr_illegal_instr_exc = we_i|uimm_we_i;
         end
     endcase
 end
@@ -249,7 +269,7 @@ always_comb begin
     csr_mstatus_mie_exc = 0;
     csr_mstatus_mpie_exc = 0;
     if (is_exception) begin 
-        csr_mepc_exc = curr_pc_i;
+        csr_mepc_exc = exception_addr;
         csr_mcause_exc = exception_code;
         csr_mtval_exc = exception_mtval;
         csr_mstatus_mie_exc = 1'b0;
