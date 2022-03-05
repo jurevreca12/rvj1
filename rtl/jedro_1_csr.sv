@@ -170,18 +170,22 @@ always_comb begin
     unique casez (addr_i)
         CSR_ADDR_MVENDORID: begin
             data_n = CSR_DEF_VAL_MVENDORID; // read-only
+            csr_illegal_instr_exc = we_i|uimm_we_i;
         end
 
         CSR_ADDR_MARCHID: begin
             data_n = CSR_DEF_VAL_MARCHID; // read-only
+            csr_illegal_instr_exc = we_i|uimm_we_i;
         end
 
         CSR_ADDR_MIMPID: begin
             data_n = CSR_DEF_VAL_MIMPID; // read-only
+            csr_illegal_instr_exc = we_i|uimm_we_i;
         end
 
         CSR_ADDR_MHARTID: begin
             data_n = CSR_DEF_VAL_MHARTID; // read-only
+            csr_illegal_instr_exc = we_i|uimm_we_i;
         end
         
         CSR_ADDR_MSTATUS: begin
