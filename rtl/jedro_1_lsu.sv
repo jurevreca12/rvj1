@@ -254,9 +254,10 @@ always_ff @(posedge clk_i) begin
        data_mem_if.wdata <= 0; 
     end
     else begin
-       data_mem_if.addr <= addr_i;
-       data_mem_if.we <= we & {4{ctrl_valid_i&(~misaligned_store)}};
-       data_mem_if.wdata <= active_write_word; 
+       data_mem_if.addr  <= addr_i;
+       data_mem_if.we    <= we & {4{ctrl_valid_i&(~misaligned_store)}};
+       data_mem_if.wdata <= active_write_word;
+       data_mem_if.stb   <= ctrl_valid_i; 
     end
 end
 
