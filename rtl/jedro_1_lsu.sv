@@ -35,7 +35,8 @@ module jedro_1_lsu
 
   output logic                      misaligned_load_ro,
   output logic                      misaligned_store_ro,
-  output logic [DATA_WIDTH-1:0]     misaligned_addr_ro,
+  output logic                      bus_error_ro,
+  output logic [DATA_WIDTH-1:0]     exception_addr_ro,
 
   // Interface to data RAM
   ram_rw_io.MASTER                  data_mem_if
@@ -56,6 +57,7 @@ logic [LSU_CTRL_WIDTH-1:0] ctrl_save_r;
 logic [31:0]               active_write_word;
 
 logic                      misaligned_load;
+logic                      misaligned_load_hold;
 logic                      misaligned_store;
 
 
@@ -83,26 +85,40 @@ always_comb begin
     end
 end
 
+// Generate signals for the control (csr) unit
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         misaligned_load_ro  <= 1'b0;
         misaligned_store_ro <= 1'b0;
     end
     else begin
-        misaligned_load_ro  <= misaligned_load;
-        misaligned_store_ro <= misaligned_store;
+            misaligned_load_ro  <= misaligned_load;
+            misaligned_store_ro <= misaligned_store;
     end
 end
 
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-        misaligned_addr_ro <= 0;
+        misaligned_load_hold <= 0; 
     end
     else begin
-        if (ctrl_valid_i)   misaligned_addr_ro <= addr_i;
-        else                misaligned_addr_ro <= misaligned_addr_ro;
+        if (ctrl_valid_i) 
+            misaligned_load_hold <= misaligned_load;
+        else              
+            misaligned_load_hold <= misaligned_load_hold;
     end
 end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) begin
+        exception_addr_ro <= 0;
+    end
+    else begin
+        if (ctrl_valid_i)   exception_addr_ro <= addr_i;
+        else                exception_addr_ro <= exception_addr_ro;
+    end
+end
+
 
 /**************************************
 * WRITE ENABLE SIGNAL / INPUT MUXING
@@ -157,6 +173,8 @@ end
 /**************************************
 * CONTROL SAVE
 **************************************/
+// We save the control information so we can
+// use it in later cycles.
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         ctrl_save_r <= 0;
@@ -184,47 +202,14 @@ end
 
 
 /**************************************
-* READ_ENABLE / REGISTER WRITEBACK / BYTE_ADDR
+* BYTE_ADDR
 **************************************/
-always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        ram_start_decode_r <= 1'b0;
-    end
-    else begin
-        if (ctrl_valid_i == 1'b1 && 
-            is_write == 1'b0 && 
-            read_enable == 1'b0 &&
-            misaligned_load == 1'b0) 
-            ram_start_decode_r <= 1'b1;
-        else
-            ram_start_decode_r <= 1'b0;
-    end
-end
-
-always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        read_enable <= 1'b0;
-    end
-    else begin
-        read_enable <= ram_start_decode_r;
-    end
-end
-
-always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-        rf_wb_ro <= 0;
-    end
-    else begin
-        rf_wb_ro <= read_enable;
-    end
-end
-
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         byte_addr_r <= 2'b00;
     end
     else begin
-        if (ctrl_valid_i == 1'b1 && is_write == 1'b0 && read_enable == 1'b0) 
+        if (ctrl_valid_i & (~is_write) ) 
             byte_addr_r <= addr_i[1:0];
         else
             byte_addr_r <= byte_addr_r;
@@ -240,7 +225,7 @@ always_ff @(posedge clk_i) begin
         data_r <= 0;
     end
     else begin
-        if (read_enable == 1'b1)
+        if (data_mem_if.ack)
             data_r <= data_mem_if.rdata;
         else
             data_r <= data_r;
@@ -310,6 +295,19 @@ always_comb begin
     end
 end
 
+
+/**************************************
+* WRITEBACK & BUS ERRORS
+**************************************/
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) rf_wb_ro <= 0;
+    else                rf_wb_ro <= data_mem_if.ack & (~misaligned_load_hold); 
+end
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) bus_error_ro <= 0;
+    else                bus_error_ro <= data_mem_if.err;
+end
 
 endmodule : jedro_1_lsu
 

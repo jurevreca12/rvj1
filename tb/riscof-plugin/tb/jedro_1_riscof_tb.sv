@@ -27,9 +27,10 @@ module jedro_1_riscof_tb();
 
   // Data interface
   ram_rw_io data_mem_if();
-  rams_init_file_rw_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
-                           .MEM_INIT_FILE("out.hex")) data_mem (.clk_i (clk),
-                                                                .ram_if(data_mem_if.SLAVE));
+  bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
+                       .MEM_INIT_FILE("out.hex")) data_mem (.clk_i  (clk),
+                                                            .rstn_i (rstn),
+                                                            .ram_if (data_mem_if.SLAVE));
 
 
   jedro_1_top dut(.clk_i       (clk),
@@ -50,18 +51,18 @@ module jedro_1_riscof_tb();
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
  
-  while (i < TIMEOUT && data_mem.ram_memory.RAM[HALT_COND_CELLNUM] !== 1) begin
+  while (i < TIMEOUT && data_mem.data_ram.RAM[HALT_COND_CELLNUM] !== 1) begin
     @(posedge clk);
     i++;
   end
 
   // get stard and end address of the signature region
-  start_addr = data_mem.ram_memory.RAM[SIG_START_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
-  end_addr   = data_mem.ram_memory.RAM[SIG_END_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
+  start_addr = data_mem.data_ram.RAM[SIG_START_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
+  end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
 
   sig_file = $fopen("dut.signature", "w");
   for (j=start_addr; j < end_addr; j=j+4) begin
-    $fwrite(sig_file, "%h\n", data_mem.ram_memory.RAM[j>>2]);
+    $fwrite(sig_file, "%h\n", data_mem.data_ram.RAM[j>>2]);
   end
   $fclose(sig_file);
   $finish;

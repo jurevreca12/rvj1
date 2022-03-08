@@ -20,8 +20,9 @@ module jedro_1_lb_tb();
 
   // Data interface
   ram_rw_io data_mem_if();
-  bytewrite_ram_wrap data_mem (.clk_i (clk),
-                               .ram_if(data_mem_if.SLAVE));
+  bytewrite_ram_wrap data_mem (.clk_i  (clk),
+                               .rstn_i (rstn),
+                               .ram_if (data_mem_if.SLAVE));
 
 
   jedro_1_top dut(.clk_i       (clk),

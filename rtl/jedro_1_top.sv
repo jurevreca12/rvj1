@@ -266,7 +266,7 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .regdest_ro          (lsu_mux4_regdest),
                      .misaligned_load_ro  (lsu_csr_misaligned_load),
                      .misaligned_store_ro (lsu_csr_misaligned_store),
-                     .misaligned_addr_ro  (lsu_csr_misaligned_addr),
+                     .exception_addr_ro   (lsu_csr_misaligned_addr),
                      .data_mem_if         (data_mem_if)
                     );
 
