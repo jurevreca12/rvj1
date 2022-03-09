@@ -44,6 +44,7 @@ module jedro_1_csr
   // LSU exception iterface
   input logic                   lsu_exception_load_i,
   input logic                   lsu_exception_store_i,
+  input logic                   lsu_exception_bus_err_i,
   input logic [DATA_WIDTH-1:0]  lsu_exception_addr_i,
 
   input logic                   decoder_exc_illegal_instr_i,
@@ -114,10 +115,12 @@ end
 assign is_exception = ifu_exception_i | 
                       lsu_exception_load_i | 
                       lsu_exception_store_i |
+                      lsu_exception_bus_err_i |
                       decoder_exc_illegal_instr_i |
                       decoder_exc_ecall_i |
                       decoder_exc_ebreak_i |
                       csr_illegal_instr_exc;
+
 
 assign is_write = (!is_exception) && (we_i || uimm_we_i);
 
@@ -129,6 +132,7 @@ always_comb begin
     else if (decoder_exc_ebreak_i)        exception_code = CSR_MCAUSE_EBREAK;
     else if (lsu_exception_store_i)       exception_code = CSR_MCAUSE_STORE_ADDR_MISALIGNED;
     else if (lsu_exception_load_i)        exception_code = CSR_MCAUSE_LOAD_ADDR_MISALIGNED;
+    else if (lsu_exception_bus_err_i)     exception_code = CSR_MCAUSE_LOAD_ACCESS_FAULT;
     else                                  exception_code = 'x;
 end
 
@@ -140,6 +144,7 @@ always_comb begin
     else if (decoder_exc_ebreak_i)        exception_mtval = curr_pc_i;
     else if (lsu_exception_store_i)       exception_mtval = lsu_exception_addr_i;
     else if (lsu_exception_load_i)        exception_mtval = lsu_exception_addr_i;
+    else if (lsu_exception_bus_err_i)     exception_mtval = lsu_exception_addr_i;
     else                                  exception_mtval = 'x;
 end
 
@@ -150,6 +155,7 @@ always_comb begin
     else if (decoder_exc_ecall_i)         exception_addr = curr_pc_i;
     else if (decoder_exc_ebreak_i)        exception_addr = curr_pc_i;
     else if (lsu_exception_store_i)       exception_addr = prev_pc_i;
+    else if (lsu_exception_load_i)        exception_addr = prev_pc_i;
     else if (lsu_exception_load_i)        exception_addr = prev_pc_i;
     else                                  exception_addr = 'x;
 end

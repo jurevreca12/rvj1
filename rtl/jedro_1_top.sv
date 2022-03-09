@@ -78,6 +78,7 @@ logic [REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
 logic                       lsu_csr_misaligned_load;
 logic                       lsu_csr_misaligned_store;
 logic [DATA_WIDTH-1:0]      lsu_csr_misaligned_addr;
+logic                       lsu_csr_bus_error;
 logic                       lsu_decoder_read_complete;
 logic [DATA_WIDTH-1:0]      mux4_rf_data;
 logic                       mux4_rf_wb;
@@ -179,27 +180,28 @@ always_ff @(posedge clk_i) begin
     else                decoder_1_mux2_instr_addr <= decoder_mux2_instr_addr;
 end
 
-jedro_1_csr csr_inst (.clk_i                 (clk_i),
-                      .rstn_i                (rstn_i),
-                      .addr_i                (decoder_csr_addr), 
-                      .data_i                (mux2_alu_op_a),
-                      .uimm_data_i           (decoder_csr_uimm),
-                      .uimm_we_i             (decoder_csr_uimm_we),
-                      .data_ro               (csr_decoder_data),
-                      .we_i                  (decoder_csr_we),
-                      .wmode_i               (decoder_csr_wmode),
-                      
-                      .curr_pc_i             (decoder_mux2_instr_addr),
-                      .prev_pc_i             (decoder_1_mux2_instr_addr),
-                      .traphandler_addr_ro   (csr_ifu_mtvec),
-                      .trap_ro               (csr_ifu_trap),
+jedro_1_csr csr_inst (.clk_i                   (clk_i),
+                      .rstn_i                  (rstn_i),
+                      .addr_i                  (decoder_csr_addr), 
+                      .data_i                  (mux2_alu_op_a),
+                      .uimm_data_i             (decoder_csr_uimm),
+                      .uimm_we_i               (decoder_csr_uimm_we),
+                      .data_ro                 (csr_decoder_data),
+                      .we_i                    (decoder_csr_we),
+                      .wmode_i                 (decoder_csr_wmode),
+                       
+                      .curr_pc_i               (decoder_mux2_instr_addr),
+                      .prev_pc_i               (decoder_1_mux2_instr_addr),
+                      .traphandler_addr_ro     (csr_ifu_mtvec),
+                      .trap_ro                 (csr_ifu_trap),
 
-                      .ifu_exception_i       (ifu_csr_exception),
-                      .ifu_mtval_i           (ifu_csr_fault_addr),
+                      .ifu_exception_i         (ifu_csr_exception),
+                      .ifu_mtval_i             (ifu_csr_fault_addr),
     
-                      .lsu_exception_load_i  (lsu_csr_misaligned_load),
-                      .lsu_exception_store_i (lsu_csr_misaligned_store),
-                      .lsu_exception_addr_i  (lsu_csr_misaligned_addr),
+                      .lsu_exception_load_i    (lsu_csr_misaligned_load),
+                      .lsu_exception_store_i   (lsu_csr_misaligned_store),
+                      .lsu_exception_bus_err_i (lsu_csr_bus_error),
+                      .lsu_exception_addr_i    (lsu_csr_misaligned_addr),
 
                       .decoder_exc_illegal_instr_i (decoder_csr_illegal_instr),
                       .decoder_exc_ecall_i         (decoder_csr_ecall),
@@ -268,6 +270,7 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .regdest_ro          (lsu_mux4_regdest),
                      .misaligned_load_ro  (lsu_csr_misaligned_load),
                      .misaligned_store_ro (lsu_csr_misaligned_store),
+                     .bus_error_ro        (lsu_csr_bus_error),
                      .exception_addr_ro   (lsu_csr_misaligned_addr),
                      .data_mem_if         (data_mem_if)
                     );

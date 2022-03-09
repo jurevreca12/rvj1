@@ -18,8 +18,9 @@ module bytewrite_ram_wrap
                                                               .we(ram_if.we[3:0]), 
                                                               .addr(ram_if.addr[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
                                                               .di(ram_if.wdata[ram_if.DATA_WIDTH-1:0]), 
-                                                              .dout(ram_if.rdata[ram_if.DATA_WIDTH-1:0])
-                        );
+                                                              .dout(ram_if.rdata[ram_if.DATA_WIDTH-1:0]));
+
+  assign ram_if.err = 0;
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) ram_if.ack <= 0;

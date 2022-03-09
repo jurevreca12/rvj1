@@ -246,6 +246,7 @@ always_ff @(posedge clk_i) begin
        data_mem_if.addr <= 0;
        data_mem_if.we <= 0;
        data_mem_if.wdata <= 0; 
+       data_mem_if.stb <= 0;
     end
     else begin
        data_mem_if.addr  <= addr_i;
