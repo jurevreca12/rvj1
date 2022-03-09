@@ -53,6 +53,7 @@ module jedro_1_decoder
   output logic                       lsu_ctrl_valid_ro, 
   output logic [LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
   output logic [REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
+  input  logic                       lsu_read_complete_i,
 
   // CSR INTERFACE
   output logic [CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
@@ -113,6 +114,7 @@ logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
 // For generating stalling logic
 logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
+
 // FSM signals
 typedef enum logic [40:0] {eOK, 
                            eSTALL, 
@@ -134,9 +136,7 @@ typedef enum logic [40:0] {eOK,
                            eLSU_STORE,
                            eLSU_LOAD_CALC_ADDR,
                            eLSU_LOAD,
-                           eLSU_LOAD_WAIT_0,
-                           eLSU_LOAD_WAIT_1,
-                           eLSU_LOAD_WAIT_2,
+                           eLSU_LOAD_WAIT,
                            eCSRRW_READ_CSR,
                            eCSRRW_READ_WAIT_0,
                            eCSRRW_READ_WAIT_1,
@@ -399,17 +399,17 @@ begin
             state != eSTALL &&
             state != eLSU_LOAD_CALC_ADDR &&
             state != eLSU_LOAD &&
-            state != eLSU_LOAD_WAIT_0 &&
-            state != eLSU_LOAD_WAIT_1) begin
+            state != eLSU_LOAD_WAIT) begin
             next             = eSTALL;
             alu_op_a_w       = 1'b0;
             imm_ext_w        = 0;
             ready_w          = 1'b0;
         end
-        else if(state != eLSU_LOAD_CALC_ADDR &&
-                state != eLSU_LOAD &&
-                state != eLSU_LOAD_WAIT_0 &&
-                state != eLSU_LOAD_WAIT_1) begin
+        else if((state != eLSU_LOAD_CALC_ADDR &&
+                 state != eLSU_LOAD &&
+                 state != eLSU_LOAD_WAIT) ||
+                 (state == eLSU_LOAD_WAIT && // Condition for when we have 2 consequtive load ops
+                  ready_ro && instr_valid_i)) begin
             next             = eLSU_LOAD_CALC_ADDR;
             alu_op_a_w       = 1'b1;
             imm_ext_w        = I_imm_sign_extended_w;
@@ -422,23 +422,11 @@ begin
             lsu_ctrl_valid_w = 1'b1;
             ready_w          = 1'b0;
         end
-        else if (state == eLSU_LOAD) begin
-            next             = eLSU_LOAD_WAIT_0;
-            alu_op_a_w       = 1'b0;
-            imm_ext_w        = 0;
-            ready_w          = 1'b0;
-        end
-        else if (state == eLSU_LOAD_WAIT_0) begin
-            next             = eLSU_LOAD_WAIT_1;
-            alu_op_a_w       = 1'b0;
-            imm_ext_w        = 0;
-            ready_w          = 1'b0;
-        end
         else begin
-            next             = eLSU_LOAD_WAIT_2;
+            next             = eLSU_LOAD_WAIT;
             alu_op_a_w       = 1'b0;
             imm_ext_w        = 0;
-            ready_w          = 1'b1;
+            ready_w          = lsu_read_complete_i;
         end
     end
 

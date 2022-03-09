@@ -78,6 +78,7 @@ logic [REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
 logic                       lsu_csr_misaligned_load;
 logic                       lsu_csr_misaligned_store;
 logic [DATA_WIDTH-1:0]      lsu_csr_misaligned_addr;
+logic                       lsu_decoder_read_complete;
 logic [DATA_WIDTH-1:0]      mux4_rf_data;
 logic                       mux4_rf_wb;
 logic [REG_ADDR_WIDTH-1:0]  mux4_rf_dest_addr;
@@ -142,6 +143,7 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
                              .lsu_ctrl_valid_ro    (decoder_lsu_ctrl_valid), 
                              .lsu_ctrl_ro          (decoder_lsu_ctrl),
                              .lsu_regdest_ro       (decoder_lsu_regdest),
+                             .lsu_read_complete_i  (lsu_mux4_wb),
                              .csr_addr_ro          (decoder_csr_addr),
                              .csr_we_ro            (decoder_csr_we),
                              .csr_data_i           (csr_decoder_data),

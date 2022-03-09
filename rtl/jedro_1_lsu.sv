@@ -21,12 +21,12 @@ module jedro_1_lsu
   input logic clk_i,
   input logic rstn_i,
   
-  // Inputs from the decoder/ALU
-  input logic                       ctrl_valid_i,
-  input logic  [LSU_CTRL_WIDTH-1:0] ctrl_i,
-  input logic  [DATA_WIDTH-1:0]     addr_i,        // Address of the memory to ready/write.
-  input logic  [DATA_WIDTH-1:0]     wdata_i,       // The data to write to memory.
-  input  logic [REG_ADDR_WIDTH-1:0] regdest_i,     // Writeback to which register?
+  // Interface to/from the decoder/ALU
+  input  logic                       ctrl_valid_i,
+  input  logic  [LSU_CTRL_WIDTH-1:0] ctrl_i,
+  input  logic  [DATA_WIDTH-1:0]     addr_i,           // Address of the memory to ready/write.
+  input  logic  [DATA_WIDTH-1:0]     wdata_i,          // The data to write to memory.
+  input  logic  [REG_ADDR_WIDTH-1:0] regdest_i,        // Writeback to which register?
  
   // Interface to the register file
   output logic [DATA_WIDTH-1:0]     rdata_ro,       // Goes to the register file.
@@ -124,9 +124,18 @@ end
 * WRITE ENABLE SIGNAL / INPUT MUXING
 **************************************/
 logic is_write; // Is the current ctrl input a write
+logic is_write_hold;
 logic [DATA_WIDTH/8 - 1:0] we; // write enable signal
 
 assign is_write = ctrl_i[LSU_CTRL_WIDTH-1];
+
+always_ff @(posedge clk_i) begin
+    if (rstn_i == 1'b0) is_write_hold <= 0; 
+    else begin
+        if (ctrl_valid_i) is_write_hold <= is_write;
+        else              is_write_hold <= is_write_hold;
+    end
+end
 
 always_comb begin
     active_write_word = 0;
@@ -225,7 +234,7 @@ always_ff @(posedge clk_i) begin
         data_r <= 0;
     end
     else begin
-        if (data_mem_if.ack)
+        if (data_mem_if.ack & (~is_write_hold))
             data_r <= data_mem_if.rdata;
         else
             data_r <= data_r;
@@ -301,13 +310,14 @@ end
 **************************************/
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) rf_wb_ro <= 0;
-    else                rf_wb_ro <= data_mem_if.ack & (~misaligned_load_hold); 
+    else                rf_wb_ro <= data_mem_if.ack & (~is_write_hold) & (~misaligned_load_hold); 
 end
 
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) bus_error_ro <= 0;
     else                bus_error_ro <= data_mem_if.err;
 end
+
 
 endmodule : jedro_1_lsu
 
