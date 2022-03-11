@@ -13,7 +13,9 @@
   
 import jedro_1_defines::*;
 
-module jedro_1_top
+module jedro_1_top #(
+    parameter JEDRO_1_BOOT_ADDR = `JEDRO_1_BOOT_ADDR
+)
 (
   input logic clk_i,
   input logic rstn_i,

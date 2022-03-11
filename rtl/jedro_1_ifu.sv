@@ -35,7 +35,9 @@
 
 import jedro_1_defines::*;
 
-module jedro_1_ifu 
+module jedro_1_ifu #(
+    parameter BOOT_ADDR = 32'h8000_0000
+) 
 (
   input logic clk_i,
   input logic rstn_i,
