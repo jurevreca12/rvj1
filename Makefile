@@ -1,6 +1,6 @@
-.PHONY: all doc vivado lint clean test 
+.PHONY: all doc vivado lint-verilator clean test 
 
-all: lint test vivado doc
+all: lint-verilator test vivado doc
 
 doc:
 	cd docs && $(MAKE)
@@ -8,9 +8,9 @@ doc:
 vivado:
 	cd impl && $(MAKE) vivado
 
-lint:
-	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.v \
-											./rtl/*.v \
+lint-verilator:
+	verilator -I./rtl/inc/ -lint-only -Wall ./rtl/inc/jedro_1_defines.sv \
+											./rtl/*.sv \
 											./rtl/alu/adder/*.v \
 											./rtl/alu/compare/*.v \
 											./rtl/alu/shift/*.v \

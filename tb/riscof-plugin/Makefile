@@ -7,5 +7,5 @@ riscof_work:
 
 clean:
 	rm -rf riscof_work/
-    
+	cd tb && $(MAKE) clean
     
