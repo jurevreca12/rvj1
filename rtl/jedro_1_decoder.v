@@ -11,164 +11,165 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+`include "jedro_1_defines.v"
 
 module jedro_1_decoder
 (
-  input logic clk_i,
-  input logic rstn_i,
+  input wire clk_i,
+  input wire rstn_i,
 
   // IFU INTERFACE
-  input  logic [DATA_WIDTH-1:0] instr_i,        // Instructions coming in from memory/cache
-  input  logic [DATA_WIDTH-1:0] instr_addr_i,
-  output logic [DATA_WIDTH-1:0] instr_addr_ro,
-  input  logic                  instr_valid_i,
-  output logic                  use_pc_ro,
-  output logic                  ready_ro,       // Ready for instructions.
-  output logic                  jmp_instr_ro,
-  output logic [DATA_WIDTH-1:0] jmp_addr_ro,
-  output logic                  use_alu_jmp_addr_ro,
+  input  wire [`DATA_WIDTH-1:0] instr_i,        // Instructions coming in from memory/cache
+  input  wire [`DATA_WIDTH-1:0] instr_addr_i,
+  output reg  [`DATA_WIDTH-1:0] instr_addr_ro,
+  input  wire                  instr_valid_i,
+  output reg                   use_pc_ro,
+  output reg                   ready_ro,       // Ready for instructions.
+  output reg                   jmp_instr_ro,
+  output reg  [`DATA_WIDTH-1:0] jmp_addr_ro,
+  output reg                   use_alu_jmp_addr_ro,
 
   // CONTROL UNIT INTERFACE
-  output logic illegal_instr_ro, // Illegal instruction encountered.
-  output logic ecall_ro,         // ecall instruction encountered
-  output logic ebreak_ro,        // ebreak instruction encountered
+  output reg illegal_instr_ro, // Illegal instruction encountered.
+  output reg ecall_ro,         // ecall instruction encountered
+  output reg ebreak_ro,        // ebreak instruction encountered
 
   // ALU INTERFACE
-  output logic                       is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
-  output logic [ALU_OP_WIDTH-1:0]    alu_sel_ro,         // Select operation that ALU should perform.
-  output logic [REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
-  output logic                       alu_wb_ro,          // Writeback to the register?
-  input  logic [DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
-  input  logic                       alu_ops_eq_i,
+  output reg                        is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
+  output reg  [`ALU_OP_WIDTH-1:0]    alu_sel_ro,         // Select operation that ALU should perform.
+  output reg  [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
+  output reg                        alu_wb_ro,          // Writeback to the register?
+  input  wire [`DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
+  input  wire                       alu_ops_eq_i,
   
   // REGISTER FILE INTERFACE  
-  output logic [REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
-  output logic [REG_ADDR_WIDTH-1:0]  rf_addr_b_ro,
+  output reg  [`REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
+  output reg  [`REG_ADDR_WIDTH-1:0]  rf_addr_b_ro,
   
-  output logic                       is_imm_ro,   // Does the operation contain a immediate value?
-  output logic [DATA_WIDTH-1:0]      imm_ext_ro,  // Sign extended immediate.
+  output reg                        is_imm_ro,   // Does the operation contain a immediate value?
+  output reg  [`DATA_WIDTH-1:0]      imm_ext_ro,  // Sign extended immediate.
 
   // LSU INTERFACE
-  output logic                       lsu_ctrl_valid_ro, 
-  output logic [LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
-  output logic [REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
-  input  logic                       lsu_read_complete_i,
+  output reg                        lsu_ctrl_valid_ro, 
+  output reg  [`LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
+  output reg  [`REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
+  input  wire                       lsu_read_complete_i,
 
   // CSR INTERFACE
-  output logic [CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
-  output logic                       csr_we_ro,
-  input  logic [DATA_WIDTH-1:0]      csr_data_i,
-  output logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
-  output logic                       csr_uimm_we_ro,
-  output logic [CSR_WMODE_WIDTH-1:0] csr_wmode_ro,
-  output logic                       csr_mret_ro
+  output reg  [`CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
+  output reg                        csr_we_ro,
+  input  wire [`DATA_WIDTH-1:0]      csr_data_i,
+  output reg  [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
+  output reg                        csr_uimm_we_ro,
+  output reg  [`CSR_WMODE_WIDTH-1:0] csr_wmode_ro,
+  output reg                        csr_mret_ro
 );
 
 /*************************************
 * INTERNAL SIGNAL DEFINITION
 *************************************/
-logic                      use_alu_jmp_addr_w;
-logic                      use_pc_w;
-logic                      is_alu_write_w;
-logic [ALU_OP_WIDTH-1:0]   alu_sel_w;
-logic                      alu_op_a_w;
-logic                      alu_op_b_w;
-logic [REG_ADDR_WIDTH-1:0] alu_dest_addr_w;
-logic                      alu_wb_w;
+reg                        use_alu_jmp_addr_w;
+reg                        use_pc_w;
+reg                        is_alu_write_w;
+reg [`ALU_OP_WIDTH-1:0]    alu_sel_w;
+reg                        alu_op_a_w;
+reg                        alu_op_b_w;
+reg [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_w;
+reg                        alu_wb_w;
 
-logic                      illegal_instr_w;
-logic                      ecall_w;
-logic                      ebreak_w;
+reg                        illegal_instr_w;
+reg                        ecall_w;
+reg                        ebreak_w;
 
-logic [REG_ADDR_WIDTH-1:0] rf_addr_a_w;
-logic [REG_ADDR_WIDTH-1:0] rf_addr_b_w;
+reg [`REG_ADDR_WIDTH-1:0]  rf_addr_a_w;
+reg [`REG_ADDR_WIDTH-1:0]  rf_addr_b_w;
 
-logic [DATA_WIDTH-1:0]     imm_ext_w;
+reg [`DATA_WIDTH-1:0]      imm_ext_w;
 
-logic                      lsu_ctrl_valid_w;
-logic [3:0]                lsu_ctrl_w;
-logic [REG_ADDR_WIDTH-1:0] lsu_regdest_w;
+reg                        lsu_ctrl_valid_w;
+reg [3:0]                  lsu_ctrl_w;
+reg [`REG_ADDR_WIDTH-1:0]  lsu_regdest_w;
 
-logic                      ready_w;
-logic                      jmp_instr_w;
-logic [DATA_WIDTH-1:0]     jmp_addr_w;
+reg                        ready_w;
+reg                        jmp_instr_w;
+reg [`DATA_WIDTH-1:0]      jmp_addr_w;
 
-logic [CSR_ADDR_WIDTH-1:0]  csr_addr_w;
-logic                       csr_we_w;
-logic [DATA_WIDTH-1:0]      csr_temp_r;
-logic [CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
-logic                       csr_uimm_we_w;
-logic [CSR_WMODE_WIDTH-1:0] csr_wmode_w;
-logic                       csr_mret_w;
+reg [`CSR_ADDR_WIDTH-1:0]  csr_addr_w;
+reg                        csr_we_w;
+reg [`DATA_WIDTH-1:0]      csr_temp_r;
+reg [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
+reg                        csr_uimm_we_w;
+reg [`CSR_WMODE_WIDTH-1:0] csr_wmode_w;
+reg                        csr_mret_w;
 
-logic [DATA_WIDTH-1:0]      jmp_addr_save_r;
+reg [`DATA_WIDTH-1:0]      jmp_addr_save_r;
 
 // Other signal definitions
-logic [DATA_WIDTH-1:0] I_imm_sign_extended_w;
-logic [DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
-logic [DATA_WIDTH-1:0] J_imm_sign_extended_w;
-logic [DATA_WIDTH-1:0] B_imm_sign_extended_w;
-logic [DATA_WIDTH-1:0] S_imm_sign_extended_w;
+wire [`DATA_WIDTH-1:0] I_imm_sign_extended_w;
+wire [`DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
+wire [`DATA_WIDTH-1:0] J_imm_sign_extended_w;
+wire [`DATA_WIDTH-1:0] B_imm_sign_extended_w;
+wire [`DATA_WIDTH-1:0] S_imm_sign_extended_w;
 
 // For generating stalling logic
-logic [REG_ADDR_WIDTH-1:0] prev_dest_addr;
+reg [`REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 
 // FSM signals
-typedef enum logic [40:0] {eOK, 
-                           eSTALL, 
-                           eJAL_JMP_ADDR_CALC,
-                           eJAL_WAIT_1,
-                           eJAL_WRITE_RF_JMP,
-                           eJAL_WAIT_2,
-                           eJALR_JMP_ADDR_CALC,
-                           eJALR_WAIT_1,
-                           eJALR_PC_CALC,
-                           eJALR_JMP,
-                           eJALR_WAIT_2,
-                           eBRANCH_CALC_COND,
-                           eBRANCH_CALC_ADDR,
-                           eBRANCH_STALL,
-                           eBRANCH_JUMP,
-                           eBRANCH_STALL_2,
-                           eLSU_CALC_ADDR,
-                           eLSU_STORE,
-                           eLSU_LOAD_CALC_ADDR,
-                           eLSU_LOAD,
-                           eLSU_LOAD_WAIT,
-                           eCSRRW_READ_CSR,
-                           eCSRRW_READ_WAIT_0,
-                           eCSRRW_READ_WAIT_1,
-                           eCSRRW_WRITE_CSR,
-                           eCSRRW_WRITE_RF,
-                           eCSRRSC_READ_CSR,
-                           eCSRRSC_READ_WAIT_0,
-                           eCSRRSC_READ_WAIT_1,
-                           eCSRRSC_WRITE_CSR,
-                           eCSRRSC_WRITE_RF,
-                           eMRET,
-                           eMRET_WAIT,
-                           eCALL_SET_ADDR,
-                           eCALL,
-                           eCALL_WAIT,
-                           eBREAK_SET_ADDR,
-                           eBREAK,
-                           eBREAK_WAIT,
-                           eERROR,
-                           eINSTR_NOT_VALID} fsmState_t; 
-fsmState_t next, state;
+localparam eOK                 = 41'b00000000000000000000000000000000000000001; 
+localparam eSTALL              = 41'b00000000000000000000000000000000000000010;
+localparam eJAL_JMP_ADDR_CALC  = 41'b00000000000000000000000000000000000000100;
+localparam eJAL_WAIT_1         = 41'b00000000000000000000000000000000000001000;
+localparam eJAL_WRITE_RF_JMP   = 41'b00000000000000000000000000000000000010000;
+localparam eJAL_WAIT_2         = 41'b00000000000000000000000000000000000100000;
+localparam eJALR_JMP_ADDR_CALC = 41'b00000000000000000000000000000000001000000;
+localparam eJALR_WAIT_1        = 41'b00000000000000000000000000000000010000000;
+localparam eJALR_PC_CALC       = 41'b00000000000000000000000000000000100000000;
+localparam eJALR_JMP           = 41'b00000000000000000000000000000001000000000;
+localparam eJALR_WAIT_2        = 41'b00000000000000000000000000000010000000000;
+localparam eBRANCH_CALC_COND   = 41'b00000000000000000000000000000100000000000;
+localparam eBRANCH_CALC_ADDR   = 41'b00000000000000000000000000001000000000000;
+localparam eBRANCH_STALL       = 41'b00000000000000000000000000010000000000000;
+localparam eBRANCH_JUMP        = 41'b00000000000000000000000000100000000000000;
+localparam eBRANCH_STALL_2     = 41'b00000000000000000000000001000000000000000;
+localparam eLSU_CALC_ADDR      = 41'b00000000000000000000000010000000000000000;
+localparam eLSU_STORE          = 41'b00000000000000000000000100000000000000000;
+localparam eLSU_LOAD_CALC_ADDR = 41'b00000000000000000000001000000000000000000;
+localparam eLSU_LOAD           = 41'b00000000000000000000010000000000000000000;
+localparam eLSU_LOAD_WAIT      = 41'b00000000000000000000100000000000000000000;
+localparam eCSRRW_READ_CSR     = 41'b00000000000000000001000000000000000000000;
+localparam eCSRRW_READ_WAIT_0  = 41'b00000000000000000010000000000000000000000;
+localparam eCSRRW_READ_WAIT_1  = 41'b00000000000000000100000000000000000000000;
+localparam eCSRRW_WRITE_CSR    = 41'b00000000000000001000000000000000000000000;
+localparam eCSRRW_WRITE_RF     = 41'b00000000000000010000000000000000000000000;
+localparam eCSRRSC_READ_CSR    = 41'b00000000000000100000000000000000000000000;
+localparam eCSRRSC_READ_WAIT_0 = 41'b00000000000001000000000000000000000000000;
+localparam eCSRRSC_READ_WAIT_1 = 41'b00000000000010000000000000000000000000000;
+localparam eCSRRSC_WRITE_CSR   = 41'b00000000000100000000000000000000000000000;
+localparam eCSRRSC_WRITE_RF    = 41'b00000000001000000000000000000000000000000;
+localparam eMRET               = 41'b00000000010000000000000000000000000000000;
+localparam eMRET_WAIT          = 41'b00000000100000000000000000000000000000000;
+localparam eCALL_SET_ADDR      = 41'b00000001000000000000000000000000000000000;
+localparam eCALL               = 41'b00000010000000000000000000000000000000000;
+localparam eCALL_WAIT          = 41'b00000100000000000000000000000000000000000;
+localparam eBREAK_SET_ADDR     = 41'b00001000000000000000000000000000000000000;
+localparam eBREAK              = 41'b00010000000000000000000000000000000000000;
+localparam eBREAK_WAIT         = 41'b00100000000000000000000000000000000000000;
+localparam eERROR              = 41'b01000000000000000000000000000000000000000;
+localparam eINSTR_NOT_VALID    = 41'b10000000000000000000000000000000000000000;
+
+reg  [40:0] state, next;
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
-logic [6:0]   opcode; 
-logic [11:7]  regdest;  
-logic [11:7]  imm4_0; 
-logic [31:12] imm31_12; // U-type immediate 
-logic [31:20] imm11_0; // I-type immediate
-logic [14:12] funct3;
-logic [19:15] regs1;
-logic [24:20] regs2;
-logic [31:25] funct7;
+wire [6:0]   opcode; 
+wire [11:7]  regdest;  
+wire [11:7]  imm4_0; 
+wire [31:12] imm31_12; // U-type immediate 
+wire [31:20] imm11_0; // I-type immediate
+wire [14:12] funct3;
+wire [19:15] regs1;
+wire [24:20] regs2;
+wire [31:25] funct7;
 
 
 /*************************************
@@ -188,7 +189,7 @@ assign funct7   = instr_i[31:25];
 /*************************************
 * BUFFER INSTR ADDR
 *************************************/
-always_ff @(posedge clk_i) begin
+always @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         instr_addr_ro <= 32'b0;
     end
@@ -201,7 +202,7 @@ end
 /*************************************
 * FSM UPDATE
 *************************************/
-always_ff@(posedge clk_i) begin
+always@(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         state <= eOK;
     end
@@ -215,12 +216,12 @@ end
 * PREVIOUS DESTINATION SAVING
 *************************************/
 // We save the previous destination register address to see if we need to generate stalls.
-always_ff@(posedge clk_i) begin
+always@(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         prev_dest_addr <= 5'b00000;
     end
     else begin
-       if (opcode == OPCODE_BRANCH) begin
+       if (opcode == `OPCODE_BRANCH) begin
             prev_dest_addr <= 5'b00000;
         end
         else begin
@@ -233,7 +234,7 @@ end
 /*************************************
 * SAVING THE CALCULATED JUMP ADDRESS
 *************************************/
-always_ff @(posedge clk_i) begin
+always @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         jmp_addr_save_r <= 0;
     end
@@ -251,13 +252,13 @@ end
 * SIGN EXTENDERS
 *************************************/
 // For the I instruction type immediate
-sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_I_inst (.in_i(imm11_0),
+sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_I_inst (.in_i(imm11_0),
                                                               .out_o(I_imm_sign_extended_w));
 // Used in shift instructions
-sign_extender #(.N(DATA_WIDTH), .M(5))  sign_extender_I_shift_inst(.in_i(imm11_0[24:20]),
+sign_extender #(.N(`DATA_WIDTH), .M(5))  sign_extender_I_shift_inst(.in_i(imm11_0[24:20]),
                                                                   .out_o(I_shift_imm_sign_extended_w));
 // For the J instruction type immediate
-sign_extender #(.N(DATA_WIDTH), .M(21)) sign_extender_J_inst (.in_i({instr_i[31], 
+sign_extender #(.N(`DATA_WIDTH), .M(21)) sign_extender_J_inst (.in_i({instr_i[31], 
                                                                      instr_i[19:12], 
                                                                      instr_i[20], 
                                                                      instr_i[30:21], 
@@ -266,7 +267,7 @@ sign_extender #(.N(DATA_WIDTH), .M(21)) sign_extender_J_inst (.in_i({instr_i[31]
                                                              );
 
 // For the B instruction type immediate
-sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_B_inst (.in_i({instr_i[31], 
+sign_extender #(.N(`DATA_WIDTH), .M(13)) sign_extender_B_inst (.in_i({instr_i[31], 
                                                                      instr_i[7], 
                                                                      instr_i[30:25], 
                                                                      instr_i[11:8], 
@@ -274,7 +275,7 @@ sign_extender #(.N(DATA_WIDTH), .M(13)) sign_extender_B_inst (.in_i({instr_i[31]
                                                               .out_o(B_imm_sign_extended_w));
 
 // For the S instruction type immediate
-sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_S_inst (.in_i({instr_i[31:25], 
+sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_S_inst (.in_i({instr_i[31:25], 
                                                                      instr_i[11:7]}),
                                                               .out_o(S_imm_sign_extended_w));
 
@@ -282,7 +283,7 @@ sign_extender #(.N(DATA_WIDTH), .M(12)) sign_extender_S_inst (.in_i({instr_i[31:
 /*************************************
 * CSR temporary register reading logic
 *************************************/
-always_ff @(posedge clk_i) begin
+always @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         csr_temp_r <= 0;
     end
@@ -297,7 +298,7 @@ end
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
-always_ff@(posedge clk_i) begin
+always@(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     use_alu_jmp_addr_ro <= 0;
     use_pc_ro <= 0;
@@ -358,7 +359,7 @@ end
 /*************************************
 * DECODER - COMBINATIONAL LOGIC
 *************************************/
-always_comb
+always@(*)
 begin 
   use_alu_jmp_addr_w  = 1'b0;
   use_pc_w            = 1'b0;
@@ -384,13 +385,13 @@ begin
   csr_we_w            = 0;
   csr_uimm_data_w     = 0;
   csr_uimm_we_w       = 0;
-  csr_wmode_w         = CSR_WMODE_NORMAL;
+  csr_wmode_w         = `CSR_WMODE_NORMAL;
   csr_mret_w          = 0;
   next                = eERROR;
 
-  unique casez ({instr_valid_i, opcode})
-    {1'b1, OPCODE_LOAD}: begin
-        alu_sel_w          = ALU_OP_ADD;
+  casez ({instr_valid_i, opcode})
+    {1'b1, `OPCODE_LOAD}: begin
+        alu_sel_w          = `ALU_OP_ADD;
         rf_addr_a_w        = regs1;
         lsu_ctrl_w         = {opcode[5], funct3};
         lsu_regdest_w      = regdest;
@@ -430,17 +431,17 @@ begin
         end
     end
 
-    {1'b1, OPCODE_MISCMEM}: begin 
+    {1'b1, `OPCODE_MISCMEM}: begin 
         next = eOK;
         ready_w = 1'b1;
     end
 
-    {1'b1, OPCODE_OPIMM}: begin
+    {1'b1, `OPCODE_OPIMM}: begin
         is_alu_write_w     = 1'b1;
         alu_op_a_w         = 1'b1;
         alu_dest_addr_w    = regdest;
         rf_addr_a_w        = regs1;
-        if (funct3 == FUNCT3_SHIFT_INSTR && 
+        if (funct3 == `FUNCT3_SHIFT_INSTR && 
            (imm11_0[31:25] == 0 || imm11_0[31:25] == 7'b0100000)) begin
             imm_ext_w = I_shift_imm_sign_extended_w;
             alu_sel_w = {instr_i[30], funct3};
@@ -461,10 +462,10 @@ begin
         end
     end
 
-    {1'b1, OPCODE_AUIPC}: begin
+    {1'b1, `OPCODE_AUIPC}: begin
         use_pc_w           = 1'b1;
         is_alu_write_w     = 1'b1;
-        alu_sel_w          = ALU_OP_ADD;
+        alu_sel_w          = `ALU_OP_ADD;
         alu_op_a_w         = 1'b1;
         alu_dest_addr_w    = regdest;
         alu_wb_w           = 1'b1; 
@@ -473,8 +474,8 @@ begin
         next               = eOK;
     end
 
-    {1'b1, OPCODE_STORE}: begin
-        alu_sel_w          = ALU_OP_ADD;
+    {1'b1, `OPCODE_STORE}: begin
+        alu_sel_w          = `ALU_OP_ADD;
         rf_addr_a_w        = regs1;
         rf_addr_b_w        = regs2;
         if (((regs1 == prev_dest_addr && regs1 != 0) ||
@@ -509,7 +510,7 @@ begin
         end
     end
     
-    {1'b1, OPCODE_OP}: begin
+    {1'b1, `OPCODE_OP}: begin
         is_alu_write_w     = 1'b1;
         alu_sel_w          = {instr_i[30], funct3};
         alu_op_a_w         = 1'b1;
@@ -531,9 +532,9 @@ begin
         end
     end
 
-    {1'b1, OPCODE_LUI}: begin
+    {1'b1, `OPCODE_LUI}: begin
         is_alu_write_w     = 1'b1;
-        alu_sel_w          = ALU_OP_ADD;
+        alu_sel_w          = `ALU_OP_ADD;
         alu_op_a_w         = 1'b1;
         alu_dest_addr_w    = regdest;
         alu_wb_w           = 1'b1; 
@@ -542,7 +543,7 @@ begin
         next               = eOK;
     end
 
-    {1'b1, OPCODE_BRANCH}: begin
+    {1'b1, `OPCODE_BRANCH}: begin
         // First cycle of all branch instructions calcules the condition, 
         // the second cycle calculates the jump address, the third cycle
         // stalls and finally if the condition holds, the fourth cycle jumps
@@ -591,7 +592,7 @@ begin
         else if (state == eBRANCH_CALC_COND) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b1;
-            alu_sel_w          = ALU_OP_ADD;
+            alu_sel_w          = `ALU_OP_ADD;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
             rf_addr_a_w        = regs1;
@@ -603,7 +604,7 @@ begin
         else if (state == eBRANCH_CALC_ADDR) begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b1;
-            alu_sel_w          = ALU_OP_ADD;
+            alu_sel_w          = `ALU_OP_ADD;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
             rf_addr_a_w        = regs1;
@@ -646,13 +647,13 @@ begin
         end
     end
 
-    {1'b1, OPCODE_JALR}: begin
+    {1'b1, `OPCODE_JALR}: begin
         // First cycle of JALR instr calculates pc+4 and stores it to rd,
         // in the next cycle the offset is calculated. This way stalls are
         // impossible, as we only use regs1 in the second cycle (instr can
         // be delayed at most 1 cycle). The third cycle takes the jump.
         is_alu_write_w     = 1'b1;
-        alu_sel_w          = ALU_OP_ADD;
+        alu_sel_w          = `ALU_OP_ADD;
         if ((regs1 == prev_dest_addr && regs1 != 0) &&
              state != eJALR_JMP_ADDR_CALC &&
              state != eJALR_WAIT_1 &&
@@ -715,9 +716,9 @@ begin
         end
     end
 
-    {1'b1, OPCODE_JAL}: begin
+    {1'b1, `OPCODE_JAL}: begin
         is_alu_write_w     = 1'b1;
-        alu_sel_w          = ALU_OP_ADD;
+        alu_sel_w          = `ALU_OP_ADD;
         use_pc_w           = 1'b1;
         if (state != eJAL_JMP_ADDR_CALC &&
             state != eJAL_WAIT_1 &&
@@ -747,10 +748,10 @@ begin
         end
     end
 
-    {1'b1, OPCODE_SYSTEM}: begin
+    {1'b1, `OPCODE_SYSTEM}: begin
         if (funct3 != 3'b000) begin // CSR INSTRUCTIONS
-            if (funct3 == CSRRW_INSTR_FUNCT3  |
-                funct3 == CSRRWI_INSTR_FUNCT3) begin // CSRRW and CSRRWI instructions
+            if (funct3 == `CSRRW_INSTR_FUNCT3  |
+                funct3 == `CSRRWI_INSTR_FUNCT3) begin // CSRRW and CSRRWI instructions
                 csr_addr_w = {20'b0, imm11_0};
                 if (state != eCSRRW_READ_CSR &&
                     state != eCSRRW_READ_WAIT_0 &&
@@ -776,7 +777,7 @@ begin
                 end
                 else if (state == eCSRRW_READ_WAIT_1 ||
                          regdest == 5'b00000) begin
-                    if (funct3 == CSRRW_INSTR_FUNCT3) begin
+                    if (funct3 == `CSRRW_INSTR_FUNCT3) begin
                         rf_addr_a_w = regs1;
                         alu_op_a_w = 1'b1;
                         csr_we_w   = 1'b1;
@@ -795,7 +796,7 @@ begin
                     alu_op_a_w  = 1'b1;
                     rf_addr_a_w = 5'b00000;                                   
                     is_alu_write_w  = 1'b1;
-                    alu_sel_w       = ALU_OP_ADD;
+                    alu_sel_w       = `ALU_OP_ADD;
                     alu_dest_addr_w = regdest;
                     alu_wb_w        = 1'b1;
                     imm_ext_w       = csr_temp_r;
@@ -824,9 +825,9 @@ begin
                 else if (state == eCSRRSC_READ_WAIT_1 &&
                          regs1 != 5'b00000) begin
                     if (funct3[12] == 1'b0)
-                        csr_wmode_w = CSR_WMODE_SET_BITS;
+                        csr_wmode_w = `CSR_WMODE_SET_BITS;
                     else
-                        csr_wmode_w = CSR_WMODE_CLEAR_BITS;
+                        csr_wmode_w = `CSR_WMODE_CLEAR_BITS;
                     
                     if (funct3[14] == 1'b0) begin // register form
                         alu_op_a_w = 1'b1;
@@ -844,7 +845,7 @@ begin
                     alu_op_a_w  = 1'b1;
                     rf_addr_a_w = 5'b00000;
                     is_alu_write_w  = 1'b1;
-                    alu_sel_w       = ALU_OP_ADD;
+                    alu_sel_w       = `ALU_OP_ADD;
                     alu_dest_addr_w = regdest;
                     alu_wb_w        = 1'b1;
                     imm_ext_w       = csr_temp_r;
@@ -854,7 +855,7 @@ begin
             end
         end
         else begin // Other instructions
-            if (instr_i == MRET_INSTR) begin
+            if (instr_i == `MRET_INSTR) begin
                 if (state != eMRET && state != eMRET_WAIT) begin
                     csr_mret_w = 1'b1;
                     ready_w    = 1'b0;
@@ -866,7 +867,7 @@ begin
                     next       = eMRET_WAIT;
                 end
             end
-            else if (instr_i == ECALL_INSTR) begin
+            else if (instr_i == `ECALL_INSTR) begin
                 if (state != eCALL_SET_ADDR &&
                     state != eCALL &&
                     state != eCALL_WAIT) begin
@@ -883,7 +884,7 @@ begin
                     next    = eCALL_WAIT;
                 end
             end
-            else if (instr_i == EBREAK_INSTR) begin
+            else if (instr_i == `EBREAK_INSTR) begin
                 if (state != eBREAK_SET_ADDR &&
                     state != eBREAK &&
                     state != eBREAK_WAIT) begin
@@ -900,7 +901,7 @@ begin
                     next = eBREAK_WAIT;
                 end
             end
-            else if (instr_i == WFI_INSTR) begin
+            else if (instr_i == `WFI_INSTR) begin
                 ready_w = 1'b1;
                 next = eOK;
             end

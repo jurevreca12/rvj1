@@ -4,6 +4,7 @@
 
 module rams_init_file #(
     parameter MEM_INIT_FILE="",
+    parameter INIT_FILE_BIN=1,
     parameter MEM_SIZE=2**12) (clk, we, addr, din, dout);
 
 input clk;
@@ -17,12 +18,9 @@ reg [31:0] ram [0:MEM_SIZE];
 reg [31:0] dout;
 
 integer flen;
-string file;
 initial begin
     if (MEM_INIT_FILE != "") begin
-        file = MEM_INIT_FILE;
-        flen = file.len();
-        if (file.substr(flen-4, flen-1) == ".mem") begin
+        if (INIT_FILE_BIN==1) begin
             $readmemb(MEM_INIT_FILE, ram);
         end
         else begin

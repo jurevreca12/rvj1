@@ -11,6 +11,7 @@
 module bytewrite_ram_1b (clk, we, addr, di, dout);
 
 parameter MEM_INIT_FILE="";
+parameter INIT_FILE_BIN=1;
 parameter SIZE = 2**12; 
 parameter ADDR_WIDTH = $clog2(SIZE*4); 
 parameter COL_WIDTH = 8; 
@@ -25,17 +26,10 @@ output reg [NB_COL*COL_WIDTH-1:0] dout;
 reg [NB_COL*COL_WIDTH-1:0] RAM [SIZE-1:0];
 
 integer flen;
-string file;
 initial begin
     if (MEM_INIT_FILE != "") begin
-        file = MEM_INIT_FILE;
-        flen = file.len();
-        if(file.substr(flen-4,flen-1) == ".mem") begin
-            $readmemb(MEM_INIT_FILE, RAM);
-        end
-        else begin
-            $readmemh(MEM_INIT_FILE, RAM);
-        end
+        if   (INIT_FILE_BIN==1) $readmemb(MEM_INIT_FILE, RAM);
+        else                    $readmemh(MEM_INIT_FILE, RAM);
     end
 end
 

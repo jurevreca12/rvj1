@@ -1,7 +1,7 @@
 .PHONY: all compile elaborate sim clean
 # We use find to search for all verilog and system verilog files.
 INC_DIR := ../../../rtl/inc
-JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.sv
+JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.v
 RTL_DIR := ../../../rtl
 TB_SUPPORT_DIR := ../../support/.
 ALU_DIR := $(RTL_DIR)/alu
@@ -28,14 +28,14 @@ COMPILED_SV_MODULES := $(SV_FILES:.sv=.sdb)
 COMPILED_SV_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_SV_MODULES))
 COMPILED_V_MODULES := $(V_FILES:.v=.sdb)
 COMPILED_V_MODULES := $(addprefix xsim.dir/work/, $(COMPILED_V_MODULES))
-TB_FILES := $(shell find $(TB_SV_DIR) -name "*.sv" -print0 | xargs -0 basename -a)
+TB_FILES := $(shell find $(TB_SV_DIR) -name "*.v" -print0 | xargs -0 basename -a)
 
 # Elaboration files are contained in xsim.dir/SIM_NAME/xsimk
-ELABORATED_TB_MODULES := $(TB_FILES:.sv=_simsnap/xsimk)
+ELABORATED_TB_MODULES := $(TB_FILES:.v=_simsnap/xsimk)
 ELABORATED_TB_MODULES := $(addprefix xsim.dir/, $(ELABORATED_TB_MODULES)) 
 
 # Contain the final simulation
-FIN_WDB_FILES := $(TB_FILES:.sv=_simsnap.wdb)
+FIN_WDB_FILES := $(TB_FILES:.v=_simsnap.wdb)
 
 # Used for multithreading
 ################################
@@ -63,7 +63,7 @@ $(COMPILED_SV_MODULES): xsim.dir/work/%.sdb: %.sv
 	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 $(COMPILED_V_MODULES): xsim.dir/work/%.sdb: %.v
-	xvlog -sv -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
+	xvlog -nolog $(JEDRO_1_DEFINES) $< -i $(INC_DIR)
 
 clean:
 	rm -rf xelab.* xsim.dir/ xsim* xvlog.* webtalk* *.wdb *.vcd Xil./ *.str
