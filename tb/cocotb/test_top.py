@@ -18,20 +18,20 @@ instr_memory_content = [0b00000001_00110000_00000000_10010011, # ADDI x1, x0, 13
 
 @cocotb.coroutine
 def set_inputs_to_zero(dut):
-	dut.clk_i			<= 0
-	dut.rstn_i			<= 0
-	dut.ifu_data_i		<= 0			
-	dut.data_gnt_i		<= 0
-	dut.data_rvalid_i	<= 0
-	dut.data_rdata_i	<= 0
-	dut.data_err_i		<= 0
+	dut.clk_i.value		    <= 0
+	dut.rstn_i.value	    <= 0
+	dut.ifu_data_i.value    <= 0			
+	dut.data_gnt_i.value    <= 0
+	dut.data_rvalid_i.value <= 0
+	dut.data_rdata_i.value	<= 0
+	dut.data_err_i.value	<= 0
 	yield Timer(0)
 
 @cocotb.coroutine
 def reset_dut(dut, rstn, duration):
-	rstn <= 0
+	rstn.value <= 0
 	yield Timer(duration, units='ns')
-	rstn <= 1
+	rstn.value <= 1
 	dut._log.info("Reset complete.")
 
 
@@ -43,9 +43,9 @@ async def instr_memory(dut):
 		await Timer(CLK_PERIOD, units='ns')
 		if dut.rstn_i == 1:
 			dut._log.info(f"Memory read at address {int(dut.ifu_addr_o)}.")
-			dut.ifu_data_i <= instr_memory_content[int(int(dut.ifu_addr_o) / 4)]
+			dut.ifu_data_i.value <= instr_memory_content[int(int(dut.ifu_addr_o) / 4)]
 		else:
-			dut.ifu_data_i <= 0
+			dut.ifu_data_i.value <= 0
 
 
 @cocotb.test()

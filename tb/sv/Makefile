@@ -1,7 +1,7 @@
 .PHONY: all compile elaborate sim clean
 # We use find to search for all verilog and system verilog files.
 INC_DIR := ../../rtl/inc
-JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.sv
+JEDRO_1_DEFINES := $(INC_DIR)/jedro_1_defines.v
 RTL_DIR := ../../rtl
 TB_DIR := ..
 TB_SV_DIR := .
@@ -14,13 +14,13 @@ ALU_SIGN_DIR := $(ALU_DIR)/sign_extension
 
 # Add directiores to search path for preqrequisits
 VPATH := $(RTL_DIR):\
-				 $(INC_DIR):\
-				 $(TB_SV_DIR):\
-				 $(TB_SUPPORT_DIR):\
-				 $(ALU_ADDER_DIR):\
- 				 $(ALU_COMP_DIR):\
-				 $(ALU_SHIFT_DIR):\
-				 $(ALU_SIGN_DIR)
+	 $(INC_DIR):\
+	 $(TB_SV_DIR):\
+	 $(TB_SUPPORT_DIR):\
+	 $(ALU_ADDER_DIR):\
+ 	 $(ALU_COMP_DIR):\
+	 $(ALU_SHIFT_DIR):\
+	 $(ALU_SIGN_DIR)
 
 #V_PATHS := $(shell find $(RTL_DIR) $(TB_DIR) -name "*.v")
 V_FILES := $(shell find $(RTL_DIR) $(TB_SV_DIR) $(TB_SUPPORT_DIR) -name "*.v" -print0 | xargs -0 basename -a)

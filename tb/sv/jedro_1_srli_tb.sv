@@ -7,25 +7,43 @@ module jedro_1_srli_tb();
 
   logic clk;
   logic rstn;
-  
+  logic [31:0] iaddr;
+  logic [31:0] idata;
   int i;
-  
-  ram_read_io #(.ADDR_WIDTH(ADDR_WIDTH), 
-                .DATA_WIDTH(DATA_WIDTH)) instr_mem_if();
 
-  ram_rw_io data_mem_if();
+  logic [31:0] rdata;
+  logic ack;
+  logic err;
+  logic [3:0] we;
+  logic stb;
+  logic [31:0] addr;
+  logic [31:0] wdata; 
+  
   bytewrite_ram_wrap data_mem (.clk_i  (clk),                                                                           
                                .rstn_i (rstn),                                                                          
-                               .ram_if (data_mem_if.SLAVE));
+			       .rdata(rdata),
+                               .ack(ack),
+                               .err(err),
+                               .we(we),
+                               .stb(stb),
+                               .addr(addr),
+                               .wdata(wdata));
 
   jedro_1_top dut(.clk_i       (clk),
                   .rstn_i      (rstn),
-                  .instr_mem_if(instr_mem_if.MASTER),
-                  .data_mem_if (data_mem_if.MASTER)
-                );
+		  .iram_addr   (iaddr),
+                  .iram_rdata  (iram_rdata),
+                  .dram_we     (we),
+                  .dram_stb    (stb),
+                  .dram_addr   (addr),
+                  .dram_wdata  (wdata),
+                  .dram_rdata  (rdata),
+                  .dram_ack    (ack),
+                  .dram_err    (err));
 
   rams_init_file_wrap #(.MEM_INIT_FILE("jedro_1_srli_tb.mem")) rom_mem (.clk_i(clk),
-                                                                        .rom_if(instr_mem_if));
+									.addr_i(iaddr),
+									.rdata_o(idata));
 
   // Handle the clock signal
   always #1 clk = ~clk;
