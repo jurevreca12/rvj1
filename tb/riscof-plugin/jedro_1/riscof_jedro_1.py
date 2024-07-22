@@ -145,9 +145,7 @@ class jedro_1(pluginTemplate):
           # result in tb dir
           sim_result = os.path.join(self.tb_dir, "dut.signature") 
 
-          # simulation snapshot is the result of the simulation, we delete it so that the make
-          # file in the tb dir can be used normally in the next test.
-          sim_snap = os.path.join(self.tb_dir, "jedro_1_riscof_tb_simsnap.wdb")
+          sim_dir = os.path.join(self.tb_dir, "obj_dir/")
           
           # name of the signature file as per requirement of RISCOF. RISCOF expects the signature to
           # be named as DUT-<dut-name>.signature. The below variable creates an absolute path of
@@ -183,7 +181,7 @@ class jedro_1(pluginTemplate):
           # 5 - simulate in tb_dir
           # 6,7 - move result back to work_dir
           # 8 - remove simulation snapshot for next simulation
-          execute = '@cd {0}; {1}; {2}; cp {3} {4}; {5}; cp {6} {7}; rm {8}'.format(testentry['work_dir'], # 0
+          execute = '@cd {0}; {1}; {2}; cp {3} {4}; {5}; cp {6} {7}; rm -rf {8}'.format(testentry['work_dir'], # 0
                                                                              cmd, # 1
                                                                              elf2hexcmd, # 2 
                                                                              hex_file, # 3
@@ -191,7 +189,7 @@ class jedro_1(pluginTemplate):
                                                                              simcmd,  # 5
                                                                              sim_result, # 6
                                                                              sig_file, # 7
-                                                                             sim_snap) # 8
+                                                                             sim_dir) # 8
 
           # create a target. The makeutil will create a target with the name "TARGET<num>" where num
           # starts from 0 and increments automatically for each new target that is added

@@ -8,3 +8,4 @@ dump.vcd
 *.jou
 *.log
 *.str
+obj_dir/
