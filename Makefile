@@ -1,4 +1,4 @@
-.PHONY: all doc vivado lint-verilator clean test 
+.PHONY: all doc vivado lint-verilator clean test docker-build docker-run-it 
 
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 MKFILE_DIR := $(dir $(MKFILE_PATH))
@@ -29,4 +29,8 @@ clean:
 test:
 	cd tb && $(MAKE) all 
 
+docker-build: Dockerfile
+	docker build -t jurevreca12/rv32-eda:0.1 .
 
+docker-run-it:
+	docker run -it -v ${MKFILE_DIR}:/riscv-jedro-1 jurevreca12/rv32-eda:0.1 bash
