@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean riscov_work
 
 all: riscof_work
 
@@ -7,5 +7,4 @@ riscof_work:
 
 clean:
 	rm -rf riscof_work/
-	cd tb && $(MAKE) clean
-    
+	cd tb && $(MAKE) clean 

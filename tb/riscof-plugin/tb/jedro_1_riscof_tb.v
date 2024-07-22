@@ -76,7 +76,7 @@ module jedro_1_riscof_tb();
   rstn <= 1'b0;
   repeat (3) @ (posedge clk);
   rstn <= 1'b1;
-  
+ 
   i=0;
   while (i < TIMEOUT && data_mem.data_ram.RAM[HALT_COND_CELLNUM] !== 1) begin
     @(posedge clk);
@@ -88,6 +88,7 @@ module jedro_1_riscof_tb();
   end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
 
   sig_file = $fopen("dut.signature", "w");
+
   for (j=start_addr; j < end_addr; j=j+4) begin
     $fwrite(sig_file, "%h\n", data_mem.data_ram.RAM[j>>2]);
   end
