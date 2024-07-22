@@ -4,3 +4,4 @@ sim_build/
 results.xml
 *.pyc
 *.vcd
+riscof_work/

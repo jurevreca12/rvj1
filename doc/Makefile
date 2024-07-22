@@ -6,6 +6,4 @@ latex:
 	pdflatex datasheet.tex
 
 clean:
-	rm datasheet.aux
-	rm datasheet.log
-	rm datasheet.pdf
+	rm -f datasheet.aux  datasheet.log datasheet.pdf

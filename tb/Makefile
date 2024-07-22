@@ -1,16 +1,11 @@
-.PHONY: all cocotb riscof basic clean
+.PHONY: all riscof clean
 
-all:	basic
+all:	riscof
 
-cocotb:
-	cd cocotb && $(MAKE)
-
-basic:
-	cd sv && $(MAKE)
+riscof: 
+	riscof run --config=riscof-plugin/config.ini --suite=riscv-arch-test/riscv-test-suite/ --env=riscv-arch-test/riscv-test-suite/env
 
 clean:
-	cd cocotb && $(MAKE) clean      	# clean is already defined by cocotb makefile,
-	cd cocotb && $(MAKE) clean_other	# but we need to remove some additional files.
-	cd basic  && $(MAKE) clean
-	cd riscof-plugin && $(MAKE) clean
+	rm -rf riscof_work/
+	cd riscof-plugin/tb && $(MAKE) clean
 
