@@ -33,7 +33,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 `timescale 1ns/1ps
 
-`include "jedro_1_defines.v"
+import jedro_1_defines::*;
 
 module jedro_1_ifu #(
     parameter BOOT_ADDR = 32'h8000_0000
@@ -45,20 +45,20 @@ module jedro_1_ifu #(
   input logic jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
                                // counter should be changed to jmp_address_i.
   
-  input logic [`DATA_WIDTH-1:0] jmp_address_i,    // The jump address
+  input logic [DATA_WIDTH-1:0] jmp_address_i,    // The jump address
 
   output logic                   exception_ro,  // Signals to the controller an instruction-addr-misaligned exception
-  output logic [`DATA_WIDTH-1:0] fault_addr_ro, // the address that caused the misaligned exception
+  output logic [DATA_WIDTH-1:0] fault_addr_ro, // the address that caused the misaligned exception
 
   // Interface to the decoder
-  output logic [`DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
-  output logic [`DATA_WIDTH-1:0] addr_o,      // Used by instructons that calculate on the PC.
+  output logic [DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
+  output logic [DATA_WIDTH-1:0] addr_o,      // Used by instructons that calculate on the PC.
   output logic                    valid_o,
   input  logic                   ready_i,     // Decoder ready to accept new instruction
   
   // Interface to the ROM memory
-  output logic [`DATA_WIDTH-1:0]  ram_addr,
-  input logic  [`DATA_WIDTH-1:0]  ram_rdata
+  output logic [DATA_WIDTH-1:0]  ram_addr,
+  input logic  [DATA_WIDTH-1:0]  ram_rdata
 );
 
 localparam INSTR_SHIFTREG_DEPTH = 3;
@@ -73,25 +73,25 @@ localparam XXX = 6'b000000;
 logic [5:0] state, next;
 
 
-logic [`DATA_WIDTH-1:0] pc_shift_r0;
-logic [`DATA_WIDTH-1:0] pc_shift_r1;
-logic [`DATA_WIDTH-1:0] pc_shift_r2;
+logic [DATA_WIDTH-1:0] pc_shift_r0;
+logic [DATA_WIDTH-1:0] pc_shift_r1;
+logic [DATA_WIDTH-1:0] pc_shift_r2;
 logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shift_r;
 
-logic [`DATA_WIDTH-1:0] out_instr; // the final muxed output (it gets comb assigned to instr_o and addr_o)
-logic [`DATA_WIDTH-1:0] out_addr;
+logic [DATA_WIDTH-1:0] out_instr; // the final muxed output (it gets comb assigned to instr_o and addr_o)
+logic [DATA_WIDTH-1:0] out_addr;
 
-logic [`DATA_WIDTH-1:0] dout_r_instr;  // buffered output from RAM
-logic [`DATA_WIDTH-1:0] dout_r_addr;
+logic [DATA_WIDTH-1:0] dout_r_instr;  // buffered output from RAM
+logic [DATA_WIDTH-1:0] dout_r_addr;
 
-logic [`DATA_WIDTH-1:0] stall_r_instr; // saves the instruciton causing the stall
-logic [`DATA_WIDTH-1:0] stall_r_addr;
+logic [DATA_WIDTH-1:0] stall_r_instr; // saves the instruciton causing the stall
+logic [DATA_WIDTH-1:0] stall_r_addr;
 
-logic [`DATA_WIDTH-1:0] after_stall_r0_instr; // saves the first instruction after the stall
-logic [`DATA_WIDTH-1:0] after_stall_r0_addr;
+logic [DATA_WIDTH-1:0] after_stall_r0_instr; // saves the first instruction after the stall
+logic [DATA_WIDTH-1:0] after_stall_r0_addr;
 
-logic [`DATA_WIDTH-1:0] after_stall_r1_instr; // saves the second instruction after the stall
-logic [`DATA_WIDTH-1:0] after_stall_r1_addr;
+logic [DATA_WIDTH-1:0] after_stall_r1_instr; // saves the second instruction after the stall
+logic [DATA_WIDTH-1:0] after_stall_r1_addr;
 
 logic stall_begin_pulse;   // generates a pulse event on the clock cycle at which the stall happened
 logic  stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
@@ -100,7 +100,7 @@ logic  prev_ready;          // used to generate the stall_begin_pulse (ready low
 logic stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
 logic  stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets deasserted when state=DV
 logic stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
-logic  [`DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
+logic  [DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
 
 logic jmp_instr; // this signal filters incorrect jumps
 logic is_exception;
@@ -184,7 +184,7 @@ end
 ***************************************/
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
-    {dout_r_instr, dout_r_addr} <= {`NOP_INSTR, 32'b0}; // we reset to the NOP operation
+    {dout_r_instr, dout_r_addr} <= {NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
   else begin
     {dout_r_instr, dout_r_addr} <= {ram_rdata, pc_shift_r1};
@@ -329,9 +329,9 @@ always_comb begin
 end
 
 always_comb begin
-    {out_instr, out_addr}  = {`NOP_INSTR, 32'b0};
+    {out_instr, out_addr}  = {NOP_INSTR, 32'b0};
     case (state)
-        NV:                                  {out_instr, out_addr} = {`NOP_INSTR, 32'b0};
+        NV:                                  {out_instr, out_addr} = {NOP_INSTR, 32'b0};
 
         DV: if (ready_i == 1'b1)             {out_instr, out_addr} = {dout_r_instr, dout_r_addr};
             else                             {out_instr, out_addr} = {stall_r_instr, stall_r_addr};
@@ -344,7 +344,7 @@ always_comb begin
 
         S2: if (ready_i == 1'b0)             {out_instr, out_addr} = {after_stall_r1_instr, after_stall_r1_addr};
             else if (ready_i == 1'b1 &&
-                     stall_in_stall == 1'b1) {out_instr, out_addr} = {`NOP_INSTR, 32'b0};
+                     stall_in_stall == 1'b1) {out_instr, out_addr} = {NOP_INSTR, 32'b0};
             else                             {out_instr, out_addr} = {dout_r_instr, dout_r_addr};
 
         EX:                                  {out_instr, out_addr} = {dout_r_instr, dout_r_addr};

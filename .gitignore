@@ -2,3 +2,6 @@ build/
 *.ods#
 *.swp
 venv/
+*xsim.dir
+*xvlog.log
+*xvlog.pb

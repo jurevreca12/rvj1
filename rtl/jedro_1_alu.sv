@@ -11,23 +11,23 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-`include "jedro_1_defines.v"
+import jedro_1_defines::*;
 
 module jedro_1_alu
 (
   input  logic clk_i,
   input  logic rstn_i,
 
-  input  logic [`ALU_OP_WIDTH-1:0]   sel_i, // select arithmetic operation
+  input  logic [ALU_OP_WIDTH-1:0]   sel_i, // select arithmetic operation
 
-  input  logic [`DATA_WIDTH-1:0]     op_a_i,
-  input  logic [`DATA_WIDTH-1:0]     op_b_i,
-  output logic  [`DATA_WIDTH-1:0]     res_ro,
+  input  logic [DATA_WIDTH-1:0]     op_a_i,
+  input  logic [DATA_WIDTH-1:0]     op_b_i,
+  output logic  [DATA_WIDTH-1:0]     res_ro,
   output logic                       ops_eq_ro, // is 1 if op_a_i == op_b_i
   output logic                       overflow_ro,
 
-  input  logic [`REG_ADDR_WIDTH-1:0] dest_addr_i,
-  output logic  [`REG_ADDR_WIDTH-1:0] dest_addr_ro,
+  input  logic [REG_ADDR_WIDTH-1:0] dest_addr_i,
+  output logic  [REG_ADDR_WIDTH-1:0] dest_addr_ro,
   
   input  logic                      wb_i,
   output logic                       wb_ro
@@ -36,14 +36,14 @@ module jedro_1_alu
 /*******************************
 * SIGNAL DECLARATION
 *******************************/
-logic [`DATA_WIDTH-1:0] adder_res;
-logic [`DATA_WIDTH-1:0] and_res;
-logic [`DATA_WIDTH-1:0] or_res;
-logic [`DATA_WIDTH-1:0] xor_res;
-logic [`DATA_WIDTH-1:0] less_than_sign_res;
-logic [`DATA_WIDTH-1:0] less_than_unsign_res;
-logic [`DATA_WIDTH-1:0] shifter_right_res;
-logic [`DATA_WIDTH-1:0] shifter_left_res;
+logic [DATA_WIDTH-1:0] adder_res;
+logic [DATA_WIDTH-1:0] and_res;
+logic [DATA_WIDTH-1:0] or_res;
+logic [DATA_WIDTH-1:0] xor_res;
+logic [DATA_WIDTH-1:0] less_than_sign_res;
+logic [DATA_WIDTH-1:0] less_than_unsign_res;
+logic [DATA_WIDTH-1:0] shifter_right_res;
+logic [DATA_WIDTH-1:0] shifter_left_res;
 logic                  ops_eq_res;
 logic                  adder_overflow;
 
@@ -84,7 +84,7 @@ end
 * ARITHMETIC CIRCUITS
 *******************************/
 // ripple-carry adder
-ripple_carry_adder_Nb #(.N(`DATA_WIDTH)) ripple_carry_adder_32b_inst (
+ripple_carry_adder_Nb #(.N(DATA_WIDTH)) ripple_carry_adder_32b_inst (
   .carry_i (1'b0),
   .opa_i   (op_a_i),
   .opb_i   (op_b_i),
@@ -98,19 +98,19 @@ assign or_res = op_a_i | op_b_i;  // or
 assign xor_res = op_a_i ^ op_b_i; // xor
 
 // compare modules
-less_than_sign_Nb #(.N(`DATA_WIDTH)) less_than_sign_32b_inst
+less_than_sign_Nb #(.N(DATA_WIDTH)) less_than_sign_32b_inst
 (
   .a (op_a_i),
   .b (op_b_i),
   .r (less_than_sign_res)
 );
-less_than_unsign_Nb #(.N(`DATA_WIDTH)) less_than_unsign_32b_inst
+less_than_unsign_Nb #(.N(DATA_WIDTH)) less_than_unsign_32b_inst
 (
   .a (op_a_i),
   .b (op_b_i),
   .r (less_than_unsign_res)
 );
-equality_Nb #(.N(`DATA_WIDTH)) equality_32b_inst
+equality_Nb #(.N(DATA_WIDTH)) equality_32b_inst
 (
   .a (op_a_i),
   .b (op_b_i),
@@ -139,43 +139,43 @@ barrel_shifter_right_32b shifter_right_32b_inst
 always_ff @(posedge clk_i)
 begin
   case (sel_i)
-    `ALU_OP_ADD: begin
+    ALU_OP_ADD: begin
       res_ro <= adder_res; 
     end
 
-    `ALU_OP_SUB: begin
+    ALU_OP_SUB: begin
       res_ro <= adder_res;
     end
 
-    `ALU_OP_SLL: begin
+    ALU_OP_SLL: begin
       res_ro <= shifter_left_res; 
     end
 
-    `ALU_OP_SLT: begin
+    ALU_OP_SLT: begin
       res_ro <= less_than_sign_res;
     end
 
-    `ALU_OP_SLTU: begin
+    ALU_OP_SLTU: begin
       res_ro <= less_than_unsign_res;
     end
 
-    `ALU_OP_XOR: begin
+    ALU_OP_XOR: begin
       res_ro <= xor_res;
     end
 
-    `ALU_OP_SRL: begin
+    ALU_OP_SRL: begin
       res_ro <= shifter_right_res;
     end
 
-    `ALU_OP_SRA: begin
+    ALU_OP_SRA: begin
       res_ro <= shifter_right_res;
     end
 
-    `ALU_OP_OR: begin
+    ALU_OP_OR: begin
       res_ro <= or_res;
     end
 
-    `ALU_OP_AND: begin
+    ALU_OP_AND: begin
       res_ro <= and_res; 
     end
 

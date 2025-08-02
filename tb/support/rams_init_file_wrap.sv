@@ -22,7 +22,7 @@ module rams_init_file_wrap
                           .we(1'b0), 
                           .addr(addr_i[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
                           .din(32'b0), 
-                          .dout(rdata_o[`DATA_WIDTH-1:0])
+                          .dout(rdata_o[DATA_WIDTH-1:0])
                         );
 
 endmodule

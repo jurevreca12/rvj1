@@ -13,8 +13,8 @@
 //                 no-change mode using only a single port.                   //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-  
-`include "jedro_1_defines.v"
+
+import jedro_1_defines::*;
 
 module jedro_1_lsu
 (
@@ -22,47 +22,47 @@ module jedro_1_lsu
   input logic rstn_i,
   
   // Interface to/from the decoder/ALU
-  input  logic                        ctrl_valid_i,
-  input  logic  [`LSU_CTRL_WIDTH-1:0] ctrl_i,
-  input  logic  [`DATA_WIDTH-1:0]     addr_i,           // Address of the memory to ready/write.
-  input  logic  [`DATA_WIDTH-1:0]     wdata_i,          // The data to write to memory.
-  input  logic  [`REG_ADDR_WIDTH-1:0] regdest_i,        // Writeback to which register?
+  input  logic                       ctrl_valid_i,
+  input  logic [LSU_CTRL_WIDTH-1:0] ctrl_i,
+  input  logic [DATA_WIDTH-1:0]     addr_i,           // Address of the memory to ready/write.
+  input  logic [DATA_WIDTH-1:0]     wdata_i,          // The data to write to memory.
+  input  logic [REG_ADDR_WIDTH-1:0] regdest_i,        // Writeback to which register?
  
   // Interface to the register file
-  output logic  [`DATA_WIDTH-1:0]     rdata_ro,       // Goes to the register file.
-  output logic                        rf_wb_ro,       // Enables the write pin of the logic file.
-  output logic  [`REG_ADDR_WIDTH-1:0] regdest_ro,
+  output logic [DATA_WIDTH-1:0]     rdata_ro,       // Goes to the register file.
+  output logic                       rf_wb_ro,       // Enables the write pin of the logic file.
+  output logic [REG_ADDR_WIDTH-1:0] regdest_ro,
 
-  output logic                        misaligned_load_ro,
-  output logic                        misaligned_store_ro,
-  output logic                        bus_error_ro,
-  output logic  [`DATA_WIDTH-1:0]     exception_addr_ro,
+  output logic                       misaligned_load_ro,
+  output logic                       misaligned_store_ro,
+  output logic                       bus_error_ro,
+  output logic [DATA_WIDTH-1:0]     exception_addr_ro,
 
   // Interface to data RAM
-  output logic  [3:0]                 ram_we,
-  output logic                        ram_stb,
-  output logic  [`DATA_WIDTH-1:0]     ram_addr,
-  output logic  [`DATA_WIDTH-1:0]     ram_wdata,
-  input  logic [`DATA_WIDTH-1:0]     ram_rdata,
+  output logic [3:0]                 ram_we,
+  output logic                       ram_stb,
+  output logic [DATA_WIDTH-1:0]     ram_addr,
+  output logic [DATA_WIDTH-1:0]     ram_wdata,
+  input  logic [DATA_WIDTH-1:0]     ram_rdata,
   input  logic                       ram_ack,
   input  logic                       ram_err
 );
 
 
-logic  [`DATA_WIDTH-1:0]     data_r; // stores unaligned data directly from memory
-logic [`DATA_WIDTH-1:0]     byte_sign_extended_w;
-logic [`DATA_WIDTH-1:0]     hword_sign_extended_w;
-logic  [7:0]                 active_byte;
-logic  [15:0]                active_hword;
-logic  [1:0]                 byte_addr_r;
-logic                        ram_start_decode_r;
-logic  [`LSU_CTRL_WIDTH-1:0] ctrl_save_r;
+logic [DATA_WIDTH-1:0]     data_r; // stores unaligned data directly from memory
+logic [DATA_WIDTH-1:0]     byte_sign_extended_w;
+logic [DATA_WIDTH-1:0]     hword_sign_extended_w;
+logic [7:0]                 active_byte;
+logic [15:0]                active_hword;
+logic [1:0]                 byte_addr_r;
+logic                       ram_start_decode_r;
+logic [LSU_CTRL_WIDTH-1:0] ctrl_save_r;
 
-logic [31:0]                 active_write_word;
+logic [31:0]                active_write_word;
 
-logic                        misaligned_load;
-logic                        misaligned_load_hold;
-logic                        misaligned_store;
+logic                       misaligned_load;
+logic                       misaligned_load_hold;
+logic                       misaligned_store;
 
 
 /**************************************
@@ -73,14 +73,14 @@ always_comb begin
         misaligned_load  = 1'b0;
         misaligned_store = 1'b0;
         casez (ctrl_i)
-            `LSU_LOAD_BYTE        : misaligned_load = 1'b0;
-            `LSU_LOAD_BYTE_U      : misaligned_load = 1'b0;
-            `LSU_LOAD_HALF_WORD   : misaligned_load = addr_i[0];
-            `LSU_LOAD_HALF_WORD_U : misaligned_load = addr_i[0];
-            `LSU_LOAD_WORD        : misaligned_load = |addr_i[1:0];
-            `LSU_STORE_BYTE       : misaligned_store = 1'b0;
-            `LSU_STORE_HALF_WORD  : misaligned_store = addr_i[0];
-            `LSU_STORE_WORD       : misaligned_store = |addr_i[1:0];
+            LSU_LOAD_BYTE        : misaligned_load = 1'b0;
+            LSU_LOAD_BYTE_U      : misaligned_load = 1'b0;
+            LSU_LOAD_HALF_WORD   : misaligned_load = addr_i[0];
+            LSU_LOAD_HALF_WORD_U : misaligned_load = addr_i[0];
+            LSU_LOAD_WORD        : misaligned_load = |addr_i[1:0];
+            LSU_STORE_BYTE       : misaligned_store = 1'b0;
+            LSU_STORE_HALF_WORD  : misaligned_store = addr_i[0];
+            LSU_STORE_WORD       : misaligned_store = |addr_i[1:0];
         endcase
     end
     else begin
@@ -129,9 +129,9 @@ end
 **************************************/
 logic is_write; // Is the current ctrl input a write
 logic  is_write_hold;
-logic  [`DATA_WIDTH/8 - 1:0] we; // write enable signal
+logic  [DATA_WIDTH/8 - 1:0] we; // write enable signal
 
-assign is_write = ctrl_i[`LSU_CTRL_WIDTH-1];
+assign is_write = ctrl_i[LSU_CTRL_WIDTH-1];
 
 always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) is_write_hold <= 0; 
@@ -144,7 +144,7 @@ end
 always_comb begin
     active_write_word = 0;
     if (is_write == 1'b1) begin
-        if      (ctrl_i == `LSU_STORE_BYTE) begin
+        if      (ctrl_i == LSU_STORE_BYTE) begin
             if      (addr_i[1:0] == 2'b00) begin      
                 active_write_word = {24'b0, wdata_i[7:0]};
                 we = 4'b0001;
@@ -162,7 +162,7 @@ always_comb begin
                 we = 4'b1000;
             end
         end
-        else if (ctrl_i == `LSU_STORE_HALF_WORD) begin
+        else if (ctrl_i == LSU_STORE_HALF_WORD) begin
             if (addr_i[1:0] == 2'b00) begin
                 active_write_word = {16'b0, wdata_i[15:0]};
                 we = 4'b0011; 
@@ -267,8 +267,8 @@ end
 always_comb begin
     active_byte  = 8'b00000000;
     active_hword = 16'b00000000_00000000;
-    if (ctrl_save_r == `LSU_LOAD_BYTE ||
-        ctrl_save_r == `LSU_LOAD_BYTE_U) begin
+    if (ctrl_save_r == LSU_LOAD_BYTE ||
+        ctrl_save_r == LSU_LOAD_BYTE_U) begin
         if      (byte_addr_r == 2'b00) 
             active_byte = data_r[7:0];
         else if (byte_addr_r == 2'b01)
@@ -278,8 +278,8 @@ always_comb begin
         else
             active_byte = data_r[31:24];
     end
-    else if (ctrl_save_r == `LSU_LOAD_HALF_WORD ||
-             ctrl_save_r == `LSU_LOAD_HALF_WORD_U) begin
+    else if (ctrl_save_r == LSU_LOAD_HALF_WORD ||
+             ctrl_save_r == LSU_LOAD_HALF_WORD_U) begin
         if (byte_addr_r == 2'b00)
             active_hword = data_r[15:0];
         else 
@@ -287,9 +287,9 @@ always_comb begin
     end
 end
 
-sign_extender #(.N(`DATA_WIDTH), .M(8)) sign_extender_byte(.in_i(active_byte),
+sign_extender #(.N(DATA_WIDTH), .M(8)) sign_extender_byte(.in_i(active_byte),
                                                           .out_o(byte_sign_extended_w));
-sign_extender #(.N(`DATA_WIDTH), .M(16)) sign_extender_halfword(.in_i(active_hword),
+sign_extender #(.N(DATA_WIDTH), .M(16)) sign_extender_halfword(.in_i(active_hword),
                                                                .out_o(hword_sign_extended_w));
 
 always_comb begin
@@ -299,11 +299,11 @@ always_comb begin
     else begin
         rdata_ro = 0;
         casez (ctrl_save_r)
-            `LSU_LOAD_BYTE:        rdata_ro = byte_sign_extended_w;
-            `LSU_LOAD_BYTE_U:      rdata_ro = {24'b0, active_byte};
-            `LSU_LOAD_HALF_WORD:   rdata_ro = hword_sign_extended_w;
-            `LSU_LOAD_HALF_WORD_U: rdata_ro = {16'b0, active_hword};
-            `LSU_LOAD_WORD:        rdata_ro = data_r;
+            LSU_LOAD_BYTE:        rdata_ro = byte_sign_extended_w;
+            LSU_LOAD_BYTE_U:      rdata_ro = {24'b0, active_byte};
+            LSU_LOAD_HALF_WORD:   rdata_ro = hword_sign_extended_w;
+            LSU_LOAD_HALF_WORD_U: rdata_ro = {16'b0, active_hword};
+            LSU_LOAD_WORD:        rdata_ro = data_r;
             default:               rdata_ro = 0;
         endcase
     end

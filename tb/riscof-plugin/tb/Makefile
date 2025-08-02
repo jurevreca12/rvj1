@@ -5,7 +5,7 @@ MKFILE_DIR := $(dir $(MKFILE_PATH))
 
 # We use find to search for all verilog and system verilog files.
 INC_DIR := ${MKFILE_DIR}../../../rtl/inc
-JEDRO_1_DEFINES := ${INC_DIR}/jedro_1_defines.v
+JEDRO_1_DEFINES := ${INC_DIR}/jedro_1_defines.sv
 RTL_DIR := ${MKFILE_DIR}../../../rtl
 TB_SUPPORT_DIR := ${MKFILE_DIR}../../support/.
 
