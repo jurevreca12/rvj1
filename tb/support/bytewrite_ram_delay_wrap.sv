@@ -1,6 +1,5 @@
 // Simulates a slave that takes 2 cycles to respond
 //
-`timescale 1ns/1ps
 import jedro_1_defines::*;
 
 module bytewrite_ram_delay_wrap

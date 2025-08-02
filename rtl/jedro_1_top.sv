@@ -10,7 +10,6 @@
 // Description:    The top file of the jedro_1 riscv core.                    //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-`timescale 1ns/1ps
 
 import jedro_1_defines::*;
 

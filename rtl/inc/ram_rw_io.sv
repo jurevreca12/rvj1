@@ -1,4 +1,3 @@
-`timescale 1ns/1ps
 
 interface ram_rw_io #(
 	parameter ADDR_WIDTH=32,

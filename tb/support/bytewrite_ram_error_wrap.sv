@@ -1,6 +1,5 @@
 // Simulates a slave that returns an error signal on write request
 //
-`timescale 1ns/1ps
 import jedro_1_defines::*;
 
 module bytewrite_ram_error_wrap

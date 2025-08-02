@@ -1,5 +1,4 @@
 // The test used to simulate the core with the riscof test framework.
-`timescale 1ns/1ps
 
 module jedro_1_riscof_tb();
   parameter DATA_WIDTH     = 32;

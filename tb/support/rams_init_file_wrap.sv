@@ -1,6 +1,5 @@
 // Wraps the block ram instantiation module with a system verilog interface
 //
-`timescale 1ns/1ps
 
 module rams_init_file_wrap
 #(
