@@ -370,7 +370,7 @@ begin
   alu_sel_w           = 4'b0000;
   alu_op_a_w          = 1'b0;
   alu_op_b_w          = 1'b0;
-  alu_dest_addr_w     = 4'b0;
+  alu_dest_addr_w     = 5'b0;
   alu_wb_w            = 1'b0; 
   rf_addr_a_w         = 5'b00000;
   rf_addr_b_w         = 5'b00000;
@@ -624,7 +624,7 @@ begin
         else if (state == eBRANCH_STALL) begin
             use_alu_jmp_addr_w = 1'b1;
             use_pc_w           = 1'b0; 
-            alu_sel_w          = 5'b00000;
+            alu_sel_w          = 4'b0000;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
             rf_addr_a_w        = 5'b00000;
@@ -636,7 +636,7 @@ begin
         else begin
             use_alu_jmp_addr_w = 1'b0;
             use_pc_w           = 1'b0; 
-            alu_sel_w          = 5'b00000;
+            alu_sel_w          = 4'b0000;
             alu_op_a_w         = 1'b0;
             alu_op_b_w         = 1'b0;
             rf_addr_a_w        = 5'b00000;
@@ -752,7 +752,7 @@ begin
         if (funct3 != 3'b000) begin // CSR INSTRUCTIONS
             if (funct3 == CSRRW_INSTR_FUNCT3  |
                 funct3 == CSRRWI_INSTR_FUNCT3) begin // CSRRW and CSRRWI instructions
-                csr_addr_w = {20'b0, imm11_0};
+                csr_addr_w = imm11_0;
                 if (state != eCSRRW_READ_CSR &&
                     state != eCSRRW_READ_WAIT_0 &&
                     state != eCSRRW_READ_WAIT_1 &&

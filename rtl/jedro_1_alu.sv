@@ -22,15 +22,15 @@ module jedro_1_alu
 
   input  logic [DATA_WIDTH-1:0]     op_a_i,
   input  logic [DATA_WIDTH-1:0]     op_b_i,
-  output logic  [DATA_WIDTH-1:0]     res_ro,
-  output logic                       ops_eq_ro, // is 1 if op_a_i == op_b_i
-  output logic                       overflow_ro,
+  output logic [DATA_WIDTH-1:0]     res_ro,
+  output logic                      ops_eq_ro, // is 1 if op_a_i == op_b_i
+  output logic                      overflow_ro,
 
   input  logic [REG_ADDR_WIDTH-1:0] dest_addr_i,
-  output logic  [REG_ADDR_WIDTH-1:0] dest_addr_ro,
-  
+  output logic [REG_ADDR_WIDTH-1:0] dest_addr_ro,
+
   input  logic                      wb_i,
-  output logic                       wb_ro
+  output logic                      wb_ro
 );
 
 /*******************************

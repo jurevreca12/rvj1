@@ -10,12 +10,9 @@
 // Description:    The register file and its interface.                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+import jedro_1_defines::*;
 
 module jedro_1_regfile
-#(
-  parameter DATA_WIDTH = 32,
-  parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH)
-)
 (
   input logic clk_i,
   input logic rstn_i,

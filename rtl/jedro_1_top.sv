@@ -168,16 +168,16 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
 /*********************************************
 * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
 *********************************************/
-jedro_1_regfile #(.DATA_WIDTH(32)) regfile_inst(.clk_i        (clk_i),
-                                                .rstn_i       (rstn_i),
-                                                .rpa_addr_i   (decoder_rf_addr_a),
-                                                .rpa_data_co  (rf_alu_data_a),
-                                                .rpb_addr_i   (decoder_rf_addr_b),
-                                                .rpb_data_co  (rf_alu_data_b),
-                                                .wpc_addr_i   (mux4_rf_dest_addr),  
-                                                .wpc_data_i   (mux4_rf_data),     
-                                                .wpc_we_i     (mux4_rf_wb)
-                                              );   
+jedro_1_regfile  regfile_inst(.clk_i        (clk_i),
+                              .rstn_i       (rstn_i),
+                              .rpa_addr_i   (decoder_rf_addr_a),
+                              .rpa_data_co  (rf_alu_data_a),
+                              .rpb_addr_i   (decoder_rf_addr_b),
+                              .rpb_data_co  (rf_alu_data_b),
+                              .wpc_addr_i   (mux4_rf_dest_addr),  
+                              .wpc_data_i   (mux4_rf_data),     
+                              .wpc_we_i     (mux4_rf_wb)
+                            );   
 
 assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_data_a;
 // decoder_mux_is_imm signal tells if an operation is between 2 registers or an

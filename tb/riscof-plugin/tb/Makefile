@@ -23,8 +23,7 @@ sim: compile
 	${MKFILE_DIR}/obj_dir/Vjedro_1_riscof_tb
 
 ./obj_dir/Vjedro_1_riscof_tb : ${RTL_FILES} jedro_1_riscof_tb.v
-	verilator --binary ${RTL_FILES} -I${INC_DIR} -Wno-fatal jedro_1_riscof_tb.v --top jedro_1_riscof_tb
-
+	verilator --timescale 1ns/1ps --trace --binary ${RTL_FILES} -I${INC_DIR} -Wno-fatal jedro_1_riscof_tb.v --top jedro_1_riscof_tb
 
 clean:
 	rm -rf obj_dir/

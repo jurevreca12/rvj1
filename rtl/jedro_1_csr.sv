@@ -14,9 +14,6 @@
 import jedro_1_defines::*;
 
 module jedro_1_csr
-#(
-  parameter DATA_WIDTH = 32
-)
 (
   input logic clk_i,
   input logic rstn_i,

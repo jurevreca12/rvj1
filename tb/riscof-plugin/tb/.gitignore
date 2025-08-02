@@ -7,3 +7,4 @@ out.hex
 xsim.dir/
 .Xil/
 *.str
+obj_dir/

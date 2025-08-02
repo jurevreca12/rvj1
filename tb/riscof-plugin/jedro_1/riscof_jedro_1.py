@@ -35,7 +35,7 @@ class jedro_1(pluginTemplate):
 
         # Because of te limitations of the vivado simulator, we limit this to 1.
         # (we are running the same simulation snapshot over and over in same directory)
-        self.num_jobs = "1"
+        self.num_jobs = "1" # str(int(os.cpu_count() / 2))
 
         # Path to the directory where this python file is located. Collect it from the config.ini
         self.pluginpath=os.path.abspath(config['pluginpath'])

@@ -21,7 +21,7 @@ module less_than_sign_Nb #(parameter N = 32) (
 wire [N-2:0]  res_abs;
 
 // This comparator module compares all but the signed bit.
-less_than_unsign_Nb #(.N(31)) less_than_unsign_31b_inst ( a[N-2:0], b[N-2:0], res_abs);
+less_than_unsign_Nb #(.N(31)) less_than_unsign_31b_inst (a[N-2:0], b[N-2:0], res_abs);
 
 always@ (*)
 begin

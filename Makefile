@@ -19,7 +19,7 @@ vivado:
 	cd impl && $(MAKE) vivado
 
 lint-verilator:
-	verilator -I${INC_DIR} -lint-only -Wall -Wno-fatal ${RTL_FILES}
+	verilator --timescale 1ns/1ps -I${INC_DIR} -lint-only -Wall -Wno-fatal ${RTL_FILES}
 
 clean:
 	cd impl && $(MAKE) clean

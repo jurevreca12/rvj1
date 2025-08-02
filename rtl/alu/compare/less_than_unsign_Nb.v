@@ -17,7 +17,7 @@ module less_than_unsign_Nb #(parameter N = 32) (
 	input  [N-1:0] b,
 	output [N-1:0] r
 );
-
+/*
 wire [N-1:0] w0 = ~( a ^ b ); // check bits for equality
 wire [N-1:0] w1 =  ( ~a & b ); // check if a is less than b  (i.e. a is zero and b is 1)
 wire [N-1:0] w2;
@@ -31,5 +31,8 @@ generate
         assign w2[i] = w1[i] | ( w0[i] & w2[i-1] );
     end
 endgenerate
-
+*/
+wire lt;
+assign lt = a < b;
+assign r = { {N-1{1'b0}}, lt};
 endmodule
