@@ -39,26 +39,26 @@ module jedro_1_ifu #(
     parameter BOOT_ADDR = 32'h8000_0000
 ) 
 (
-  input wire clk_i,
-  input wire rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
-  input wire jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
+  input logic jmp_instr_i,     // Specifes that we encountered a jump instruction and the program 
                                // counter should be changed to jmp_address_i.
   
-  input wire [`DATA_WIDTH-1:0] jmp_address_i,    // The jump address
+  input logic [`DATA_WIDTH-1:0] jmp_address_i,    // The jump address
 
-  output reg                   exception_ro,  // Signals to the controller an instruction-addr-misaligned exception
-  output reg [`DATA_WIDTH-1:0] fault_addr_ro, // the address that caused the misaligned exception
+  output logic                   exception_ro,  // Signals to the controller an instruction-addr-misaligned exception
+  output logic [`DATA_WIDTH-1:0] fault_addr_ro, // the address that caused the misaligned exception
 
   // Interface to the decoder
-  output wire [`DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
-  output wire [`DATA_WIDTH-1:0] addr_o,      // Used by instructons that calculate on the PC.
-  output reg                    valid_o,
-  input  wire                   ready_i,     // Decoder ready to accept new instruction
+  output logic [`DATA_WIDTH-1:0] instr_o,     // The current instruction (to be decoded)
+  output logic [`DATA_WIDTH-1:0] addr_o,      // Used by instructons that calculate on the PC.
+  output logic                    valid_o,
+  input  logic                   ready_i,     // Decoder ready to accept new instruction
   
   // Interface to the ROM memory
-  output wire [`DATA_WIDTH-1:0]  ram_addr,
-  input wire  [`DATA_WIDTH-1:0]  ram_rdata
+  output logic [`DATA_WIDTH-1:0]  ram_addr,
+  input logic  [`DATA_WIDTH-1:0]  ram_rdata
 );
 
 localparam INSTR_SHIFTREG_DEPTH = 3;
@@ -70,45 +70,45 @@ localparam S2  = 6'b010000;
 localparam EX  = 6'b100000;
 localparam XXX = 6'b000000;
 
-reg [5:0] state, next;
+logic [5:0] state, next;
 
 
-reg [`DATA_WIDTH-1:0] pc_shift_r0;
-reg [`DATA_WIDTH-1:0] pc_shift_r1;
-reg [`DATA_WIDTH-1:0] pc_shift_r2;
-reg [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shift_r;
+logic [`DATA_WIDTH-1:0] pc_shift_r0;
+logic [`DATA_WIDTH-1:0] pc_shift_r1;
+logic [`DATA_WIDTH-1:0] pc_shift_r2;
+logic [INSTR_SHIFTREG_DEPTH-1:0] instr_valid_shift_r;
 
-reg [`DATA_WIDTH-1:0] out_instr; // the final muxed output (it gets comb assigned to instr_o and addr_o)
-reg [`DATA_WIDTH-1:0] out_addr;
+logic [`DATA_WIDTH-1:0] out_instr; // the final muxed output (it gets comb assigned to instr_o and addr_o)
+logic [`DATA_WIDTH-1:0] out_addr;
 
-reg [`DATA_WIDTH-1:0] dout_r_instr;  // buffered output from RAM
-reg [`DATA_WIDTH-1:0] dout_r_addr;
+logic [`DATA_WIDTH-1:0] dout_r_instr;  // buffered output from RAM
+logic [`DATA_WIDTH-1:0] dout_r_addr;
 
-reg [`DATA_WIDTH-1:0] stall_r_instr; // saves the instruciton causing the stall
-reg [`DATA_WIDTH-1:0] stall_r_addr;
+logic [`DATA_WIDTH-1:0] stall_r_instr; // saves the instruciton causing the stall
+logic [`DATA_WIDTH-1:0] stall_r_addr;
 
-reg [`DATA_WIDTH-1:0] after_stall_r0_instr; // saves the first instruction after the stall
-reg [`DATA_WIDTH-1:0] after_stall_r0_addr;
+logic [`DATA_WIDTH-1:0] after_stall_r0_instr; // saves the first instruction after the stall
+logic [`DATA_WIDTH-1:0] after_stall_r0_addr;
 
-reg [`DATA_WIDTH-1:0] after_stall_r1_instr; // saves the second instruction after the stall
-reg [`DATA_WIDTH-1:0] after_stall_r1_addr;
+logic [`DATA_WIDTH-1:0] after_stall_r1_instr; // saves the second instruction after the stall
+logic [`DATA_WIDTH-1:0] after_stall_r1_addr;
 
-wire stall_begin_pulse;   // generates a pulse event on the clock cycle at which the stall happened
-reg  stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
-reg  prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
+logic stall_begin_pulse;   // generates a pulse event on the clock cycle at which the stall happened
+logic  stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
+logic  prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
 
-wire stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
-reg  stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets deasserted when state=DV
-wire stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
-reg  [`DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
+logic stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
+logic  stall_in_stall_r;     // gets set when stall_in_stall_pulse is 1, and gets deasserted when state=DV
+logic stall_in_stall_pulse; // when a stall occurs when state!=DV then this gets triggered combinatorialy
+logic  [`DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if a stall_in_stall event occurs
 
-reg jmp_instr; // this signal filters incorrect jumps
-reg is_exception;
+logic jmp_instr; // this signal filters incorrect jumps
+logic is_exception;
 
 /***************************************
 * MISALIGNED JUMPS EXCEPTION GENERATION
 ***************************************/
-always@(*) begin
+always_comb begin
     if (jmp_instr_i == 1'b1) begin
         if (jmp_address_i[1:0] == 2'b00) begin
             jmp_instr = 1'b1;
@@ -125,7 +125,7 @@ always@(*) begin
     end 
 end
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         exception_ro <= 0;
         fault_addr_ro <= 0;       
@@ -141,7 +141,7 @@ end
 ***************************************/
 assign ram_addr = pc_shift_r0; // The output address just follows pc_shift_r0
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
      pc_shift_r0 <= BOOT_ADDR;
      pc_shift_r1 <= BOOT_ADDR;
@@ -182,7 +182,7 @@ end
 /***************************************
 * READING LOGIC
 ***************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     {dout_r_instr, dout_r_addr} <= {`NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
@@ -191,7 +191,7 @@ always @(posedge clk_i) begin
   end
 end
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         {stall_r_instr, stall_r_addr} <= {32'b0, 32'b0};
     end
@@ -205,7 +205,7 @@ always @(posedge clk_i) begin
     end
 end
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         {after_stall_r0_instr, after_stall_r0_addr} <= 0;
     end
@@ -219,7 +219,7 @@ always @(posedge clk_i) begin
     end
 end
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         {after_stall_r1_instr, after_stall_r1_addr} <= {32'b0, 32'b0};
     end
@@ -233,7 +233,7 @@ always @(posedge clk_i) begin
     end
 end
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         after_stall_addr <= 0;
     end
@@ -250,7 +250,7 @@ end
 /***************************************
 * CONTROL LOGIC 
 ***************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         prev_ready <= 1'b0;
     end
@@ -260,7 +260,7 @@ always @(posedge clk_i) begin
 end
 
 assign stall_begin_pulse = prev_ready  & (~ready_i) & valid_o;
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         stall_begin_pulse_r <= 1'b0;
     end
@@ -271,7 +271,7 @@ end
 
 assign stall_in_stall = stall_in_stall_r || stall_in_stall_pulse;
 assign stall_in_stall_pulse = prev_ready & (~ready_i) & (state == S1 || state == S2) & (~stall_in_stall_r);
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         stall_in_stall_r <= 0;
     end
@@ -288,12 +288,12 @@ end
 assign instr_o = out_instr;
 assign addr_o  = out_addr;
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) state <= NV;
     else                state <= next;
 end
 
-always@(*) begin
+always_comb begin
     next = XXX;
     case (state)
         NV : if (instr_valid_shift_r[1] == 1'b1) next = DV;
@@ -328,7 +328,7 @@ always@(*) begin
     endcase 
 end
 
-always@(*) begin
+always_comb begin
     {out_instr, out_addr}  = {`NOP_INSTR, 32'b0};
     case (state)
         NV:                                  {out_instr, out_addr} = {`NOP_INSTR, 32'b0};
@@ -353,7 +353,7 @@ always@(*) begin
     endcase
 end
 
-always@(*) begin
+always_comb begin
     if ((state == NV) || 
         (jmp_instr == 1'b1) ||
         (state == S2 && ready_i == 1'b1 && 

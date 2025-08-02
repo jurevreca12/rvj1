@@ -15,104 +15,104 @@
 
 module jedro_1_decoder
 (
-  input wire clk_i,
-  input wire rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // IFU INTERFACE
-  input  wire [`DATA_WIDTH-1:0] instr_i,        // Instructions coming in from memory/cache
-  input  wire [`DATA_WIDTH-1:0] instr_addr_i,
-  output reg  [`DATA_WIDTH-1:0] instr_addr_ro,
-  input  wire                  instr_valid_i,
-  output reg                   use_pc_ro,
-  output reg                   ready_ro,       // Ready for instructions.
-  output reg                   jmp_instr_ro,
-  output reg  [`DATA_WIDTH-1:0] jmp_addr_ro,
-  output reg                   use_alu_jmp_addr_ro,
+  input  logic [`DATA_WIDTH-1:0] instr_i,        // Instructions coming in from memory/cache
+  input  logic [`DATA_WIDTH-1:0] instr_addr_i,
+  output logic  [`DATA_WIDTH-1:0] instr_addr_ro,
+  input  logic                  instr_valid_i,
+  output logic                   use_pc_ro,
+  output logic                   ready_ro,       // Ready for instructions.
+  output logic                   jmp_instr_ro,
+  output logic  [`DATA_WIDTH-1:0] jmp_addr_ro,
+  output logic                   use_alu_jmp_addr_ro,
 
   // CONTROL UNIT INTERFACE
-  output reg illegal_instr_ro, // Illegal instruction encountered.
-  output reg ecall_ro,         // ecall instruction encountered
-  output reg ebreak_ro,        // ebreak instruction encountered
+  output logic illegal_instr_ro, // Illegal instruction encountered.
+  output logic ecall_ro,         // ecall instruction encountered
+  output logic ebreak_ro,        // ebreak instruction encountered
 
   // ALU INTERFACE
-  output reg                        is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
-  output reg  [`ALU_OP_WIDTH-1:0]    alu_sel_ro,         // Select operation that ALU should perform.
-  output reg  [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
-  output reg                        alu_wb_ro,          // Writeback to the register?
-  input  wire [`DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
-  input  wire                       alu_ops_eq_i,
+  output logic                        is_alu_write_ro,    // Controls mux4-if RF WPC bellongs to ALU.
+  output logic  [`ALU_OP_WIDTH-1:0]    alu_sel_ro,         // Select operation that ALU should perform.
+  output logic  [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_ro,  
+  output logic                        alu_wb_ro,          // Writeback to the register?
+  input  logic [`DATA_WIDTH-1:0]      alu_res_i,          // Writeback used for branch instr.
+  input  logic                       alu_ops_eq_i,
   
   // REGISTER FILE INTERFACE  
-  output reg  [`REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
-  output reg  [`REG_ADDR_WIDTH-1:0]  rf_addr_b_ro,
+  output logic  [`REG_ADDR_WIDTH-1:0]  rf_addr_a_ro,
+  output logic  [`REG_ADDR_WIDTH-1:0]  rf_addr_b_ro,
   
-  output reg                        is_imm_ro,   // Does the operation contain a immediate value?
-  output reg  [`DATA_WIDTH-1:0]      imm_ext_ro,  // Sign extended immediate.
+  output logic                        is_imm_ro,   // Does the operation contain a immediate value?
+  output logic  [`DATA_WIDTH-1:0]      imm_ext_ro,  // Sign extended immediate.
 
   // LSU INTERFACE
-  output reg                        lsu_ctrl_valid_ro, 
-  output reg  [`LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
-  output reg  [`REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
-  input  wire                       lsu_read_complete_i,
+  output logic                        lsu_ctrl_valid_ro, 
+  output logic  [`LSU_CTRL_WIDTH-1:0]  lsu_ctrl_ro,
+  output logic  [`REG_ADDR_WIDTH-1:0]  lsu_regdest_ro,
+  input  logic                       lsu_read_complete_i,
 
   // CSR INTERFACE
-  output reg  [`CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
-  output reg                        csr_we_ro,
-  input  wire [`DATA_WIDTH-1:0]      csr_data_i,
-  output reg  [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
-  output reg                        csr_uimm_we_ro,
-  output reg  [`CSR_WMODE_WIDTH-1:0] csr_wmode_ro,
-  output reg                        csr_mret_ro
+  output logic  [`CSR_ADDR_WIDTH-1:0]  csr_addr_ro,
+  output logic                        csr_we_ro,
+  input  logic [`DATA_WIDTH-1:0]      csr_data_i,
+  output logic  [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_ro,
+  output logic                        csr_uimm_we_ro,
+  output logic  [`CSR_WMODE_WIDTH-1:0] csr_wmode_ro,
+  output logic                        csr_mret_ro
 );
 
 /*************************************
 * INTERNAL SIGNAL DEFINITION
 *************************************/
-reg                        use_alu_jmp_addr_w;
-reg                        use_pc_w;
-reg                        is_alu_write_w;
-reg [`ALU_OP_WIDTH-1:0]    alu_sel_w;
-reg                        alu_op_a_w;
-reg                        alu_op_b_w;
-reg [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_w;
-reg                        alu_wb_w;
+logic                        use_alu_jmp_addr_w;
+logic                        use_pc_w;
+logic                        is_alu_write_w;
+logic [`ALU_OP_WIDTH-1:0]    alu_sel_w;
+logic                        alu_op_a_w;
+logic                        alu_op_b_w;
+logic [`REG_ADDR_WIDTH-1:0]  alu_dest_addr_w;
+logic                        alu_wb_w;
 
-reg                        illegal_instr_w;
-reg                        ecall_w;
-reg                        ebreak_w;
+logic                        illegal_instr_w;
+logic                        ecall_w;
+logic                        ebreak_w;
 
-reg [`REG_ADDR_WIDTH-1:0]  rf_addr_a_w;
-reg [`REG_ADDR_WIDTH-1:0]  rf_addr_b_w;
+logic [`REG_ADDR_WIDTH-1:0]  rf_addr_a_w;
+logic [`REG_ADDR_WIDTH-1:0]  rf_addr_b_w;
 
-reg [`DATA_WIDTH-1:0]      imm_ext_w;
+logic [`DATA_WIDTH-1:0]      imm_ext_w;
 
-reg                        lsu_ctrl_valid_w;
-reg [3:0]                  lsu_ctrl_w;
-reg [`REG_ADDR_WIDTH-1:0]  lsu_regdest_w;
+logic                        lsu_ctrl_valid_w;
+logic [3:0]                  lsu_ctrl_w;
+logic [`REG_ADDR_WIDTH-1:0]  lsu_regdest_w;
 
-reg                        ready_w;
-reg                        jmp_instr_w;
-reg [`DATA_WIDTH-1:0]      jmp_addr_w;
+logic                        ready_w;
+logic                        jmp_instr_w;
+logic [`DATA_WIDTH-1:0]      jmp_addr_w;
 
-reg [`CSR_ADDR_WIDTH-1:0]  csr_addr_w;
-reg                        csr_we_w;
-reg [`DATA_WIDTH-1:0]      csr_temp_r;
-reg [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
-reg                        csr_uimm_we_w;
-reg [`CSR_WMODE_WIDTH-1:0] csr_wmode_w;
-reg                        csr_mret_w;
+logic [`CSR_ADDR_WIDTH-1:0]  csr_addr_w;
+logic                        csr_we_w;
+logic [`DATA_WIDTH-1:0]      csr_temp_r;
+logic [`CSR_UIMM_WIDTH-1:0]  csr_uimm_data_w; 
+logic                        csr_uimm_we_w;
+logic [`CSR_WMODE_WIDTH-1:0] csr_wmode_w;
+logic                        csr_mret_w;
 
-reg [`DATA_WIDTH-1:0]      jmp_addr_save_r;
+logic [`DATA_WIDTH-1:0]      jmp_addr_save_r;
 
 // Other signal definitions
-wire [`DATA_WIDTH-1:0] I_imm_sign_extended_w;
-wire [`DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
-wire [`DATA_WIDTH-1:0] J_imm_sign_extended_w;
-wire [`DATA_WIDTH-1:0] B_imm_sign_extended_w;
-wire [`DATA_WIDTH-1:0] S_imm_sign_extended_w;
+logic [`DATA_WIDTH-1:0] I_imm_sign_extended_w;
+logic [`DATA_WIDTH-1:0] I_shift_imm_sign_extended_w;
+logic [`DATA_WIDTH-1:0] J_imm_sign_extended_w;
+logic [`DATA_WIDTH-1:0] B_imm_sign_extended_w;
+logic [`DATA_WIDTH-1:0] S_imm_sign_extended_w;
 
 // For generating stalling logic
-reg [`REG_ADDR_WIDTH-1:0] prev_dest_addr;
+logic [`REG_ADDR_WIDTH-1:0] prev_dest_addr;
 
 
 // FSM signals
@@ -158,18 +158,18 @@ localparam eBREAK_WAIT         = 41'b00100000000000000000000000000000000000000;
 localparam eERROR              = 41'b01000000000000000000000000000000000000000;
 localparam eINSTR_NOT_VALID    = 41'b10000000000000000000000000000000000000000;
 
-reg  [40:0] state, next;
+logic  [40:0] state, next;
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
-wire [6:0]   opcode; 
-wire [11:7]  regdest;  
-wire [11:7]  imm4_0; 
-wire [31:12] imm31_12; // U-type immediate 
-wire [31:20] imm11_0; // I-type immediate
-wire [14:12] funct3;
-wire [19:15] regs1;
-wire [24:20] regs2;
-wire [31:25] funct7;
+logic [6:0]   opcode; 
+logic [11:7]  regdest;  
+logic [11:7]  imm4_0; 
+logic [31:12] imm31_12; // U-type immediate 
+logic [31:20] imm11_0; // I-type immediate
+logic [14:12] funct3;
+logic [19:15] regs1;
+logic [24:20] regs2;
+logic [31:25] funct7;
 
 
 /*************************************
@@ -189,7 +189,7 @@ assign funct7   = instr_i[31:25];
 /*************************************
 * BUFFER INSTR ADDR
 *************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         instr_addr_ro <= 32'b0;
     end
@@ -202,7 +202,7 @@ end
 /*************************************
 * FSM UPDATE
 *************************************/
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         state <= eOK;
     end
@@ -216,7 +216,7 @@ end
 * PREVIOUS DESTINATION SAVING
 *************************************/
 // We save the previous destination register address to see if we need to generate stalls.
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         prev_dest_addr <= 5'b00000;
     end
@@ -234,7 +234,7 @@ end
 /*************************************
 * SAVING THE CALCULATED JUMP ADDRESS
 *************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         jmp_addr_save_r <= 0;
     end
@@ -283,7 +283,7 @@ sign_extender #(.N(`DATA_WIDTH), .M(12)) sign_extender_S_inst (.in_i({instr_i[31
 /*************************************
 * CSR temporary register reading logic
 *************************************/
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         csr_temp_r <= 0;
     end
@@ -298,7 +298,7 @@ end
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     use_alu_jmp_addr_ro <= 0;
     use_pc_ro <= 0;
@@ -359,7 +359,7 @@ end
 /*************************************
 * DECODER - COMBINATIONAL LOGIC
 *************************************/
-always@(*)
+always_comb
 begin 
   use_alu_jmp_addr_w  = 1'b0;
   use_pc_w            = 1'b0;

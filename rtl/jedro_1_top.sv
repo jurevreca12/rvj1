@@ -17,21 +17,21 @@ module jedro_1_top #(
     parameter JEDRO_1_BOOT_ADDR = `JEDRO_1_BOOT_ADDR
 )
 (
-  input wire clk_i,
-  input wire rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // Interface to the ROM memory
-  output wire [`DATA_WIDTH-1:0]  iram_addr,
-  input wire  [`DATA_WIDTH-1:0]  iram_rdata,
+  output logic [`DATA_WIDTH-1:0]  iram_addr,
+  input logic  [`DATA_WIDTH-1:0]  iram_rdata,
 
   // Interface to data RAM
-  output wire [3:0]                 dram_we,
-  output wire                       dram_stb,
-  output wire [`DATA_WIDTH-1:0]     dram_addr,
-  output wire [`DATA_WIDTH-1:0]     dram_wdata,
-  input  wire [`DATA_WIDTH-1:0]     dram_rdata,
-  input  wire                       dram_ack,
-  input  wire                       dram_err
+  output logic [3:0]                 dram_we,
+  output logic                       dram_stb,
+  output logic [`DATA_WIDTH-1:0]     dram_addr,
+  output logic [`DATA_WIDTH-1:0]     dram_wdata,
+  input  logic [`DATA_WIDTH-1:0]     dram_rdata,
+  input  logic                       dram_ack,
+  input  logic                       dram_err
 
  // IRQ/Debug interface TODO
 
@@ -40,65 +40,65 @@ module jedro_1_top #(
 /****************************************
 * SIGNAL DECLARATION
 ****************************************/
-wire                        ifu_decoder_instr_valid;
-wire [`DATA_WIDTH-1:0]      ifu_decoder_instr_addr;
-wire [`DATA_WIDTH-1:0]      ifu_decoder_instr;
-reg  [`DATA_WIDTH-1:0]      mux3_ifu_jmp_addr;
-wire                        decoder_ifu_ready; 
-wire                        decoder_ifu_jmp_instr;
-wire [`DATA_WIDTH-1:0]      decoder_ifu_jmp_addr;
-wire                        decoder_mux3_use_alu_jmp_addr;
-wire [`ALU_OP_WIDTH-1:0]    decoder_alu_sel;
-wire [`REG_ADDR_WIDTH-1:0]  decoder_alu_dest_addr;
-wire                        decoder_alu_wb;
-wire [`REG_ADDR_WIDTH-1:0]  decoder_rf_addr_a;
-wire [`REG_ADDR_WIDTH-1:0]  decoder_rf_addr_b;
-wire [`DATA_WIDTH-1:0]      decoder_mux_imm_ex;
-wire                        decoder_mux_is_imm;
-wire [`DATA_WIDTH-1:0]      decoder_mux2_instr_addr;
-reg  [`DATA_WIDTH-1:0]      decoder_1_mux2_instr_addr;
-wire                        decoder_mux2_use_pc;
-wire [`CSR_ADDR_WIDTH-1:0]  decoder_csr_addr;
-wire [`DATA_WIDTH-1:0]      decoder_csr_data;
-wire [`DATA_WIDTH-1:0]      csr_decoder_data;
-wire                        decoder_csr_we;
-wire [`CSR_WMODE_WIDTH-1:0] decoder_csr_wtype;
-wire [`CSR_UIMM_WIDTH-1:0]  decoder_csr_uimm;
-wire                        decoder_csr_uimm_we;
-wire [`CSR_WMODE_WIDTH-1:0] decoder_csr_wmode;
-wire                        decoder_csr_mret;
-wire                        decoder_csr_illegal_instr;
-wire                        decoder_csr_ecall;
-wire                        decoder_csr_ebreak;
-wire [`DATA_WIDTH-1:0]      alu_mux4_res;
-wire [`REG_ADDR_WIDTH-1:0]  alu_mux4_dest_addr;
-wire                        alu_mux4_wb;
-wire                        alu_overflow;
-wire                        alu_decoder_ops_eq;
-wire [`DATA_WIDTH-1:0]      rf_alu_data_a;
-wire [`DATA_WIDTH-1:0]      rf_alu_data_b;
-wire [`DATA_WIDTH-1:0]      mux_alu_op_b;
-wire [`DATA_WIDTH-1:0]      mux2_alu_op_a;
-wire                        decoder_lsu_ctrl_valid;
-wire [`LSU_CTRL_WIDTH-1:0]  decoder_lsu_ctrl;
-wire [`REG_ADDR_WIDTH-1:0]  decoder_lsu_regdest;
-reg                         decoder_1_mux4_is_alu_write;
-wire                        decoder_mux4_is_alu_write;
-wire [`DATA_WIDTH-1:0]      lsu_mux4_rdata;
-wire                        lsu_mux4_wb;
-wire [`REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
-wire                        lsu_csr_misaligned_load;
-wire                        lsu_csr_misaligned_store;
-wire [`DATA_WIDTH-1:0]      lsu_csr_misaligned_addr;
-wire                        lsu_csr_bus_error;
-wire                        lsu_decoder_read_complete;
-reg  [`DATA_WIDTH-1:0]      mux4_rf_data;
-reg                         mux4_rf_wb;
-reg  [`REG_ADDR_WIDTH-1:0]  mux4_rf_dest_addr;
-wire                        csr_ifu_trap;
-wire [`DATA_WIDTH-1:0]      csr_ifu_mtvec;
-wire                        ifu_csr_exception;
-wire [`DATA_WIDTH-1:0]      ifu_csr_fault_addr;
+logic                        ifu_decoder_instr_valid;
+logic [`DATA_WIDTH-1:0]      ifu_decoder_instr_addr;
+logic [`DATA_WIDTH-1:0]      ifu_decoder_instr;
+logic [`DATA_WIDTH-1:0]      mux3_ifu_jmp_addr;
+logic                        decoder_ifu_ready; 
+logic                        decoder_ifu_jmp_instr;
+logic [`DATA_WIDTH-1:0]      decoder_ifu_jmp_addr;
+logic                        decoder_mux3_use_alu_jmp_addr;
+logic [`ALU_OP_WIDTH-1:0]    decoder_alu_sel;
+logic [`REG_ADDR_WIDTH-1:0]  decoder_alu_dest_addr;
+logic                        decoder_alu_wb;
+logic [`REG_ADDR_WIDTH-1:0]  decoder_rf_addr_a;
+logic [`REG_ADDR_WIDTH-1:0]  decoder_rf_addr_b;
+logic [`DATA_WIDTH-1:0]      decoder_mux_imm_ex;
+logic                        decoder_mux_is_imm;
+logic [`DATA_WIDTH-1:0]      decoder_mux2_instr_addr;
+logic [`DATA_WIDTH-1:0]      decoder_1_mux2_instr_addr;
+logic                        decoder_mux2_use_pc;
+logic [`CSR_ADDR_WIDTH-1:0]  decoder_csr_addr;
+logic [`DATA_WIDTH-1:0]      decoder_csr_data;
+logic [`DATA_WIDTH-1:0]      csr_decoder_data;
+logic                        decoder_csr_we;
+logic [`CSR_WMODE_WIDTH-1:0] decoder_csr_wtype;
+logic [`CSR_UIMM_WIDTH-1:0]  decoder_csr_uimm;
+logic                        decoder_csr_uimm_we;
+logic [`CSR_WMODE_WIDTH-1:0] decoder_csr_wmode;
+logic                        decoder_csr_mret;
+logic                        decoder_csr_illegal_instr;
+logic                        decoder_csr_ecall;
+logic                        decoder_csr_ebreak;
+logic [`DATA_WIDTH-1:0]      alu_mux4_res;
+logic [`REG_ADDR_WIDTH-1:0]  alu_mux4_dest_addr;
+logic                        alu_mux4_wb;
+logic                        alu_overflow;
+logic                        alu_decoder_ops_eq;
+logic [`DATA_WIDTH-1:0]      rf_alu_data_a;
+logic [`DATA_WIDTH-1:0]      rf_alu_data_b;
+logic [`DATA_WIDTH-1:0]      mux_alu_op_b;
+logic [`DATA_WIDTH-1:0]      mux2_alu_op_a;
+logic                        decoder_lsu_ctrl_valid;
+logic [`LSU_CTRL_WIDTH-1:0]  decoder_lsu_ctrl;
+logic [`REG_ADDR_WIDTH-1:0]  decoder_lsu_regdest;
+logic                        decoder_1_mux4_is_alu_write;
+logic                        decoder_mux4_is_alu_write;
+logic [`DATA_WIDTH-1:0]      lsu_mux4_rdata;
+logic                        lsu_mux4_wb;
+logic [`REG_ADDR_WIDTH-1:0]  lsu_mux4_regdest;
+logic                        lsu_csr_misaligned_load;
+logic                        lsu_csr_misaligned_store;
+logic [`DATA_WIDTH-1:0]      lsu_csr_misaligned_addr;
+logic                        lsu_csr_bus_error;
+logic                        lsu_decoder_read_complete;
+logic [`DATA_WIDTH-1:0]      mux4_rf_data;
+logic                         mux4_rf_wb;
+logic [`REG_ADDR_WIDTH-1:0]  mux4_rf_dest_addr;
+logic                        csr_ifu_trap;
+logic [`DATA_WIDTH-1:0]      csr_ifu_mtvec;
+logic                        ifu_csr_exception;
+logic [`DATA_WIDTH-1:0]      ifu_csr_fault_addr;
 
 
 /****************************************
@@ -120,7 +120,7 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .ram_rdata        (iram_rdata)
                      );  
 
-always@(*) begin
+always_comb begin
     if      (csr_ifu_trap)                  mux3_ifu_jmp_addr = csr_ifu_mtvec;
     else if (decoder_mux3_use_alu_jmp_addr) mux3_ifu_jmp_addr = {alu_mux4_res[31:1], 1'b0};
     else                                    mux3_ifu_jmp_addr = decoder_ifu_jmp_addr;
@@ -188,7 +188,7 @@ assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_da
 // mux_alu_op_b
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) decoder_1_mux2_instr_addr <= 0;
     else                decoder_1_mux2_instr_addr <= decoder_mux2_instr_addr;
 end
@@ -247,7 +247,7 @@ jedro_1_alu alu_inst(.clk_i       (clk_i),
 *********************************************/
 // We delay the signals by 1 clock cycle that is used
 // for computing the target address.
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin        
         decoder_1_mux4_is_alu_write <= 1'b1;
     end
@@ -257,7 +257,7 @@ always @(posedge clk_i) begin
 end
 
 // MUX4
-always@(*) begin
+always_comb begin
     if (decoder_1_mux4_is_alu_write == 1'b1) begin
         mux4_rf_dest_addr = alu_mux4_dest_addr;
         mux4_rf_data      = alu_mux4_res;

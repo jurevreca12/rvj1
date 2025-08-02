@@ -18,34 +18,34 @@ module jedro_1_regfile
   parameter REG_ADDR_WIDTH = $clog2(DATA_WIDTH)
 )
 (
-  input wire clk_i,
-  input wire rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // Read port A
-  input wire [REG_ADDR_WIDTH-1:0] rpa_addr_i,
-  output wire [DATA_WIDTH-1:0]    rpa_data_co,
+  input logic [REG_ADDR_WIDTH-1:0] rpa_addr_i,
+  output logic [DATA_WIDTH-1:0]    rpa_data_co,
 
   // Read port B
-  input wire [REG_ADDR_WIDTH-1:0] rpb_addr_i,
-  output wire [DATA_WIDTH-1:0]    rpb_data_co,
+  input logic [REG_ADDR_WIDTH-1:0] rpb_addr_i,
+  output logic [DATA_WIDTH-1:0]    rpb_data_co,
 
   // Write port C
-  input wire [REG_ADDR_WIDTH-1:0] wpc_addr_i,
-  input wire [DATA_WIDTH-1:0]     wpc_data_i,
-  input wire                      wpc_we_i
+  input logic [REG_ADDR_WIDTH-1:0] wpc_addr_i,
+  input logic [DATA_WIDTH-1:0]     wpc_data_i,
+  input logic                      wpc_we_i
 );
 
 localparam NUM_REGISTERS = 2 ** (REG_ADDR_WIDTH);
 
 // Integer register file x0-x31
-reg [DATA_WIDTH-1:0] regfile [NUM_REGISTERS-1:0];
+logic [DATA_WIDTH-1:0] regfile [NUM_REGISTERS-1:0];
 
 /******************************
 * WRITE LOGIC
 ******************************/
 // Write to the registers (register x0 should always be zero)
 integer i;
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     for (i=0; i < NUM_REGISTERS; i=i+1)
       regfile[i] <= 32'b0;

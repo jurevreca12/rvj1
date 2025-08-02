@@ -15,44 +15,44 @@
 
 module jedro_1_alu
 (
-  input  wire clk_i,
-  input  wire rstn_i,
+  input  logic clk_i,
+  input  logic rstn_i,
 
-  input  wire [`ALU_OP_WIDTH-1:0]   sel_i, // select arithmetic operation
+  input  logic [`ALU_OP_WIDTH-1:0]   sel_i, // select arithmetic operation
 
-  input  wire [`DATA_WIDTH-1:0]     op_a_i,
-  input  wire [`DATA_WIDTH-1:0]     op_b_i,
-  output reg  [`DATA_WIDTH-1:0]     res_ro,
-  output reg                       ops_eq_ro, // is 1 if op_a_i == op_b_i
-  output reg                       overflow_ro,
+  input  logic [`DATA_WIDTH-1:0]     op_a_i,
+  input  logic [`DATA_WIDTH-1:0]     op_b_i,
+  output logic  [`DATA_WIDTH-1:0]     res_ro,
+  output logic                       ops_eq_ro, // is 1 if op_a_i == op_b_i
+  output logic                       overflow_ro,
 
-  input  wire [`REG_ADDR_WIDTH-1:0] dest_addr_i,
-  output reg  [`REG_ADDR_WIDTH-1:0] dest_addr_ro,
+  input  logic [`REG_ADDR_WIDTH-1:0] dest_addr_i,
+  output logic  [`REG_ADDR_WIDTH-1:0] dest_addr_ro,
   
-  input  wire                      wb_i,
-  output reg                       wb_ro
+  input  logic                      wb_i,
+  output logic                       wb_ro
 );
 
 /*******************************
 * SIGNAL DECLARATION
 *******************************/
-wire [`DATA_WIDTH-1:0] adder_res;
-wire [`DATA_WIDTH-1:0] and_res;
-wire [`DATA_WIDTH-1:0] or_res;
-wire [`DATA_WIDTH-1:0] xor_res;
-wire [`DATA_WIDTH-1:0] less_than_sign_res;
-wire [`DATA_WIDTH-1:0] less_than_unsign_res;
-wire [`DATA_WIDTH-1:0] shifter_right_res;
-wire [`DATA_WIDTH-1:0] shifter_left_res;
-wire                  ops_eq_res;
-wire                  adder_overflow;
+logic [`DATA_WIDTH-1:0] adder_res;
+logic [`DATA_WIDTH-1:0] and_res;
+logic [`DATA_WIDTH-1:0] or_res;
+logic [`DATA_WIDTH-1:0] xor_res;
+logic [`DATA_WIDTH-1:0] less_than_sign_res;
+logic [`DATA_WIDTH-1:0] less_than_unsign_res;
+logic [`DATA_WIDTH-1:0] shifter_right_res;
+logic [`DATA_WIDTH-1:0] shifter_left_res;
+logic                  ops_eq_res;
+logic                  adder_overflow;
 
 
 
 /*******************************
 * RESULT BUFFERING
 *******************************/
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     overflow_ro <= 0;
     res_ro <= 0;
@@ -68,7 +68,7 @@ end
 /*******************************
 * GO-THROUGH SIGNAL BUFFERING
 *******************************/
-always@(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     wb_ro <= 0;
     dest_addr_ro <= 0; 
@@ -136,7 +136,7 @@ barrel_shifter_right_32b shifter_right_32b_inst
 /*******************************
 * RESULT MUXING
 *******************************/
-always@(posedge clk_i)
+always_ff @(posedge clk_i)
 begin
   case (sel_i)
     `ALU_OP_ADD: begin

@@ -18,91 +18,91 @@ module jedro_1_csr
   parameter DATA_WIDTH = 32
 )
 (
-  input wire clk_i,
-  input wire rstn_i,
+  input logic clk_i,
+  input logic rstn_i,
 
   // Read/write port
-  input wire [`CSR_ADDR_WIDTH-1:0]  addr_i,
-  input wire [`DATA_WIDTH-1:0]      data_i,
-  input wire [`CSR_UIMM_WIDTH-1:0]  uimm_data_i,
-  input wire                       uimm_we_i,
-  output reg [`DATA_WIDTH-1:0]      data_ro,
-  input wire                       we_i,
-  input wire [`CSR_WMODE_WIDTH-1:0] wmode_i,
+  input logic [`CSR_ADDR_WIDTH-1:0]  addr_i,
+  input logic [`DATA_WIDTH-1:0]      data_i,
+  input logic [`CSR_UIMM_WIDTH-1:0]  uimm_data_i,
+  input logic                       uimm_we_i,
+  output logic [`DATA_WIDTH-1:0]      data_ro,
+  input logic                       we_i,
+  input logic [`CSR_WMODE_WIDTH-1:0] wmode_i,
  
-  input  wire [`DATA_WIDTH-1:0]     curr_pc_i, // current pc in decoder
-  input  wire [`DATA_WIDTH-1:0]     prev_pc_i, // previous clock cycle pc
+  input  logic [`DATA_WIDTH-1:0]     curr_pc_i, // current pc in decoder
+  input  logic [`DATA_WIDTH-1:0]     prev_pc_i, // previous clock cycle pc
 
   // IFU interface main
-  output reg [`DATA_WIDTH-1:0]      traphandler_addr_ro,
-  output reg                       trap_ro,
+  output logic [`DATA_WIDTH-1:0]      traphandler_addr_ro,
+  output logic                       trap_ro,
 
   // IFU exception interface
-  input  wire                      ifu_exception_i,
-  input  wire [`DATA_WIDTH-1:0]     ifu_mtval_i,
+  input  logic                      ifu_exception_i,
+  input  logic [`DATA_WIDTH-1:0]     ifu_mtval_i,
 
   // LSU exception iterface
-  input wire                   lsu_exception_load_i,
-  input wire                   lsu_exception_store_i,
-  input wire                   lsu_exception_bus_err_i,
-  input wire [`DATA_WIDTH-1:0]  lsu_exception_addr_i,
+  input logic                   lsu_exception_load_i,
+  input logic                   lsu_exception_store_i,
+  input logic                   lsu_exception_bus_err_i,
+  input logic [`DATA_WIDTH-1:0]  lsu_exception_addr_i,
 
-  input wire                   decoder_exc_illegal_instr_i,
-  input wire                   decoder_exc_ecall_i,
-  input wire                   decoder_exc_ebreak_i,
+  input logic                   decoder_exc_illegal_instr_i,
+  input logic                   decoder_exc_ecall_i,
+  input logic                   decoder_exc_ebreak_i,
 
   // interrupt lines
-  input wire                   sw_irq_i,
-  input wire                   timer_irq_i,
-  input wire                   ext_irq_i,
+  input logic                   sw_irq_i,
+  input logic                   timer_irq_i,
+  input logic                   ext_irq_i,
 
-  input wire                   mret_i
+  input logic                   mret_i
 );
 
-reg  [`DATA_WIDTH-1:0] data_n;
-reg  [`DATA_WIDTH-1:0] data_mod;
-wire [`DATA_WIDTH-1:0] data_mux;
+logic  [`DATA_WIDTH-1:0] data_n;
+logic  [`DATA_WIDTH-1:0] data_mod;
+logic  [`DATA_WIDTH-1:0] data_mux;
 
 // MSTATUS
-reg csr_mstatus_mie_r, csr_mstatus_mie_n, csr_mstatus_mie_exc;  // machine interrupt enable
-reg csr_mstatus_mpie_r, csr_mstatus_mpie_n, csr_mstatus_mpie_exc; // previous machine interrupt enable
+logic csr_mstatus_mie_r, csr_mstatus_mie_n, csr_mstatus_mie_exc;  // machine interrupt enable
+logic csr_mstatus_mpie_r, csr_mstatus_mpie_n, csr_mstatus_mpie_exc; // previous machine interrupt enable
 
 // MTVEC
-reg [`CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_r,  csr_mtvec_base_n;
+logic [`CSR_MTVEC_BASE_LEN-1:0] csr_mtvec_base_r,  csr_mtvec_base_n;
 
 // MIP
-reg csr_mip_msip_r; // machine software interrupt pending
-reg csr_mip_mtip_r; // machine timmer interrupt pending
-reg csr_mip_meip_r; // machine external interrupt pending
+logic csr_mip_msip_r; // machine software interrupt pending
+logic csr_mip_mtip_r; // machine timmer interrupt pending
+logic csr_mip_meip_r; // machine external interrupt pending
 
 // MIE
-reg csr_mie_msie_r, csr_mie_msie_n; // machine software interrupt enable
-reg csr_mie_mtie_r, csr_mie_mtie_n; // machine timer interrupt enable
-reg csr_mie_meie_r, csr_mie_meie_n; // machine external interrupt enable
+logic csr_mie_msie_r, csr_mie_msie_n; // machine software interrupt enable
+logic csr_mie_mtie_r, csr_mie_mtie_n; // machine timer interrupt enable
+logic csr_mie_meie_r, csr_mie_meie_n; // machine external interrupt enable
 
 // MSCRATCH
-reg [`DATA_WIDTH-1:0] csr_mscratch_r, csr_mscratch_n;
+logic [`DATA_WIDTH-1:0] csr_mscratch_r, csr_mscratch_n;
 
 // MEPC
-reg [`DATA_WIDTH-1:0] csr_mepc_r, csr_mepc_n, csr_mepc_exc;
+logic [`DATA_WIDTH-1:0] csr_mepc_r, csr_mepc_n, csr_mepc_exc;
 
 // MCAUSE
-reg [`DATA_WIDTH-1:0] csr_mcause_r, csr_mcause_n, csr_mcause_exc;
+logic [`DATA_WIDTH-1:0] csr_mcause_r, csr_mcause_n, csr_mcause_exc;
 
 // MTVAL
-reg [`DATA_WIDTH-1:0] csr_mtval_r, csr_mtval_n, csr_mtval_exc;
+logic [`DATA_WIDTH-1:0] csr_mtval_r, csr_mtval_n, csr_mtval_exc;
 
 // Other signals
-wire [`DATA_WIDTH-1:0] uimm_data_ext;
-reg                    csr_illegal_instr_exc; // Signals illegal csr write 
-wire                   is_exception;
-wire                   is_write;
-reg  [`DATA_WIDTH-1:0] exception_code;
-reg  [`DATA_WIDTH-1:0] exception_mtval;
-reg  [`DATA_WIDTH-1:0] exception_addr;
+logic [`DATA_WIDTH-1:0] uimm_data_ext;
+logic                    csr_illegal_instr_exc; // Signals illegal csr write 
+logic                   is_exception;
+logic                   is_write;
+logic  [`DATA_WIDTH-1:0] exception_code;
+logic  [`DATA_WIDTH-1:0] exception_mtval;
+logic  [`DATA_WIDTH-1:0] exception_addr;
 
 assign data_mux = uimm_we_i ? {27'b0, uimm_data_i} : data_i;
-always@(*) begin
+always_comb begin
     if (wmode_i == `CSR_WMODE_NORMAL)
         data_mod = data_mux;
     else if (wmode_i == `CSR_WMODE_SET_BITS)
@@ -124,7 +124,7 @@ assign is_exception = ifu_exception_i |
 
 assign is_write = (!is_exception) && (we_i || uimm_we_i);
 
-always@(*) begin
+always_comb begin
     if      (decoder_exc_illegal_instr_i) exception_code = `CSR_MCAUSE_ILLEGAL_INSTRUCTION;
     else if (csr_illegal_instr_exc)       exception_code = `CSR_MCAUSE_ILLEGAL_INSTRUCTION;
     else if (ifu_exception_i)             exception_code = `CSR_MCAUSE_INSTR_ADDR_MISALIGNED;
@@ -136,7 +136,7 @@ always@(*) begin
     else                                  exception_code = 32'b0;
 end
 
-always@(*) begin
+always_comb begin
     if      (decoder_exc_illegal_instr_i) exception_mtval = curr_pc_i;
     else if (csr_illegal_instr_exc)       exception_mtval = curr_pc_i;
     else if (ifu_exception_i)             exception_mtval = ifu_mtval_i;
@@ -148,7 +148,7 @@ always@(*) begin
     else                                  exception_mtval = 32'b0;
 end
 
-always@(*) begin
+always_comb begin
     if      (decoder_exc_illegal_instr_i) exception_addr = curr_pc_i;
     else if (csr_illegal_instr_exc)       exception_addr = curr_pc_i;
     else if (ifu_exception_i)             exception_addr = prev_pc_i;
@@ -160,7 +160,7 @@ always@(*) begin
     else                                  exception_addr = 32'b0;
 end
 
-always@(*) begin
+always_comb begin
     data_n = 0;
     csr_illegal_instr_exc = 0;
     csr_mstatus_mie_n = csr_mstatus_mie_r;
@@ -272,7 +272,7 @@ always@(*) begin
 end
 
 // Exception value generation
-always@(*) begin
+always_comb begin
     csr_mepc_exc = 0;
     csr_mcause_exc = 0;
     csr_mtval_exc = 0;
@@ -291,7 +291,7 @@ always@(*) begin
 end
 
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         data_ro <= 0;
         csr_mstatus_mie_r <= 0;
@@ -336,7 +336,7 @@ always @(posedge clk_i) begin
 end
 
 
-always @(posedge clk_i) begin
+always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
         trap_ro <= 1'b0;
         traphandler_addr_ro <= 0;
