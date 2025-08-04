@@ -19,17 +19,17 @@ module jedro_1_top
   input logic rstn_i,
 
   // Interface to the ROM memory
-  output logic [DATA_WIDTH-1:0]  iram_addr,
-  input logic  [DATA_WIDTH-1:0]  iram_rdata,
+  output logic [DATA_WIDTH-1:0] iram_addr,
+  input logic  [DATA_WIDTH-1:0] iram_rdata,
 
   // Interface to data RAM
-  output logic [3:0]                 dram_we,
-  output logic                       dram_stb,
-  output logic [DATA_WIDTH-1:0]     dram_addr,
-  output logic [DATA_WIDTH-1:0]     dram_wdata,
-  input  logic [DATA_WIDTH-1:0]     dram_rdata,
-  input  logic                       dram_ack,
-  input  logic                       dram_err
+  output logic [3:0]            dram_we,
+  output logic                  dram_stb,
+  output logic [DATA_WIDTH-1:0] dram_addr,
+  output logic [DATA_WIDTH-1:0] dram_wdata,
+  input  logic [DATA_WIDTH-1:0] dram_rdata,
+  input  logic                  dram_ack,
+  input  logic                  dram_err
 
  // IRQ/Debug interface TODO
 

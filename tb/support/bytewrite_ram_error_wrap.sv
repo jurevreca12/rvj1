@@ -23,11 +23,11 @@ module bytewrite_ram_error_wrap
 );
   reg delay;
  
-  bytewrite_ram_1b #(.SIZE(MEM_SIZE_WORDS),
+  bytewrite_ram_1b #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                      .INIT_FILE_BIN(INIT_FILE_BIN),
                      .MEM_INIT_FILE(MEM_INIT_FILE)) data_ram (.clk(clk_i), 
                                                               .we(we[3:0]), 
-                                                              .addr(addr[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
+                                                              .addr(addr[$clog2(MEM_SIZE_WORDS)-1:0]), 
                                                               .di(wdata[DATA_WIDTH-1:0]), 
                                                               .dout(rdata[DATA_WIDTH-1:0]));
 
