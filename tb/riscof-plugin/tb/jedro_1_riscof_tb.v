@@ -5,6 +5,8 @@ module jedro_1_riscof_tb();
   parameter ADDR_WIDTH     = 32;
   parameter MEM_SIZE_WORDS = 1 << 19;
   parameter TIMEOUT        = 1000000;
+  parameter MEM_INIT_FILE  = "out.hex";
+  parameter SIGNATURE_FILE = "dut.signature";
  
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
   localparam SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
@@ -31,14 +33,14 @@ module jedro_1_riscof_tb();
 
   rams_init_file_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                         .INIT_FILE_BIN(0),
-                        .MEM_INIT_FILE("out.hex")) rom_mem (.clk_i   (clk),
+                        .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk_i   (clk),
                                                             .addr_i  (iram_addr),
                                                             .rdata_o (iram_rdata));
 
   // Data interface
   bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                        .INIT_FILE_BIN(0),
-                       .MEM_INIT_FILE("out.hex")) data_mem (.clk_i  (clk),
+                       .MEM_INIT_FILE(MEM_INIT_FILE)) data_mem (.clk_i  (clk),
                                                             .rstn_i (rstn),
                                                             .rdata  (dram_rdata),
                                                             .ack    (dram_ack),
@@ -71,10 +73,10 @@ module jedro_1_riscof_tb();
 
   integer sig_file, start_addr, end_addr;
   initial begin
-  clk <= 1'b0;
-  rstn <= 1'b0;
+  clk = 1'b0;
+  rstn = 1'b0;
   repeat (3) @ (posedge clk);
-  rstn <= 1'b1;
+  rstn = 1'b1;
  
   i=0;
   while (i < TIMEOUT && data_mem.data_ram.RAM[HALT_COND_CELLNUM] !== 1) begin
@@ -86,7 +88,7 @@ module jedro_1_riscof_tb();
   start_addr = data_mem.data_ram.RAM[SIG_START_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
   end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
 
-  sig_file = $fopen("dut.signature", "w");
+  sig_file = $fopen(SIGNATURE_FILE, "w");
 
   for (j=start_addr; j < end_addr; j=j+4) begin
     $fwrite(sig_file, "%h\n", data_mem.data_ram.RAM[j>>2]);
