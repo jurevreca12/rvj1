@@ -26,7 +26,7 @@ class sail_cSim(pluginTemplate):
         if config is None:
             logger.error("Config node for sail_cSim missing.")
             raise SystemExit(1)
-        self.num_jobs = str(config['jobs'] if 'jobs' in config else 1)
+        self.num_jobs = str(config['jobs'] if 'jobs' in config else int(os.cpu_count() / 2))
         self.pluginpath = os.path.abspath(config['pluginpath'])
         self.sail_exe = { '32' : os.path.join(config['PATH'] if 'PATH' in config else "","riscv_sim_RV32"),
                 '64' : os.path.join(config['PATH'] if 'PATH' in config else "","riscv_sim_RV64")}

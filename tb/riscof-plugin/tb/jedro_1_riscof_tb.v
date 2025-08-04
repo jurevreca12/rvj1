@@ -8,6 +8,7 @@ module jedro_1_riscof_tb();
   parameter MEM_INIT_FILE  = "out.hex";
   parameter SIGNATURE_FILE = "dut.signature";
  
+
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
   localparam SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
   localparam HALT_COND_CELLNUM      = MEM_SIZE_WORDS - 3;
@@ -34,21 +35,21 @@ module jedro_1_riscof_tb();
   rams_init_file_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                         .INIT_FILE_BIN(0),
                         .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk_i   (clk),
-                                                            .addr_i  (iram_addr),
-                                                            .rdata_o (iram_rdata));
+                                                                .addr_i  (iram_addr),
+                                                                .rdata_o (iram_rdata));
 
   // Data interface
   bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                        .INIT_FILE_BIN(0),
                        .MEM_INIT_FILE(MEM_INIT_FILE)) data_mem (.clk_i  (clk),
-                                                            .rstn_i (rstn),
-                                                            .rdata  (dram_rdata),
-                                                            .ack    (dram_ack),
-                                                            .err    (dram_err),
-                                                            .we     (dram_we),
-                                                            .stb    (dram_stb),
-                                                            .addr   (dram_addr),
-                                                            .wdata  (dram_wdata));
+                                                                .rstn_i (rstn),
+                                                                .rdata  (dram_rdata),
+                                                                .ack    (dram_ack),
+                                                                .err    (dram_err),
+                                                                .we     (dram_we),
+                                                                .stb    (dram_stb),
+                                                                .addr   (dram_addr),
+                                                                .wdata  (dram_wdata));
 
 
   jedro_1_top dut(.clk_i       (clk),

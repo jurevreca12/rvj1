@@ -5,16 +5,16 @@
 module rams_init_file #(
     parameter MEM_INIT_FILE="",
     parameter INIT_FILE_BIN=1,
-    parameter MEM_SIZE=2**12) (clk, we, addr, din, dout);
+    parameter MEM_SIZE_WORDS=2**12) (clk, we, addr, din, dout);
 
 input clk;
 input we;
-input [$clog2(MEM_SIZE*4)-1:0] addr;
+input [$clog2(MEM_SIZE_WORDS * 4)-1:0] addr;
 input [31:0] din;
 output [31:0] dout;
 
 
-reg [31:0] ram [0:MEM_SIZE];
+reg [31:0] ram [0:MEM_SIZE_WORDS];
 reg [31:0] dout;
 
 integer flen;
