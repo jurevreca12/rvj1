@@ -32,6 +32,7 @@ module jedro_1_riscof_tb();
   wire [DATA_WIDTH-1:0] dram_addr;
   wire [DATA_WIDTH-1:0] dram_wdata;
 
+  // instruction memory
   rams_init_file #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                    .INIT_FILE_BIN(0),
                    .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk  (clk),
@@ -40,7 +41,7 @@ module jedro_1_riscof_tb();
                                                            .din  (32'b0), 
                                                            .dout (iram_rdata));
 
-  // Data interface
+  // data memory
   bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                        .INIT_FILE_BIN(0),
                        .MEM_INIT_FILE(MEM_INIT_FILE)) data_mem (.clk_i  (clk),
@@ -50,7 +51,7 @@ module jedro_1_riscof_tb();
                                                                 .err    (dram_err),
                                                                 .we     (dram_we),
                                                                 .stb    (dram_stb),
-                                                                .addr   (dram_addr),
+                                                                .addr   (dram_addr[MEM_SIZE_BYTES-1:2]),
                                                                 .wdata  (dram_wdata));
 
 
@@ -87,9 +88,9 @@ module jedro_1_riscof_tb();
     i=i+1;
   end
 
-  // get stard and end address of the signature region
-  start_addr = data_mem.data_ram.RAM[SIG_START_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
-  end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM][$clog2(MEM_SIZE_WORDS*4)-1:0];
+  // get start and end address of the signature region
+  start_addr = data_mem.data_ram.RAM[SIG_START_ADDR_CELLNUM];
+  end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM]; 
 
   sig_file = $fopen(SIGNATURE_FILE, "w");
 

@@ -6,7 +6,8 @@ module bytewrite_ram_wrap
 #(
     parameter MEM_INIT_FILE="",
     parameter INIT_FILE_BIN=1,
-    parameter MEM_SIZE_WORDS=2**12
+    parameter MEM_SIZE_WORDS=2**12,
+    localparam ADDR_WIDTH=$clog2(MEM_SIZE_WORDS)
 )
 (
   input clk_i,
@@ -18,17 +19,17 @@ module bytewrite_ram_wrap
   output                  err,
   input  [3:0]            we,
   input                   stb,
-  input  [DATA_WIDTH-1:0] addr,
+  input  [ADDR_WIDTH-1:0] addr,
   input  [DATA_WIDTH-1:0] wdata
 );
 
   bytewrite_ram_1b #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
                      .INIT_FILE_BIN(INIT_FILE_BIN),
-                     .MEM_INIT_FILE(MEM_INIT_FILE)) data_ram (.clk(clk_i), 
-                                                              .we(we[3:0]), 
-                                                              .addr(addr[$clog2(MEM_SIZE_WORDS*4)-1:0]), 
-                                                              .di(wdata[DATA_WIDTH-1:0]), 
-                                                              .dout(rdata[DATA_WIDTH-1:0]));
+                     .MEM_INIT_FILE(MEM_INIT_FILE)) data_ram (.clk  (clk_i), 
+                                                              .we   (we[3:0]), 
+                                                              .addr (addr[ADDR_WIDTH-1:0]), 
+                                                              .di   (wdata[DATA_WIDTH-1:0]), 
+                                                              .dout (rdata[DATA_WIDTH-1:0]));
 
   assign err = 0;
 

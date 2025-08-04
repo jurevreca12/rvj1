@@ -13,17 +13,17 @@ module bytewrite_ram_1b (clk, we, addr, di, dout);
 parameter MEM_INIT_FILE="";
 parameter INIT_FILE_BIN=1;
 parameter MEM_SIZE_WORDS = 2**12;
-parameter ADDR_WIDTH = $clog2(MEM_SIZE_WORDS*4);
-parameter COL_WIDTH = 8;
-parameter NB_COL = 4;
+localparam ADDR_WIDTH = $clog2(MEM_SIZE_WORDS);
+localparam WORD_SIZE = 32;
+localparam NUM_BYTES = WORD_SIZE / 8;
 
 input clk;
-input [NB_COL-1:0] we;
+input [NUM_BYTES-1:0] we;
 input [ADDR_WIDTH-1:0] addr;
-input [NB_COL*COL_WIDTH-1:0] di;
-output reg [NB_COL*COL_WIDTH-1:0] dout;
+input [WORD_SIZE-1:0] di;
+output reg [WORD_SIZE-1:0] dout;
 
-reg [NB_COL*COL_WIDTH-1:0] RAM [MEM_SIZE_WORDS-1:0];
+reg [WORD_SIZE-1:0] RAM [MEM_SIZE_WORDS-1:0];
 
 integer flen;
 initial begin
@@ -35,16 +35,16 @@ end
 
 always @(posedge clk)
 begin
-    dout <= RAM[addr >> 2];
+    dout <= RAM[addr];
 end
 
 generate genvar i;
-for (i = 0; i < NB_COL; i = i+1)
+for (i = 0; i < NUM_BYTES; i = i+1)
 begin
 always @(posedge clk)
 begin
     if (we[i])
-        RAM[addr >> 2][(i+1)*COL_WIDTH-1:i*COL_WIDTH] <= di[(i+1)*COL_WIDTH-1:i*COL_WIDTH];
+        RAM[addr][8 * (i + 1) - 1 : i * 8] <= di[8 * (i + 1) - 1 : i * 8];
     end 
 end
 endgenerate
