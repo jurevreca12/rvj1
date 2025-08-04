@@ -101,7 +101,6 @@ class jedro_1(pluginTemplate):
           verilator_args = (
               " --timescale 1ns/1ps " + 
               " --binary " +
-              " --debug " +
               " -I/riscv-jedro-1/rtl/inc " +
               " -Wno-fatal " +
               f" -Mdir {sim_dir} " +

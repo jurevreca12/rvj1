@@ -12,9 +12,9 @@ module bytewrite_ram_1b (clk, we, addr, di, dout);
 
 parameter MEM_INIT_FILE="";
 parameter INIT_FILE_BIN=1;
-parameter SIZE = 2**12; 
-parameter ADDR_WIDTH = $clog2(SIZE*4); 
-parameter COL_WIDTH = 8; 
+parameter MEM_SIZE_WORDS = 2**12;
+parameter ADDR_WIDTH = $clog2(MEM_SIZE_WORDS*4);
+parameter COL_WIDTH = 8;
 parameter NB_COL = 4;
 
 input clk;
@@ -23,7 +23,7 @@ input [ADDR_WIDTH-1:0] addr;
 input [NB_COL*COL_WIDTH-1:0] di;
 output reg [NB_COL*COL_WIDTH-1:0] dout;
 
-reg [NB_COL*COL_WIDTH-1:0] RAM [SIZE-1:0];
+reg [NB_COL*COL_WIDTH-1:0] RAM [MEM_SIZE_WORDS-1:0];
 
 integer flen;
 initial begin

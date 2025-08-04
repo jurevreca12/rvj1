@@ -9,7 +9,7 @@ module rams_init_file #(
 
 input clk;
 input we;
-input [$clog2(MEM_SIZE_WORDS * 4)-1:0] addr;
+input [$clog2(MEM_SIZE_WORDS)-1:0] addr;
 input [31:0] din;
 output [31:0] dout;
 
@@ -32,6 +32,6 @@ end
 always @(posedge clk)
 begin
   if (we)
-     ram[addr >> 2] <= din;
-  dout <= ram[addr >> 2];
+     ram[addr] <= din;
+  dout <= ram[addr];
 end endmodule

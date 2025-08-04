@@ -8,7 +8,7 @@ module jedro_1_riscof_tb();
   parameter MEM_INIT_FILE  = "out.hex";
   parameter SIGNATURE_FILE = "dut.signature";
  
-
+  localparam MEM_SIZE_BYTES = MEM_SIZE_WORDS * 4;
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
   localparam SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
   localparam HALT_COND_CELLNUM      = MEM_SIZE_WORDS - 3;
@@ -32,11 +32,13 @@ module jedro_1_riscof_tb();
   wire [DATA_WIDTH-1:0] dram_addr;
   wire [DATA_WIDTH-1:0] dram_wdata;
 
-  rams_init_file_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
-                        .INIT_FILE_BIN(0),
-                        .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk_i   (clk),
-                                                                .addr_i  (iram_addr),
-                                                                .rdata_o (iram_rdata));
+  rams_init_file #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
+                   .INIT_FILE_BIN(0),
+                   .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk  (clk),
+                                                           .we   (1'b0),
+                                                           .addr (iram_addr[MEM_SIZE_BYTES-1:2]),                                                      
+                                                           .din  (32'b0), 
+                                                           .dout (iram_rdata));
 
   // Data interface
   bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
