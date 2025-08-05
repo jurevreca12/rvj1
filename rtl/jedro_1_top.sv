@@ -31,6 +31,8 @@ module jedro_1_top
   input  logic                  dram_ack,
   input  logic                  dram_err
 
+
+
  // IRQ/Debug interface TODO
 
 );
@@ -103,18 +105,22 @@ logic [DATA_WIDTH-1:0]      ifu_csr_fault_addr;
 ****************************************/
 jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .rstn_i           (rstn_i),
-                     .jmp_instr_i      (decoder_ifu_jmp_instr | 
+
+                     .ram_addr         (iram_addr),
+                     .ram_rdata        (iram_rdata),
+
+                     .dec_instr_o      (ifu_decoder_instr),
+                     .dec_pc_o         (ifu_decoder_instr_addr),
+                     .dec_valid_o      (ifu_decoder_instr_valid), 
+                     .dec_ready_i      (decoder_ifu_ready), 
+
+                     .jmp_addr_valid_i (decoder_ifu_jmp_instr | 
                                         decoder_mux3_use_alu_jmp_addr |
                                         csr_ifu_trap),
-                     .jmp_address_i    (mux3_ifu_jmp_addr),
+                     .jmp_addr_i       (mux3_ifu_jmp_addr),
+
                      .exception_ro     (ifu_csr_exception),
-                     .fault_addr_ro    (ifu_csr_fault_addr),
-                     .instr_o          (ifu_decoder_instr),
-                     .addr_o           (ifu_decoder_instr_addr),
-                     .valid_o          (ifu_decoder_instr_valid), 
-                     .ready_i          (decoder_ifu_ready), 
-                     .ram_addr         (iram_addr),
-                     .ram_rdata        (iram_rdata)
+                     .fault_addr_ro    (ifu_csr_fault_addr)
                      );  
 
 always_comb begin
