@@ -1,7 +1,7 @@
 import os
 import logging
 import glob
-import pathlib 
+from pathlib import Path
 
 import riscof.utils as utils
 from riscof.pluginTemplate import pluginTemplate
@@ -36,7 +36,7 @@ class jedro_1(pluginTemplate):
        self.work_dir = work_dir
        self.suite_dir = suite
        self.tb_dir = os.path.join(self.pluginpath, "..", "tb") # The location of the testbench.
-       self.scripts_dir = os.path.join(pathlib.Path(__file__).parent.resolve(), "..", "..", "..", "scripts")
+       self.scripts_dir = os.path.join(Path(__file__).parent.resolve(), "..", "..", "..", "scripts")
        self.elf2hex = os.path.join(self.scripts_dir, "elf2hex")
 
        # Note the march is not hardwired here, because it will change for each
@@ -97,6 +97,11 @@ class jedro_1(pluginTemplate):
           for rootdir in rtl_dirs:
             rtl_files += list(glob.glob(f'{rootdir}/**/*.v', recursive=True))
             rtl_files += list(glob.glob(f'{rootdir}/**/*.sv', recursive=True))
+
+          # Remove duplicates, while preserving order (defines must be first)
+          rtl_files = list(map(lambda x : Path(x), rtl_files))
+          seen = set()
+          rtl_files = [x for x in rtl_files if not (x in seen or seen.add(x))]
 
           verilator_args = (
               " --timescale 1ns/1ps " + 

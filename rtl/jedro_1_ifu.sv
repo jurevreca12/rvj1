@@ -41,10 +41,6 @@ module jedro_1_ifu #(
   input logic clk_i,
   input logic rstn_i,
 
-  // Interface to the ROM memory
-  //output logic [DATA_WIDTH-1:0]  ram_addr,
-  //input logic  [DATA_WIDTH-1:0]  ram_rdata,
-
   // Instruction memory interface
   output logic                  instr_req_o,
   input  logic                  instr_gnt_i,
@@ -66,7 +62,7 @@ module jedro_1_ifu #(
   output logic [DATA_WIDTH-1:0] fault_addr_ro // the address that caused the misaligned exception
 );
 
-localparam int InstrShiftregDepth = 3;
+localparam int InstrShiftRegDepth = 3;
 localparam bit [5:0] NV  = 6'b000001;
 localparam bit [5:0] DV  = 6'b000010;
 localparam bit [5:0] S0  = 6'b000100;
@@ -81,7 +77,7 @@ logic [5:0] state, next;
 logic [DATA_WIDTH-1:0] pc_shift_r0;
 logic [DATA_WIDTH-1:0] pc_shift_r1;
 logic [DATA_WIDTH-1:0] pc_shift_r2;
-logic [InstrShiftregDepth-1:0] instr_valid_shift_r;
+logic [InstrShiftRegDepth-1:0] instr_valid_shift_r;
 
 logic [DATA_WIDTH-1:0] out_instr; // the final muxed output
 logic [DATA_WIDTH-1:0] out_addr;
@@ -97,13 +93,13 @@ logic [DATA_WIDTH-1:0] dout_r_instr_d3; // saves the second instruction after th
 logic [DATA_WIDTH-1:0] dout_r_addr_d3;
 
 logic stall_begin_pulse;   // generates a pulse event on the clock cycle at which the stall happened
-logic  stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
-logic  prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
+logic stall_begin_pulse_r; // a pulse event one clock cycle later then the stall_begin_pulse
+logic prev_ready;          // used to generate the stall_begin_pulse (ready low indicates stall)
 
 logic stall_in_stall;       // an OR combination of stall_in_stall_r and stall_in_stall_pulse
 logic stall_in_stall_r;     // set when stall_in_stall_pulse is 1, and deasserted when state=DV
 logic stall_in_stall_pulse; // when a stall occurs when state!=DV then  triggered
-logic  [DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if stall_in_stall event
+logic [DATA_WIDTH-1:0] after_stall_addr;  // address to continue from if stall_in_stall event
 
 logic jmp_instr; // this signal filters incorrect jumps
 logic is_exception;
