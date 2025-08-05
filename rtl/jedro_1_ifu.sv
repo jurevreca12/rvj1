@@ -42,16 +42,16 @@ module jedro_1_ifu #(
   input logic rstn_i,
 
   // Interface to the ROM memory
-  output logic [DATA_WIDTH-1:0]  ram_addr,
-  input logic  [DATA_WIDTH-1:0]  ram_rdata,
+  //output logic [DATA_WIDTH-1:0]  ram_addr,
+  //input logic  [DATA_WIDTH-1:0]  ram_rdata,
 
   // Instruction memory interface
-  //output logic                  instr_req_o,
-  //input  logic                  instr_gnt_i,
-  //input  logic                  instr_rvalid_i,
-  //output logic [DATA_WIDTH-1:0] instr_addr_o,
-  //input  logic [DATA_WIDTH-1:0] instr_rdata_i,
-  //input  logic                  instr_err_i,
+  output logic                  instr_req_o,
+  input  logic                  instr_gnt_i,
+  input  logic                  instr_rvalid_i,
+  output logic [DATA_WIDTH-1:0] instr_addr_o,
+  input  logic [DATA_WIDTH-1:0] instr_rdata_i,
+  input  logic                  instr_err_i,
 
   // Interface to the decoder
   output logic [DATA_WIDTH-1:0] dec_instr_o,    // The current instruction (to be decoded)
@@ -142,7 +142,7 @@ end
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
 ***************************************/
-assign ram_addr = pc_shift_r0; // The output address just follows pc_shift_r0
+assign instr_addr_o = pc_shift_r0; // The output address just follows pc_shift_r0
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
@@ -180,7 +180,7 @@ always_ff @(posedge clk_i) begin
     end
   end
 end
-
+assign instr_req_o = 1'b1;
 
 /***************************************
 * READING LOGIC
@@ -190,7 +190,7 @@ always_ff @(posedge clk_i) begin
     {dout_r_instr, dout_r_addr} <= {NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
   else begin
-    {dout_r_instr, dout_r_addr} <= {ram_rdata, pc_shift_r1};
+    {dout_r_instr, dout_r_addr} <= {instr_rdata_i, pc_shift_r1};
   end
 end
 
