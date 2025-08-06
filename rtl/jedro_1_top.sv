@@ -44,7 +44,7 @@ logic                       ifu_decoder_instr_valid;
 logic [DATA_WIDTH-1:0]      ifu_decoder_instr_addr;
 logic [DATA_WIDTH-1:0]      ifu_decoder_instr;
 logic [DATA_WIDTH-1:0]      mux3_ifu_jmp_addr;
-logic                       decoder_ifu_ready; 
+logic                       decoder_ifu_ready;
 logic                       decoder_ifu_jmp_instr;
 logic [DATA_WIDTH-1:0]      decoder_ifu_jmp_addr;
 logic                       decoder_mux3_use_alu_jmp_addr;

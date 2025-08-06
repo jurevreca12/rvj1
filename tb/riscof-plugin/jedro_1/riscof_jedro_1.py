@@ -76,7 +76,7 @@ class jedro_1(pluginTemplate):
       for testname in testList:
           testentry = testList[testname]
           test_file = testentry['test_path']
-          test_dir = testentry['work_dir']  # where the artifacts of this test will be dumpedt
+          test_dir = testentry['work_dir']  # where the artifacts of this test will be dumped
           elf_file = os.path.join(test_dir, 'my.elf')
           hex_file = os.path.join(test_dir, 'out.hex')
           sim_dir = os.path.join(test_dir, "obj_dir/")
@@ -88,10 +88,10 @@ class jedro_1(pluginTemplate):
 
           elf2hex_cmd = self.elf2hex + " --bit-width 32 --input " + elf_file + " --output " + hex_file
           rtl_dirs = (
-            "/riscv-jedro-1/rtl/inc", # needs to be before others
-            "/riscv-jedro-1/rtl", 
-            "/riscv-jedro-1/tb/support",
-            "/riscv-jedro-1/tb/riscof-plugin/tb/"
+            "/foss/designs/riscv-jedro-1/rtl/inc", # needs to be before others
+            "/foss/designs/riscv-jedro-1/rtl", 
+            "/foss/designs/riscv-jedro-1/tb/support",
+            "/foss/designs/riscv-jedro-1/tb/riscof-plugin/tb/"
           )
           rtl_files = []
           for rootdir in rtl_dirs:
@@ -101,7 +101,7 @@ class jedro_1(pluginTemplate):
           # Remove duplicates, while preserving order (defines must be first)
           rtl_files = list(map(lambda x : Path(x), rtl_files))
           seen = set()
-          rtl_files = [x for x in rtl_files if not (x in seen or seen.add(x))]
+          rtl_files = [str(x) for x in rtl_files if not (x in seen or seen.add(x))]
 
           verilator_args = (
               " --timescale 1ns/1ps " + 
@@ -118,14 +118,14 @@ class jedro_1(pluginTemplate):
 	      # if the user wants to disable running the tests and only compile the tests
           if self.target_run:
             sim_cmd = (f"verilator {verilator_args} --top jedro_1_riscof_tb; " +
-                      f"{sim_dir}/Vjedro_1_riscof_tb\n"
+                      f"{sim_dir}/Vjedro_1_riscof_tb;\n"
             )
           else:
             sim_cmd = 'echo "NO RUN"'
-          execute = (f"{compile_cmd}\n" +
-                     f"{elf2hex_cmd}\n" +
+          execute = (f"{compile_cmd};\n" +
+                     f"{elf2hex_cmd};\n" +
                      sim_cmd + 
-                     f"rm -rf {sim_dir}\n"
+                     f"rm -rf {sim_dir};\n"
           )
           make.add_target(execute)
 

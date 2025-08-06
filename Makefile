@@ -10,6 +10,9 @@ V_FILES := $(shell find ${RTL_DIR} ${TB_SUPPORT_DIR} -name "*.v")
 SV_FILES := $(shell find ${RTL_DIR} ${TB_SUPPORT_DIR} -name "*.sv")
 RTL_FILES := ${V_FILES} ${SV_FILES}
 
+CUID := $(shell id -u)
+CGID := $(shell id -g)
+
 all: lint-verilator test vivado doc
 
 doc:
@@ -29,8 +32,17 @@ clean:
 test:
 	cd tb && $(MAKE) all 
 
-docker-build: Dockerfile
-	docker build -t jurevreca12/rv32-eda:0.1 .
+docker-build:
+	docker build -t iic-osic-tools-plus:0.1 .
 
 docker-run-it:
-	docker run -it -v ${MKFILE_DIR}:/riscv-jedro-1 jurevreca12/rv32-eda:0.1 bash
+	docker run -it \
+			   --user ${CUID}:${CGID} \
+			   -e "UID=${CUID}" \
+			   -e "GID=${CGID}" \
+			   -v /etc/group:/etc/group:ro \
+               -v /etc/passwd:/etc/passwd:ro \
+               -v /etc/shadow:/etc/shadow:ro \
+			   -v ~/.cache/:/headless/.cache:rw \
+			   -v $(PWD):/foss/designs/riscv-jedro-1 \
+			    iic-osic-tools-plus:0.1 -s /bin/bash

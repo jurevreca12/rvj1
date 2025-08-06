@@ -7,19 +7,19 @@ module jedro_1_riscof_tb();
   parameter TIMEOUT        = 1000000;
   parameter MEM_INIT_FILE  = "out.hex";
   parameter SIGNATURE_FILE = "dut.signature";
- 
+
   localparam MEM_SIZE_BYTES = MEM_SIZE_WORDS * 4;
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
   localparam SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
   localparam HALT_COND_CELLNUM      = MEM_SIZE_WORDS - 3;
-   
+
   reg clk;
   reg rstn;
-  
+
   integer i;
   integer j;
 
-  // Instruction interface  
+  // Instruction interface
   wire [DATA_WIDTH-1:0] iram_addr;
   wire [DATA_WIDTH-1:0] iram_rdata;
 
@@ -37,8 +37,8 @@ module jedro_1_riscof_tb();
                    .INIT_FILE_BIN(0),
                    .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk  (clk),
                                                            .we   (1'b0),
-                                                           .addr (iram_addr[MEM_SIZE_BYTES-1:2]),                                                      
-                                                           .din  (32'b0), 
+                                                           .addr (iram_addr[MEM_SIZE_BYTES-1:2]),
+                                                           .din  (32'b0),
                                                            .dout (iram_rdata));
 
   // data memory
