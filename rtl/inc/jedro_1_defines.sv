@@ -7,7 +7,7 @@ localparam int REG_ADDR_WIDTH = $clog2(DATA_WIDTH);
 
 localparam bit [31:0] JEDRO_1_BOOT_ADDR = 32'h8000_0000;
 
- 
+
 localparam bit [31:0] NOP_INSTR    = 32'b000000000000_00000_000_00000_0010011;
 localparam bit [31:0] MRET_INSTR   = 32'b001100000010_00000_000_00000_1110011;
 localparam bit [31:0] ECALL_INSTR  = 32'b000000000000_00000_000_00000_1110011;
@@ -90,7 +90,7 @@ localparam int CSR_MCAUSE_LOAD_ACCESS_FAULT     = 5;
 localparam int CSR_MCAUSE_STORE_ADDR_MISALIGNED = 6;
 localparam int CSR_MCAUSE_ECALL_M_MODE          = 11;
 
-// Machine Information Registers 
+// Machine Information Registers
 localparam bit [11:0] CSR_ADDR_MVENDORID    = 12'hF11;
 localparam bit [31:0] CSR_DEF_VAL_MVENDORID = 32'b0;
 localparam bit [11:0] CSR_ADDR_MARCHID      = 12'hF12;

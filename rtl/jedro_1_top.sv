@@ -118,7 +118,7 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .dec_valid_o      (ifu_decoder_instr_valid),
                      .dec_ready_i      (decoder_ifu_ready),
 
-                     .jmp_addr_valid_i (decoder_ifu_jmp_instr | 
+                     .jmp_addr_valid_i (decoder_ifu_jmp_instr |
                                         decoder_mux3_use_alu_jmp_addr |
                                         csr_ifu_trap),
                      .jmp_addr_i       (mux3_ifu_jmp_addr),
@@ -138,7 +138,7 @@ end
 * INSTRUCTION DECODE STAGE
 ****************************************/
 jedro_1_decoder decoder_inst(.clk_i                (clk_i),
-                             .rstn_i               (rstn_i),                  
+                             .rstn_i               (rstn_i),
                              .instr_addr_i         (ifu_decoder_instr_addr),
                              .instr_addr_ro        (decoder_mux2_instr_addr),
                              .use_pc_ro            (decoder_mux2_use_pc),
@@ -148,20 +148,20 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
                              .jmp_instr_ro         (decoder_ifu_jmp_instr),
                              .jmp_addr_ro          (decoder_ifu_jmp_addr),
                              .use_alu_jmp_addr_ro  (decoder_mux3_use_alu_jmp_addr),
-                             .illegal_instr_ro     (decoder_csr_illegal_instr), 
+                             .illegal_instr_ro     (decoder_csr_illegal_instr),
                              .ecall_ro             (decoder_csr_ecall),
                              .ebreak_ro            (decoder_csr_ebreak),
                              .is_alu_write_ro      (decoder_mux4_is_alu_write),
-                             .alu_sel_ro           (decoder_alu_sel), 
+                             .alu_sel_ro           (decoder_alu_sel),
                              .alu_dest_addr_ro     (decoder_alu_dest_addr),
                              .alu_wb_ro            (decoder_alu_wb),
                              .alu_res_i            (alu_mux4_res),
                              .alu_ops_eq_i         (alu_decoder_ops_eq),
-                             .rf_addr_a_ro         (decoder_rf_addr_a), 
+                             .rf_addr_a_ro         (decoder_rf_addr_a),
                              .rf_addr_b_ro         (decoder_rf_addr_b),
-                             .is_imm_ro            (decoder_mux_is_imm), 
+                             .is_imm_ro            (decoder_mux_is_imm),
                              .imm_ext_ro           (decoder_mux_imm_ex),
-                             .lsu_ctrl_valid_ro    (decoder_lsu_ctrl_valid), 
+                             .lsu_ctrl_valid_ro    (decoder_lsu_ctrl_valid),
                              .lsu_ctrl_ro          (decoder_lsu_ctrl),
                              .lsu_regdest_ro       (decoder_lsu_regdest),
                              .lsu_read_complete_i  (lsu_mux4_wb),
@@ -171,7 +171,7 @@ jedro_1_decoder decoder_inst(.clk_i                (clk_i),
                              .csr_uimm_data_ro     (decoder_csr_uimm),
                              .csr_uimm_we_ro       (decoder_csr_uimm_we),
                              .csr_wmode_ro         (decoder_csr_wmode),
-                             .csr_mret_ro          (decoder_csr_mret) 
+                             .csr_mret_ro          (decoder_csr_mret)
                            );
 
 
@@ -184,14 +184,14 @@ jedro_1_regfile  regfile_inst(.clk_i        (clk_i),
                               .rpa_data_co  (rf_alu_data_a),
                               .rpb_addr_i   (decoder_rf_addr_b),
                               .rpb_data_co  (rf_alu_data_b),
-                              .wpc_addr_i   (mux4_rf_dest_addr),  
-                              .wpc_data_i   (mux4_rf_data),     
+                              .wpc_addr_i   (mux4_rf_dest_addr),
+                              .wpc_data_i   (mux4_rf_data),
                               .wpc_we_i     (mux4_rf_wb)
-                            );   
+                            );
 
 assign mux2_alu_op_a = decoder_mux2_use_pc ? decoder_mux2_instr_addr : rf_alu_data_a;
 // decoder_mux_is_imm signal tells if an operation is between 2 registers or an
-// register and an immediate. Based on this the 2:1 MUX bellow selects the 
+// register and an immediate. Based on this the 2:1 MUX bellow selects the
 // mux_alu_op_b
 assign mux_alu_op_b = decoder_mux_is_imm ? decoder_mux_imm_ex : rf_alu_data_b;
 
@@ -202,14 +202,14 @@ end
 
 jedro_1_csr csr_inst (.clk_i                   (clk_i),
                       .rstn_i                  (rstn_i),
-                      .addr_i                  (decoder_csr_addr), 
+                      .addr_i                  (decoder_csr_addr),
                       .data_i                  (mux2_alu_op_a),
                       .uimm_data_i             (decoder_csr_uimm),
                       .uimm_we_i               (decoder_csr_uimm_we),
                       .data_ro                 (csr_decoder_data),
                       .we_i                    (decoder_csr_we),
                       .wmode_i                 (decoder_csr_wmode),
-                       
+
                       .curr_pc_i               (decoder_mux2_instr_addr),
                       .prev_pc_i               (decoder_1_mux2_instr_addr),
                       .traphandler_addr_ro     (csr_ifu_mtvec),
@@ -217,7 +217,7 @@ jedro_1_csr csr_inst (.clk_i                   (clk_i),
 
                       .ifu_exception_i         (ifu_csr_exception),
                       .ifu_mtval_i             (ifu_csr_fault_addr),
-    
+
                       .lsu_exception_load_i    (lsu_csr_misaligned_load),
                       .lsu_exception_store_i   (lsu_csr_misaligned_store),
                       .lsu_exception_bus_err_i (lsu_csr_bus_error),
@@ -245,17 +245,17 @@ jedro_1_alu alu_inst(.clk_i       (clk_i),
                      .dest_addr_i (decoder_alu_dest_addr),
                      .dest_addr_ro(alu_mux4_dest_addr),
                      .wb_i        (decoder_alu_wb & ~csr_ifu_trap),
-                     .wb_ro       (alu_mux4_wb) 
-                   ); 
+                     .wb_ro       (alu_mux4_wb)
+                   );
 
 
 /*********************************************
-* WRITEBACK STAGE 
+* WRITEBACK STAGE
 *********************************************/
 // We delay the signals by 1 clock cycle that is used
 // for computing the target address.
 always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin        
+    if (rstn_i == 1'b0) begin
         decoder_1_mux4_is_alu_write <= 1'b1;
     end
     else begin
