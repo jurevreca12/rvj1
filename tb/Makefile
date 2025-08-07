@@ -12,4 +12,4 @@ clean:
 	rm -rf riscof_work/
 	rm -rf cocotb/sim_build
 	rm -rf cocotb/__pycache__
-	rm cocotb/results.xml
+	rm -f cocotb/results.xml

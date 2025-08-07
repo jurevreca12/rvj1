@@ -46,7 +46,8 @@
 // and set the BEGIN_SIG and END_SIG fields,
 // so that the simulator will be able to extract
 // the signature.
-#define RVMODEL_BOOT                       
+#define RVMODEL_BOOT \
+    .option norelax;
 
 //RVTEST_IO_INIT
 #define RVMODEL_IO_INIT

@@ -41,8 +41,9 @@ class jedro_1(pluginTemplate):
 
        # Note the march is not hardwired here, because it will change for each
        # test. Similarly the output elf name and compile macros will be assigned later in the
-       # runTests function
-       self.compile_cmd = 'riscv{1}-unknown-elf-gcc -march={0} \
+       # runTests function.
+       # We use riscv64 because it is compiled with multiarch. It emits 32 bit code
+       self.compile_cmd = 'riscv64-unknown-elf-gcc -o0 -march={0} \
          -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -g\
          -T '+self.pluginpath+'/env/link.ld\
          -I '+self.pluginpath+'/env/\

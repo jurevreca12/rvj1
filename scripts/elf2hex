@@ -3,7 +3,7 @@
 unset bit_width
 unset input
 unset output
-objcopy=$(which riscv32-unknown-elf-objcopy)
+objcopy=$(which riscv64-unknown-elf-objcopy)
 bin2hex=$(which riscv32-unknown-elf-bin2hex)
 
 while [[ "$1" != "" ]]
