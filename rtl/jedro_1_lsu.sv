@@ -38,15 +38,18 @@ module jedro_1_lsu (
     output logic [DATA_WIDTH-1:0] exception_addr_ro,
 
     // Interface to data RAM
-    output logic [           3:0] ram_we,
-    output logic                  ram_stb,
-    output logic [DATA_WIDTH-1:0] ram_addr,
-    output logic [DATA_WIDTH-1:0] ram_wdata,
-    input  logic [DATA_WIDTH-1:0] ram_rdata,
-    input  logic                  ram_ack,
-    input  logic                  ram_err
+    output logic [           3:0] data_we_o,
+    output logic                  data_req_o,
+    output logic [DATA_WIDTH-1:0] data_addr_o,
+    output logic [DATA_WIDTH-1:0] data_wdata_o,
+    input  logic [DATA_WIDTH-1:0] data_rdata_i,
+    input  logic                  data_rvalid_i,
+    input  logic                  data_wvalid_i,
+    input  logic                  data_err_i
 );
 
+  logic ram_ack;
+  assign ram_ack = data_rvalid_i | data_wvalid_i;
 
   logic [    DATA_WIDTH-1:0] data_r;  // stores unaligned data directly from memory
   logic [    DATA_WIDTH-1:0] byte_sign_extended_w;
@@ -216,22 +219,22 @@ module jedro_1_lsu (
     if (rstn_i == 1'b0) begin
       data_r <= 0;
     end else begin
-      if (ram_ack & (~is_write_hold)) data_r <= ram_rdata;
+      if (ram_ack & (~is_write_hold)) data_r <= data_rdata_i;
       else data_r <= data_r;
     end
   end
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-      ram_addr <= 0;
-      ram_we <= 0;
-      ram_wdata <= 0;
-      ram_stb <= 0;
+      data_addr_o <= 0;
+      data_we_o <= 0;
+      data_wdata_o <= 0;
+      data_req_o <= 0;
     end else begin
-      ram_addr  <= addr_i;
-      ram_we    <= we & {4{ctrl_valid_i&(~misaligned_store)}};
-      ram_wdata <= active_write_word;
-      ram_stb   <= ctrl_valid_i;
+      data_addr_o  <= addr_i;
+      data_we_o    <= we & {4{ctrl_valid_i&(~misaligned_store)}};
+      data_wdata_o <= active_write_word;
+      data_req_o   <= ctrl_valid_i;
     end
   end
 
@@ -295,7 +298,7 @@ module jedro_1_lsu (
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) bus_error_ro <= 0;
-    else bus_error_ro <= ram_err;
+    else bus_error_ro <= data_err_i;
   end
 
 

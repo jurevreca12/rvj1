@@ -19,9 +19,6 @@ module jedro_1_top
   input logic rstn_i,
 
   // Interface to the ROM memory
-  //output logic [DATA_WIDTH-1:0] iram_addr,
-  //input logic  [DATA_WIDTH-1:0] iram_rdata,
-
   output logic                  instr_req_o,    // request read
   input  logic                  instr_rvalid_i, // read data valid
   output logic [DATA_WIDTH-1:0] instr_addr_o,   // address
@@ -299,13 +296,14 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .misaligned_store_ro (lsu_csr_misaligned_store),
                      .bus_error_ro        (lsu_csr_bus_error),
                      .exception_addr_ro   (lsu_csr_misaligned_addr),
-                     .ram_we              (data_we_o),
-                     .ram_stb             (data_req_o),
-                     .ram_addr            (data_addr_o),
-                     .ram_wdata           (data_wdata_o),
-                     .ram_rdata           (data_rdata_i),
-                     .ram_ack             (data_rvalid_i | data_wvalid_i),
-                     .ram_err             (data_err_i)
+                     .data_we_o           (data_we_o),
+                     .data_req_o          (data_req_o),
+                     .data_addr_o         (data_addr_o),
+                     .data_wdata_o        (data_wdata_o),
+                     .data_rdata_i        (data_rdata_i),
+                     .data_rvalid_i       (data_rvalid_i),
+                     .data_wvalid_i       (data_wvalid_i),
+                     .data_err_i          (data_err_i)
                     );
 
 // Note that the ICARUS flag needs to be set in the makefile arguments
