@@ -29,13 +29,14 @@ module jedro_1_top
   input  logic                  instr_err_i,    // error
 
   // Interface to data RAM
-  output logic [3:0]            dram_we,
-  output logic                  dram_stb,
-  output logic [DATA_WIDTH-1:0] dram_addr,
-  output logic [DATA_WIDTH-1:0] dram_wdata,
-  input  logic [DATA_WIDTH-1:0] dram_rdata,
-  input  logic                  dram_ack,
-  input  logic                  dram_err
+  output logic [3:0]            data_we_o,
+  output logic                  data_req_o,
+  output logic [DATA_WIDTH-1:0] data_addr_o,
+  output logic [DATA_WIDTH-1:0] data_wdata_o,
+  input  logic [DATA_WIDTH-1:0] data_rdata_i,
+  input  logic                  data_rvalid_i,
+  input  logic                  data_wvalid_i,
+  input  logic                  data_err_i
 
 
 
@@ -298,13 +299,13 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .misaligned_store_ro (lsu_csr_misaligned_store),
                      .bus_error_ro        (lsu_csr_bus_error),
                      .exception_addr_ro   (lsu_csr_misaligned_addr),
-                     .ram_we              (dram_we),
-                     .ram_stb             (dram_stb),
-                     .ram_addr            (dram_addr),
-                     .ram_wdata           (dram_wdata),
-                     .ram_rdata           (dram_rdata),
-                     .ram_ack             (dram_ack),
-                     .ram_err             (dram_err)
+                     .ram_we              (data_we_o),
+                     .ram_stb             (data_req_o),
+                     .ram_addr            (data_addr_o),
+                     .ram_wdata           (data_wdata_o),
+                     .ram_rdata           (data_rdata_i),
+                     .ram_ack             (data_rvalid_i | data_wvalid_i),
+                     .ram_err             (data_err_i)
                     );
 
 // Note that the ICARUS flag needs to be set in the makefile arguments

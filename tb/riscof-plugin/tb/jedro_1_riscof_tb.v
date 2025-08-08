@@ -8,10 +8,10 @@ module jedro_1_riscof_tb();
   parameter string MEM_INIT_FILE  = "out.hex";
   parameter string SIGNATURE_FILE = "dut.signature";
 
-  localparam MEM_SIZE_BYTES = MEM_SIZE_WORDS * 4;
-  localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
-  localparam SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
-  localparam HALT_COND_CELLNUM      = MEM_SIZE_WORDS - 3;
+  localparam int MEM_SIZE_BYTES = MEM_SIZE_WORDS * 4;
+  localparam int SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
+  localparam int SIG_END_ADDR_CELLNUM   = MEM_SIZE_WORDS - 2;
+  localparam int HALT_COND_CELLNUM      = MEM_SIZE_WORDS - 3;
 
   reg clk;
   reg rstn;
@@ -20,8 +20,6 @@ module jedro_1_riscof_tb();
   integer j;
 
   // Instruction interface
- // wire [DATA_WIDTH-1:0] iram_addr;
-  //wire [DATA_WIDTH-1:0] iram_rdata;
   wire                  instr_req = 1'b1;
   wire                  instr_rvalid;
   wire [DATA_WIDTH-1:0] instr_addr;
@@ -56,12 +54,6 @@ module jedro_1_riscof_tb();
       .wdata_i  (32'b0),
       .wvalid_o (),
       .err_o    (instr_err)
-
-      // .clk  (clk),
-      // .we   (1'b0),
-      // .addr (iram_addr[MEM_SIZE_BYTES-1:2]),
-      // .din  (32'b0),
-      // .dout (iram_rdata)
   );
 
   // data memory
@@ -86,21 +78,20 @@ module jedro_1_riscof_tb();
   jedro_1_top dut(.clk_i       (clk),
                   .rstn_i      (rstn),
 
-                  //.iram_addr   (iram_addr),
-                  //.iram_rdata  (iram_rdata),
                   .instr_req_o    (instr_req),
                   .instr_rvalid_i (instr_rvalid),
                   .instr_addr_o   (instr_addr),
                   .instr_rdata_i  (instr_rdata),
                   .instr_err_i    (instr_err),
 
-                  .dram_we     (dram_we),
-                  .dram_stb    (dram_stb),
-                  .dram_addr   (dram_addr),
-                  .dram_wdata  (dram_wdata),
-                  .dram_rdata  (dram_rdata),
-                  .dram_ack    (dram_ack),
-                  .dram_err    (dram_err)
+                  .data_we_o     (dram_we),
+                  .data_req_o    (dram_stb),
+                  .data_addr_o   (dram_addr),
+                  .data_wdata_o  (dram_wdata),
+                  .data_rdata_i  (dram_rdata),
+                  .data_rvalid_i (dram_ack2),
+                  .data_wvalid_i (dram_ack1),
+                  .data_err_i    (dram_err)
                 );
 
 
@@ -116,7 +107,7 @@ module jedro_1_riscof_tb();
   rstn = 1'b0;
   repeat (3) @ (posedge clk);
   rstn = 1'b1;
- 
+
   i=0;
   while (i < TIMEOUT && data_mem.mem.RAM[HALT_COND_CELLNUM] !== 1) begin
     @(posedge clk);
@@ -125,7 +116,7 @@ module jedro_1_riscof_tb();
 
   // get start and end address of the signature region
   start_addr = data_mem.mem.RAM[SIG_START_ADDR_CELLNUM];
-  end_addr   = data_mem.mem.RAM[SIG_END_ADDR_CELLNUM]; 
+  end_addr   = data_mem.mem.RAM[SIG_END_ADDR_CELLNUM];
 
   sig_file = $fopen(SIGNATURE_FILE, "w");
 
@@ -136,4 +127,4 @@ module jedro_1_riscof_tb();
   $finish;
   end
 
-endmodule 
+endmodule
