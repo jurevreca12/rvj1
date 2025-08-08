@@ -4,9 +4,9 @@ import jedro_1_defines::*;
 
 module bytewrite_ram_delay_wrap
 #(
-    parameter MEM_INIT_FILE="",
-    parameter INIT_FILE_BIN=1,
-    parameter MEM_SIZE_WORDS=2**12
+    parameter string MEM_INIT_FILE="",
+    parameter int INIT_FILE_BIN=1,
+    parameter int MEM_SIZE_WORDS=2**12
 )
 (
   input clk_i,

@@ -1,12 +1,12 @@
 // The test used to simulate the core with the riscof test framework.
 
 module jedro_1_riscof_tb();
-  parameter DATA_WIDTH     = 32;
-  parameter ADDR_WIDTH     = 32;
-  parameter MEM_SIZE_WORDS = 1 << 19;
-  parameter TIMEOUT        = 1000000;
-  parameter MEM_INIT_FILE  = "out.hex";
-  parameter SIGNATURE_FILE = "dut.signature";
+  parameter int DATA_WIDTH     = 32;
+  parameter int ADDR_WIDTH     = 32;
+  parameter int MEM_SIZE_WORDS = 1 << 19;
+  parameter int TIMEOUT        = 1000000;
+  parameter string MEM_INIT_FILE  = "out.hex";
+  parameter string SIGNATURE_FILE = "dut.signature";
 
   localparam MEM_SIZE_BYTES = MEM_SIZE_WORDS * 4;
   localparam SIG_START_ADDR_CELLNUM = MEM_SIZE_WORDS - 1;
@@ -20,8 +20,13 @@ module jedro_1_riscof_tb();
   integer j;
 
   // Instruction interface
-  wire [DATA_WIDTH-1:0] iram_addr;
-  wire [DATA_WIDTH-1:0] iram_rdata;
+ // wire [DATA_WIDTH-1:0] iram_addr;
+  //wire [DATA_WIDTH-1:0] iram_rdata;
+  wire                  instr_req = 1'b1;
+  wire                  instr_rvalid;
+  wire [DATA_WIDTH-1:0] instr_addr;
+  wire [DATA_WIDTH-1:0] instr_rdata;
+  wire                  instr_err;
 
   // Data interface
   wire [DATA_WIDTH-1:0] dram_rdata;
@@ -40,14 +45,14 @@ module jedro_1_riscof_tb();
       .clk_i    (clk),
       .rstn_i   (rstn),
 
-      .req_i    (1'b1),
-      .rvalid_o (),
-      .addr_i   (iram_addr),
-      .rdata_o  (iram_rdata),
+      .req_i    (instr_req),
+      .rvalid_o (instr_rvalid),
+      .addr_i   (instr_addr),
+      .rdata_o  (instr_rdata),
       .we_i     (4'b0),
       .wdata_i  (32'b0),
       .wvalid_o (),
-      .err_o    ()
+      .err_o    (instr_err)
 
       // .clk  (clk),
       // .we   (1'b0),
@@ -73,8 +78,13 @@ module jedro_1_riscof_tb();
   jedro_1_top dut(.clk_i       (clk),
                   .rstn_i      (rstn),
 
-                  .iram_addr   (iram_addr),
-                  .iram_rdata  (iram_rdata),
+                  //.iram_addr   (iram_addr),
+                  //.iram_rdata  (iram_rdata),
+                  .instr_req_o    (instr_req),
+                  .instr_rvalid_i (instr_rvalid),
+                  .instr_addr_o   (instr_addr),
+                  .instr_rdata_i  (instr_rdata),
+                  .instr_err_i    (instr_err),
 
                   .dram_we     (dram_we),
                   .dram_stb    (dram_stb),
@@ -92,6 +102,8 @@ module jedro_1_riscof_tb();
 
   integer sig_file, start_addr, end_addr;
   initial begin
+  $dumpfile("dump.fst");
+  $dumpvars();
   clk = 1'b0;
   rstn = 1'b0;
   repeat (3) @ (posedge clk);

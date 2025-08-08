@@ -19,8 +19,14 @@ module jedro_1_top
   input logic rstn_i,
 
   // Interface to the ROM memory
-  output logic [DATA_WIDTH-1:0] iram_addr,
-  input logic  [DATA_WIDTH-1:0] iram_rdata,
+  //output logic [DATA_WIDTH-1:0] iram_addr,
+  //input logic  [DATA_WIDTH-1:0] iram_rdata,
+
+  output logic                  instr_req_o,    // request read
+  input  logic                  instr_rvalid_i, // read data valid
+  output logic [DATA_WIDTH-1:0] instr_addr_o,   // address
+  input  logic [DATA_WIDTH-1:0] instr_rdata_i,  // data (instruction)
+  input  logic                  instr_err_i,    // error
 
   // Interface to data RAM
   output logic [3:0]            dram_we,
@@ -109,8 +115,8 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .instr_req_o      (),
                      .instr_gnt_i      (1'b1),
                      .instr_rvalid_i   (1'b1),
-                     .instr_addr_o     (iram_addr),
-                     .instr_rdata_i    (iram_rdata),
+                     .instr_addr_o     (instr_addr_o),
+                     .instr_rdata_i    (instr_rdata_i),
                      .instr_err_i      (1'b0),
 
                      .dec_instr_o      (ifu_decoder_instr),

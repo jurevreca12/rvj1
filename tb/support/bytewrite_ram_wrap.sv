@@ -4,10 +4,10 @@ import jedro_1_defines::*;
 
 module bytewrite_ram_wrap
 #(
-    parameter MEM_INIT_FILE="",
-    parameter INIT_FILE_BIN=1,
-    parameter MEM_SIZE_WORDS=2**12,
-    localparam ADDR_WIDTH=$clog2(MEM_SIZE_WORDS)
+    parameter string MEM_INIT_FILE="",
+    parameter int INIT_FILE_BIN=1,
+    parameter int MEM_SIZE_WORDS=2**12,
+    localparam int ADDR_WIDTH=$clog2(MEM_SIZE_WORDS)
 )
 (
   input clk_i,

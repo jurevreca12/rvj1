@@ -10,12 +10,12 @@
 
 module bytewrite_ram_1b (clk, we, addr, di, dout);
 
-parameter MEM_INIT_FILE="";
-parameter INIT_FILE_BIN=1;
-parameter MEM_SIZE_WORDS = 2**12;
-localparam ADDR_WIDTH = $clog2(MEM_SIZE_WORDS);
-localparam WORD_SIZE = 32;
-localparam NUM_BYTES = WORD_SIZE / 8;
+parameter string MEM_INIT_FILE="";
+parameter int INIT_FILE_BIN=1;
+parameter int MEM_SIZE_WORDS = 2**12;
+localparam int ADDR_WIDTH = $clog2(MEM_SIZE_WORDS);
+localparam int WORD_SIZE = 32;
+localparam int NUM_BYTES = WORD_SIZE / 8;
 
 input clk;
 input [NUM_BYTES-1:0] we;

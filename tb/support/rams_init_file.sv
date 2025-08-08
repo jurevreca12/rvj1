@@ -3,9 +3,9 @@
 // File: rams_init_file.v 
 
 module rams_init_file #(
-    parameter MEM_INIT_FILE="",
-    parameter INIT_FILE_BIN=1,
-    parameter MEM_SIZE_WORDS=2**12) (clk, we, addr, din, dout);
+    parameter string MEM_INIT_FILE="",
+    parameter int INIT_FILE_BIN=1,
+    parameter int MEM_SIZE_WORDS=2**12) (clk, we, addr, din, dout);
 
 input clk;
 input we;
