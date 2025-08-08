@@ -37,7 +37,7 @@ bytewrite_sram #(
 ) mem (
     .clk  (clk_i),
     .we   (we_i),
-    .addr (addr_i[ADDR_WIDTH+1:2]), // convert to word address
+    .addr (addr_i[MEM_SIZE_BYTES-1:2]), // convert to word address
     .din  (wdata_i),
     .dout (rdata_o)
 );

@@ -30,7 +30,10 @@ module jedro_1_riscof_tb();
 
   // Data interface
   wire [DATA_WIDTH-1:0] dram_rdata;
+  wire                  dram_ack1;
+  wire                  dram_ack2;
   wire                  dram_ack;
+  assign dram_ack = dram_ack1 | dram_ack2;
   wire                  dram_err;
   wire [3:0]            dram_we;
   wire                  dram_stb;
@@ -62,17 +65,22 @@ module jedro_1_riscof_tb();
   );
 
   // data memory
-  bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
-                       .INIT_FILE_BIN(0),
-                       .MEM_INIT_FILE(MEM_INIT_FILE)) data_mem (.clk_i  (clk),
-                                                                .rstn_i (rstn),
-                                                                .rdata  (dram_rdata),
-                                                                .ack    (dram_ack),
-                                                                .err    (dram_err),
-                                                                .we     (dram_we),
-                                                                .stb    (dram_stb),
-                                                                .addr   (dram_addr[MEM_SIZE_BYTES-1:2]),
-                                                                .wdata  (dram_wdata));
+  bytewrite_sram_wrap #(
+    .MEM_SIZE_WORDS(MEM_SIZE_WORDS),
+    .INIT_FILE_BIN(0),
+    .MEM_INIT_FILE(MEM_INIT_FILE)) data_mem (
+      .clk_i  (clk),
+      .rstn_i (rstn),
+
+      .rdata_o  (dram_rdata),
+      .wvalid_o (dram_ack1),
+      .rvalid_o (dram_ack2),
+      .err_o    (dram_err),
+      .we_i     (dram_we),
+      .req_i    (dram_stb),
+      .addr_i   (dram_addr),
+      .wdata_i  (dram_wdata)
+  );
 
 
   jedro_1_top dut(.clk_i       (clk),
@@ -110,19 +118,19 @@ module jedro_1_riscof_tb();
   rstn = 1'b1;
  
   i=0;
-  while (i < TIMEOUT && data_mem.data_ram.RAM[HALT_COND_CELLNUM] !== 1) begin
+  while (i < TIMEOUT && data_mem.mem.RAM[HALT_COND_CELLNUM] !== 1) begin
     @(posedge clk);
     i=i+1;
   end
 
   // get start and end address of the signature region
-  start_addr = data_mem.data_ram.RAM[SIG_START_ADDR_CELLNUM];
-  end_addr   = data_mem.data_ram.RAM[SIG_END_ADDR_CELLNUM]; 
+  start_addr = data_mem.mem.RAM[SIG_START_ADDR_CELLNUM];
+  end_addr   = data_mem.mem.RAM[SIG_END_ADDR_CELLNUM]; 
 
   sig_file = $fopen(SIGNATURE_FILE, "w");
 
   for (j=start_addr; j < end_addr; j=j+4) begin
-    $fwrite(sig_file, "%h\n", data_mem.data_ram.RAM[j>>2]);
+    $fwrite(sig_file, "%h\n", data_mem.mem.RAM[j>>2]);
   end
   $fclose(sig_file);
   $finish;
