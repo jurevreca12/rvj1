@@ -33,13 +33,28 @@ module jedro_1_riscof_tb();
   wire [DATA_WIDTH-1:0] dram_wdata;
 
   // instruction memory
-  rams_init_file #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
-                   .INIT_FILE_BIN(0),
-                   .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (.clk  (clk),
-                                                           .we   (1'b0),
-                                                           .addr (iram_addr[MEM_SIZE_BYTES-1:2]),
-                                                           .din  (32'b0),
-                                                           .dout (iram_rdata));
+  bytewrite_sram_wrap #(
+    .MEM_SIZE_WORDS(MEM_SIZE_WORDS),
+    .INIT_FILE_BIN(0),
+    .MEM_INIT_FILE(MEM_INIT_FILE)) rom_mem (
+      .clk_i    (clk),
+      .rstn_i   (rstn),
+
+      .req_i    (1'b1),
+      .rvalid_o (),
+      .addr_i   (iram_addr),
+      .rdata_o  (iram_rdata),
+      .we_i     (4'b0),
+      .wdata_i  (32'b0),
+      .wvalid_o (),
+      .err_o    ()
+
+      // .clk  (clk),
+      // .we   (1'b0),
+      // .addr (iram_addr[MEM_SIZE_BYTES-1:2]),
+      // .din  (32'b0),
+      // .dout (iram_rdata)
+  );
 
   // data memory
   bytewrite_ram_wrap #(.MEM_SIZE_WORDS(MEM_SIZE_WORDS),
