@@ -26,12 +26,12 @@ module jedro_1_top
   input  logic                  instr_err_i,    // error
 
   // Interface to data RAM
-  output logic [3:0]            data_we_o,
   output logic                  data_req_o,
-  output logic [DATA_WIDTH-1:0] data_addr_o,
-  output logic [DATA_WIDTH-1:0] data_wdata_o,
-  input  logic [DATA_WIDTH-1:0] data_rdata_i,
   input  logic                  data_rvalid_i,
+  output logic [DATA_WIDTH-1:0] data_addr_o,
+  input  logic [DATA_WIDTH-1:0] data_rdata_i,
+  output logic [3:0]            data_we_o,
+  output logic [DATA_WIDTH-1:0] data_wdata_o,
   input  logic                  data_wvalid_i,
   input  logic                  data_err_i
 
@@ -110,12 +110,11 @@ logic [DATA_WIDTH-1:0]      ifu_csr_fault_addr;
 jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .rstn_i           (rstn_i),
 
-                     .instr_req_o      (),
-                     .instr_gnt_i      (1'b1),
-                     .instr_rvalid_i   (1'b1),
+                     .instr_req_o      (instr_req_o),
+                     .instr_rvalid_i   (instr_rvalid_i),
                      .instr_addr_o     (instr_addr_o),
                      .instr_rdata_i    (instr_rdata_i),
-                     .instr_err_i      (1'b0),
+                     .instr_err_i      (instr_err_i),
 
                      .dec_instr_o      (ifu_decoder_instr),
                      .dec_pc_o         (ifu_decoder_instr_addr),

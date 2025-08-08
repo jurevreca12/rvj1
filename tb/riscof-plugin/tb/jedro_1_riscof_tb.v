@@ -20,23 +20,21 @@ module jedro_1_riscof_tb();
   integer j;
 
   // Instruction interface
-  wire                  instr_req = 1'b1;
+  wire                  instr_req;
   wire                  instr_rvalid;
   wire [DATA_WIDTH-1:0] instr_addr;
   wire [DATA_WIDTH-1:0] instr_rdata;
   wire                  instr_err;
 
   // Data interface
-  wire [DATA_WIDTH-1:0] dram_rdata;
-  wire                  dram_ack1;
-  wire                  dram_ack2;
-  wire                  dram_ack;
-  assign dram_ack = dram_ack1 | dram_ack2;
-  wire                  dram_err;
-  wire [3:0]            dram_we;
-  wire                  dram_stb;
-  wire [DATA_WIDTH-1:0] dram_addr;
-  wire [DATA_WIDTH-1:0] dram_wdata;
+  wire [DATA_WIDTH-1:0] data_rdata;
+  wire                  data_wvalid;
+  wire                  data_rvalid;
+  wire                  data_err;
+  wire [3:0]            data_we;
+  wire                  data_req;
+  wire [DATA_WIDTH-1:0] data_addr;
+  wire [DATA_WIDTH-1:0] data_wdata;
 
   // instruction memory
   bytewrite_sram_wrap #(
@@ -64,14 +62,14 @@ module jedro_1_riscof_tb();
       .clk_i  (clk),
       .rstn_i (rstn),
 
-      .rdata_o  (dram_rdata),
-      .wvalid_o (dram_ack1),
-      .rvalid_o (dram_ack2),
-      .err_o    (dram_err),
-      .we_i     (dram_we),
-      .req_i    (dram_stb),
-      .addr_i   (dram_addr),
-      .wdata_i  (dram_wdata)
+      .rdata_o  (data_rdata),
+      .wvalid_o (data_wvalid),
+      .rvalid_o (data_rvalid),
+      .err_o    (data_err),
+      .we_i     (data_we),
+      .req_i    (data_req),
+      .addr_i   (data_addr),
+      .wdata_i  (data_wdata)
   );
 
 
@@ -84,14 +82,14 @@ module jedro_1_riscof_tb();
                   .instr_rdata_i  (instr_rdata),
                   .instr_err_i    (instr_err),
 
-                  .data_we_o     (dram_we),
-                  .data_req_o    (dram_stb),
-                  .data_addr_o   (dram_addr),
-                  .data_wdata_o  (dram_wdata),
-                  .data_rdata_i  (dram_rdata),
-                  .data_rvalid_i (dram_ack2),
-                  .data_wvalid_i (dram_ack1),
-                  .data_err_i    (dram_err)
+                  .data_we_o     (data_we),
+                  .data_req_o    (data_req),
+                  .data_addr_o   (data_addr),
+                  .data_wdata_o  (data_wdata),
+                  .data_rdata_i  (data_rdata),
+                  .data_rvalid_i (data_rvalid),
+                  .data_wvalid_i (data_wvalid),
+                  .data_err_i    (data_err)
                 );
 
 

@@ -43,7 +43,6 @@ module jedro_1_ifu #(
 
   // Instruction memory interface
   output logic                  instr_req_o,
-  input  logic                  instr_gnt_i,
   input  logic                  instr_rvalid_i,
   output logic [DATA_WIDTH-1:0] instr_addr_o,
   input  logic [DATA_WIDTH-1:0] instr_rdata_i,
