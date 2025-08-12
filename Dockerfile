@@ -1,11 +1,13 @@
 FROM hpretl/iic-osic-tools:2025.07
 
-RUN pip install --upgrade pip && \
-    pip install forastero==1.2.1 
+
 
 RUN pip install "cython<3.0.0" wheel && \
     pip install "PyYAML==5.2" --no-build-isolation && \
     pip install  riscof==1.25.3
+
+RUN pip install --upgrade pip && \
+    pip install git+https://github.com/intuity/forastero.git@364eec8
 
 USER 0:0
 RUN curl -L https://github.com/sifive/elf2hex/archive/refs/tags/v20.08.00.00.tar.gz -o elf2hex.tar.gz && \
