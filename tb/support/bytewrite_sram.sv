@@ -17,7 +17,9 @@ module bytewrite_sram #(
     localparam int NUM_BYTES = WORD_SIZE / 8
 )(
     input                         clk,
-    input  logic [NUM_BYTES-1:0]  we,
+    input  logic [NUM_BYTES-1:0]  strobe,
+    input  logic                  write,
+    input  logic                  valid,
     input  logic [ADDR_WIDTH-1:0] addr,
     input  logic [WORD_SIZE-1:0]  din,
     output logic [WORD_SIZE-1:0]  dout
@@ -34,7 +36,8 @@ end
 
 always @(posedge clk)
 begin
-    dout <= RAM[addr];
+    if (valid)
+        dout <= RAM[addr];
 end
 
 generate genvar i;
@@ -42,7 +45,7 @@ for (i = 0; i < NUM_BYTES; i = i+1)
 begin: gen_per_byte_we
 always @(posedge clk)
 begin
-    if (we[i])
+    if (strobe[i] & write & valid)
         RAM[addr][8 * (i + 1) - 1 : i * 8] <= din[8 * (i + 1) - 1 : i * 8];
     end
 end

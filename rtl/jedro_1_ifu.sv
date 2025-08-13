@@ -42,11 +42,23 @@ module jedro_1_ifu #(
   input logic rstn_i,
 
   // Instruction memory interface
-  output logic                  instr_req_o,
-  input  logic                  instr_rvalid_i,
-  output logic [DATA_WIDTH-1:0] instr_addr_o,
-  input  logic [DATA_WIDTH-1:0] instr_rdata_i,
-  input  logic                  instr_err_i,
+//   output logic                  instr_req_o,
+//   input  logic                  instr_rvalid_i,
+//   output logic [DATA_WIDTH-1:0] instr_addr_o,
+//   input  logic [DATA_WIDTH-1:0] instr_rdata_i,
+//   input  logic                  instr_err_i,
+
+  output logic [DATA_WIDTH-1:0] instr_req_addr_o,
+  output logic [DATA_WIDTH-1:0] instr_req_data_o,
+  output logic [3:0]            instr_req_strobe_o,
+  output logic                  instr_req_write_o,
+  output logic                  instr_req_valid_o,
+  input  logic                  instr_req_ready_i,
+
+  input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
+  input  logic                  instr_rsp_err_i,
+  input  logic                  instr_rsp_valid_i,
+  output logic                  instr_rsp_ready_o,
 
   // Interface to the decoder
   output logic [DATA_WIDTH-1:0] dec_instr_o,    // The current instruction (to be decoded)
@@ -104,6 +116,13 @@ logic jmp_instr; // this signal filters incorrect jumps
 logic is_exception;
 
 /***************************************
+* WRITE LOGIC
+***************************************/
+// Disable writing
+assign instr_req_data_o = 32'b0;
+assign instr_req_write_o = 1'b0;
+
+/***************************************
 * MISALIGNED JUMPS EXCEPTION GENERATION
 ***************************************/
 always_comb begin
@@ -137,7 +156,7 @@ end
 /***************************************
 * PROGRAM COUNTER LOGIC and VALID LOGIC
 ***************************************/
-assign instr_addr_o = pc_shift_r0; // The output address just follows pc_shift_r0
+assign instr_req_addr_o = pc_shift_r0; // The output address just follows pc_shift_r0
 
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
@@ -175,17 +194,18 @@ always_ff @(posedge clk_i) begin
     end
   end
 end
-assign instr_req_o = 1'b1;
+assign instr_req_valid_o = 1'b1;
 
 /***************************************
 * READING LOGIC
 ***************************************/
+assign instr_rsp_ready_o = 1'b1; // always ready for data
 always_ff @(posedge clk_i) begin
   if (rstn_i == 1'b0) begin
     {dout_r_instr, dout_r_addr} <= {NOP_INSTR, 32'b0}; // we reset to the NOP operation
   end
   else begin
-    {dout_r_instr, dout_r_addr} <= {instr_rdata_i, pc_shift_r1};
+    {dout_r_instr, dout_r_addr} <= {instr_rsp_data_i, pc_shift_r1};
   end
 end
 

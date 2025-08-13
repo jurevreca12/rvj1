@@ -19,22 +19,30 @@ module jedro_1_riscof_tb();
   integer i;
   integer j;
 
-  // Instruction interface
-  wire                  instr_req;
-  wire                  instr_rvalid;
-  wire [DATA_WIDTH-1:0] instr_addr;
-  wire [DATA_WIDTH-1:0] instr_rdata;
-  wire                  instr_err;
+  wire [DATA_WIDTH-1:0] instr_req_addr;
+  wire [DATA_WIDTH-1:0] instr_req_data;
+  wire [3:0]            instr_req_strobe;
+  wire                  instr_req_write;
+  wire                  instr_req_valid;
+  wire                  instr_req_ready;
 
-  // Data interface
-  wire [DATA_WIDTH-1:0] data_rdata;
-  wire                  data_wvalid;
-  wire                  data_rvalid;
-  wire                  data_err;
-  wire [3:0]            data_we;
-  wire                  data_req;
-  wire [DATA_WIDTH-1:0] data_addr;
-  wire [DATA_WIDTH-1:0] data_wdata;
+  wire [DATA_WIDTH-1:0] instr_rsp_data;
+  wire                  instr_rsp_err;
+  wire                  instr_rsp_valid;
+  wire                  instr_rsp_ready;
+
+
+  wire [DATA_WIDTH-1:0] data_req_addr;
+  wire [DATA_WIDTH-1:0] data_req_data;
+  wire [3:0]            data_req_strobe;
+  wire                  data_req_write;
+  wire                  data_req_valid;
+  wire                  data_req_ready;
+
+  wire [DATA_WIDTH-1:0] data_rsp_data;
+  wire                  data_rsp_err;
+  wire                  data_rsp_valid;
+  wire                  data_rsp_ready;
 
   // instruction memory
   bytewrite_sram_wrap #(
@@ -44,14 +52,17 @@ module jedro_1_riscof_tb();
       .clk_i    (clk),
       .rstn_i   (rstn),
 
-      .req_i    (instr_req),
-      .rvalid_o (instr_rvalid),
-      .addr_i   (instr_addr),
-      .rdata_o  (instr_rdata),
-      .we_i     (4'b0),
-      .wdata_i  (32'b0),
-      .wvalid_o (),
-      .err_o    (instr_err)
+      .req_addr_i   (instr_req_addr),
+      .req_data_i   (instr_req_data),
+      .req_strobe_i (instr_req_strobe),
+      .req_write_i  (instr_req_write),
+      .req_valid_i  (instr_req_valid),
+      .req_ready_o  (instr_req_ready),
+
+      .rsp_data_o   (instr_rsp_data),
+      .rsp_err_o    (instr_rsp_err),
+      .rsp_valid_o  (instr_rsp_valid),
+      .rsp_ready_i  (instr_rsp_ready)
   );
 
   // data memory
@@ -62,40 +73,51 @@ module jedro_1_riscof_tb();
       .clk_i  (clk),
       .rstn_i (rstn),
 
-      .rdata_o  (data_rdata),
-      .wvalid_o (data_wvalid),
-      .rvalid_o (data_rvalid),
-      .err_o    (data_err),
-      .we_i     (data_we),
-      .req_i    (data_req),
-      .addr_i   (data_addr),
-      .wdata_i  (data_wdata)
+      .req_addr_i   (data_req_addr),
+      .req_data_i   (data_req_data),
+      .req_strobe_i (data_req_strobe),
+      .req_write_i  (data_req_write),
+      .req_valid_i  (data_req_valid),
+      .req_ready_o  (data_req_ready),
+
+      .rsp_data_o   (data_rsp_data),
+      .rsp_err_o    (data_rsp_err),
+      .rsp_valid_o  (data_rsp_valid),
+      .rsp_ready_i  (data_rsp_ready)
   );
 
 
-  jedro_1_top dut(.clk_i       (clk),
-                  .rstn_i      (rstn),
+  jedro_1_top dut(
+    .clk_i       (clk),
+    .rstn_i      (rstn),
 
-                  .instr_req_o    (instr_req),
-                  .instr_rvalid_i (instr_rvalid),
-                  .instr_addr_o   (instr_addr),
-                  .instr_rdata_i  (instr_rdata),
-                  .instr_err_i    (instr_err),
+    .instr_req_addr_o   (instr_req_addr),
+    .instr_req_data_o   (instr_req_data),
+    .instr_req_strobe_o (instr_req_strobe),
+    .instr_req_write_o  (instr_req_write),
+    .instr_req_valid_o  (instr_req_valid),
+    .instr_req_ready_i  (instr_req_ready),
 
-                  .data_we_o     (data_we),
-                  .data_req_o    (data_req),
-                  .data_addr_o   (data_addr),
-                  .data_wdata_o  (data_wdata),
-                  .data_rdata_i  (data_rdata),
-                  .data_rvalid_i (data_rvalid),
-                  .data_wvalid_i (data_wvalid),
-                  .data_err_i    (data_err)
-                );
+    .instr_rsp_data_i   (instr_rsp_data),
+    .instr_rsp_err_i    (instr_rsp_err),
+    .instr_rsp_valid_i  (instr_rsp_valid),
+    .instr_rsp_ready_o  (instr_rsp_ready),
 
+    .data_req_addr_o   (data_req_addr),
+    .data_req_data_o   (data_req_data),
+    .data_req_strobe_o (data_req_strobe),
+    .data_req_write_o  (data_req_write),
+    .data_req_valid_o  (data_req_valid),
+    .data_req_ready_i  (data_req_ready),
+
+    .data_rsp_data_i   (data_rsp_data),
+    .data_rsp_err_i    (data_rsp_err),
+    .data_rsp_valid_i  (data_rsp_valid),
+    .data_rsp_ready_o  (data_rsp_ready)
+);
 
   // Handle the clock signal
   always #1 clk = ~clk;
-
 
   integer sig_file, start_addr, end_addr;
   initial begin

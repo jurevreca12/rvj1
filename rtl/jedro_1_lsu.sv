@@ -38,18 +38,21 @@ module jedro_1_lsu (
     output logic [DATA_WIDTH-1:0] exception_addr_ro,
 
     // Interface to data RAM
-    output logic [           3:0] data_we_o,
-    output logic                  data_req_o,
-    output logic [DATA_WIDTH-1:0] data_addr_o,
-    output logic [DATA_WIDTH-1:0] data_wdata_o,
-    input  logic [DATA_WIDTH-1:0] data_rdata_i,
-    input  logic                  data_rvalid_i,
-    input  logic                  data_wvalid_i,
-    input  logic                  data_err_i
+    output logic [DATA_WIDTH-1:0] data_req_addr_o,
+    output logic [DATA_WIDTH-1:0] data_req_data_o,
+    output logic [3:0]            data_req_strobe_o,
+    output logic                  data_req_write_o,
+    output logic                  data_req_valid_o,
+    input  logic                  data_req_ready_i,
+
+    input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
+    input  logic                  data_rsp_err_i,
+    input  logic                  data_rsp_valid_i,
+    output logic                  data_rsp_ready_o
 );
 
   logic ram_ack;
-  assign ram_ack = data_rvalid_i | data_wvalid_i;
+  assign ram_ack = data_rsp_valid_i;
 
   logic [    DATA_WIDTH-1:0] data_r;  // stores unaligned data directly from memory
   logic [    DATA_WIDTH-1:0] byte_sign_extended_w;
@@ -68,8 +71,8 @@ module jedro_1_lsu (
 
 
   /**************************************
-* EXCEPTION CHECKING
-**************************************/
+  * EXCEPTION CHECKING
+  **************************************/
   always_comb begin
     if (ctrl_valid_i == 1'b1) begin
       misaligned_load  = 1'b0;
@@ -121,8 +124,8 @@ module jedro_1_lsu (
 
 
   /**************************************
-* WRITE ENABLE SIGNAL / INPUT MUXING
-**************************************/
+  * WRITE ENABLE SIGNAL / INPUT MUXING
+  **************************************/
   logic is_write;  // Is the current ctrl input a write
   logic is_write_hold;
   logic [DATA_WIDTH/8 - 1:0] we;  // write enable signal
@@ -173,8 +176,8 @@ module jedro_1_lsu (
 
 
   /**************************************
-* CONTROL SAVE
-**************************************/
+  * CONTROL SAVE
+  **************************************/
   // We save the control information so we can
   // use it in later cycles.
   always_ff @(posedge clk_i) begin
@@ -200,8 +203,8 @@ module jedro_1_lsu (
 
 
   /**************************************
-* BYTE_ADDR
-**************************************/
+  * BYTE_ADDR
+  **************************************/
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
       byte_addr_r <= 2'b00;
@@ -213,35 +216,36 @@ module jedro_1_lsu (
 
 
   /**************************************
-* HANDLE MEM INTERFACE
-**************************************/
+  * HANDLE MEM INTERFACE
+  **************************************/
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
       data_r <= 0;
     end else begin
-      if (ram_ack & (~is_write_hold)) data_r <= data_rdata_i;
+      if (ram_ack & (~is_write_hold)) data_r <= data_rsp_data_i;
       else data_r <= data_r;
     end
   end
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) begin
-      data_addr_o <= 0;
-      data_we_o <= 0;
-      data_wdata_o <= 0;
-      data_req_o <= 0;
+      data_req_addr_o <= 0;
+      data_req_strobe_o <= 0;
+      data_req_data_o <= 0;
+      data_req_valid_o <= 0;
     end else begin
-      data_addr_o  <= addr_i;
-      data_we_o    <= we & {4{ctrl_valid_i&(~misaligned_store)}};
-      data_wdata_o <= active_write_word;
-      data_req_o   <= ctrl_valid_i;
+      data_req_addr_o  <= addr_i;
+      data_req_strobe_o <= we & {4{ctrl_valid_i&(~misaligned_store)}};
+      data_req_write_o <= |we;
+      data_req_data_o <= active_write_word;
+      data_req_valid_o   <= ctrl_valid_i;
     end
   end
 
 
   /**************************************
-* RESULT MUXING
-**************************************/
+  * RESULT MUXING
+  **************************************/
   always_comb begin
     active_byte  = 8'b00000000;
     active_hword = 16'b00000000_00000000;
@@ -289,8 +293,8 @@ module jedro_1_lsu (
 
 
   /**************************************
-* WRITEBACK & BUS ERRORS
-**************************************/
+  * WRITEBACK & BUS ERRORS
+  **************************************/
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) rf_wb_ro <= 0;
     else rf_wb_ro <= ram_ack & (~is_write_hold) & (~misaligned_load_hold);
@@ -298,7 +302,7 @@ module jedro_1_lsu (
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) bus_error_ro <= 0;
-    else bus_error_ro <= data_err_i;
+    else bus_error_ro <= data_rsp_err_i;
   end
 
 

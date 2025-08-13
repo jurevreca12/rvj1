@@ -20,14 +20,17 @@ module bytewrite_sram_wrap #(
     input logic clk_i,
     input logic rstn_i,
 
-    input  logic                  req_i,
-    output logic                  rvalid_o,
-    input  logic [DATA_WIDTH-1:0] addr_i,
-    output logic [DATA_WIDTH-1:0] rdata_o,
-    input  logic [NUM_BYTES-1:0]  we_i,
-    input  logic [DATA_WIDTH-1:0] wdata_i,
-    output  logic                 wvalid_o,
-    output logic                  err_o
+    input  logic [DATA_WIDTH-1:0] req_addr_i,
+    input  logic [DATA_WIDTH-1:0] req_data_i,
+    input  logic [NUM_BYTES-1:0]  req_strobe_i,
+    input  logic                  req_write_i,
+    input  logic                  req_valid_i,
+    output logic                  req_ready_o,
+
+    output logic [DATA_WIDTH-1:0] rsp_data_o,
+    output logic                  rsp_err_o,
+    output logic                  rsp_valid_o,
+    input  logic                  rsp_ready_i
 );
 
 bytewrite_sram #(
@@ -35,37 +38,26 @@ bytewrite_sram #(
     .INIT_FILE_BIN(INIT_FILE_BIN),
     .MEM_SIZE_WORDS(MEM_SIZE_WORDS)
 ) mem (
-    .clk  (clk_i),
-    .we   (we_i),
-    .addr (addr_i[MEM_SIZE_BYTES-1:2]), // convert to word address
-    .din  (wdata_i),
-    .dout (rdata_o)
+    .clk    (clk_i),
+    .strobe (req_strobe_i),
+    .write  (req_write_i),
+    .valid  (req_valid_i),
+    .addr   (req_addr_i[$clog2(MEM_SIZE_BYTES)-1:2]), // convert to word address
+    .din    (req_data_i),
+    .dout   (rsp_data_o)
 );
 
-// error logic
-logic instr_is_err;
-assign instr_is_err = 1'b0; // (addr_i > MEM_SIZE_BYTES);
-always @(posedge clk_i) begin
-    if (~rstn_i) begin
-        err_o <= 1'b0;
-    end
-    else begin
-    if (req_i)
-        err_o <= instr_is_err;
-    else
-        err_o <= 1'b0;
-    end
-end
+// Always ready for requests
+assign req_ready_o = 1'b1;
+
+// no error logic for now
+assign rsp_err_o = 1'b0;
 
 // valid logic
-always @(posedge clk_i) begin
-    if (~rstn_i) begin
-        rvalid_o <= 1'b0;
-        wvalid_o <= 1'b0;
-    end
-    else begin
-        rvalid_o <= req_i;
-        wvalid_o <= |we_i; // bitwise or
-    end
+always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+        rsp_valid_o <= 1'b0;
+    else
+        rsp_valid_o <= req_valid_i;
 end
 endmodule

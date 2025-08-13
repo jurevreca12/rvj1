@@ -18,22 +18,31 @@ module jedro_1_top
   input logic clk_i,
   input logic rstn_i,
 
-  // Interface to the ROM memory
-  output logic                  instr_req_o,    // request read
-  input  logic                  instr_rvalid_i, // read data valid
-  output logic [DATA_WIDTH-1:0] instr_addr_o,   // address
-  input  logic [DATA_WIDTH-1:0] instr_rdata_i,  // data (instruction)
-  input  logic                  instr_err_i,    // error
+  // Interface to instr memory
+  output logic [DATA_WIDTH-1:0] instr_req_addr_o,
+  output logic [DATA_WIDTH-1:0] instr_req_data_o,
+  output logic [3:0]            instr_req_strobe_o,
+  output logic                  instr_req_write_o,
+  output logic                  instr_req_valid_o,
+  input  logic                  instr_req_ready_i,
 
-  // Interface to data RAM
-  output logic                  data_req_o,
-  input  logic                  data_rvalid_i,
-  output logic [DATA_WIDTH-1:0] data_addr_o,
-  input  logic [DATA_WIDTH-1:0] data_rdata_i,
-  output logic [3:0]            data_we_o,
-  output logic [DATA_WIDTH-1:0] data_wdata_o,
-  input  logic                  data_wvalid_i,
-  input  logic                  data_err_i
+  input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
+  input  logic                  instr_rsp_err_i,
+  input  logic                  instr_rsp_valid_i,
+  output logic                  instr_rsp_ready_o,
+
+  // Interface to data memory
+  output logic [DATA_WIDTH-1:0] data_req_addr_o,
+  output logic [DATA_WIDTH-1:0] data_req_data_o,
+  output logic [3:0]            data_req_strobe_o,
+  output logic                  data_req_write_o,
+  output logic                  data_req_valid_o,
+  input  logic                  data_req_ready_i,
+
+  input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
+  input  logic                  data_rsp_err_i,
+  input  logic                  data_rsp_valid_i,
+  output logic                  data_rsp_ready_o
 
 
 
@@ -110,11 +119,17 @@ logic [DATA_WIDTH-1:0]      ifu_csr_fault_addr;
 jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .rstn_i           (rstn_i),
 
-                     .instr_req_o      (instr_req_o),
-                     .instr_rvalid_i   (instr_rvalid_i),
-                     .instr_addr_o     (instr_addr_o),
-                     .instr_rdata_i    (instr_rdata_i),
-                     .instr_err_i      (instr_err_i),
+                     .instr_req_addr_o   (instr_req_addr_o),
+                     .instr_req_data_o   (instr_req_data_o),
+                     .instr_req_strobe_o (instr_req_strobe_o),
+                     .instr_req_write_o  (instr_req_write_o),
+                     .instr_req_valid_o  (instr_req_valid_o),
+                     .instr_req_ready_i  (instr_req_ready_i),
+
+                     .instr_rsp_data_i   (instr_rsp_data_i),
+                     .instr_rsp_err_i    (instr_rsp_err_i),
+                     .instr_rsp_valid_i  (instr_rsp_valid_i),
+                     .instr_rsp_ready_o  (instr_rsp_ready_o),
 
                      .dec_instr_o      (ifu_decoder_instr),
                      .dec_pc_o         (ifu_decoder_instr_addr),
@@ -295,14 +310,18 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .misaligned_store_ro (lsu_csr_misaligned_store),
                      .bus_error_ro        (lsu_csr_bus_error),
                      .exception_addr_ro   (lsu_csr_misaligned_addr),
-                     .data_we_o           (data_we_o),
-                     .data_req_o          (data_req_o),
-                     .data_addr_o         (data_addr_o),
-                     .data_wdata_o        (data_wdata_o),
-                     .data_rdata_i        (data_rdata_i),
-                     .data_rvalid_i       (data_rvalid_i),
-                     .data_wvalid_i       (data_wvalid_i),
-                     .data_err_i          (data_err_i)
+
+                     .data_req_addr_o     (data_req_addr_o),
+                     .data_req_data_o     (data_req_data_o),
+                     .data_req_strobe_o   (data_req_strobe_o),
+                     .data_req_write_o    (data_req_write_o),
+                     .data_req_valid_o    (data_req_valid_o),
+                     .data_req_ready_i    (data_req_ready_i),
+
+                     .data_rsp_data_i     (data_rsp_data_i),
+                     .data_rsp_err_i      (data_rsp_err_i),
+                     .data_rsp_valid_i    (data_rsp_valid_i),
+                     .data_rsp_ready_o    (data_rsp_ready_o)
                     );
 
 // Note that the ICARUS flag needs to be set in the makefile arguments
