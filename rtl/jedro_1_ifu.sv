@@ -41,13 +41,6 @@ module jedro_1_ifu #(
   input logic clk_i,
   input logic rstn_i,
 
-  // Instruction memory interface
-//   output logic                  instr_req_o,
-//   input  logic                  instr_rvalid_i,
-//   output logic [DATA_WIDTH-1:0] instr_addr_o,
-//   input  logic [DATA_WIDTH-1:0] instr_rdata_i,
-//   input  logic                  instr_err_i,
-
   output logic [DATA_WIDTH-1:0] instr_req_addr_o,
   output logic [DATA_WIDTH-1:0] instr_req_data_o,
   output logic [3:0]            instr_req_strobe_o,
@@ -56,7 +49,7 @@ module jedro_1_ifu #(
   input  logic                  instr_req_ready_i,
 
   input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
-  input  logic                  instr_rsp_err_i,
+  input  logic                  instr_rsp_error_i,
   input  logic                  instr_rsp_valid_i,
   output logic                  instr_rsp_ready_o,
 
@@ -64,7 +57,7 @@ module jedro_1_ifu #(
   output logic [DATA_WIDTH-1:0] dec_instr_o,    // The current instruction (to be decoded)
   output logic [DATA_WIDTH-1:0] dec_pc_o,       // Used by instructons that calculate on the PC.
   output logic                  dec_valid_o,
-  input  logic                  dec_ready_i,    // Decoder ready to accept new instruction
+  input  logic                  dec_ready_i,    // Decoder ready to accept new instruction (i.e. stall)
 
   input logic jmp_addr_valid_i,     // change PC to jmp_addr_i
   input logic [DATA_WIDTH-1:0] jmp_addr_i,    // The jump address

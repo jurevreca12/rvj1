@@ -2,47 +2,73 @@
 from base import get_test_runner, WAVES
 from cocotb.triggers import ClockCycles
 from cocotb.log import SimLog
-from ifu import InstrMemIO, IfuDecIO, IfuJmpIO, InstrMemResponder, InstrMemTransaction, InstrMemMonitor
-from forastero.io import IORole
+from mapped.io import MappedRequestIO, MappedResponseIO
+from mapped.request import MappedRequestResponder
+from mapped.response import MappedResponseInitiator
+from mapped.sequences import mapped_req_no_backpressure_seq, mapped_responses_seq, gen_responses_noerr
+from forastero.io import IORole, io_suffix_style 
 from forastero import BaseBench
-from forastero.driver import DriverEvent
+from rvj1.io import IfuToDecoderIO
+from rvj1.response import IfuToDecMonitor
+from rvj1.transaction import InstrAddrResponse
 
 def test_ifu_runner():
     runner = get_test_runner('jedro_1_ifu')
     runner.test(
         hdl_toplevel='jedro_1_ifu', 
-        test_module= 'test_ifu',
+        test_module='test_ifu',
         waves=WAVES
     )
-
 
 class Testbench(BaseBench):
     def __init__(self, dut):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
-        mem_io = InstrMemIO(dut, "instr", IORole.INITIATOR)
-        #dec_io = IfuDecIO(dut, "dec", IORole.RESPONDER)
-        #jmp_io = IfuJmpIO(dut, "jmp", IORole.RESPONDER)
-        self.register(
-            "mem_resp", 
-            InstrMemResponder(
-                self, 
-                mem_io, 
-                self.clk, 
-                self.rst, 
-                blocking=True
-            ),
-            scoreboard=False
+        instr_req_io = MappedRequestIO(
+            dut, 
+            "instr_req", 
+            IORole.INITIATOR, 
+            io_style=io_suffix_style
         )
-        # self.register(
-        #     "mem_monitor",
-        #     InstrMemMonitor(
-        #         self,
-        #         mem_io,
-        #         self.clk,
-        #         self.rst
-        #     ),
-        #     scoreboard=False
-        # )
+        self.register(
+            "instr_req_drv",
+            MappedRequestResponder(
+                self,
+                instr_req_io,
+                self.clk,
+                self.rst
+            )
+        )
+        instr_rsp_io = MappedResponseIO(
+            dut, 
+            "instr_rsp", 
+            IORole.RESPONDER, 
+            io_style=io_suffix_style
+        )
+        self.register(
+            "instr_rsp_drv",
+            MappedResponseInitiator(
+                self,
+                instr_rsp_io,
+                self.clk,
+                self.rst
+            )
+        )
+        ifu_dec_io = IfuToDecoderIO(
+            dut,
+            "dec",
+            IORole.INITIATOR,
+            io_style=io_suffix_style
+        )
+        self.register(
+            "ifu_dec_mon",
+            IfuToDecMonitor(
+                self,
+                ifu_dec_io,
+                self.clk,
+                self.rst
+            )
+        )
+        
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -76,9 +102,24 @@ class Testbench(BaseBench):
 
 
 @Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
-async def smoke_test(tb : Testbench, log: SimLog):
-    tb.mem_resp.enqueue(InstrMemTransaction(rdata=1234567))
-    await tb.mem_resp.wait_for(DriverEvent.POST_DRIVE)
-
+async def linear_run(tb : Testbench, log: SimLog):
+    tb.dut.dec_ready_i.value = 1
+    tb.schedule(mapped_req_no_backpressure_seq(driver=tb.instr_req_drv))
+    tb.schedule(
+        mapped_responses_seq(
+            rsp_drv=tb.instr_rsp_drv,
+            responses=gen_responses_noerr(range(1,10))
+        )
+    )
+    for i in range(1, 10):
+        tb.scoreboard.channels["ifu_dec_mon"].push_reference(
+            InstrAddrResponse(
+                instr = i,
+                addr = int("8000_0000", 16) + (i - 1) * 4
+            )
+        )
+    
+    
+    
 if __name__ == '__main__':
     test_ifu_runner()
