@@ -28,7 +28,7 @@ module bytewrite_sram_wrap #(
     output logic                  req_ready_o,
 
     output logic [DATA_WIDTH-1:0] rsp_data_o,
-    output logic                  rsp_err_o,
+    output logic                  rsp_error_o,
     output logic                  rsp_valid_o,
     input  logic                  rsp_ready_i
 );
@@ -51,7 +51,7 @@ bytewrite_sram #(
 assign req_ready_o = 1'b1;
 
 // no error logic for now
-assign rsp_err_o = 1'b0;
+assign rsp_error_o = 1'b0;
 
 // valid logic
 always_ff @(posedge clk_i) begin

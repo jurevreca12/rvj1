@@ -27,7 +27,7 @@ module jedro_1_riscof_tb();
   wire                  instr_req_ready;
 
   wire [DATA_WIDTH-1:0] instr_rsp_data;
-  wire                  instr_rsp_err;
+  wire                  instr_rsp_error;
   wire                  instr_rsp_valid;
   wire                  instr_rsp_ready;
 
@@ -40,7 +40,7 @@ module jedro_1_riscof_tb();
   wire                  data_req_ready;
 
   wire [DATA_WIDTH-1:0] data_rsp_data;
-  wire                  data_rsp_err;
+  wire                  data_rsp_error;
   wire                  data_rsp_valid;
   wire                  data_rsp_ready;
 
@@ -60,7 +60,7 @@ module jedro_1_riscof_tb();
       .req_ready_o  (instr_req_ready),
 
       .rsp_data_o   (instr_rsp_data),
-      .rsp_err_o    (instr_rsp_err),
+      .rsp_error_o  (instr_rsp_error),
       .rsp_valid_o  (instr_rsp_valid),
       .rsp_ready_i  (instr_rsp_ready)
   );
@@ -81,7 +81,7 @@ module jedro_1_riscof_tb();
       .req_ready_o  (data_req_ready),
 
       .rsp_data_o   (data_rsp_data),
-      .rsp_err_o    (data_rsp_err),
+      .rsp_error_o  (data_rsp_error),
       .rsp_valid_o  (data_rsp_valid),
       .rsp_ready_i  (data_rsp_ready)
   );
@@ -99,7 +99,7 @@ module jedro_1_riscof_tb();
     .instr_req_ready_i  (instr_req_ready),
 
     .instr_rsp_data_i   (instr_rsp_data),
-    .instr_rsp_err_i    (instr_rsp_err),
+    .instr_rsp_error_i    (instr_rsp_error),
     .instr_rsp_valid_i  (instr_rsp_valid),
     .instr_rsp_ready_o  (instr_rsp_ready),
 
@@ -111,7 +111,7 @@ module jedro_1_riscof_tb();
     .data_req_ready_i  (data_req_ready),
 
     .data_rsp_data_i   (data_rsp_data),
-    .data_rsp_err_i    (data_rsp_err),
+    .data_rsp_error_i  (data_rsp_error),
     .data_rsp_valid_i  (data_rsp_valid),
     .data_rsp_ready_o  (data_rsp_ready)
 );

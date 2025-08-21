@@ -52,9 +52,9 @@ module jedro_1_ifu #(
             next_fetch_addr <= BOOT_ADDR;
         end
         else begin
-            if (!jmp_addr_valid_i)
+            if (instr_req_valid_o & instr_req_ready_i & !jmp_addr_valid_i)
                 next_fetch_addr <= next_fetch_addr + 4;
-            else
+            else if(jmp_addr_valid_i)
                 next_fetch_addr <= jmp_addr_i;
         end
     end

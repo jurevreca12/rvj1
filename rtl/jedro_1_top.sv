@@ -27,7 +27,7 @@ module jedro_1_top
   input  logic                  instr_req_ready_i,
 
   input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
-  input  logic                  instr_rsp_err_i,
+  input  logic                  instr_rsp_error_i,
   input  logic                  instr_rsp_valid_i,
   output logic                  instr_rsp_ready_o,
 
@@ -40,7 +40,7 @@ module jedro_1_top
   input  logic                  data_req_ready_i,
 
   input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
-  input  logic                  data_rsp_err_i,
+  input  logic                  data_rsp_error_i,
   input  logic                  data_rsp_valid_i,
   output logic                  data_rsp_ready_o
 
@@ -127,7 +127,7 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                      .instr_req_ready_i  (instr_req_ready_i),
 
                      .instr_rsp_data_i   (instr_rsp_data_i),
-                     .instr_rsp_err_i    (instr_rsp_err_i),
+                     .instr_rsp_error_i  (instr_rsp_error_i),
                      .instr_rsp_valid_i  (instr_rsp_valid_i),
                      .instr_rsp_ready_o  (instr_rsp_ready_o),
 
@@ -319,7 +319,7 @@ jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .data_req_ready_i    (data_req_ready_i),
 
                      .data_rsp_data_i     (data_rsp_data_i),
-                     .data_rsp_err_i      (data_rsp_err_i),
+                     .data_rsp_error_i    (data_rsp_error_i),
                      .data_rsp_valid_i    (data_rsp_valid_i),
                      .data_rsp_ready_o    (data_rsp_ready_o)
                     );

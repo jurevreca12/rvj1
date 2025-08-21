@@ -54,13 +54,10 @@ class MappedRequestMonitor(BaseMonitor):
     async def monitor(self, capture):
         strb_default = (1 << math.ceil(self.io.width("data") / 8)) - 1
         while True:
-            print("X")
             await RisingEdge(self.clk)
             if self.rst.value == 0:
                 continue
-            print("Y")
             if self.io.get("valid") and self.io.get("ready"):
-                print("Z")
                 is_write = self.io.get("write") == 1
                 wr_data = self.io.get("data") if is_write else 0
                 strobe = self.io.get("strobe", strb_default)

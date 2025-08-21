@@ -46,7 +46,7 @@ module jedro_1_lsu (
     input  logic                  data_req_ready_i,
 
     input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
-    input  logic                  data_rsp_err_i,
+    input  logic                  data_rsp_error_i,
     input  logic                  data_rsp_valid_i,
     output logic                  data_rsp_ready_o
 );
@@ -302,7 +302,7 @@ module jedro_1_lsu (
 
   always_ff @(posedge clk_i) begin
     if (rstn_i == 1'b0) bus_error_ro <= 0;
-    else bus_error_ro <= data_rsp_err_i;
+    else bus_error_ro <= data_rsp_error_i;
   end
 
 
