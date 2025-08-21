@@ -15,3 +15,9 @@ indent_size = 4
 [Makefile]
 indent_style = tab
 
+# Tab indentation (no size specified)
+[*.{v,sv}]
+indent_size = 2
+
+
+
