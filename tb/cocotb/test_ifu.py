@@ -1,18 +1,18 @@
 
 from base import get_test_runner, WAVES
-from cocotb.triggers import ClockCycles
-from cocotb.log import SimLog
+import cocotb
+from cocotb.triggers import ClockCycles, RisingEdge
 from mapped.io import MappedRequestIO, MappedResponseIO
-from mapped.request import MappedRequestResponder, MappedRequestMonitor
+from mapped.request import MappedRequestMonitor
 from mapped.response import MappedResponseInitiator
-from mapped.sequences import mapped_req_no_backpressure_seq, mapped_responses_seq, gen_responses_noerr
 from forastero.io import IORole, io_suffix_style 
 from forastero import BaseBench
+from forastero.monitor import MonitorEvent
 from rvj1.io import IfuToDecoderIO
 from rvj1.response import IfuToDecMonitor
 from rvj1.transaction import InstrAddrResponse
 from memory import RandomAccessMemory
-import random
+
 
 def test_ifu_runner():
     runner = get_test_runner('jedro_1_ifu')
@@ -38,7 +38,9 @@ class Testbench(BaseBench):
         )
         self.register("instr_rsp_drv", MappedResponseInitiator(
             self, instr_rsp_io, self.clk, self.rst
-        ))
+            ),
+            scoreboard=False
+        )
         self.memory = RandomAccessMemory(
             request=self.instr_req_mon,
             response=self.instr_rsp_drv,
@@ -100,17 +102,24 @@ def mem_to_instr_addr_rsp(memory: dict[int,int]) -> list[InstrAddrResponse]:
         )
     return responses
 
-@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
-async def linear_run_const_delay(tb : Testbench, log: SimLog):
-    test_mem = gen_memory_data(int("8000_0000", 16), range(1, 40))
+
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_const_delay(tb : Testbench, log, delay):
+    test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
     ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.memory.flash(test_mem)
-    random.seed(42)
-    tb.memory.set_delay(lambda _: random.randint(0, 2))
+    tb.memory.set_delay(lambda _: delay)
     tb.dut.dec_ready_i.value = 1
     tb.dut.instr_req_ready_i.value = 1
+    for _ in ref_trans:                                                                                                                                                                                          
+          await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
+    tb.dut.instr_req_ready_i.value = 0
     tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
-    await ClockCycles(tb.clk, 10000)
+    while True:
+        if tb.ifu_dec_mon.stats.captured == len(ref_trans):
+            break
+        await RisingEdge(tb.clk)
     
     
 if __name__ == '__main__':

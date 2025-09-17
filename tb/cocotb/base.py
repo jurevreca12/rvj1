@@ -1,7 +1,7 @@
 import os
 import glob
 from pathlib import Path
-from cocotb.runner import get_runner
+from cocotb_tools.runner import get_runner
 
 RTL_DIRS = (
     "/foss/designs/riscv-jedro-1/rtl/inc", # needs to be before others
