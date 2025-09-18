@@ -47,15 +47,16 @@ module jedro_1_ifu #(
     logic [DATA_WIDTH-1:0] next_fetch_addr; // Which instruction to fetch next
     logic [DATA_WIDTH-1:0] prog_cnt; // What is the address of the currently obtained instruction
 
+
     always_ff @(posedge clk_i) begin : fetch_addr_logic
         if (rstn_i == 1'b0) begin
             next_fetch_addr <= BOOT_ADDR;
         end
         else begin
-            if (instr_req_valid_o & instr_req_ready_i & !jmp_addr_valid_i)
-                next_fetch_addr <= next_fetch_addr + 4;
-            else if(jmp_addr_valid_i)
+            if (jmp_addr_valid_i)
                 next_fetch_addr <= jmp_addr_i;
+            else if (instr_req_valid_o & instr_req_ready_i)
+                next_fetch_addr <= next_fetch_addr + 4;
         end
     end
 
@@ -86,7 +87,9 @@ module jedro_1_ifu #(
             prog_cnt <= BOOT_ADDR;
         end
         else begin
-            if (dec_valid_o & dec_ready_i)
+            if (jmp_addr_valid_i)
+                prog_cnt <= jmp_addr_i;
+            else if (dec_valid_o & dec_ready_i)
                 prog_cnt <= prog_cnt + 4;
         end
     end

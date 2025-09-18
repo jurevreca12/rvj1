@@ -91,21 +91,24 @@ def gen_memory_data(base_addr: int, data: list[int]) -> dict[int, int]:
         mem[addr] = da
     return mem
 
-def mem_to_instr_addr_rsp(memory: dict[int,int]) -> list[InstrAddrResponse]:
+def mem_to_instr_addr_rsp(memory: dict[int,int], item_range="all") -> list[InstrAddrResponse]:
     responses = []
-    for addr, data in memory.items():
-        responses.append(
-            InstrAddrResponse(
-                instr = data,
-                addr = addr
+    if item_range == "all":
+        item_range = len(memory)
+    for index, (addr, data) in enumerate(memory.items()):
+        if index in item_range:
+            responses.append(
+                InstrAddrResponse(
+                    instr = data,
+                    addr = addr
+                )
             )
-        )
     return responses
 
 
 @Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
-async def linear_run_const_delay(tb : Testbench, log, delay):
+async def linear_run_const_delay(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
     ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.memory.flash(test_mem)
@@ -120,7 +123,32 @@ async def linear_run_const_delay(tb : Testbench, log, delay):
         if tb.ifu_dec_mon.stats.captured == len(ref_trans):
             break
         await RisingEdge(tb.clk)
-    
-    
+
+
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_and_jump(tb: Testbench, log, delay):
+    "The 7th instruction is a jump instruction to 12."
+    test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
+    tb.memory.flash(test_mem)
+    ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6+1)) + list(range(11, 19)))
+    tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
+    tb.memory.set_delay(lambda _: delay)
+    tb.dut.dec_ready_i.value = 1
+    tb.dut.instr_req_ready_i.value = 1
+    for _ in range(0, 6):                                                                                                                                                                                          
+        await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
+    tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 12
+    tb.dut.jmp_addr_valid_i.value = 1
+    await RisingEdge(tb.clk)
+    tb.dut.jmp_addr_valid_i.value = 0
+    for _ in range(11, 19):                                                                                                                                                                                        
+        await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
+    tb.dut.instr_req_ready_i.value = 0
+    while True:
+        if tb.ifu_dec_mon.stats.captured == len(ref_trans):
+            break
+        await RisingEdge(tb.clk)
+
 if __name__ == '__main__':
     test_ifu_runner()
