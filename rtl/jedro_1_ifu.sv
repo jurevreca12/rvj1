@@ -44,64 +44,126 @@ module jedro_1_ifu #(
   output logic                  exception_ro, // Signal isntr misaligned exception
   output logic [DATA_WIDTH-1:0] fault_addr_ro // the address that caused the misaligned exception
 );
-    logic [DATA_WIDTH-1:0] next_fetch_addr; // Which instruction to fetch next
-    logic [DATA_WIDTH-1:0] prog_cnt; // What is the address of the currently obtained instruction
+    logic [DATA_WIDTH-1:0] input_buffer;
+    logic [DATA_WIDTH-1:0] output_buffer;
+    logic [DATA_WIDTH-1:0] selected_data;
+    logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
+    logic load, flow, fill, flush, unload, dump, pass, addr;
+    typedef enum logic [1:0] {
+        eEMPTY,  // Output and buffer registers empty
+        eBUSY,   // Output register holds data
+        eFULL,   // Both output and buffer registers full,
+        eADDR    // load address
+    } ifu_fsm_e;
+    ifu_fsm_e state, state_next;
 
-    always_ff @(posedge clk_i) begin : fetch_addr_logic
-        if (rstn_i == 1'b0) begin
-            next_fetch_addr <= BOOT_ADDR;
-        end
-        else begin
-            if (jmp_addr_valid_i)
-                next_fetch_addr <= jmp_addr_i;
-            else if (instr_req_valid_o & instr_req_ready_i)
-                next_fetch_addr <= next_fetch_addr + 4;
-        end
+    logic instr_rsp_fire, instr_req_fire, dec_fire;
+    assign instr_rsp_fire = instr_rsp_ready_o && instr_rsp_valid_i;
+    assign instr_req_fire = instr_req_ready_i && instr_req_valid_o;
+    assign dec_fire = dec_ready_i && dec_valid_o;
+
+    /*************************************
+    * Skid Buffer the incoming data
+    *************************************/
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
+            input_buffer <= 0;
+        else if(input_buffer_clock_enable)
+            input_buffer <= instr_req_data_o;
     end
 
-    /***************************************
+    assign selected_data = use_buffered_data ? input_buffer : instr_rsp_data_i;
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
+            output_buffer <= 0;
+        else if(output_buffer_clock_enable)
+            output_buffer <= selected_data;
+    end
+
+    /*************************************
     * Instruction Memory Interface
-    ***************************************/
+    *************************************/
     assign instr_req_data_o   = 32'b0;
     assign instr_req_write_o  = 1'b0;  // read-only interface
-    assign instr_req_addr_o   = next_fetch_addr;
-    always_ff @(posedge clk_i) begin: instr_req_if_logic
-        if (rstn_i == 1'b0) begin
+    assign instr_req_strobe_o = 4'b1111;
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
+            instr_req_addr_o <= BOOT_ADDR;
+        else begin
+            if (jmp_addr_valid_i)
+                instr_req_addr_o <= jmp_addr_i;
+            else if (instr_req_fire)
+                instr_req_addr_o <= instr_req_addr_o + 4;
+        end
+    end
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i) begin
             instr_req_valid_o <= 1'b0;
-            instr_req_strobe_o <= 4'b0000;
         end
         else begin
-            instr_req_valid_o <= 1'b1;
-            instr_req_strobe_o <= 4'b1111;
+            instr_req_valid_o <= (state_next != eFULL);
         end
     end
     assign instr_rsp_ready_o = 1'b1;
 
-    /***************************************
+    /*************************************
     * Decoder Interface
-    ***************************************/
-    assign dec_pc_o = prog_cnt;
-    always_ff @(posedge clk_i) begin: pc_logic
-        if (rstn_i == 1'b0) begin
-            prog_cnt <= BOOT_ADDR;
-        end
+    *************************************/
+    assign dec_instr_o = output_buffer;
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
+            dec_pc_o <= BOOT_ADDR;
         else begin
             if (jmp_addr_valid_i)
-                prog_cnt <= jmp_addr_i;
-            else if (dec_valid_o & dec_ready_i)
-                prog_cnt <= prog_cnt + 4;
+                dec_pc_o <= jmp_addr_i;
+            else if (dec_fire)
+                dec_pc_o <= dec_pc_o + 4;
         end
     end
-    always_ff @(posedge clk_i) begin: dec_if_logic
-        if (rstn_i == 1'b0) begin
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
             dec_valid_o <= 1'b0;
-            dec_instr_o <= 32'b0;
-        end
-        else begin
-            dec_valid_o <= instr_rsp_valid_i & !instr_rsp_error_i;
-            dec_instr_o <= instr_rsp_data_i;
-        end
+        else
+            dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eADDR));
+    end
+
+    /*************************************
+    * Finite State Machine (FSM)
+    *************************************/
+    always_comb begin
+        load   = (state == eEMPTY) &&  instr_rsp_fire;
+        flow   = (state == eBUSY)  &&  instr_rsp_fire  &&  dec_fire;
+        fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
+        unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
+        flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
+        dump   = (state == eFULL)  &&  instr_rsp_fire  && ~dec_fire;
+        pass   = (state == eFULL)  &&  instr_rsp_fire  &&  dec_fire;
+        addr   = (state == eADDR)  &&  instr_req_fire;
+    end
+
+    always_comb begin
+        output_buffer_clock_enable = load || flow || flush || dump || pass;
+        input_buffer_clock_enable  = fill                  || dump || pass;
+        use_buffered_data          = flush                 || dump || pass;
+    end
+
+    always_comb begin
+        state_next = load   ? eBUSY  : state;
+        state_next = flow   ? eBUSY  : state_next;
+        state_next = fill   ? eFULL  : state_next;
+        state_next = flush  ? eBUSY  : state_next;
+        state_next = unload ? eEMPTY : state_next;
+        state_next = dump   ? eFULL  : state_next;
+        state_next = pass   ? eFULL  : state_next;
+        state_next = jmp_addr_valid_i ? eADDR : state_next;
+        state_next = addr   ? eEMPTY  : state_next;
+    end
+    always_ff @(posedge clk_i) begin
+        if (~rstn_i)
+            state <= eEMPTY;
+        else
+            state <= state_next;
     end
 
 endmodule

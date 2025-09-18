@@ -10,8 +10,7 @@ RTL_DIRS = (
     "/foss/designs/riscv-jedro-1/tb/riscof-plugin/tb/"
     )
 LANGUAGE = os.getenv("HDL_TOPLEVEL_LANG", "verilog").lower().strip()
-WAVES = os.getenv("WAVES", default=None)
-WAVES = [True if WAVES is not None else False]
+WAVES = os.getenv("WAVES", default=False)
 
 def get_rtl_files(lang):
     rtl_files = []
@@ -31,14 +30,17 @@ def get_rtl_files(lang):
 
 def get_test_runner(hdl_top):
     sim = os.getenv("SIM", default="verilator")
+    build_args = ['-Wno-fatal']
+    if WAVES:
+        build_args += ["--trace-fst"]
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(LANGUAGE),
         includes=["/riscv-jedro-1/rtl/inc"],
-        build_args=['-Wno-fatal'],
+        build_args=build_args,
         hdl_toplevel=hdl_top,
         always=True,
-        waves=WAVES
+        waves=False,
     )
     return runner
 

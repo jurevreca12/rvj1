@@ -94,7 +94,7 @@ def gen_memory_data(base_addr: int, data: list[int]) -> dict[int, int]:
 def mem_to_instr_addr_rsp(memory: dict[int,int], item_range="all") -> list[InstrAddrResponse]:
     responses = []
     if item_range == "all":
-        item_range = len(memory)
+        item_range = range(0, len(memory))
     for index, (addr, data) in enumerate(memory.items()):
         if index in item_range:
             responses.append(
@@ -131,14 +131,14 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
     "The 7th instruction is a jump instruction to 12."
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
     tb.memory.flash(test_mem)
-    ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6+1)) + list(range(11, 19)))
+    ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6 + 1)) + list(range(11, 19)))
     tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
     tb.memory.set_delay(lambda _: delay)
     tb.dut.dec_ready_i.value = 1
     tb.dut.instr_req_ready_i.value = 1
     for _ in range(0, 6):                                                                                                                                                                                          
         await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
-    tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 12
+    tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 11
     tb.dut.jmp_addr_valid_i.value = 1
     await RisingEdge(tb.clk)
     tb.dut.jmp_addr_valid_i.value = 0
