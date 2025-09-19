@@ -3,7 +3,7 @@ from base import get_test_runner, WAVES
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge
 from mapped.io import MappedRequestIO, MappedResponseIO
-from mapped.request import MappedRequestMonitor
+from mapped.request import MappedRequestMonitor, MappedRequestResponder
 from mapped.response import MappedResponseInitiator
 from forastero.io import IORole, io_suffix_style 
 from forastero import BaseBench
@@ -33,6 +33,11 @@ class Testbench(BaseBench):
             ),
             scoreboard=False
         )
+        self.register("instr_req_drv", MappedRequestResponder(
+            self, instr_req_io, self.clk, self.rst
+            ),
+            scoreboard=False
+        )
         instr_rsp_io = MappedResponseIO(
             dut, "instr_rsp", IORole.RESPONDER, io_style=io_suffix_style
         )
@@ -42,7 +47,9 @@ class Testbench(BaseBench):
             scoreboard=False
         )
         self.memory = RandomAccessMemory(
+            self,
             request=self.instr_req_mon,
+            req_respond=self.instr_req_drv,
             response=self.instr_rsp_drv,
         )
         ifu_dec_io = IfuToDecoderIO(
@@ -110,19 +117,14 @@ def mem_to_instr_addr_rsp(memory: dict[int,int], item_range="all") -> list[Instr
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_const_delay(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
-    ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
-    tb.dut.dec_ready_i.value = 1
-    tb.dut.instr_req_ready_i.value = 1
-    for _ in ref_trans:                                                                                                                                                                                          
-          await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
-    tb.dut.instr_req_ready_i.value = 0
+    ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
-    while True:
-        if tb.ifu_dec_mon.stats.captured == len(ref_trans):
-            break
-        await RisingEdge(tb.clk)
+    log.debug(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
+    tb.dut.dec_ready_i.value = 1
+    for _ in ref_trans:                                                                                                                   
+        await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
 @Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)

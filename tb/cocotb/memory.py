@@ -1,12 +1,17 @@
-from mapped.request import MappedRequestMonitor
-from mapped.response import MappedResponseInitiator
-from mapped.transaction import MappedRequest, MappedResponse, MappedAccess
-from forastero import MonitorEvent
+from mapped.request import MappedRequestMonitor, MappedRequestResponder
+from mapped.response import MappedResponseInitiator, MappedResponseMonitor
+from mapped.transaction import MappedRequest, MappedResponse, MappedAccess, MappedBackpressure
+import forastero
+from forastero import MonitorEvent, DriverEvent
+from forastero.sequence import SeqProxy, SeqContext
 from collections.abc import Callable
+
 
 class RandomAccessMemory:
     def __init__(self,
+                 tb,
                  request: MappedRequestMonitor,
+                 req_respond: MappedRequestResponder,
                  response: MappedResponseInitiator,
                  memory: dict[int, int] = {},
                  delay: Callable[[], int] = lambda _: 0) -> None:
@@ -15,6 +20,13 @@ class RandomAccessMemory:
         self._memory = memory
         self._delay = delay
         self._request.subscribe(MonitorEvent.CAPTURE, self._service)
+        self._response.subscribe(DriverEvent.PRE_DRIVE, self._asd)
+        self._req_respond = req_respond
+        self._req_respond.enqueue(MappedBackpressure(ready=True))
+    
+    async def _asd(self, *_):
+        self._req_respond.enqueue(MappedBackpressure(ready=False, cycles=self._delay(self) + 1))
+        self._req_respond.enqueue(MappedBackpressure(ready=True))
 
     def reset(self) -> None:
         self._memory.clear()
@@ -55,3 +67,10 @@ class RandomAccessMemory:
                     valid_delay = self._delay(self)
                 )
             )
+
+    def __str__(self) -> str:
+        ret="RandomAccessMemory(\n"
+        for addr, val in self._memory.items():
+            ret+=f"\t0x{addr:08x} : {val}\n"
+        ret+=")\n"
+        return ret
