@@ -20,12 +20,12 @@ class RandomAccessMemory:
         self._memory = memory
         self._delay = delay
         self._request.subscribe(MonitorEvent.CAPTURE, self._service)
-        self._response.subscribe(DriverEvent.PRE_DRIVE, self._asd)
+        self._response.subscribe(DriverEvent.PRE_DRIVE, self.req_respond_ready)
         self._req_respond = req_respond
         self._req_respond.enqueue(MappedBackpressure(ready=True))
     
-    async def _asd(self, *_):
-        self._req_respond.enqueue(MappedBackpressure(ready=False, cycles=self._delay(self) + 1))
+    async def req_respond_ready(self, *_):
+        self._req_respond.enqueue(MappedBackpressure(ready=False, cycles=self._delay(self)))
         self._req_respond.enqueue(MappedBackpressure(ready=True))
 
     def reset(self) -> None:
