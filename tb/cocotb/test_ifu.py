@@ -34,7 +34,7 @@ class Testbench(BaseBench):
             scoreboard=False
         )
         self.register("instr_req_drv", MappedRequestResponder(
-            self, instr_req_io, self.clk, self.rst
+            self, instr_req_io, self.clk, self.rst, blocking=False
             ),
             scoreboard=False
         )
@@ -54,7 +54,7 @@ class Testbench(BaseBench):
         )
         dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
         self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
-        self.register("dec_resp_drv", DecoderResponder(self, dec_io, self.clk, self.rst))
+        self.register("dec_resp_drv", DecoderResponder(self, dec_io, self.clk, self.rst, blocking=False))
         
 
     async def initialise(self) -> None:
@@ -118,8 +118,8 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
     tb.memory.set_delay(lambda _: delay)
     ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
-    log.debug(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
-    tb.dut.dec_ready_i.value = 1
+    log.info(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv, backpressure=0.0), blocking=False)
     for _ in ref_trans:                                                                                                                   
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
@@ -134,8 +134,8 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
     overshoot = [6] if delay == 0 else [] # if delay is zero, an extra transaction is expected
     ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6)) + overshoot + list(range(11, 19)))
     tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
-    log.debug(f"Running a linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
-    tb.dut.dec_ready_i.value = 1
+    log.info(f"Running a linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv, backpressure=0.0), blocking=False)
     for _ in range(0, 6):                                                                                                                                                                                          
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
     tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 11
