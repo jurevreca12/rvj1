@@ -2,7 +2,7 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from forastero.driver import BaseDriver
 from forastero.monitor import BaseMonitor
 
-from rvj1.transaction import InstrAddrResponse
+from rvj1.transaction import InstrAddrResponse, DecoderBackpressure
 
 class IfuToDecMonitor(BaseMonitor):
     async def monitor(self, capture):
@@ -17,3 +17,9 @@ class IfuToDecMonitor(BaseMonitor):
                     addr=self.io.get("pc", 0),
                 )
                 capture(tran)
+
+
+class DecoderResponder(BaseDriver):
+    async def drive(self, obj: DecoderBackpressure) -> None:
+        self.io.set("ready", obj.ready)
+        await ClockCycles(self.clk, obj.cycles)

@@ -1,16 +1,16 @@
 
 from base import get_test_runner, WAVES
-import cocotb
-from cocotb.triggers import ClockCycles, RisingEdge
 from mapped.io import MappedRequestIO, MappedResponseIO
 from mapped.request import MappedRequestMonitor, MappedRequestResponder
 from mapped.response import MappedResponseInitiator
 from forastero.io import IORole, io_suffix_style 
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
+from cocotb.triggers import RisingEdge, ClockCycles
 from rvj1.io import IfuToDecoderIO
-from rvj1.response import IfuToDecMonitor
 from rvj1.transaction import InstrAddrResponse
+from rvj1.response import IfuToDecMonitor, DecoderResponder
+from rvj1.sequence import dec_backpressure_seq
 from memory import RandomAccessMemory
 
 
@@ -52,12 +52,9 @@ class Testbench(BaseBench):
             req_respond=self.instr_req_drv,
             response=self.instr_rsp_drv,
         )
-        ifu_dec_io = IfuToDecoderIO(
-            dut, "dec", IORole.INITIATOR, io_style=io_suffix_style
-        )
-        self.register("ifu_dec_mon", IfuToDecMonitor(
-            self, ifu_dec_io, self.clk, self.rst
-        ))
+        dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
+        self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
+        self.register("dec_resp_drv", DecoderResponder(self, dec_io, self.clk, self.rst))
         
 
     async def initialise(self) -> None:
@@ -120,11 +117,11 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
     ref_trans = mem_to_instr_addr_rsp(test_mem)
-    tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
     log.debug(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
     tb.dut.dec_ready_i.value = 1
     for _ in ref_trans:                                                                                                                   
-        await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
 @Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
@@ -136,21 +133,32 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
     tb.memory.set_delay(lambda _: delay)
     overshoot = [6] if delay == 0 else [] # if delay is zero, an extra transaction is expected
     ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6)) + overshoot + list(range(11, 19)))
-    tb.scoreboard.channels["ifu_dec_mon"].push_reference(*ref_trans)
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
     log.debug(f"Running a linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
     tb.dut.dec_ready_i.value = 1
     for _ in range(0, 6):                                                                                                                                                                                          
-        await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
     tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 11
     tb.dut.jmp_addr_valid_i.value = 1
     await RisingEdge(tb.clk)
     tb.dut.jmp_addr_valid_i.value = 0
     for _ in range(11, 19):                                                                                                                                                                                        
-        await tb.ifu_dec_mon.wait_for(MonitorEvent.CAPTURE)
-    # while True:
-    #     if tb.ifu_dec_mon.stats.captured == len(ref_trans):
-    #         break
-    #     await RisingEdge(tb.clk)
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
+
+
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
+    test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
+    tb.memory.flash(test_mem)
+    tb.memory.set_delay(lambda _: delay)
+    ref_trans = mem_to_instr_addr_rsp(test_mem)
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
+    log.info(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
+    tb.dut.dec_ready_i.value = 1
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
+    for _ in ref_trans:                                                                                                                   
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 if __name__ == '__main__':
     test_ifu_runner()

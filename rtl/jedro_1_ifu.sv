@@ -49,7 +49,7 @@ module jedro_1_ifu #(
     logic [DATA_WIDTH-1:0] selected_data;
     logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
-    logic load, flow, fill, flush, unload, dump, pass, addr;
+    logic load, flow, fill, flush, unload, jmpn;
     typedef enum logic [1:0] {
         eEMPTY,  // Output and buffer registers empty
         eBUSY,   // Output register holds data
@@ -70,7 +70,7 @@ module jedro_1_ifu #(
         if (~rstn_i)
             input_buffer <= 0;
         else if(input_buffer_clock_enable)
-            input_buffer <= instr_req_data_o;
+            input_buffer <= instr_rsp_data_i;
     end
 
     assign selected_data = use_buffered_data ? input_buffer : instr_rsp_data_i;
@@ -100,12 +100,13 @@ module jedro_1_ifu #(
     always_ff @(posedge clk_i) begin
         if (~rstn_i) begin
             instr_req_valid_o <= 1'b0;
+            instr_rsp_ready_o <= 1'b0;
         end
         else begin
             instr_req_valid_o <= (state_next != eFULL);
+            instr_rsp_ready_o <= (state_next != eFULL);
         end
     end
-    assign instr_rsp_ready_o = 1'b1;
 
     /*************************************
     * Decoder Interface
@@ -137,15 +138,13 @@ module jedro_1_ifu #(
         fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
-        dump   = (state == eFULL)  &&  instr_rsp_fire  && ~dec_fire;
-        pass   = (state == eFULL)  &&  instr_rsp_fire  &&  dec_fire;
-        addr   = (state == eADDR)  &&  instr_req_fire;
+        jmpn   = (state == eADDR)  &&  instr_req_fire;
     end
 
     always_comb begin
-        output_buffer_clock_enable = load || flow || flush || dump || pass;
-        input_buffer_clock_enable  = fill                  || dump || pass;
-        use_buffered_data          = flush                 || dump || pass;
+        output_buffer_clock_enable = load || flow || flush;
+        input_buffer_clock_enable  = fill                 ;
+        use_buffered_data          = flush                ;
     end
 
     always_comb begin
@@ -154,10 +153,8 @@ module jedro_1_ifu #(
         state_next = fill   ? eFULL  : state_next;
         state_next = flush  ? eBUSY  : state_next;
         state_next = unload ? eEMPTY : state_next;
-        state_next = dump   ? eFULL  : state_next;
-        state_next = pass   ? eFULL  : state_next;
         state_next = jmp_addr_valid_i ? eADDR : state_next;
-        state_next = addr   ? eEMPTY  : state_next;
+        state_next = jmpn   ? eEMPTY  : state_next;
     end
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
