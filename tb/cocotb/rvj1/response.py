@@ -4,6 +4,7 @@ from forastero.monitor import BaseMonitor
 
 from rvj1.transaction import InstrAddrResponse, DecoderBackpressure
 
+
 class IfuToDecMonitor(BaseMonitor):
     async def monitor(self, capture):
         while True:

@@ -121,6 +121,7 @@ async def mapped_delayed_response_seq(
     # Queue the transaction
     rsp_drv.enqueue(response)
 
+
 @forastero.sequence(auto_lock=True)
 @forastero.requires("rsp_drv", MappedResponseInitiator)
 async def mapped_responses_seq(
@@ -131,13 +132,9 @@ async def mapped_responses_seq(
     # Queue the transactions
     rsp_drv.enqueue(responses)
 
+
 def gen_responses_noerr(data: list[int]) -> list[MappedResponse]:
     responses = []
     for d in data:
-        responses.append(
-            MappedResponse(
-                data=d,
-                error=0
-            )
-        )
+        responses.append(MappedResponse(data=d, error=0))
     return responses

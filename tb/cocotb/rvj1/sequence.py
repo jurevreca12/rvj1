@@ -11,7 +11,7 @@ async def dec_backpressure_seq(
     dec: DecoderResponder,
     min_interval: int = 1,
     max_interval: int = 10,
-    backpressure: float = 0.5
+    backpressure: float = 0.5,
 ):
     """
     Generate random backpressure using the ready signal from the decoder
@@ -28,11 +28,9 @@ async def dec_backpressure_seq(
             await dec.enqueue(
                 DecoderBackpressure(
                     ready=ctx.random.choices(
-                        (True, False),
-                        weights=(1.0 - backpressure, backpressure),
-                        k=1
+                        (True, False), weights=(1.0 - backpressure, backpressure), k=1
                     )[0],
-                    cycles=ctx.random.randint(min_interval, max_interval)
+                    cycles=ctx.random.randint(min_interval, max_interval),
                 ),
                 DriverEvent.PRE_DRIVE,
             ).wait()
