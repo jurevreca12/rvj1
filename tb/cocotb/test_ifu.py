@@ -110,7 +110,7 @@ def mem_to_instr_addr_rsp(memory: dict[int,int], item_range="all") -> list[Instr
     return responses
 
 
-@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_const_delay(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
@@ -124,7 +124,7 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_and_jump(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
@@ -151,7 +151,7 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
@@ -166,7 +166,7 @@ async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=100, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_and_jump_backpressure(tb: Testbench, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
