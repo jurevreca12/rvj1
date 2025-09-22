@@ -118,7 +118,7 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
     tb.memory.set_delay(lambda _: delay)
     ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
-    log.info(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
+    log.info(f"Linear run with the following memory content:\n{str(tb.memory)}.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv, backpressure=0.0), blocking=False)
     for _ in ref_trans:                                                                                                                   
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
@@ -127,14 +127,12 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
 @Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
 @Testbench.parameter("delay", int, [0, 1, 2, 3])
 async def linear_run_and_jump(tb: Testbench, log, delay):
-    "The 7th instruction is a jump instruction to 12."
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
-    overshoot = [6] if delay == 0 else [] # if delay is zero, an extra transaction is expected
-    ref_trans = mem_to_instr_addr_rsp(test_mem, list(range(0, 6)) + overshoot + list(range(11, 19)))
-    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
-    log.info(f"Running a linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
+    ref_trans0 = mem_to_instr_addr_rsp(test_mem, list(range(0, 6)))
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans0)
+    log.info(f"Linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv, backpressure=0.0), blocking=False)
     for _ in range(0, 6):                                                                                                                                                                                          
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
@@ -142,6 +140,13 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
     tb.dut.jmp_addr_valid_i.value = 1
     await RisingEdge(tb.clk)
     tb.dut.jmp_addr_valid_i.value = 0
+    if len(tb.scoreboard.channels['dec_mon']._q_mon._entries) > 0:
+        # Overshoot of IFU
+        tb.scoreboard.channels['dec_mon'].push_reference(
+            InstrAddrResponse(instr=6, addr=int("8000_0000", 16) + 4 * 6)
+        )
+    ref_trans1 = mem_to_instr_addr_rsp(test_mem, list(range(11, 19)))
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans1)
     for _ in range(11, 19):                                                                                                                                                                                        
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
@@ -154,11 +159,39 @@ async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
     tb.memory.set_delay(lambda _: delay)
     ref_trans = mem_to_instr_addr_rsp(test_mem)
     tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans)
-    log.info(f"Running a simple linear test of IFU with the following memory content:\n{str(tb.memory)}.")
+    log.info(f"Linear run with the following memory content:\n{str(tb.memory)}.")
     tb.dut.dec_ready_i.value = 1
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     for _ in ref_trans:                                                                                                                   
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
+
+@Testbench.testcase(reset_wait_during=2, reset_wait_after=0, timeout=70, shutdown_delay=1, shutdown_loops=1)
+@Testbench.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_and_jump_backpressure(tb: Testbench, log, delay):
+    test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
+    tb.memory.flash(test_mem)
+    tb.memory.set_delay(lambda _: delay)
+    ref_trans0 = mem_to_instr_addr_rsp(test_mem, list(range(0, 6)))
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans0)
+    log.info(f"Linear run and jump test of IFU with the following memory content:\n{str(tb.memory)}.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
+    for _ in range(0, 6):                                                                                                                                                                                          
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
+    tb.dut.jmp_addr_i.value = int("8000_0000", 16) + 4 * 11
+    tb.dut.jmp_addr_valid_i.value = 1
+    await RisingEdge(tb.clk)
+    tb.dut.jmp_addr_valid_i.value = 0
+    if len(tb.scoreboard.channels['dec_mon']._q_mon._entries) > 0:
+        # Overshoot of IFU
+        tb.scoreboard.channels['dec_mon'].push_reference(
+            InstrAddrResponse(instr=6, addr=int("8000_0000", 16) + 4 * 6)
+        )
+    ref_trans1 = mem_to_instr_addr_rsp(test_mem, list(range(11, 19)))
+    tb.scoreboard.channels["dec_mon"].push_reference(*ref_trans1)
+    for _ in range(11, 19):                                                                                                                                                                                        
+        await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
+
+    
 if __name__ == '__main__':
     test_ifu_runner()
