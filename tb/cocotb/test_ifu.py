@@ -10,7 +10,7 @@ from rvj1.io import IfuToDecoderIO
 from rvj1.transaction import InstrAddrResponse
 from rvj1.response import IfuToDecMonitor, DecoderResponder
 from rvj1.sequence import dec_backpressure_seq
-from memory import RandomAccessMemory
+from memory import RandomAccessMemory, gen_memory_data, mem_to_instr_addr_rsp
 
 
 def test_ifu_runner():
@@ -18,7 +18,7 @@ def test_ifu_runner():
     runner.test(hdl_toplevel="jedro_1_ifu", test_module="test_ifu", waves=WAVES)
 
 
-class Testbench(BaseBench):
+class IfuTB(BaseBench):
     def __init__(self, dut):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
         instr_req_io = MappedRequestIO(
@@ -87,37 +87,15 @@ class Testbench(BaseBench):
             await ClockCycles(self.clk, wait_after)
 
 
-def gen_memory_data(base_addr: int, data: list[int]) -> dict[int, int]:
-    mem = {}
-    assert len(data) > 0
-    assert base_addr % 4 == 0
-    for ind, da in enumerate(data):
-        addr = base_addr + 4 * ind
-        mem[addr] = da
-    return mem
-
-
-def mem_to_instr_addr_rsp(
-    memory: dict[int, int], item_range="all"
-) -> list[InstrAddrResponse]:
-    responses = []
-    if item_range == "all":
-        item_range = range(0, len(memory))
-    for index, (addr, data) in enumerate(memory.items()):
-        if index in item_range:
-            responses.append(InstrAddrResponse(instr=data, addr=addr))
-    return responses
-
-
-@Testbench.testcase(
+@IfuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@Testbench.parameter("delay", int, [0, 1, 2, 3])
-async def linear_run_const_delay(tb: Testbench, log, delay):
+@IfuTB.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_const_delay(tb: IfuTB, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
@@ -131,15 +109,15 @@ async def linear_run_const_delay(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(
+@IfuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@Testbench.parameter("delay", int, [0, 1, 2, 3])
-async def linear_run_and_jump(tb: Testbench, log, delay):
+@IfuTB.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_and_jump(tb: IfuTB, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
@@ -168,15 +146,15 @@ async def linear_run_and_jump(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(
+@IfuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@Testbench.parameter("delay", int, [0, 1, 2, 3])
-async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
+@IfuTB.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_const_delay_backpressure(tb: IfuTB, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)
@@ -189,15 +167,15 @@ async def linear_run_const_delay_backpressure(tb: Testbench, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-@Testbench.testcase(
+@IfuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@Testbench.parameter("delay", int, [0, 1, 2, 3])
-async def linear_run_and_jump_backpressure(tb: Testbench, log, delay):
+@IfuTB.parameter("delay", int, [0, 1, 2, 3])
+async def linear_run_and_jump_backpressure(tb: IfuTB, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(0, 19))
     tb.memory.flash(test_mem)
     tb.memory.set_delay(lambda _: delay)

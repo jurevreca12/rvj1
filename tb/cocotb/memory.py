@@ -8,6 +8,7 @@ from mapped.transaction import (
 )
 from forastero import MonitorEvent, DriverEvent
 from collections.abc import Callable
+from rvj1.transaction import InstrAddrResponse
 
 
 class RandomAccessMemory:
@@ -80,3 +81,25 @@ class RandomAccessMemory:
             ret += f"\t0x{addr:08x} : {val}\n"
         ret += ")\n"
         return ret
+
+
+def gen_memory_data(base_addr: int, data: list[int]) -> dict[int, int]:
+    mem = {}
+    assert len(data) > 0
+    assert base_addr % 4 == 0
+    for ind, da in enumerate(data):
+        addr = base_addr + 4 * ind
+        mem[addr] = da
+    return mem
+
+
+def mem_to_instr_addr_rsp(
+    memory: dict[int, int], item_range="all"
+) -> list[InstrAddrResponse]:
+    responses = []
+    if item_range == "all":
+        item_range = range(0, len(memory))
+    for index, (addr, data) in enumerate(memory.items()):
+        if index in item_range:
+            responses.append(InstrAddrResponse(instr=data, addr=addr))
+    return responses
