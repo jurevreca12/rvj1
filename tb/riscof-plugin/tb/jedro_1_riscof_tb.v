@@ -99,7 +99,7 @@ module jedro_1_riscof_tb();
     .instr_req_ready_i  (instr_req_ready),
 
     .instr_rsp_data_i   (instr_rsp_data),
-    .instr_rsp_error_i    (instr_rsp_error),
+    .instr_rsp_error_i  (instr_rsp_error),
     .instr_rsp_valid_i  (instr_rsp_valid),
     .instr_rsp_ready_o  (instr_rsp_ready),
 
@@ -121,6 +121,11 @@ module jedro_1_riscof_tb();
 
   integer sig_file, start_addr, end_addr;
   initial begin
+  $display("Starting simulation of RVJ1");
+  $display("Simulation will run until it reaches RAM cell %d, with content 0x%0h",
+    HALT_COND_CELLNUM,
+    data_mem.mem.RAM[HALT_COND_CELLNUM]
+  );
   $dumpfile("dump.fst");
   $dumpvars();
   clk = 1'b0;
@@ -130,13 +135,25 @@ module jedro_1_riscof_tb();
 
   i=0;
   while (i < TIMEOUT && data_mem.mem.RAM[HALT_COND_CELLNUM] !== 1) begin
+    if (instr_rsp_data == 0 && instr_rsp_ready && instr_rsp_valid)
+      break;
     @(posedge clk);
     i=i+1;
   end
 
+  repeat (10) begin
+    @(posedge clk);
+  end
+
+  if (i == TIMEOUT)
+    $display("WARNING: Simulation did not finnish. Timeout occured after %0d cycles.", i);
+  else
+    $display("Simulation finnished after %0d cycles.", i);
+
   // get start and end address of the signature region
   start_addr = data_mem.mem.RAM[SIG_START_ADDR_CELLNUM];
   end_addr   = data_mem.mem.RAM[SIG_END_ADDR_CELLNUM];
+  $display("Writing results to %s from RAM: 0x%0h - 0x%0h", SIGNATURE_FILE, start_addr, end_addr);
 
   sig_file = $fopen(SIGNATURE_FILE, "w");
 
