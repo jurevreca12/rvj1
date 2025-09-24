@@ -54,7 +54,7 @@ module jedro_1_ifu #(
         eEMPTY,  // Output and buffer registers empty
         eBUSY,   // Output register holds data
         eFULL,   // Both output and buffer registers full,
-        eADDR    // load address
+        eJMP     // load address
     } ifu_fsm_e;
     ifu_fsm_e state, state_next;
 
@@ -126,7 +126,7 @@ module jedro_1_ifu #(
         if (~rstn_i)
             dec_valid_o <= 1'b0;
         else
-            dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eADDR));
+            dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eJMP));
     end
 
     /*************************************
@@ -138,7 +138,7 @@ module jedro_1_ifu #(
         fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
-        jmpn   = (state == eADDR)  &&  instr_req_fire;
+        jmpn   = (state == eJMP)  &&  instr_req_fire;
     end
 
     always_comb begin
@@ -153,7 +153,7 @@ module jedro_1_ifu #(
         state_next = fill   ? eFULL  : state_next;
         state_next = flush  ? eBUSY  : state_next;
         state_next = unload ? eEMPTY : state_next;
-        state_next = jmp_addr_valid_i ? eADDR : state_next;
+        state_next = jmp_addr_valid_i ? eJMP : state_next;
         state_next = jmpn   ? eEMPTY  : state_next;
     end
     always_ff @(posedge clk_i) begin
