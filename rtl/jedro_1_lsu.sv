@@ -65,7 +65,9 @@ logic [DATA_WIDTH-1:0]     selected_request_addr;
 logic [DATA_WIDTH-1:0]     selected_request_data;
 logic [REG_ADDR_WIDTH-1:0] selected_request_regdest;
 
-logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
+logic input_buffer_clock_enable;
+logic output_buffer_clock_enable;
+logic use_buffered_data;
 
 
 logic load, flow, fill, flush, unload;
@@ -79,12 +81,17 @@ lsu_fsm_e state, state_next;
 
 logic [DATA_WIDTH-1:0]     data_rsp_data_buff;
 logic [REG_ADDR_WIDTH-1:0] data_rsp_regdest_buff;
+
+logic data_req_fire;
+logic data_rsp_fire;
+logic lsu_fire;
+
 /*************************************
 * Skid Buffer the incoming requests
 *************************************/
 always_ff @(posedge clk_i) begin
     if (~rstn_i) begin
-        input_buffer_cmd     <= 0;
+        input_buffer_cmd     <= LSU_LOAD_BYTE;
         input_buffer_addr    <= 0;
         input_buffer_data    <= 0;
         input_buffer_regdest <= 0;
@@ -103,7 +110,7 @@ assign selected_request_regdest = use_buffered_data ? input_buffer_regdest : lsu
 
 always_ff @(posedge clk_i) begin
   if (~rstn_i) begin
-      output_buffer_cmd     <= 0;
+      output_buffer_cmd     <= LSU_LOAD_BYTE;
       output_buffer_addr    <= 0;
       output_buffer_data    <= 0;
       output_buffer_regdest <= 0;
@@ -137,7 +144,7 @@ always_ff @(posedge clk_i) begin
   if (~rstn_i)
     rf_wb_o <= 1'b0;
   else
-    rf_wb_o <= instr_rsp_fire;
+    rf_wb_o <= data_rsp_fire;
 end
 
 always_ff @(posedge clk_i) begin
@@ -167,7 +174,7 @@ always_ff @(posedge clk_i) begin
     data_rsp_ready_o <= 1'b0;
   end
   else begin
-    data_req_valid_o <= (state_next != eFULL);
+    data_req_valid_o <= (state_next != eEMPTY);
     data_rsp_ready_o <= (state_next != eFULL); // TODO: je to prav? a lahko data_rsp_regdest_buff preplavi?
   end
 end
