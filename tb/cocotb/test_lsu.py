@@ -7,11 +7,12 @@ from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
-from rvj1.io import LsuIO
+from rvj1.io import LsuIO, LsuRfIO
 from rvj1.request import LsuInitiator
+from rvj1.response import LsuRfMonitor
 from rvj1.sequence import lsu_drive_seq
-from rvj1.transaction import LsuRequest, LsuCmd
-from memory import RandomAccessMemory
+from rvj1.transaction import LsuRequest, LsuCmd, LsuRfRequest
+from memory import RandomAccessMemory, gen_memory_data
 
 
 def test_lsu_runner():
@@ -51,6 +52,8 @@ class LsuTB(BaseBench):
         )
         lsu_io = LsuIO(dut, "lsu", IORole.INITIATOR, io_style=io_suffix_style)
         self.register("lsu_drv", LsuInitiator(self, lsu_io, self.clk, self.rst))
+        lsu_rf_io = LsuRfIO(dut, "rf", IORole.INITIATOR, io_style=io_suffix_style)
+        self.register("lsu_rf_mon", LsuRfMonitor(self, lsu_rf_io, self.clk, self.rst))
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -115,6 +118,37 @@ def linear_write_words_ref(base_addr: int, data: list[int]) -> list[MappedReques
     return requests
 
 
+def linear_read_words(base_addr: int, mem_range: list[int]) -> list[LsuRequest]:
+    addr = base_addr
+    requests = []
+    for i, _ in enumerate(mem_range):
+        requests.append(
+            LsuRequest(cmd=LsuCmd.LOAD_WORD, addr=addr, data=0, regdest=i + 1)
+        )
+        addr += 4
+    return requests
+
+
+def linear_read_words_ref(base_addr: int, data: list[int]) -> list[MappedRequest]:
+    addr = base_addr
+    requests = []
+    for d in data:
+        requests.append(
+            MappedRequest(address=addr, mode=MappedAccess.READ, data=0, strobe=0)
+        )
+        addr += 4
+    return requests
+
+
+def linear_read_words_rf_ref(base_addr: int, data: list[int]) -> list[LsuRfRequest]:
+    addr = base_addr
+    requests = []
+    for i, d in enumerate(data):
+        requests.append(LsuRfRequest(data=d, regdest=i + 1))
+        addr += 4
+    return requests
+
+
 @LsuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
@@ -131,8 +165,32 @@ async def store_seq(tb: LsuTB, log, delay):
         base_addr=int("6000_0000", 16), data=range(1, 17)
     )
     tb.scoreboard.channels["data_req_mon"].push_reference(*ref_trans)
-    for d in range(1, 17):
+    for _ in range(1, 17):
         await tb.data_req_mon.wait_for(MonitorEvent.CAPTURE)
+
+
+@LsuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=200,
+    shutdown_delay=1,
+    shutdown_loops=1,
+)
+@LsuTB.parameter("delay", int, [0, 1, 2, 3])
+async def read_seq(tb: LsuTB, log, delay):
+    test_mem = gen_memory_data(int("6000_0000", 16), range(1, 19))
+    tb.memory.flash(test_mem)
+    tb.memory.set_delay(lambda _: delay)
+    requests = linear_read_words(base_addr=int("6000_0000", 16), mem_range=range(1, 17))
+    tb.schedule(lsu_drive_seq(lsu_drv=tb.lsu_drv, requests=requests))
+    ref_trans = linear_read_words_ref(base_addr=int("6000_0000", 16), data=range(1, 17))
+    ref_trans_rf = linear_read_words_rf_ref(
+        base_addr=int("6000_0000", 16), data=range(1, 17)
+    )
+    tb.scoreboard.channels["data_req_mon"].push_reference(*ref_trans)
+    tb.scoreboard.channels["lsu_rf_mon"].push_reference(*ref_trans_rf)
+    for _ in range(1, 17):
+        await tb.lsu_rf_mon.wait_for(MonitorEvent.CAPTURE)
 
 
 if __name__ == "__main__":

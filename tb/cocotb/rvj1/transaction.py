@@ -36,3 +36,9 @@ class LsuRequest(BaseTransaction):
     addr: int = 0
     data: int = 0
     regdest: int = 0
+
+
+@dataclass(kw_only=True)
+class LsuRfRequest(BaseTransaction):
+    data: int = 0
+    regdest: int = 0
