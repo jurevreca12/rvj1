@@ -217,7 +217,7 @@ assign lsu_ready_o = (state == eRUN) && req_buff_inp_ready && act_req_buff_inp_r
 * FSM
 *************************************/
 always_comb begin
-  read_req  = (state == eRUN)   && lsu_valid_i   && ~is_write(lsu_cmd_i);
+  read_req  = (state == eRUN)   && lsu_valid_i    && ~is_write(lsu_cmd_i);
   read_rsp  = (state == eREAD)  && retire_request && ~is_write(act_req_buff_out_data.cmd);
   req_full  = (state == eRUN)   && ~req_buff_inp_ready;
   rsp_full  = (state == eRUN)   && ~act_req_buff_inp_ready;
@@ -243,11 +243,12 @@ end
       ghost_rsp: assert(act_req_buff_out_valid);
   end
 
-  // There should be no request if the buffer is full or if there is a stall.
   always_ff @(posedge clk_i) begin
     if (lsu_valid_i) begin
+      // There should be no request if either req or act_req buffers are full.
       bad_req: assert(req_buff_inp_ready);
       bad_act: assert(act_req_buff_inp_read);
+      // Requests can only be issued when in running state (no stall).
       state_r: assert(state == eRUN);
     end
   end
