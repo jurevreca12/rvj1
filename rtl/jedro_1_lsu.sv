@@ -112,12 +112,12 @@ function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd);
     return strobe;
   end
 endfunction
+
 function automatic logic is_write(input lsu_ctrl_e cmd);
   begin
       return cmd[4];
   end
 endfunction
-
 
 logic         req_buff_inp_ready;
 lsu_req_t     req_buff_out_data;
@@ -155,7 +155,6 @@ assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd);
 assign data_req_write_o  = req_buff_out_data.cmd[4];
 
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
-
 
 assign data_rsp_ready_o = 1'b1;
 assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
