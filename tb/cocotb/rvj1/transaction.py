@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import IntEnum, auto
+from enum import IntEnum
 from forastero import BaseTransaction
 
 
@@ -19,14 +19,15 @@ class DecoderBackpressure(BaseTransaction):
 
 
 class LsuCmd(IntEnum):
-    LOAD_BYTE = auto()
-    LOAD_HALF_WORD = auto()
-    LOAD_WORD = auto()
-    LOAD_BYTE_U = auto()
-    LOAD_HALF_WORD_U = auto()
-    STORE_BYTE = auto()
-    STORE_HALF_WORD = auto()
-    STORE_WORD = auto()
+    NO_CMD = int("00000", 2)
+    LOAD_BYTE = int("00001", 2)
+    LOAD_HALF_WORD = int("00011", 2)
+    LOAD_WORD = int("00111", 2)
+    LOAD_BYTE_U = int("01001", 2)
+    LOAD_HALF_WORD_U = int("01011", 2)
+    STORE_BYTE = int("10001", 2)
+    STORE_HALF_WORD = int("10011", 2)
+    STORE_WORD = int("10111", 2)
 
 
 @dataclass(kw_only=True)

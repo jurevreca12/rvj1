@@ -57,25 +57,16 @@ localparam bit [3:0] ALU_OP_AND  = 4'b0111;
 localparam bit [2:0] FUNCT3_SHIFT_INSTR = 3'b101;
 
 // Load-Store Unit
-// localparam int LSU_CTRL_WIDTH = 4; // we need to encode 8 states 
-// localparam bit [3:0] LSU_LOAD_BYTE        = 4'b0000;
-// localparam bit [3:0] LSU_LOAD_HALF_WORD   = 4'b0001;
-// localparam bit [3:0] LSU_LOAD_WORD        = 4'b0010;
-// localparam bit [3:0] LSU_LOAD_BYTE_U      = 4'b0100;
-// localparam bit [3:0] LSU_LOAD_HALF_WORD_U = 4'b0101;
-// localparam bit [3:0] LSU_STORE_BYTE       = 4'b1000;
-// localparam bit [3:0] LSU_STORE_HALF_WORD  = 4'b1001;
-// localparam bit [3:0] LSU_STORE_WORD       = 4'b1010;
-
-typedef enum logic [3:0] {
-    LSU_LOAD_BYTE,
-    LSU_LOAD_HALF_WORD,
-    LSU_LOAD_WORD,
-    LSU_LOAD_BYTE_U,
-    LSU_LOAD_HALF_WORD_U,
-    LSU_STORE_BYTE,
-    LSU_STORE_HALF_WORD,
-    LSU_STORE_WORD
+typedef enum logic [4:0] {
+    LSU_NO_CMD            = 5'b00000,
+    LSU_LOAD_BYTE         = 5'b00001,
+    LSU_LOAD_HALF_WORD    = 5'b00011,
+    LSU_LOAD_WORD         = 5'b00111,
+    LSU_LOAD_BYTE_U       = 5'b01001,
+    LSU_LOAD_HALF_WORD_U  = 5'b01011,
+    LSU_STORE_BYTE        = 5'b10001,
+    LSU_STORE_HALF_WORD   = 5'b10011,
+    LSU_STORE_WORD        = 5'b10111
 } lsu_ctrl_e;
 
 

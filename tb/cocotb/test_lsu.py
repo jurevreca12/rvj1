@@ -2,11 +2,15 @@ from base import get_test_runner, WAVES
 from mapped.io import MappedRequestIO, MappedResponseIO
 from mapped.request import MappedRequestMonitor, MappedRequestResponder
 from mapped.response import MappedResponseInitiator
+from mapped.transaction import MappedRequest, MappedAccess
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
+from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
 from rvj1.io import LsuIO
 from rvj1.request import LsuInitiator
+from rvj1.sequence import lsu_drive_seq
+from rvj1.transaction import LsuRequest, LsuCmd
 from memory import RandomAccessMemory
 
 
@@ -22,9 +26,7 @@ class LsuTB(BaseBench):
             dut, "data_req", IORole.INITIATOR, io_style=io_suffix_style
         )
         self.register(
-            "data_req_mon",
-            MappedRequestMonitor(self, data_req_io, self.clk, self.rst),
-            scoreboard=False,
+            "data_req_mon", MappedRequestMonitor(self, data_req_io, self.clk, self.rst)
         )
         self.register(
             "data_req_drv",
@@ -89,6 +91,48 @@ class LsuTB(BaseBench):
 )
 async def smoke(tb: LsuTB, log):
     await ClockCycles(tb.clk, 10)
+
+
+def linear_write_words(base_addr: int, data: list[int]) -> list[LsuRequest]:
+    addr = base_addr
+    requests = []
+    for d in data:
+        requests.append(LsuRequest(cmd=LsuCmd.STORE_WORD, addr=addr, data=d, regdest=0))
+        addr += 4
+    return requests
+
+
+def linear_write_words_ref(base_addr: int, data: list[int]) -> list[MappedRequest]:
+    addr = base_addr
+    requests = []
+    for d in data:
+        requests.append(
+            MappedRequest(
+                address=addr, mode=MappedAccess.WRITE, data=d, strobe=int("F", 16)
+            )
+        )
+        addr += 4
+    return requests
+
+
+@LsuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=100,
+    shutdown_delay=1,
+    shutdown_loops=1,
+)
+@LsuTB.parameter("delay", int, [0, 1, 2, 3])
+async def store_seq(tb: LsuTB, log, delay):
+    tb.memory.set_delay(lambda _: delay)
+    requests = linear_write_words(base_addr=int("6000_0000", 16), data=range(1, 17))
+    tb.schedule(lsu_drive_seq(lsu_drv=tb.lsu_drv, requests=requests))
+    ref_trans = linear_write_words_ref(
+        base_addr=int("6000_0000", 16), data=range(1, 17)
+    )
+    tb.scoreboard.channels["data_req_mon"].push_reference(*ref_trans)
+    for d in range(1, 17):
+        await tb.data_req_mon.wait_for(MonitorEvent.CAPTURE)
 
 
 if __name__ == "__main__":
