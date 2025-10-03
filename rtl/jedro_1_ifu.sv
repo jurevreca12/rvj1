@@ -20,33 +20,32 @@ module jedro_1_ifu #(
   input logic clk_i,
   input logic rstn_i,
 
-  output logic [DATA_WIDTH-1:0] instr_req_addr_o,
-  output logic [DATA_WIDTH-1:0] instr_req_data_o,
-  output logic [3:0]            instr_req_strobe_o,
-  output logic                  instr_req_write_o,
-  output logic                  instr_req_valid_o,
-  input  logic                  instr_req_ready_i,
+  output logic [XLEN-1:0]   instr_req_addr_o,
+  output logic [XLEN-1:0]   instr_req_data_o,
+  output logic [NBYTES-1:0] instr_req_strobe_o,
+  output logic              instr_req_write_o,
+  output logic              instr_req_valid_o,
+  input  logic              instr_req_ready_i,
 
-  input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
-  input  logic                  instr_rsp_error_i,
-  input  logic                  instr_rsp_valid_i,
-  output logic                  instr_rsp_ready_o,
+  input  logic [XLEN-1:0] instr_rsp_data_i,
+  input  logic            instr_rsp_error_i,
+  input  logic            instr_rsp_valid_i,
+  output logic            instr_rsp_ready_o,
 
   // Interface to the decoder
-  output logic [DATA_WIDTH-1:0] dec_instr_o,  // The current instruction (to be decoded)
-  output logic [DATA_WIDTH-1:0] dec_pc_o,     // Used by instructons that calculate on the PC.
-  output logic                  dec_valid_o,
-  input  logic                  dec_ready_i,  // Decoder ready to accept new instruction (stall)
+  output logic [XLEN-1:0] dec_instr_o,  // The current instruction (to be decoded)
+  output logic            dec_valid_o,
+  input  logic            dec_ready_i,  // Decoder ready to accept new instruction (stall)
 
-  input logic                   jmp_addr_valid_i, // change PC to jmp_addr_i
-  input logic [DATA_WIDTH-1:0]  jmp_addr_i,       // The jump address
+  input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
+  input logic [XLEN-1:0]  jmp_addr_i,       // The jump address
 
-  output logic                  ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
-  output logic [DATA_WIDTH-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
+  output logic            ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
+  output logic [XLEN-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
 );
-    logic [DATA_WIDTH-1:0] input_buffer;
-    logic [DATA_WIDTH-1:0] output_buffer;
-    logic [DATA_WIDTH-1:0] selected_data;
+    logic [XLEN-1:0] input_buffer;
+    logic [XLEN-1:0] output_buffer;
+    logic [XLEN-1:0] selected_data;
     logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
     logic load, flow, fill, flush, unload, jmpn;

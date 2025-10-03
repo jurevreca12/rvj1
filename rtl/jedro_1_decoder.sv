@@ -19,18 +19,10 @@ module jedro_1_decoder
   input logic rstn_i,
 
   // IFU INTERFACE
-  input  logic [DATA_WIDTH-1:0] ifu_instr_i,        // Instructions coming in from memory/cache
-  input  logic [DATA_WIDTH-1:0] ifu_addr_i,
-  input  logic                  ifu_valid_i,
-  output logic                  ifu_ready_o,       // Ready for instructions.
+  input  logic [XLEN-1:0] ifu_instr_i,        // Instructions coming in from memory/cache
+  input  logic            ifu_valid_i,
+  output logic            ifu_ready_o,       // Ready for instructions.
 
-
-  output logic [DATA_WIDTH-1:0] instr_addr_o,
-  output logic                  use_pc_o,
-
-  output logic                  jmp_instr_o,
-  output logic [DATA_WIDTH-1:0] jmp_addr_o,
-  output logic                  use_alu_jmp_addr_o,
 
   // REGISTER FILE INTERFACE
   output logic [REG_ADDR_WIDTH-1:0] rf_addr_a_o,
@@ -160,21 +152,6 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
         return op;
     end
 endfunction
-
-/*************************************
-* BUFFER INSTR ADDR
-*************************************/
-register#(
-    .WORD_WIDTH  (DATA_WIDTH),
-    .RESET_VALUE (0)
-) instr_addr_buff (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (1'b1),
-    .in   (ifu_addr_i),
-    .out  (instr_addr_o)
-);
-
 
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC

@@ -50,53 +50,53 @@ module jedro_1_lsu (
     input logic rstn_i,
 
     // Interface to/from the decoder/ALU/ctrl
-    input  logic                      lsu_valid_i,
-    output logic                      lsu_ready_o,
-    input  lsu_ctrl_e                 lsu_cmd_i,
-    input  logic [DATA_WIDTH-1:0]     lsu_addr_i,
-    input  logic [DATA_WIDTH-1:0]     lsu_data_i,
-    input  logic [REG_ADDR_WIDTH-1:0] lsu_regdest_i,
+    input  logic             lsu_valid_i,
+    output logic             lsu_ready_o,
+    input  lsu_ctrl_e        lsu_cmd_i,
+    input  logic [XLEN-1:0]  lsu_addr_i,
+    input  logic [XLEN-1:0]  lsu_data_i,
+    input  logic [RALEN-1:0] lsu_regdest_i,
 
     // Interface to the register file
-    output logic [DATA_WIDTH-1:0]     rf_data_o,
-    output logic                      rf_wb_o,    // write-back
-    output logic [REG_ADDR_WIDTH-1:0] rf_dest_o,
+    output logic [XLEN-1:0]  rf_data_o,
+    output logic             rf_wb_o,    // write-back
+    output logic [RALEN-1:0] rf_dest_o,
 
     // Interface to the core controller
-    output logic                  ctrl_misaligned_load_o,
-    output logic                  ctrl_misaligned_store_o,
-    output logic                  ctrl_bus_error_o,
-    output logic [DATA_WIDTH-1:0] ctrl_exception_addr_o,
+    output logic            ctrl_misaligned_load_o,
+    output logic            ctrl_misaligned_store_o,
+    output logic            ctrl_bus_error_o,
+    output logic [XLEN-1:0] ctrl_exception_addr_o,
 
     // Interface to data RAM
-    output logic [DATA_WIDTH-1:0] data_req_addr_o,
-    output logic [DATA_WIDTH-1:0] data_req_data_o,
-    output logic [3:0]            data_req_strobe_o,
-    output logic                  data_req_write_o,
-    output logic                  data_req_valid_o,
-    input  logic                  data_req_ready_i,
+    output logic [XLEN-1:0]   data_req_addr_o,
+    output logic [XLEN-1:0]   data_req_data_o,
+    output logic [NBYTES-1:0] data_req_strobe_o,
+    output logic              data_req_write_o,
+    output logic              data_req_valid_o,
+    input  logic              data_req_ready_i,
 
-    input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
-    input  logic                  data_rsp_error_i,
-    input  logic                  data_rsp_valid_i,
-    output logic                  data_rsp_ready_o
+    input  logic [XLEN-1:0] data_rsp_data_i,
+    input  logic            data_rsp_error_i,
+    input  logic            data_rsp_valid_i,
+    output logic            data_rsp_ready_o
 );
 
 typedef struct packed {
-  lsu_ctrl_e                 cmd;
-  logic [DATA_WIDTH-1:0]     addr;
-  logic [DATA_WIDTH-1:0]     data;
-  logic [REG_ADDR_WIDTH-1:0] regdest;
+  lsu_ctrl_e        cmd;
+  logic [XLEN-1:0]  addr;
+  logic [XLEN-1:0]  data;
+  logic [RALEN-1:0] regdest;
 } lsu_req_t;
 
 typedef struct packed {
-  lsu_ctrl_e                 cmd;
-  logic [REG_ADDR_WIDTH-1:0] regdest;
+  lsu_ctrl_e        cmd;
+  logic [RALEN-1:0] regdest;
 } lsu_act_req_t;
 
 typedef struct packed {
-  logic [DATA_WIDTH-1:0] data;
-  logic                  error;
+  logic [XLEN-1:0] data;
+  logic            error;
 } lsu_rsp_t;
 
 typedef enum logic [1:0] {

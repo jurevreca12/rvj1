@@ -17,170 +17,71 @@ module jedro_1_alu (
     input logic clk_i,
     input logic rstn_i,
 
-    input logic [ALU_OP_WIDTH-1:0] sel_i,  // select arithmetic operation
+    input alu_op_e sel_i,  // select arithmetic operation
 
-    input  logic [DATA_WIDTH-1:0] op_a_i,
-    input  logic [DATA_WIDTH-1:0] op_b_i,
-    output logic [DATA_WIDTH-1:0] res_ro,
-    output logic                  ops_eq_ro,   // is 1 if op_a_i == op_b_i
-    output logic                  overflow_ro,
-
-    input  logic [REG_ADDR_WIDTH-1:0] dest_addr_i,
-    output logic [REG_ADDR_WIDTH-1:0] dest_addr_ro,
-
-    input  logic wb_i,
-    output logic wb_ro
+    input  logic [XLEN-1:0]  op_a_i,
+    input  logic [XLEN-1:0]  op_b_i,
+    output logic [XLEN-1:0]  res_o
 );
-
-  /*******************************
-  * SIGNAL DECLARATION
-  *******************************/
-  logic [DATA_WIDTH-1:0] adder_res;
-  logic [DATA_WIDTH-1:0] and_res;
-  logic [DATA_WIDTH-1:0] or_res;
-  logic [DATA_WIDTH-1:0] xor_res;
-  logic [DATA_WIDTH-1:0] less_than_sign_res;
-  logic [DATA_WIDTH-1:0] less_than_unsign_res;
-  logic [DATA_WIDTH-1:0] shifter_right_res;
-  logic [DATA_WIDTH-1:0] shifter_left_res;
-  logic                  ops_eq_res;
-  logic                  adder_overflow;
-
-
 
   /*******************************
   * RESULT BUFFERING
   *******************************/
   always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      overflow_ro <= 0;
-      res_ro <= 0;
-      ops_eq_ro <= 0;
-    end else begin
-      overflow_ro <= adder_overflow;
-      ops_eq_ro   <= ops_eq_res;
-    end
-  end
-
-
-  /*******************************
-  * GO-THROUGH SIGNAL BUFFERING
-  *******************************/
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      wb_ro <= 0;
-      dest_addr_ro <= 0;
-    end else begin
-      wb_ro <= wb_i;
-      dest_addr_ro <= dest_addr_i;
-    end
+    if (~rstn_i)
+      res_o <= 0;
+    else
+      res_o <= res;
   end
 
 
   /*******************************
   * ARITHMETIC CIRCUITS
   *******************************/
-  // ripple-carry adder
-  ripple_carry_adder_Nb #(
-      .N(DATA_WIDTH)
-  ) ripple_carry_adder_32b_inst (
-      .carry_i(1'b0),
-      .opa_i  (op_a_i),
-      .opb_i  (op_b_i),
-      .inv_b_i(sel_i[3]),
-      .res_o  (adder_res),
-      .carry_o(adder_overflow)
-  );
+  // less-than unsigned
+  function automatic logic [XLEN-1:0] ltu(input logic [XLEN-1:0] a, input logic [XLEN-1:0] b);
+  begin
+      logic lt;
+      assign lt = a < b;
+      return {{(XLEN-1){1'b0}}, lt};
+  end
+  endfunction
+  // less-than signed
+  function automatic logic [XLEN-1:0] lts(input logic [XLEN-1:0] a, input logic [XLEN-1:0] b);
+  begin
+      logic lt;
+      logic [XLEN-2:0] res_abs;
+      logic [XLEN-1:0] ret;
 
-  assign and_res = op_a_i & op_b_i;  // and
-  assign or_res  = op_a_i | op_b_i;  // or
-  assign xor_res = op_a_i ^ op_b_i;  // xor
-
-  // compare modules
-  less_than_sign_Nb #(
-      .N(DATA_WIDTH)
-  ) less_than_sign_32b_inst (
-      .a(op_a_i),
-      .b(op_b_i),
-      .r(less_than_sign_res)
-  );
-  less_than_unsign_Nb #(
-      .N(DATA_WIDTH)
-  ) less_than_unsign_32b_inst (
-      .a(op_a_i),
-      .b(op_b_i),
-      .r(less_than_unsign_res)
-  );
-  equality_Nb #(
-      .N(DATA_WIDTH)
-  ) equality_32b_inst (
-      .a(op_a_i),
-      .b(op_b_i),
-      .r(ops_eq_res)
-  );
-
-  // shifters
-  barrel_shifter_left_32b shifter_left_32b_inst (
-      .in   (op_a_i),
-      .cntrl(op_b_i[5-1:0]),
-      .out  (shifter_left_res)
-  );
-  barrel_shifter_right_32b shifter_right_32b_inst (
-      .in(op_a_i),
-      .cntrl(op_b_i[5-1:0]),
-      .arith(sel_i[3]),  // Last bit of alu_op_sel_i selects between SRL and SRA instrucitons.
-      .out(shifter_right_res)
-  );
+      assign lt = a < b;
+      res_abs = {{(XLEN-2){1'b0}}, lt};
+      unique case ({a[XLEN-1], b[XLEN-1]})
+        2'b00:   ret = {1'b0, res_abs};
+        2'b10:   ret = 32'b11111111_11111111_11111111_11111111;
+        2'b01:   ret = 32'b0;
+        default: ret = {1'b0, res_abs};
+      endcase
+      return ret;
+  end
+  endfunction
 
 
   /*******************************
   * RESULT MUXING
   *******************************/
   always_ff @(posedge clk_i) begin
-    case (sel_i)
-      ALU_OP_ADD: begin
-        res_ro <= adder_res;
-      end
-
-      ALU_OP_SUB: begin
-        res_ro <= adder_res;
-      end
-
-      ALU_OP_SLL: begin
-        res_ro <= shifter_left_res;
-      end
-
-      ALU_OP_SLT: begin
-        res_ro <= less_than_sign_res;
-      end
-
-      ALU_OP_SLTU: begin
-        res_ro <= less_than_unsign_res;
-      end
-
-      ALU_OP_XOR: begin
-        res_ro <= xor_res;
-      end
-
-      ALU_OP_SRL: begin
-        res_ro <= shifter_right_res;
-      end
-
-      ALU_OP_SRA: begin
-        res_ro <= shifter_right_res;
-      end
-
-      ALU_OP_OR: begin
-        res_ro <= or_res;
-      end
-
-      ALU_OP_AND: begin
-        res_ro <= and_res;
-      end
-
-      default: begin
-        res_ro <= 32'b0;
-      end
+    res_o <= 32'b0;
+    unique case (sel_i)
+      alu_op_e.ALU_OP_ADD:  res_o <= op_a_i +  op_b_i;
+      alu_op_e.ALU_OP_SUB:  res_o <= op_a_i -  op_b_i;
+      alu_op_e.ALU_OP_XOR:  res_o <= op_a_i ^  op_b_i;
+      alu_op_e.ALU_OP_OR:   res_o <= op_a_i |  op_b_i;
+      alu_op_e.ALU_OP_AND:  res_o <= op_a_i &  op_b_i;
+      alu_op_e.ALU_OP_SLL:  res_o <= op_a_i << op_b_i;
+      alu_op_e.ALU_OP_SLT:  res_o <= lts(op_a_i, op_b_i);
+      alu_op_e.ALU_OP_SLTU: res_o <= ltu(op_a_i, op_b_i);
+      alu_op_e.ALU_OP_SRL:  res_o <= op_a_i >>  op_b_i;
+      alu_op_e.ALU_OP_SRA:  res_o <= op_a_i >>> op_b_i;
     endcase
   end
 

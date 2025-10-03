@@ -17,23 +17,23 @@ module jedro_1_regfile (
     input logic rstn_i,
 
     // Read port A
-    input logic [REG_ADDR_WIDTH-1:0] rpa_addr_i,
-    output logic [DATA_WIDTH-1:0]    rpa_data_co,
+    input  logic [RALEN-1:0] rpa_addr_i,
+    output logic [XLEN-1:0]  rpa_data_co,
 
     // Read port B
-    input logic [REG_ADDR_WIDTH-1:0] rpb_addr_i,
-    output logic [DATA_WIDTH-1:0]    rpb_data_co,
+    input  logic [RALEN-1:0] rpb_addr_i,
+    output logic [XLEN-1:0]  rpb_data_co,
 
     // Write port C
-    input logic [REG_ADDR_WIDTH-1:0] wpc_addr_i,
-    input logic [    DATA_WIDTH-1:0] wpc_data_i,
-    input logic                      wpc_we_i
+    input logic [RALEN-1:0] wpc_addr_i,
+    input logic [XLEN-1:0]  wpc_data_i,
+    input logic             wpc_we_i
 );
 
   localparam int NumRegs = 2 ** (REG_ADDR_WIDTH);
 
   // Integer register file x0-x31
-  logic [DATA_WIDTH-1:0] regfile[NumRegs];
+  logic [XLEN-1:0] regfile[NumRegs];
 
   /******************************
 * WRITE LOGIC
