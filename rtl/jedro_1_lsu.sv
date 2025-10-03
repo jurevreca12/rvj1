@@ -7,11 +7,40 @@
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
-// Description:    The load-store unit of the jedro-1 riscv core. The LSU     //
-//                 assumes a single cycle delay write, with no-change on      //
-//                 the read port when writing (Xilinx 7 Series Block RAM in   //
-//                 no-change mode using only a single port.                   //
+// Description:    The load-store unit.                                       //
 //                                                                            //
+//        |                      |                                            //
+//        |     +---------+      |                                            //
+// lsu_if |     | request |      | data_req_if                                //
+//      --|---->| buffer  |---|----->                                         //
+//        |     |         |   |  |                                            //
+//        |     +---------+   |  |                                            //
+//        |                   |  |                                            //
+//        |     +----------+  |  |                                            //
+//  rf_if |     | active   |  |  |                                            //
+//      <---+<--| request  |<-+  |                                            //
+//        | |   | buffer   |     |                                            //
+//        | |   +----------+     |                                            //
+//        | |                    |                                            //
+//        | |   +----------+     |                                            //
+//        | |   | response |     | data_rsp_if                                //
+//        | +---- buffer   |<--------                                         //
+//        |     |          |     |                                            //
+//        |     +----------+     |                                            //
+//        |                      |                                            //
+//                                                                            //
+// The LSU handles read and write requests in order.                          //
+//                                                                            //
+// The core should always be ready to handle responses. In case of writes     //
+// that is not a big problem. In case of reads the core needs to stall.       //
+//                                                                            //
+// The data request and response interfaces, on the other hand, have no such  //
+// restriction. This means that the LSU needs to be able to buffer the        //
+// requests and stall the core while waiting for the responses.               //
+//                                                                            //
+// The risc-v spec allows fatal exceptions (e.g., bus errors) to be           //
+// imprecise. This means we do not have to wait for each request on the bus   //
+// to finnish, before issuing further requests.                               //
 ////////////////////////////////////////////////////////////////////////////////
 
 import jedro_1_defines::*;
@@ -20,22 +49,24 @@ module jedro_1_lsu (
     input logic clk_i,
     input logic rstn_i,
 
-    // Interface to/from the decoder/ALU
-    input logic                      ctrl_valid_i,
-    input logic [LSU_CTRL_WIDTH-1:0] ctrl_i,
-    input logic [    DATA_WIDTH-1:0] addr_i,        // Address of the memory to ready/write.
-    input logic [    DATA_WIDTH-1:0] wdata_i,       // The data to write to memory.
-    input logic [REG_ADDR_WIDTH-1:0] regdest_i,     // Writeback to which register?
+    // Interface to/from the decoder/ALU/ctrl
+    input  logic                      lsu_valid_i,
+    output logic                      lsu_ready_o,
+    input  lsu_ctrl_e                 lsu_cmd_i,
+    input  logic [DATA_WIDTH-1:0]     lsu_addr_i,
+    input  logic [DATA_WIDTH-1:0]     lsu_data_i,
+    input  logic [REG_ADDR_WIDTH-1:0] lsu_regdest_i,
 
     // Interface to the register file
-    output logic [    DATA_WIDTH-1:0] rdata_ro,   // Goes to the register file.
-    output logic                      rf_wb_ro,   // Enables the write pin of the logic file.
-    output logic [REG_ADDR_WIDTH-1:0] regdest_ro,
+    output logic [DATA_WIDTH-1:0]     rf_data_o,
+    output logic                      rf_wb_o,    // write-back
+    output logic [REG_ADDR_WIDTH-1:0] rf_dest_o,
 
-    output logic                  misaligned_load_ro,
-    output logic                  misaligned_store_ro,
-    output logic                  bus_error_ro,
-    output logic [DATA_WIDTH-1:0] exception_addr_ro,
+    // Interface to the core controller
+    output logic                  ctrl_misaligned_load_o,
+    output logic                  ctrl_misaligned_store_o,
+    output logic                  ctrl_bus_error_o,
+    output logic [DATA_WIDTH-1:0] ctrl_exception_addr_o,
 
     // Interface to data RAM
     output logic [DATA_WIDTH-1:0] data_req_addr_o,
@@ -51,260 +82,177 @@ module jedro_1_lsu (
     output logic                  data_rsp_ready_o
 );
 
-  logic ram_ack;
-  assign ram_ack = data_rsp_valid_i;
+typedef struct packed {
+  lsu_ctrl_e                 cmd;
+  logic [DATA_WIDTH-1:0]     addr;
+  logic [DATA_WIDTH-1:0]     data;
+  logic [REG_ADDR_WIDTH-1:0] regdest;
+} lsu_req_t;
 
-  logic [    DATA_WIDTH-1:0] data_r;  // stores unaligned data directly from memory
-  logic [    DATA_WIDTH-1:0] byte_sign_extended_w;
-  logic [    DATA_WIDTH-1:0] hword_sign_extended_w;
-  logic [               7:0] active_byte;
-  logic [              15:0] active_hword;
-  logic [               1:0] byte_addr_r;
-  logic                      ram_start_decode_r;
-  logic [LSU_CTRL_WIDTH-1:0] ctrl_save_r;
+typedef struct packed {
+  lsu_ctrl_e                 cmd;
+  logic [REG_ADDR_WIDTH-1:0] regdest;
+} lsu_act_req_t;
 
-  logic [              31:0] active_write_word;
+typedef struct packed {
+  logic [DATA_WIDTH-1:0] data;
+  logic                  error;
+} lsu_rsp_t;
 
-  logic                      misaligned_load;
-  logic                      misaligned_load_hold;
-  logic                      misaligned_store;
+typedef enum logic [1:0] {
+  eRUN,   // waiting on requests
+  eREAD,  // stall to finnish read
+  eSTALL  // stall because buffer full
+} lsu_state_e;
+lsu_state_e state, state_next;
 
-
-  /**************************************
-  * EXCEPTION CHECKING
-  **************************************/
-  always_comb begin
-    if (ctrl_valid_i == 1'b1) begin
-      misaligned_load  = 1'b0;
-      misaligned_store = 1'b0;
-      unique casez (ctrl_i)
-        LSU_LOAD_BYTE:        misaligned_load = 1'b0;
-        LSU_LOAD_BYTE_U:      misaligned_load = 1'b0;
-        LSU_LOAD_HALF_WORD:   misaligned_load = addr_i[0];
-        LSU_LOAD_HALF_WORD_U: misaligned_load = addr_i[0];
-        LSU_LOAD_WORD:        misaligned_load = |addr_i[1:0];
-        LSU_STORE_BYTE:       misaligned_store = 1'b0;
-        LSU_STORE_HALF_WORD:  misaligned_store = addr_i[0];
-        LSU_STORE_WORD:       misaligned_store = |addr_i[1:0];
-      endcase
-    end else begin
-      misaligned_load  = 1'b0;
-      misaligned_store = 1'b0;
-    end
+function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd);
+  begin
+    logic [3:0] strobe = {cmd[2], cmd[2], cmd[1], cmd[0]};
+    return strobe;
   end
+endfunction
 
-  // Generate signals for the control (csr) unit
+function automatic logic is_write(input lsu_ctrl_e cmd);
+  begin
+      return cmd[4];
+  end
+endfunction
+
+logic         req_buff_inp_ready;
+lsu_req_t     req_buff_out_data;
+logic         act_req_buff_out_valid;
+lsu_act_req_t act_req_buff_out_data;
+logic         act_req_buff_inp_ready;
+logic         rsp_buff_out_valid;
+lsu_rsp_t     rsp_buff_out_data;
+
+logic retire_request;
+
+logic data_req_fire, data_rsp_fire;
+logic read_req, read_rsp, req_full, req_ready, rsp_full;
+
+/*************************************
+* Data Path
+*************************************/
+skidbuffer #(
+  .WORD_WIDTH ($bits(lsu_req_t))
+) request_buffer (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+
+  .input_valid  (lsu_valid_i && lsu_ready_o),
+  .input_ready  (req_buff_inp_ready),
+  .input_data   ({lsu_cmd_i, lsu_addr_i, lsu_data_i, lsu_regdest_i}),
+
+  .output_valid (data_req_valid_o),
+  .output_ready (data_req_ready_i),
+  .output_data  (req_buff_out_data)
+);
+assign data_req_addr_o   = req_buff_out_data.addr;
+assign data_req_data_o   = req_buff_out_data.data;
+assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd);
+assign data_req_write_o  = req_buff_out_data.cmd[4];
+
+assign data_req_fire = data_req_valid_o && data_req_ready_i;
+
+assign data_rsp_ready_o = 1'b1;
+assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
+
+skidbuffer #(
+  .WORD_WIDTH ($bits(lsu_act_req_t))
+) act_req_buffer (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+
+  .input_valid  (data_req_fire),
+  .input_ready  (act_req_buff_inp_ready),
+  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.regdest}),
+
+  .output_valid (act_req_buff_out_valid),
+  .output_ready (retire_request),
+  .output_data  (act_req_buff_out_data)
+);
+skidbuffer #(
+  .WORD_WIDTH ($bits(lsu_rsp_t))
+) response_buffer (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+
+  .input_valid  (data_rsp_valid_i),
+  .input_ready  (data_rsp_ready_o),
+  .input_data   ({data_rsp_data_i, data_rsp_error_i}),
+
+  .output_valid (rsp_buff_out_valid),
+  .output_ready (retire_request),
+  .output_data  (rsp_buff_out_data)
+);
+
+/*************************************
+* Reg File
+*************************************/
+assign rf_data_o = rsp_buff_out_data.data;
+assign rf_dest_o = act_req_buff_out_data.regdest;
+assign rf_wb_o   = (rsp_buff_out_valid &&
+                    act_req_buff_out_valid &&
+                    retire_request &&
+                    ~is_write(act_req_buff_out_data.cmd));
+
+/*************************************
+* Control
+*************************************/
+register #(
+  .WORD_WIDTH  (1),
+  .RESET_VALUE (0)
+) data_rsp_delay(
+  .clk  (clk_i),
+  .rstn (rstn_i),
+  .ce   (1'b1),
+  .in   (data_rsp_fire),
+  .out  (retire_request)
+);
+assign lsu_ready_o = (state == eRUN) && req_buff_inp_ready && act_req_buff_inp_ready;
+
+/*************************************
+* FSM
+*************************************/
+always_comb begin
+  read_req  = (state == eRUN)   && lsu_valid_i    && ~is_write(lsu_cmd_i);
+  read_rsp  = (state == eREAD)  && retire_request && ~is_write(act_req_buff_out_data.cmd);
+  req_full  = (state == eRUN)   && ~req_buff_inp_ready;
+  rsp_full  = (state == eRUN)   && ~act_req_buff_inp_ready;
+  req_ready = (state == eSTALL) && req_buff_inp_ready;
+end
+always_comb begin
+  state_next = read_req  ? eREAD  : state;
+  state_next = read_rsp  ? eRUN   : state_next;
+  state_next = req_full  ? eSTALL : state_next;
+  state_next = req_ready ? eRUN   : state_next;
+end
+always_ff @(posedge clk_i) begin
+  if (~rstn_i)
+    state <= eRUN;
+  else
+    state <= state_next;
+end
+
+`ifdef ASSERTIONS
+  // There should be no response without a request.
   always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      misaligned_load_ro  <= 1'b0;
-      misaligned_store_ro <= 1'b0;
-    end else begin
-      misaligned_load_ro  <= misaligned_load;
-      misaligned_store_ro <= misaligned_store;
-    end
-  end
-
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      misaligned_load_hold <= 0;
-    end else begin
-      if (ctrl_valid_i) misaligned_load_hold <= misaligned_load;
-      else misaligned_load_hold <= misaligned_load_hold;
-    end
-  end
-
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      exception_addr_ro <= 0;
-    end else begin
-      if (ctrl_valid_i) exception_addr_ro <= addr_i;
-      else exception_addr_ro <= exception_addr_ro;
-    end
-  end
-
-
-  /**************************************
-  * WRITE ENABLE SIGNAL / INPUT MUXING
-  **************************************/
-  logic is_write;  // Is the current ctrl input a write
-  logic is_write_hold;
-  logic [DATA_WIDTH/8 - 1:0] we;  // write enable signal
-
-  assign is_write = ctrl_i[LSU_CTRL_WIDTH-1];
-
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) is_write_hold <= 0;
-    else begin
-      if (ctrl_valid_i) is_write_hold <= is_write;
-      else is_write_hold <= is_write_hold;
-    end
-  end
-
-  always_comb begin
-    active_write_word = 0;
-    if (is_write == 1'b1) begin
-      if (ctrl_i == LSU_STORE_BYTE) begin
-        if (addr_i[1:0] == 2'b00) begin
-          active_write_word = {24'b0, wdata_i[7:0]};
-          we = 4'b0001;
-        end else if (addr_i[1:0] == 2'b01) begin
-          active_write_word = {16'b0, wdata_i[7:0], 8'b0};
-          we = 4'b0010;
-        end else if (addr_i[1:0] == 2'b10) begin
-          active_write_word = {8'b0, wdata_i[7:0], 16'b0};
-          we = 4'b0100;
-        end else begin
-          active_write_word = {wdata_i[7:0], 24'b0};
-          we = 4'b1000;
-        end
-      end else if (ctrl_i == LSU_STORE_HALF_WORD) begin
-        if (addr_i[1:0] == 2'b00) begin
-          active_write_word = {16'b0, wdata_i[15:0]};
-          we = 4'b0011;
-        end else begin
-          active_write_word = {wdata_i[15:0], 16'b0};
-          we = 4'b1100;
-        end
-      end else begin
-        active_write_word = wdata_i;
-        we = 4'b1111;
-      end
-    end else begin
-      we = 4'b0000;
-    end
-  end
-
-
-  /**************************************
-  * CONTROL SAVE
-  **************************************/
-  // We save the control information so we can
-  // use it in later cycles.
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      ctrl_save_r <= 0;
-    end else begin
-      if (ctrl_valid_i == 1'b1) ctrl_save_r <= ctrl_i;
-      else ctrl_save_r <= ctrl_save_r;
-    end
-  end
-
-
-  /**************************************
-* REGDEST
-**************************************/
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      regdest_ro <= 0;
-    end else begin
-      regdest_ro <= regdest_i;
-    end
-  end
-
-
-  /**************************************
-  * BYTE_ADDR
-  **************************************/
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      byte_addr_r <= 2'b00;
-    end else begin
-      if (ctrl_valid_i & (~is_write)) byte_addr_r <= addr_i[1:0];
-      else byte_addr_r <= byte_addr_r;
-    end
-  end
-
-
-  /**************************************
-  * HANDLE MEM INTERFACE
-  **************************************/
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      data_r <= 0;
-    end else begin
-      if (ram_ack & (~is_write_hold)) data_r <= data_rsp_data_i;
-      else data_r <= data_r;
-    end
+    if (rsp_buff_out_valid)
+      ghost_rsp: assert(act_req_buff_out_valid);
   end
 
   always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) begin
-      data_req_addr_o <= 0;
-      data_req_strobe_o <= 0;
-      data_req_data_o <= 0;
-      data_req_valid_o <= 0;
-    end else begin
-      data_req_addr_o  <= addr_i;
-      data_req_strobe_o <= we & {4{ctrl_valid_i&(~misaligned_store)}};
-      data_req_write_o <= |we;
-      data_req_data_o <= active_write_word;
-      data_req_valid_o   <= ctrl_valid_i;
+    if (lsu_valid_i) begin
+      // There should be no request if either req or act_req buffers are full.
+      bad_req: assert(req_buff_inp_ready);
+      bad_act: assert(act_req_buff_inp_read);
+      // Requests can only be issued when in running state (no stall).
+      state_r: assert(state == eRUN);
     end
   end
-
-
-  /**************************************
-  * RESULT MUXING
-  **************************************/
-  always_comb begin
-    active_byte  = 8'b00000000;
-    active_hword = 16'b00000000_00000000;
-    if (ctrl_save_r == LSU_LOAD_BYTE || ctrl_save_r == LSU_LOAD_BYTE_U) begin
-      if (byte_addr_r == 2'b00) active_byte = data_r[7:0];
-      else if (byte_addr_r == 2'b01) active_byte = data_r[15:8];
-      else if (byte_addr_r == 2'b10) active_byte = data_r[23:16];
-      else active_byte = data_r[31:24];
-    end else if (ctrl_save_r == LSU_LOAD_HALF_WORD || ctrl_save_r == LSU_LOAD_HALF_WORD_U) begin
-      if (byte_addr_r == 2'b00) active_hword = data_r[15:0];
-      else active_hword = data_r[31:16];
-    end
-  end
-
-  sign_extender #(
-      .N(DATA_WIDTH),
-      .M(8)
-  ) sign_extender_byte (
-      .in_i (active_byte),
-      .out_o(byte_sign_extended_w)
-  );
-  sign_extender #(
-      .N(DATA_WIDTH),
-      .M(16)
-  ) sign_extender_halfword (
-      .in_i (active_hword),
-      .out_o(hword_sign_extended_w)
-  );
-
-  always_comb begin
-    if (is_write == 1'b1) begin
-      rdata_ro = 0;
-    end else begin
-      rdata_ro = 0;
-      casez (ctrl_save_r)
-        LSU_LOAD_BYTE:        rdata_ro = byte_sign_extended_w;
-        LSU_LOAD_BYTE_U:      rdata_ro = {24'b0, active_byte};
-        LSU_LOAD_HALF_WORD:   rdata_ro = hword_sign_extended_w;
-        LSU_LOAD_HALF_WORD_U: rdata_ro = {16'b0, active_hword};
-        LSU_LOAD_WORD:        rdata_ro = data_r;
-        default:              rdata_ro = 0;
-      endcase
-    end
-  end
-
-
-  /**************************************
-  * WRITEBACK & BUS ERRORS
-  **************************************/
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) rf_wb_ro <= 0;
-    else rf_wb_ro <= ram_ack & (~is_write_hold) & (~misaligned_load_hold);
-  end
-
-  always_ff @(posedge clk_i) begin
-    if (rstn_i == 1'b0) bus_error_ro <= 0;
-    else bus_error_ro <= data_rsp_error_i;
-  end
-
+`endif
 
 endmodule
 

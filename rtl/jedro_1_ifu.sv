@@ -38,11 +38,11 @@ module jedro_1_ifu #(
   output logic                  dec_valid_o,
   input  logic                  dec_ready_i,  // Decoder ready to accept new instruction (stall)
 
-  input logic                  jmp_addr_valid_i, // change PC to jmp_addr_i
-  input logic [DATA_WIDTH-1:0] jmp_addr_i,       // The jump address
+  input logic                   jmp_addr_valid_i, // change PC to jmp_addr_i
+  input logic [DATA_WIDTH-1:0]  jmp_addr_i,       // The jump address
 
-  output logic                  exception_ro, // Signal isntr misaligned exception
-  output logic [DATA_WIDTH-1:0] fault_addr_ro // the address that caused the misaligned exception
+  output logic                  ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
+  output logic [DATA_WIDTH-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
 );
     logic [DATA_WIDTH-1:0] input_buffer;
     logic [DATA_WIDTH-1:0] output_buffer;
@@ -138,7 +138,7 @@ module jedro_1_ifu #(
         fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
-        jmpn   = (state == eJMP)  &&  instr_req_fire;
+        jmpn   = (state == eJMP)   &&  instr_req_fire;
     end
 
     always_comb begin

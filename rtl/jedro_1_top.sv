@@ -141,8 +141,8 @@ jedro_1_ifu ifu_inst(.clk_i            (clk_i),
                                         csr_ifu_trap),
                      .jmp_addr_i       (mux3_ifu_jmp_addr),
 
-                     .exception_ro     (ifu_csr_exception),
-                     .fault_addr_ro    (ifu_csr_fault_addr)
+                     .ctrl_insn_misalign_exception_o     (ifu_csr_exception),
+                     .ctrl_fault_addr_o    (ifu_csr_fault_addr)
                      );
 
 always_comb begin
@@ -298,18 +298,18 @@ end
 
 jedro_1_lsu lsu_inst(.clk_i               (clk_i),
                      .rstn_i              (rstn_i),
-                     .ctrl_valid_i        (decoder_lsu_ctrl_valid),
+                     .lsu_valid_i        (decoder_lsu_ctrl_valid),
                      .ctrl_i              (decoder_lsu_ctrl),
                      .addr_i              (alu_mux4_res),
                      .wdata_i             (rf_alu_data_b),
-                     .rdata_ro            (lsu_mux4_rdata),
-                     .rf_wb_ro            (lsu_mux4_wb),
+                     .rdata_o             (lsu_mux4_rdata),
+                     .rf_wb_o             (lsu_mux4_wb),
                      .regdest_i           (decoder_lsu_regdest),
-                     .regdest_ro          (lsu_mux4_regdest),
-                     .misaligned_load_ro  (lsu_csr_misaligned_load),
-                     .misaligned_store_ro (lsu_csr_misaligned_store),
-                     .bus_error_ro        (lsu_csr_bus_error),
-                     .exception_addr_ro   (lsu_csr_misaligned_addr),
+                     .rf_dest_o          (lsu_mux4_regdest),
+                     .ctrl_misaligned_load_o  (lsu_csr_misaligned_load),
+                     .ctrl_misaligned_store_o (lsu_csr_misaligned_store),
+                     .ctrl_bus_error_o        (lsu_csr_bus_error),
+                     .ctrl_exception_addr_o   (lsu_csr_misaligned_addr),
 
                      .data_req_addr_o     (data_req_addr_o),
                      .data_req_data_o     (data_req_data_o),

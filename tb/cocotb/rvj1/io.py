@@ -20,3 +20,39 @@ class IfuToDecoderIO(BaseIO):
             resp_sigs=["ready"],
             io_style=io_style,
         )
+
+
+class LsuIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=["ready"],
+            resp_sigs=["valid", "cmd", "addr", "data", "regdest"],
+            io_style=io_style,
+        )
+
+
+class LsuRfIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=["data", "wb", "dest"],
+            resp_sigs=[],
+            io_style=io_style,
+        )
