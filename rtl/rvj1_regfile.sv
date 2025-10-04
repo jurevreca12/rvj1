@@ -3,16 +3,16 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_regfile                                            //
+// Design Name:    rvj1_regfile                                               //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
 // Description:    The register file and its interface.                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_regfile (
+module rvj1_regfile (
     input logic clk_i,
     input logic rstn_i,
 

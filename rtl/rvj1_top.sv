@@ -3,17 +3,17 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_top                                                //
+// Design Name:    rvj1_top                                                   //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
-// Description:    The top file of the jedro_1 riscv core.                    //
+// Description:    The top file of the rvj1 riscv core.                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_top
+module rvj_1_top
 (
   input logic clk_i,
   input logic rstn_i,
@@ -86,7 +86,7 @@ module jedro_1_top
   /****************************************
   * INSTRUCTION FETCH STAGE
   ****************************************/
-  jedro_1_ifu ifu_inst(
+  rvj1_ifu ifu_inst(
     .clk_i              (clk_i),
     .rstn_i             (rstn_i),
     .instr_req_addr_o   (instr_req_addr_o),
@@ -116,7 +116,7 @@ module jedro_1_top
   /****************************************
   * INSTRUCTION DECODE STAGE
   ****************************************/
-  jedro_1_decoder decoder_inst(
+  rvj1_decoder decoder_inst(
     .clk_i               (clk_i),
     .rstn_i              (rstn_i),
     .ifu_instr_i         (fetched_instr),
@@ -138,7 +138,7 @@ module jedro_1_top
   /*********************************************
   * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
   *********************************************/
-  jedro_1_regfile regfile_inst(
+  rvj1_regfile regfile_inst(
     .clk_i      (clk_i),
     .rstn_i     (rstn_i),
     .rpa_addr_i (rf_addr_a),
@@ -153,7 +153,7 @@ module jedro_1_top
   assign alu_op_a_data = rpa_or_pc  ? rf_alu_data_a : program_counter;
   assign alu_op_b_data = rpb_or_imm ? rf_alu_data_b : immediate;
 
-  jedro_1_alu alu_inst(
+  rvj1_alu alu_inst(
     .clk_i  (clk_i),
     .rstn_i (rstn_i),
     .sel_i  (alu_op_sel),
@@ -176,7 +176,7 @@ module jedro_1_top
   /*********************************************
   * MEMORY ACCESS STAGE
   *********************************************/
-  jedro_1_lsu lsu_inst(
+  rvj1_lsu lsu_inst(
     .clk_i                   (clk_i),
     .rstn_i                  (rstn_i),
     .lsu_valid_i             (lsu_ctrl_valid_r),

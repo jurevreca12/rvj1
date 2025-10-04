@@ -14,8 +14,8 @@ from memory import RandomAccessMemory, gen_memory_data, mem_to_instr_addr_rsp
 
 
 def test_ifu_runner():
-    runner = get_test_runner("jedro_1_ifu")
-    runner.test(hdl_toplevel="jedro_1_ifu", test_module="test_ifu", waves=WAVES)
+    runner = get_test_runner("rvj1_ifu")
+    runner.test(hdl_toplevel="rvj1_ifu", test_module="test_ifu", waves=WAVES)
 
 
 class IfuTB(BaseBench):

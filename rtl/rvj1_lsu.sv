@@ -3,7 +3,7 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_lsu                                                //
+// Design Name:    rvj1_lsu                                                   //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
@@ -43,9 +43,9 @@
 // to finnish, before issuing further requests.                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_lsu (
+module rvj1_lsu (
     input logic clk_i,
     input logic rstn_i,
 

@@ -1,6 +1,6 @@
 // The test used to simulate the core with the riscof test framework.
 
-module jedro_1_riscof_tb();
+module rvj1_riscof_tb();
   parameter int DATA_WIDTH     = 32;
   parameter int ADDR_WIDTH     = 32;
   parameter int MEM_SIZE_WORDS = 1 << 19;
@@ -87,7 +87,7 @@ module jedro_1_riscof_tb();
   );
 
 
-  jedro_1_top dut(
+  rvj1_top dut(
     .clk_i       (clk),
     .rstn_i      (rstn),
 

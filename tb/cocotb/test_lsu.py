@@ -16,8 +16,8 @@ from memory import RandomAccessMemory, gen_memory_data
 
 
 def test_lsu_runner():
-    runner = get_test_runner("jedro_1_lsu")
-    runner.test(hdl_toplevel="jedro_1_lsu", test_module="test_lsu", waves=WAVES)
+    runner = get_test_runner("rvj1_lsu")
+    runner.test(hdl_toplevel="rvj1_lsu", test_module="test_lsu", waves=WAVES)
 
 
 class LsuTB(BaseBench):

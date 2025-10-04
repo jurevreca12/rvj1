@@ -59,8 +59,8 @@ RV32I_TESTS = {
 
 
 def test_insns_runner():
-    runner = get_test_runner("jedro_1_top")
-    runner.test(hdl_toplevel="jedro_1_top", test_module="test_insns", waves=WAVES)
+    runner = get_test_runner("rvj1_top")
+    runner.test(hdl_toplevel="rvj1_top", test_module="test_insns", waves=WAVES)
 
 
 class InsnsTB(BaseBench):

@@ -3,7 +3,7 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_alu                                                //
+// Design Name:    rvj1_alu                                                //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
@@ -11,9 +11,9 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_alu (
+module rvj1_alu (
     input logic clk_i,
     input logic rstn_i,
 

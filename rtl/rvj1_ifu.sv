@@ -3,7 +3,7 @@
 //                                                                                //
 //                                                                                //
 //                                                                                //
-// Design Name:    jedro_1_ifu                                                    //
+// Design Name:    rvj1_ifu                                                       //
 // Project Name:   riscv-jedro-1                                                  //
 // Language:       System Verilog                                                 //
 //                                                                                //
@@ -11,9 +11,9 @@
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_ifu #(
+module rvj1_ifu #(
     parameter bit [31:0] BOOT_ADDR = 32'h8000_0000
 )
 (

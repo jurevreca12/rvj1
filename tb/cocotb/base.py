@@ -4,10 +4,10 @@ from pathlib import Path
 from cocotb_tools.runner import get_runner
 
 RTL_DIRS = (
-    "/foss/designs/riscv-jedro-1/rtl/inc",  # needs to be before others
-    "/foss/designs/riscv-jedro-1/rtl",
-    "/foss/designs/riscv-jedro-1/tb/support",
-    "/foss/designs/riscv-jedro-1/tb/riscof-plugin/tb/",
+    "/foss/designs/rvj1/rtl/inc",  # needs to be before others
+    "/foss/designs/rvj1/rtl",
+    "/foss/designs/rvj1/tb/support",
+    "/foss/designs/rvj1/tb/riscof-plugin/tb/",
 )
 LANGUAGE = os.getenv("HDL_TOPLEVEL_LANG", "verilog").lower().strip()
 WAVES = os.getenv("WAVES", default=False)
@@ -37,7 +37,7 @@ def get_test_runner(hdl_top):
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(LANGUAGE),
-        includes=["/riscv-jedro-1/rtl/inc"],
+        includes=["/rvj1/rtl/inc"],
         build_args=build_args,
         hdl_toplevel=hdl_top,
         always=True,

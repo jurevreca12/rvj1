@@ -1,5 +1,5 @@
 // This document contains the opcode definitions of RISC-V
-package jedro_1_defines;
+package rvj1_defines;
 
     // General defines
     parameter int XLEN   = 32;  // width of an integer register (either 32 or 64)

@@ -3,7 +3,7 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_decoder                                            //
+// Design Name:    rvj1_dec                                                   //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
@@ -11,9 +11,9 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_decoder
+module rvj1_dec
 (
   input logic clk_i,
   input logic rstn_i,
@@ -193,4 +193,4 @@ begin
   endcase
 end
 
-endmodule // jedro_1_decoder
+endmodule 

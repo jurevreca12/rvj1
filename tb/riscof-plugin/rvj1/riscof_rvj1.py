@@ -9,8 +9,8 @@ from riscof.pluginTemplate import pluginTemplate
 logger = logging.getLogger()
 
 
-class jedro_1(pluginTemplate):
-    __model__ = "jedro_1"
+class rvj1(pluginTemplate):
+    __model__ = "rvj1"
     __version__ = "0.3"  # TODO: please update
 
     def __init__(self, *args, **kwargs):
@@ -117,10 +117,10 @@ class jedro_1(pluginTemplate):
                 + hex_file
             )
             rtl_dirs = (
-                "/foss/designs/riscv-jedro-1/rtl/inc",  # needs to be before others
-                "/foss/designs/riscv-jedro-1/rtl",
-                "/foss/designs/riscv-jedro-1/tb/support",
-                "/foss/designs/riscv-jedro-1/tb/riscof-plugin/tb/",
+                "/foss/designs/rvj1/rtl/inc",  # needs to be before others
+                "/foss/designs/rvj1/rtl",
+                "/foss/designs/rvj1/tb/support",
+                "/foss/designs/rvj1/tb/riscof-plugin/tb/",
             )
             rtl_files = []
             for rootdir in rtl_dirs:
@@ -135,7 +135,7 @@ class jedro_1(pluginTemplate):
             verilator_args = (
                 " --timescale 1ns/1ps "
                 + " --binary "
-                + " -I/riscv-jedro-1/rtl/inc "
+                + " -I/rvj1/rtl/inc "
                 + " -Wno-fatal "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
@@ -146,8 +146,8 @@ class jedro_1(pluginTemplate):
             # if the user wants to disable running the tests and only compile the tests
             if self.target_run:
                 sim_cmd = (
-                    f"verilator {verilator_args} --top jedro_1_riscof_tb; "
-                    + f"{sim_dir}/Vjedro_1_riscof_tb;\n"
+                    f"verilator {verilator_args} --top rvj1_riscof_tb; "
+                    + f"{sim_dir}/Vrvj1_riscof_tb;\n"
                 )
             else:
                 sim_cmd = 'echo "NO RUN"'
