@@ -25,17 +25,6 @@ module jedro_1_alu (
 );
 
   /*******************************
-  * RESULT BUFFERING
-  *******************************/
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      res_o <= 0;
-    else
-      res_o <= res;
-  end
-
-
-  /*******************************
   * ARITHMETIC CIRCUITS
   *******************************/
   // less-than unsigned
@@ -72,16 +61,16 @@ module jedro_1_alu (
   always_ff @(posedge clk_i) begin
     res_o <= 32'b0;
     unique case (sel_i)
-      alu_op_e.ALU_OP_ADD:  res_o <= op_a_i +  op_b_i;
-      alu_op_e.ALU_OP_SUB:  res_o <= op_a_i -  op_b_i;
-      alu_op_e.ALU_OP_XOR:  res_o <= op_a_i ^  op_b_i;
-      alu_op_e.ALU_OP_OR:   res_o <= op_a_i |  op_b_i;
-      alu_op_e.ALU_OP_AND:  res_o <= op_a_i &  op_b_i;
-      alu_op_e.ALU_OP_SLL:  res_o <= op_a_i << op_b_i;
-      alu_op_e.ALU_OP_SLT:  res_o <= lts(op_a_i, op_b_i);
-      alu_op_e.ALU_OP_SLTU: res_o <= ltu(op_a_i, op_b_i);
-      alu_op_e.ALU_OP_SRL:  res_o <= op_a_i >>  op_b_i;
-      alu_op_e.ALU_OP_SRA:  res_o <= op_a_i >>> op_b_i;
+      ALU_OP_ADD:  res_o <= op_a_i +  op_b_i;
+      ALU_OP_SUB:  res_o <= op_a_i -  op_b_i;
+      ALU_OP_XOR:  res_o <= op_a_i ^  op_b_i;
+      ALU_OP_OR:   res_o <= op_a_i |  op_b_i;
+      ALU_OP_AND:  res_o <= op_a_i &  op_b_i;
+      ALU_OP_SLL:  res_o <= op_a_i << op_b_i;
+      ALU_OP_SLT:  res_o <= lts(op_a_i, op_b_i);
+      ALU_OP_SLTU: res_o <= ltu(op_a_i, op_b_i);
+      ALU_OP_SRL:  res_o <= op_a_i >>  op_b_i;
+      ALU_OP_SRA:  res_o <= op_a_i >>> op_b_i;
     endcase
   end
 

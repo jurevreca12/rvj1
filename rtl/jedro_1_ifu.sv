@@ -113,16 +113,6 @@ module jedro_1_ifu #(
     assign dec_instr_o = output_buffer;
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            dec_pc_o <= BOOT_ADDR;
-        else begin
-            if (jmp_addr_valid_i)
-                dec_pc_o <= jmp_addr_i;
-            else if (dec_fire)
-                dec_pc_o <= dec_pc_o + 4;
-        end
-    end
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
             dec_valid_o <= 1'b0;
         else
             dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eJMP));
