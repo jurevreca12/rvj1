@@ -19,4 +19,4 @@ RUN curl -L https://github.com/sifive/elf2hex/archive/refs/tags/v20.08.00.00.tar
     make && \
     make install
 
-WORKDIR /foss/designs/riscv-jedro-1
+WORKDIR /foss/designs/rvj1
