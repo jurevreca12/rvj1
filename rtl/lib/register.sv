@@ -46,7 +46,7 @@ module pipeline_register
     always_ff @(posedge clk) begin
         if (ce)
             out <= in;
-        else if (ce)
+        else if (~ce)
             out <= RESET_VALUE;
     end
 endmodule

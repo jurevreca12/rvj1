@@ -80,8 +80,7 @@ module rvj1_top
   logic [XLEN-1:0] alu_res;
 
   logic [XLEN-1:0] program_counter;
-  logic stall_dec;
-  logic stall_ex;
+  logic stall;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -122,7 +121,7 @@ module rvj1_top
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (dec_ready),
-    .stall_i             (stall_dec),
+    .stall_i             (stall),
     .rf_addr_a_o         (rf_addr_a),
     .rf_addr_b_o         (rf_addr_b),
     .alu_sel_o           (alu_op_sel),
@@ -168,7 +167,7 @@ module rvj1_top
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
-    .ce   (~stall_ex),
+    .ce   (~stall),
     .in   ({alu_write_rf,   alu_regdest,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest}),
     .out  ({alu_write_rf_r, alu_regdest_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r})
   );
@@ -222,8 +221,7 @@ module rvj1_top
     .rpa_or_pc_i       (rpa_or_pc),
     .rpb_or_imm_i      (rpb_or_imm),
     .alu_regdest_r_i   (alu_regdest_r),
-    .stall_dec_o       (stall_dec),
-    .stall_ex_o        (stall_ex),
+    .stall_o           (stall),
     .program_counter_o (program_counter)
   );
 endmodule
