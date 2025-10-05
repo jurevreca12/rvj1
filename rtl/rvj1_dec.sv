@@ -107,16 +107,24 @@ endfunction
 function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift_imm_e funct7);
     begin
         alu_op_e op = ALU_OP_ADD;
-        case ({funct3, funct7})
-            {F3_ADDI,      7'b???_????}: op = ALU_OP_ADD;
-            {F3_SLTI,      7'b???_????}: op = ALU_OP_SLT;
-            {F3_SLTIU,     7'b???_????}: op = ALU_OP_SLTU;
-            {F3_XORI,      7'b???_????}: op = ALU_OP_XOR;
-            {F3_ORI,       7'b???_????}: op = ALU_OP_OR;
-            {F3_ANDI,      7'b???_????}: op = ALU_OP_AND;
-            {F3_SLLI,      7'b000_0000}: op = ALU_OP_SLL;
-            {F3_SRLI_SRAI, 7'b000_0000}: op = ALU_OP_SRL;
-            {F3_SRLI_SRAI, 7'b010_0000}: op = ALU_OP_SRA;
+        unique case (funct3)
+          F3_ADDI:  op = ALU_OP_ADD;
+          F3_SLTI:  op = ALU_OP_SLT;
+          F3_SLTIU: op = ALU_OP_SLTU;
+          F3_XORI:  op = ALU_OP_XOR;
+          F3_ORI:   op = ALU_OP_OR;
+          F3_ANDI:  op = ALU_OP_AND;
+          F3_SLLI: begin
+            unique case (funct7)
+              F7_SLLI_SRLI: op = ALU_OP_SLL;
+            endcase
+          end
+          F3_SRLI_SRAI: begin
+            unique case (funct7)
+              F7_SLLI_SRLI: op = ALU_OP_SRL;
+              F7_SRAI:      op = ALU_OP_SRA;
+            endcase
+          end
         endcase
         return op;
     end
