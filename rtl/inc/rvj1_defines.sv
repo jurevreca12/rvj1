@@ -68,8 +68,8 @@ package rvj1_defines;
     } f3_imm_e;
 
     typedef enum logic [6:0] {
-        F7_SLLI_SRLI = 7'b0000_000,
-        F7_SRAI      = 7'b0100_000
+        F7_SLLI_SRLI_ADDI = 7'b0000_000,
+        F7_SRAI_SUB       = 7'b0100_000
     } f7_shift_imm_e;
 
     // Load-Store Unit

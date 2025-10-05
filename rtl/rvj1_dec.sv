@@ -108,7 +108,12 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
     begin
         alu_op_e op = ALU_OP_ADD;
         unique case (funct3)
-          F3_ADDI:  op = ALU_OP_ADD;
+          F3_ADDI: begin
+            case (funct7)
+               F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
+               F7_SRAI_SUB:       op = ALU_OP_SUB;
+            endcase
+          end
           F3_SLTI:  op = ALU_OP_SLT;
           F3_SLTIU: op = ALU_OP_SLTU;
           F3_XORI:  op = ALU_OP_XOR;
@@ -116,13 +121,13 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
           F3_ANDI:  op = ALU_OP_AND;
           F3_SLLI: begin
             case (funct7)
-              F7_SLLI_SRLI: op = ALU_OP_SLL;
+              F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
             endcase
           end
           F3_SRLI_SRAI: begin
             case (funct7)
-              F7_SLLI_SRLI: op = ALU_OP_SRL;
-              F7_SRAI:      op = ALU_OP_SRA; // TODO add error for invalid encodings
+              F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
+              F7_SRAI_SUB:      op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
           end
         endcase
