@@ -45,9 +45,8 @@ module rvj1_alu (
       assign lt = a < b;
       res_abs = {{(XLEN-2){1'b0}}, lt};
       unique case ({a[XLEN-1], b[XLEN-1]})
-        2'b00:   ret = {1'b0, res_abs};
-        2'b10:   ret = 32'b11111111_11111111_11111111_11111111;
-        2'b01:   ret = 32'b0;
+        2'b10:   ret = 32'h0000_0001;
+        2'b01:   ret = 32'h0000_0000;
         default: ret = {1'b0, res_abs};
       endcase
       return ret;
