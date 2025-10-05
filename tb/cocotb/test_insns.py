@@ -126,8 +126,9 @@ async def test_insn(tb: InsnsTB, log, insn):
     m = Model(RV32I)
     m.execute(prog)
     for reg in range(0, 32):
-        modval = m.state.intreg.regs[reg].value
-        dutval = tb.dut.regfile_inst.regfile[reg].value
+        modval = str(m.state.intreg.regs[reg])  # hex string
+        modval = format(int(modval, 16), "032b")  # binary string
+        dutval = str(tb.dut.regfile_inst.regfile[reg].value)  # binary string
         assert (
             dutval == modval
         ), f"Expected value of {modval} in register {reg}. Instead got {dutval}."

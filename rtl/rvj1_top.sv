@@ -13,7 +13,7 @@
 
 import rvj1_defines::*;
 
-module rvj_1_top
+module rvj1_top
 (
   input logic clk_i,
   input logic rstn_i,
@@ -77,11 +77,11 @@ module rvj_1_top
 
   logic [XLEN-1:0] alu_op_a_data;
   logic [XLEN-1:0] alu_op_b_data;
-  logic [XLEN-1:0] program_counter;
-
   logic [XLEN-1:0] alu_res;
 
-  assign program_counter = 32'h8000_0000; // TODO
+  logic [XLEN-1:0] program_counter;
+  logic stall_dec;
+  logic stall_ex;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -116,12 +116,13 @@ module rvj_1_top
   /****************************************
   * INSTRUCTION DECODE STAGE
   ****************************************/
-  rvj1_decoder decoder_inst(
+  rvj1_dec decoder_inst(
     .clk_i               (clk_i),
     .rstn_i              (rstn_i),
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (dec_ready),
+    .stall_i             (stall_dec),
     .rf_addr_a_o         (rf_addr_a),
     .rf_addr_b_o         (rf_addr_b),
     .alu_sel_o           (alu_op_sel),
@@ -150,25 +151,24 @@ module rvj_1_top
     .wpc_we_i   (alu_write_rf_r)
   );
 
-  assign alu_op_a_data = rpa_or_pc  ? rf_alu_data_a : program_counter;
-  assign alu_op_b_data = rpb_or_imm ? rf_alu_data_b : immediate;
+  assign alu_op_a_data = rpa_or_pc  ? program_counter : rf_alu_data_a;
+  assign alu_op_b_data = rpb_or_imm ? immediate       : rf_alu_data_b;
 
   rvj1_alu alu_inst(
     .clk_i  (clk_i),
     .rstn_i (rstn_i),
     .sel_i  (alu_op_sel),
-    .op_a_i (rpa_or_pc),
-    .op_b_i (rpb_or_imm),
+    .op_a_i (alu_op_a_data),
+    .op_b_i (alu_op_b_data),
     .res_o  (alu_res)
   );
 
-  register #(
+  pipeline_register #(
     .WORD_WIDTH  (1 + RALEN + 1 + $bits(lsu_ctrl_e) + RALEN),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (1'b1),
+    .ce   (~stall_ex),
     .in   ({alu_write_rf,   alu_regdest,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest}),
     .out  ({alu_write_rf_r, alu_regdest_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r})
   );
@@ -210,4 +210,20 @@ module rvj_1_top
   *********************************************/
 
 
+
+  /*********************************************
+  * CONTROLLER
+  *********************************************/
+  rvj1_ctrl ctrl_inst(
+    .clk_i             (clk_i),
+    .rstn_i            (rstn_i),
+    .rf_addr_a_i       (rf_addr_a),
+    .rf_addr_b_i       (rf_addr_b),
+    .rpa_or_pc_i       (rpa_or_pc),
+    .rpb_or_imm_i      (rpb_or_imm),
+    .alu_regdest_r_i   (alu_regdest_r),
+    .stall_dec_o       (stall_dec),
+    .stall_ex_o        (stall_ex),
+    .program_counter_o (program_counter)
+  );
 endmodule

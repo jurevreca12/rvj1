@@ -22,6 +22,8 @@ module rvj1_dec
   input  logic            ifu_valid_i,
   output logic            ifu_ready_o,       // Ready for instructions.
 
+  input  logic            stall_i,
+
   // OUTGOING CONTROL SIGNALS
   output logic [RALEN-1:0] rf_addr_a_o,
   output logic [RALEN-1:0] rf_addr_b_o,
@@ -57,6 +59,8 @@ logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
 logic [XLEN-1:0] imm_j_type;
 
+logic [XLEN-1:0] stall_save_reg;
+
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
 logic [31:0]  instr;
 logic [6:0]   opcode;
@@ -73,7 +77,7 @@ logic [31:25] funct7;
 /*************************************
 * INSN PARTS and IMMEDIATES
 *************************************/
-assign instr    = ifu_instr_i; // shorthand
+assign instr    = stall_i ? stall_save_reg : ifu_instr_i; // shorthand
 assign opcode   = instr[6:0];
 assign regdest  = instr[11:7];
 assign imm11_0  = instr[31:20]; // I-type immediate
@@ -122,6 +126,11 @@ endfunction
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff @(posedge clk_i) begin
+  if (ifu_valid_i && ifu_ready_o)
+    stall_save_reg <= ifu_instr_i;
+end
+
+always_ff @(posedge clk_i) begin
   if (~rstn_i) begin
     rf_addr_a_o      <= 5'b00000;
     rf_addr_b_o      <= 5'b00000;
@@ -163,7 +172,7 @@ always_ff @(posedge clk_i) begin
   end
 end
 
-assign ifu_ready_o = 1'b1; // TODO
+assign ifu_ready_o = ~stall_i;
 
 /*************************************
 * DECODER - COMBINATIONAL LOGIC
