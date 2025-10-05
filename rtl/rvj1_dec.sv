@@ -114,13 +114,13 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
           F3_ANDI:  op = ALU_OP_AND;
           F3_SLLI: begin
             unique case (funct7)
-              F7_SLLI_SRLI: op = ALU_OP_SLL;
+              F7_SLLI_SRLI: op = ALU_OP_SLL; 
             endcase
           end
           F3_SRLI_SRAI: begin
             unique case (funct7)
               F7_SLLI_SRLI: op = ALU_OP_SRL;
-              F7_SRAI:      op = ALU_OP_SRA;
+              F7_SRAI:      op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
           end
         endcase
@@ -199,6 +199,13 @@ begin
       alu_write_rf  = 1'b1;
       alu_regdest   = regdest;
       immediate     = is_shift(f3_imm_e'(funct3)) ? imm_s_type : imm_i_type;
+    end
+
+    OPCODE_LUI: begin
+      rpb_or_imm   = 1'b1;
+      alu_write_rf = 1'b1;
+      alu_regdest  = regdest;
+      immediate    = imm_u_type;
     end
   endcase
 end
