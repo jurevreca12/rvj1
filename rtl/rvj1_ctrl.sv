@@ -34,7 +34,7 @@ module rvj1_ctrl
   assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
                          rf_addr_a_i != 5'b00000);
-  assign rf_b_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
+  assign rf_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
                          ~rpb_or_imm_i &&
                          rf_addr_b_i != 5'b00000);
   assign stall = rf_a_hazard || rf_b_hazard;

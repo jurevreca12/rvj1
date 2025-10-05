@@ -195,12 +195,20 @@ begin
   lsu_regdest    = 5'b00000;
   case (opcode)
     OPCODE_OPIMM: begin
-      rf_addr_a     = regs1;
-      alu_sel       = f3_7_to_alu_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-      rpb_or_imm    = 1'b1;
-      alu_write_rf  = 1'b1;
-      alu_regdest   = regdest;
-      immediate     = is_shift(f3_imm_e'(funct3)) ? imm_is_type : imm_i_type;
+      rf_addr_a    = regs1;
+      alu_sel      = f3_7_to_alu_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
+      rpb_or_imm   = 1'b1;
+      alu_write_rf = 1'b1;
+      alu_regdest  = regdest;
+      immediate    = is_shift(f3_imm_e'(funct3)) ? imm_is_type : imm_i_type;
+    end
+
+    OPCODE_OP: begin
+      rf_addr_a    = regs1;
+      rf_addr_b    = regs2;
+      alu_sel      = f3_7_to_alu_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
+      alu_write_rf = 1'b1;
+      alu_regdest  = regdest;
     end
 
     OPCODE_LUI: begin
