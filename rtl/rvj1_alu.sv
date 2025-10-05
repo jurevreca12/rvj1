@@ -65,9 +65,9 @@ module rvj1_alu (
       ALU_OP_XOR:  res_o <= op_a_i ^  op_b_i;
       ALU_OP_OR:   res_o <= op_a_i |  op_b_i;
       ALU_OP_AND:  res_o <= op_a_i &  op_b_i;
-      ALU_OP_SLL:  res_o <= op_a_i << op_b_i;
       ALU_OP_SLT:  res_o <= lts(op_a_i, op_b_i);
       ALU_OP_SLTU: res_o <= ltu(op_a_i, op_b_i);
+      ALU_OP_SLL:  res_o <= op_a_i <<  op_b_i;
       ALU_OP_SRL:  res_o <= op_a_i >>  op_b_i;
       ALU_OP_SRA:  res_o <= op_a_i >>> op_b_i;
     endcase

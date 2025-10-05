@@ -54,6 +54,7 @@ lsu_ctrl_e        lsu_ctrl;
 logic [RALEN-1:0] lsu_regdest;
 
 logic [XLEN-1:0] imm_i_type;
+logic [XLEN-1:0] imm_is_type;
 logic [XLEN-1:0] imm_s_type;
 logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
@@ -87,11 +88,12 @@ assign regs1    = instr[19:15];
 assign regs2    = instr[24:20];
 assign funct7   = instr[31:25];
 
-assign imm_i_type = {{20{imm11_0[31]}}, imm11_0};
-assign imm_s_type = {{20{imm11_5[31]}}, imm11_5, imm4_0};
-assign imm_b_type = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
-assign imm_u_type = {imm31_12, 12'b0};
-assign imm_j_type = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
+assign imm_i_type  = {{20{imm11_0[31]}}, imm11_0};
+assign imm_is_type = {27'b0, imm11_0[24:20]};
+assign imm_s_type  = {{20{imm11_5[31]}}, imm11_5, imm4_0};
+assign imm_b_type  = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+assign imm_u_type  = {imm31_12, 12'b0};
+assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
 
 /*************************************
 * Helper functions
@@ -113,12 +115,12 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
           F3_ORI:   op = ALU_OP_OR;
           F3_ANDI:  op = ALU_OP_AND;
           F3_SLLI: begin
-            unique case (funct7)
-              F7_SLLI_SRLI: op = ALU_OP_SLL; 
+            case (funct7)
+              F7_SLLI_SRLI: op = ALU_OP_SLL;
             endcase
           end
           F3_SRLI_SRAI: begin
-            unique case (funct7)
+            case (funct7)
               F7_SLLI_SRLI: op = ALU_OP_SRL;
               F7_SRAI:      op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
@@ -198,7 +200,7 @@ begin
       rpb_or_imm    = 1'b1;
       alu_write_rf  = 1'b1;
       alu_regdest   = regdest;
-      immediate     = is_shift(f3_imm_e'(funct3)) ? imm_s_type : imm_i_type;
+      immediate     = is_shift(f3_imm_e'(funct3)) ? imm_is_type : imm_i_type;
     end
 
     OPCODE_LUI: begin
