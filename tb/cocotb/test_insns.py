@@ -8,7 +8,7 @@ from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
 from memory import RandomAccessMemory
 
-from riscvmodel.program.tests import (
+from rvtests import (
     LUITest,
     AUIPCTest,
     ADDITest,
