@@ -89,7 +89,6 @@ assign regs2    = instr[24:20];
 assign funct7   = instr[31:25];
 
 assign imm_i_type  = {{20{imm11_0[31]}}, imm11_0};
-assign imm_is_type = {27'b0, imm11_0[24:20]};
 assign imm_s_type  = {{20{imm11_5[31]}}, imm11_5, imm4_0};
 assign imm_b_type  = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
 assign imm_u_type  = {imm31_12, 12'b0};
@@ -127,7 +126,7 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
           F3_SRLI_SRAI: begin
             case (funct7)
               F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-              F7_SRAI_SUB:      op = ALU_OP_SRA; // TODO add error for invalid encodings
+              F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
           end
         endcase
@@ -205,7 +204,7 @@ begin
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
       alu_regdest  = regdest;
-      immediate    = is_shift(f3_imm_e'(funct3)) ? imm_is_type : imm_i_type;
+      immediate    = imm_i_type;
     end
 
     OPCODE_OP: begin
