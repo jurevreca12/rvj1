@@ -31,7 +31,7 @@ from rvtests import (
     ANDTest,
 )
 from riscvmodel.program import Program
-from riscvmodel.model import Model
+from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
 
 RV32I_TESTS = {
@@ -123,7 +123,8 @@ async def test_insn(tb: InsnsTB, log, insn):
     for _ in prog.insns:
         await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
     await ClockCycles(tb.clk, num_cycles=10)  # make sure everything is coputed
-    m = Model(RV32I)
+    state = State(RV32I, bootaddr=0x80000000)
+    m = Model(state=state)
     m.execute(prog)
     for reg in range(0, 32):
         modval = str(m.state.intreg.regs[reg])  # hex string
