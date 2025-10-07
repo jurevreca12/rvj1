@@ -13,10 +13,7 @@
 
 import rvj1_defines::*;
 
-module rvj1_ifu #(
-    parameter bit [31:0] BOOT_ADDR = 32'h8000_0000
-)
-(
+module rvj1_ifu(
   input logic clk_i,
   input logic rstn_i,
 
@@ -48,8 +45,9 @@ module rvj1_ifu #(
     logic [XLEN-1:0] selected_data;
     logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
-    logic load, flow, fill, flush, unload, jmpn;
-    typedef enum logic [1:0] {
+    logic boot, load, flow, fill, flush, unload, jmpi, jmpn;
+    typedef enum logic [2:0] {
+        eWAIT,   // no address, wait for jmp (controller jumps to boot addr at boot)
         eEMPTY,  // Output and buffer registers empty
         eBUSY,   // Output register holds data
         eFULL,   // Both output and buffer registers full,
@@ -88,7 +86,7 @@ module rvj1_ifu #(
     assign instr_req_strobe_o = 4'b1111;
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            instr_req_addr_o <= BOOT_ADDR;
+            instr_req_addr_o <= 32'h0000_0000;
         else begin
             if (jmp_addr_valid_i)
                 instr_req_addr_o <= jmp_addr_i;
@@ -102,8 +100,8 @@ module rvj1_ifu #(
             instr_rsp_ready_o <= 1'b0;
         end
         else begin
-            instr_req_valid_o <= (state_next != eFULL);
-            instr_rsp_ready_o <= (state_next != eFULL);
+            instr_req_valid_o <= (state_next != eFULL) && (state_next != eWAIT);
+            instr_rsp_ready_o <= (state_next != eFULL) && (state_next != eWAIT);
         end
     end
 
@@ -115,18 +113,22 @@ module rvj1_ifu #(
         if (~rstn_i)
             dec_valid_o <= 1'b0;
         else
-            dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eJMP));
+            dec_valid_o <= ~((state_next == eEMPTY) ||
+                             (state_next == eJMP)   ||
+                             (state_next == eWAIT));
     end
 
     /*************************************
     * Finite State Machine (FSM)
     *************************************/
     always_comb begin
+        boot   = (state == eWAIT)  &&  jmp_addr_valid_i;
         load   = (state == eEMPTY) &&  instr_rsp_fire;
         flow   = (state == eBUSY)  &&  instr_rsp_fire  &&  dec_fire;
         fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
+        jmpi   = (state != eWAIT)  &&  jmp_addr_valid_i;
         jmpn   = (state == eJMP)   &&  instr_req_fire;
     end
 
@@ -137,17 +139,18 @@ module rvj1_ifu #(
     end
 
     always_comb begin
-        state_next = load   ? eBUSY  : state;
+        state_next = boot   ? eEMPTY : state;
+        state_next = load   ? eBUSY  : state_next;
         state_next = flow   ? eBUSY  : state_next;
         state_next = fill   ? eFULL  : state_next;
         state_next = flush  ? eBUSY  : state_next;
         state_next = unload ? eEMPTY : state_next;
-        state_next = jmp_addr_valid_i ? eJMP : state_next;
+        state_next = jmpi   ? eJMP   : state_next;
         state_next = jmpn   ? eEMPTY  : state_next;
     end
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            state <= eEMPTY;
+            state <= eWAIT;
         else
             state <= state_next;
     end
