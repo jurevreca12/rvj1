@@ -23,6 +23,7 @@ module rvj1_dec
   output logic            ifu_ready_o,       // Ready for instructions.
 
   input  logic            stall_i,
+  output logic            instr_issued_o,
 
   // OUTGOING CONTROL SIGNALS
   output logic [RALEN-1:0] rf_addr_a_o,
@@ -53,12 +54,15 @@ logic             lsu_ctrl_valid;
 lsu_ctrl_e        lsu_ctrl;
 logic [RALEN-1:0] lsu_regdest;
 
+logic ifu_fire;
+
 logic [XLEN-1:0] imm_i_type;
 logic [XLEN-1:0] imm_is_type;
 logic [XLEN-1:0] imm_s_type;
 logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
 logic [XLEN-1:0] imm_j_type;
+
 
 // Helpfull shorthands for sections of the instruction (see riscv specifications)
 logic [31:0]  instr;
@@ -135,6 +139,17 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
 endfunction
 
 /*************************************
+* Instruction issued logic
+*************************************/
+assign ifu_fire = ifu_ready_o && ifu_valid_i;
+always_ff @(posedge clk_i) begin
+  if (~rstn_i)
+    instr_issued_o <= 1'b0;
+  else
+    instr_issued_o <= ifu_fire;
+end
+
+/*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff @(posedge clk_i) begin
@@ -151,7 +166,7 @@ always_ff @(posedge clk_i) begin
     lsu_ctrl_o       <= LSU_NO_CMD;
     lsu_regdest_o    <= 5'b00000;
   end
-  else if (ifu_valid_i && ifu_ready_o) begin
+  else if (ifu_fire) begin
     rf_addr_a_o      <= rf_addr_a;
     rf_addr_b_o      <= rf_addr_b;
     alu_sel_o        <= alu_sel;
@@ -221,7 +236,15 @@ begin
       alu_regdest  = regdest;
       immediate    = imm_u_type;
     end
+
+    OPCODE_AUIPC: begin
+      rpa_or_pc    = 1'b1;
+      rpb_or_imm   = 1'b1;
+      alu_write_rf = 1'b1;
+      alu_regdest  = regdest;
+      immediate    = imm_u_type;
+    end
   endcase
 end
 
-endmodule 
+endmodule

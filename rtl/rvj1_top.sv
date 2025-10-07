@@ -81,6 +81,9 @@ module rvj1_top
 
   logic [XLEN-1:0] program_counter;
   logic stall;
+  logic instr_issued;
+  logic jmp_addr_valid;
+  logic [XLEN-1:0] jmp_addr;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -104,8 +107,8 @@ module rvj1_top
     .dec_valid_o        (fetched_instr_valid),
     .dec_ready_i        (dec_ready),
 
-    .jmp_addr_valid_i   (1'b0),  // TODO
-    .jmp_addr_i         (32'b0),
+    .jmp_addr_valid_i   (jmp_addr_valid),
+    .jmp_addr_i         (jmp_addr),
 
     .ctrl_insn_misalign_exception_o (),
     .ctrl_fault_addr_o              ()
@@ -122,6 +125,7 @@ module rvj1_top
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (dec_ready),
     .stall_i             (stall),
+    .instr_issued_o      (instr_issued),
     .rf_addr_a_o         (rf_addr_a),
     .rf_addr_b_o         (rf_addr_b),
     .alu_sel_o           (alu_op_sel),
@@ -221,7 +225,10 @@ module rvj1_top
     .rpa_or_pc_i       (rpa_or_pc),
     .rpb_or_imm_i      (rpb_or_imm),
     .alu_regdest_r_i   (alu_regdest_r),
+    .instr_issued_i    (instr_issued),
     .stall_o           (stall),
-    .program_counter_o (program_counter)
+    .program_counter_o (program_counter),
+    .jmp_addr_valid_o  (jmp_addr_valid),
+    .jmp_addr_o        (jmp_addr)
   );
 endmodule
