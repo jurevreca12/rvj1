@@ -108,7 +108,13 @@ lsu_state_e state, state_next;
 
 function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd);
   begin
-    logic [3:0] strobe = {cmd[2], cmd[2], cmd[1], cmd[0]};
+    logic byte2 = (cmd == LSU_STORE_WORD || cmd == LSU_LOAD_WORD);
+    logic byte1 = (cmd == LSU_LOAD_HALF_WORD   ||
+                   cmd == LSU_LOAD_HALF_WORD_U ||
+                   cmd == LSU_STORE_HALF_WORD  ||
+                   byte2);
+    logic byte0 = (cmd != LSU_NO_CMD);
+    logic [3:0] strobe = {byte2, byte2, byte1, byte0};
     return strobe;
   end
 endfunction
@@ -152,7 +158,7 @@ skidbuffer #(
 assign data_req_addr_o   = req_buff_out_data.addr;
 assign data_req_data_o   = req_buff_out_data.data;
 assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd);
-assign data_req_write_o  = req_buff_out_data.cmd[4];
+assign data_req_write_o  = req_buff_out_data.cmd[3];
 
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
 

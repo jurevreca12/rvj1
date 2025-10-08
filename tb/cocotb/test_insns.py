@@ -29,6 +29,7 @@ from rvtests import (
     SRATest,
     ORTest,
     ANDTest,
+    SBLBTest,
 )
 from riscvmodel.program import Program
 from riscvmodel.model import Model, State
@@ -55,6 +56,7 @@ RV32I_TESTS = {
     "sra": SRATest(),
     "or": ORTest(),
     "and": ANDTest(),
+    "sblb": SBLBTest(),
 }
 
 

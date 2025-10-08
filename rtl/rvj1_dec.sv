@@ -138,6 +138,11 @@ function automatic alu_op_e f3_7_to_alu_op(input f3_imm_e funct3, input f7_shift
     end
 endfunction
 
+function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] funct3, input logic is_write);
+begin
+  return lsu_ctrl_e'({is_write, funct3});
+end
+endfunction
 /*************************************
 * Instruction issued logic
 *************************************/
@@ -243,6 +248,23 @@ begin
       alu_write_rf = 1'b1;
       alu_regdest  = regdest;
       immediate    = imm_u_type;
+    end
+
+    OPCODE_STORE: begin
+      rpb_or_imm     = 1'b1;
+      immediate      = imm_s_type;
+      rf_addr_a      = regs1;
+      lsu_ctrl_valid = 1'b1;
+      lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b1);
+      lsu_regdest    = regs2;
+    end
+
+    OPCODE_LOAD: begin
+      rpb_or_imm     = 1'b1;
+      immediate      = imm_i_type;
+      lsu_ctrl_valid = 1'b1;
+      lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b0);
+      lsu_regdest    = regdest;
     end
   endcase
 end

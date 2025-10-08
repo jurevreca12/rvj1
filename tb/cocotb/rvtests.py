@@ -20,6 +20,8 @@ from riscvmodel.insn import (
     InstructionSRA,
     InstructionOR,
     InstructionAND,
+    InstructionSB,
+    InstructionLB,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 from riscvmodel.program import Program
@@ -341,6 +343,29 @@ class ANDTest(Program):
         super().__init__(insns)
 
 
+class SBLBTest(Program):
+    """Basic test of LB instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x1, 0xDEADC),
+            InstructionADDI(x1, x1, 0x0DE),
+            InstructionLUI(x2, 0x60000),
+            InstructionSB(x2, x1, 0),
+            InstructionSRLI(x1, x1, 8),
+            InstructionSB(x2, x1, 1),
+            InstructionSRLI(x1, x1, 8),
+            InstructionSB(x2, x1, 2),
+            InstructionSRLI(x1, x1, 8),
+            InstructionSB(x1, x2, 3),
+            InstructionLB(x3, x2, 0),
+            InstructionLB(x4, x2, 1),
+            InstructionLB(x5, x2, 2),
+            InstructionLB(x6, x2, 3),
+        ]
+        super().__init__(insns)
+
+
 RV32ITests = [
     LUITest,
     AUIPCTest,
@@ -363,4 +388,5 @@ RV32ITests = [
     SRATest,
     ORTest,
     ANDTest,
+    SBLBTest,
 ]

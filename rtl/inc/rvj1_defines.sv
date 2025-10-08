@@ -73,16 +73,16 @@ package rvj1_defines;
     } f7_shift_imm_e;
 
     // Load-Store Unit
-    typedef enum logic [4:0] {
-        LSU_NO_CMD            = 5'b00000,
-        LSU_LOAD_BYTE         = 5'b00001,
-        LSU_LOAD_HALF_WORD    = 5'b00011,
-        LSU_LOAD_WORD         = 5'b00111,
-        LSU_LOAD_BYTE_U       = 5'b01001,
-        LSU_LOAD_HALF_WORD_U  = 5'b01011,
-        LSU_STORE_BYTE        = 5'b10001,
-        LSU_STORE_HALF_WORD   = 5'b10011,
-        LSU_STORE_WORD        = 5'b10111
+    typedef enum logic [3:0] {
+        LSU_NO_CMD            = 4'b1111,
+        LSU_LOAD_BYTE         = 4'b0000,
+        LSU_LOAD_HALF_WORD    = 4'b0001,
+        LSU_LOAD_WORD         = 4'b0010,
+        LSU_LOAD_BYTE_U       = 4'b0100,
+        LSU_LOAD_HALF_WORD_U  = 4'b0101,
+        LSU_STORE_BYTE        = 4'b1000,
+        LSU_STORE_HALF_WORD   = 4'b1001,
+        LSU_STORE_WORD        = 4'b1010
     } lsu_ctrl_e;
 
 
