@@ -106,22 +106,30 @@ typedef enum logic [1:0] {
 } lsu_state_e;
 lsu_state_e state, state_next;
 
-function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd);
+
+function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd, logic [1:0] addr);
   begin
-    logic byte2 = (cmd == LSU_STORE_WORD || cmd == LSU_LOAD_WORD);
-    logic byte1 = (cmd == LSU_LOAD_HALF_WORD   ||
-                   cmd == LSU_LOAD_HALF_WORD_U ||
-                   cmd == LSU_STORE_HALF_WORD  ||
-                   byte2);
-    logic byte0 = (cmd != LSU_NO_CMD);
-    logic [3:0] strobe = {byte2, byte2, byte1, byte0};
+    logic [3:0] aligned_strobe;
+    logic [3:0] strobe;
+    logic btye = 1'b1;
+    logic half = cmd[0];
+    logic word = cmd[1];
+    if (word)
+      assert (addr == 2'b00);
+    if (half)
+      assert (addr == 2'b00 || addr == 2'b10);
+    assign aligned_strobe = {word,
+                             word,
+                             half | word,
+                             btye | half | word};
+    assign strobe = aligned_strobe << addr;
     return strobe;
   end
 endfunction
 
 function automatic logic is_write(input lsu_ctrl_e cmd);
   begin
-      return cmd[4];
+      return cmd[3];
   end
 endfunction
 
@@ -157,7 +165,7 @@ skidbuffer #(
 );
 assign data_req_addr_o   = req_buff_out_data.addr;
 assign data_req_data_o   = req_buff_out_data.data;
-assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd);
+assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd, req_buff_out_data.addr[1:0]);
 assign data_req_write_o  = req_buff_out_data.cmd[3];
 
 assign data_req_fire = data_req_valid_o && data_req_ready_i;

@@ -74,6 +74,7 @@ module rvj1_top
   logic [RALEN-1:0] lsu_regdest_r;
   logic [XLEN-1:0]  rf_alu_data_a;
   logic [XLEN-1:0]  rf_alu_data_b;
+  logic [XLEN-1:0]  rf_alu_data_b_r;
 
   logic [XLEN-1:0] alu_op_a_data;
   logic [XLEN-1:0] alu_op_b_data;
@@ -167,13 +168,13 @@ module rvj1_top
   );
 
   pipeline_register #(
-    .WORD_WIDTH  (1 + RALEN + 1 + $bits(lsu_ctrl_e) + RALEN),
+    .WORD_WIDTH  (1 + RALEN + 1 + $bits(lsu_ctrl_e) + RALEN + XLEN),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
     .ce   (~stall),
-    .in   ({alu_write_rf,   alu_regdest,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest}),
-    .out  ({alu_write_rf_r, alu_regdest_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r})
+    .in   ({alu_write_rf,   alu_regdest,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b}),
+    .out  ({alu_write_rf_r, alu_regdest_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r})
   );
 
   /*********************************************
@@ -185,8 +186,8 @@ module rvj1_top
     .lsu_valid_i             (lsu_ctrl_valid_r),
     .lsu_ready_o             (),
     .lsu_cmd_i               (lsu_ctrl_r),
-    .lsu_addr_i              (),
-    .lsu_data_i              (),
+    .lsu_addr_i              (alu_res),
+    .lsu_data_i              (rf_alu_data_b_r),
     .lsu_regdest_i           (lsu_regdest_r),
     .rf_data_o               (),
     .rf_wb_o                 (),

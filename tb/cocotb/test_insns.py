@@ -91,11 +91,40 @@ class InsnsTB(BaseBench):
             MappedResponseInitiator(self, instr_rsp_io, self.clk, self.rst),
             scoreboard=False,
         )
-        self.memory = RandomAccessMemory(
+        self.instr_memory = RandomAccessMemory(
             self,
             request=self.instr_req_mon,
             req_respond=self.instr_req_drv,
             response=self.instr_rsp_drv,
+        )
+        data_req_io = MappedRequestIO(
+            dut, "data_req", IORole.INITIATOR, io_style=io_suffix_style
+        )
+        self.register(
+            "data_req_mon",
+            MappedRequestMonitor(self, data_req_io, self.clk, self.rst),
+            scoreboard=False,
+        )
+        self.register(
+            "data_req_drv",
+            MappedRequestResponder(
+                self, data_req_io, self.clk, self.rst, blocking=False
+            ),
+            scoreboard=False,
+        )
+        data_rsp_io = MappedResponseIO(
+            dut, "data_rsp", IORole.RESPONDER, io_style=io_suffix_style
+        )
+        self.register(
+            "data_rsp_drv",
+            MappedResponseInitiator(self, data_rsp_io, self.clk, self.rst),
+            scoreboard=False,
+        )
+        self.data_memory = RandomAccessMemory(
+            self,
+            request=self.data_req_mon,
+            req_respond=self.data_req_drv,
+            response=self.data_rsp_drv,
         )
 
 
@@ -119,14 +148,18 @@ def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
 async def test_insn(tb: InsnsTB, log, insn):
     prog = RV32I_TESTS[insn]
     test_mem = prog_to_mem(prog)
-    tb.memory.flash(test_mem)
-    tb.memory.set_delay(lambda _: 0)
-    log.info(f"Testing instruction {insn} with memory content:\n{str(tb.memory)}.")
+    tb.instr_memory.flash(test_mem)
+    tb.instr_memory.set_delay(lambda _: 0)
+    tb.data_memory.set_delay(lambda _: 0)
+    log.info(
+        f"Testing instruction {insn} with instr memory content:\n{str(tb.instr_memory)}."
+    )
     for _ in prog.insns:
         await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
     await ClockCycles(tb.clk, num_cycles=10)  # make sure everything is coputed
     state = State(RV32I, bootaddr=0x80000000)
     m = Model(state=state)
+    # import pdb; pdb.set_trace()
     m.execute(prog)
     for reg in range(0, 32):
         modval = str(m.state.intreg.regs[reg])  # hex string
