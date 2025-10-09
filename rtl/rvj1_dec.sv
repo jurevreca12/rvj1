@@ -262,7 +262,7 @@ begin
     OPCODE_LOAD: begin
       rpb_or_imm     = 1'b1;
       immediate      = imm_i_type;
-      rf_addr_b      = regs1;
+      rf_addr_a      = regs1;
       lsu_ctrl_valid = 1'b1;
       lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b0);
       lsu_regdest    = regdest;

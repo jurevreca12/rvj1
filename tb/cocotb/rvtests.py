@@ -358,10 +358,10 @@ class SBLBTest(Program):
             InstructionSB(x1, x2, 2),
             InstructionSRLI(x2, x2, 8),
             InstructionSB(x1, x2, 3),
-            InstructionLB(x3, x2, 0),
-            InstructionLB(x4, x2, 1),
-            InstructionLB(x5, x2, 2),
-            InstructionLB(x6, x2, 3),
+            InstructionLB(x3, x1, 0),
+            InstructionLB(x4, x1, 1),
+            InstructionLB(x5, x1, 2),
+            InstructionLB(x6, x1, 3),
         ]
         super().__init__(insns)
 

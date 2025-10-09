@@ -85,6 +85,13 @@ module rvj1_top
   logic instr_issued;
   logic jmp_addr_valid;
   logic [XLEN-1:0] jmp_addr;
+  logic lsu_ready;
+  logic [RALEN-1:0] wpc_addr;
+  logic [XLEN-1:0]  wpc_data;
+  logic             wpc_we;
+  logic [RALEN-1:0] rf_dest;
+  logic [XLEN-1:0]  rf_data;
+  logic             rf_wb;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -150,9 +157,9 @@ module rvj1_top
     .rpa_data_o (rf_alu_data_a),
     .rpb_addr_i (rf_addr_b),
     .rpb_data_o (rf_alu_data_b),
-    .wpc_addr_i (alu_regdest_r),
-    .wpc_data_i (alu_res),
-    .wpc_we_i   (alu_write_rf_r)
+    .wpc_addr_i (wpc_addr),
+    .wpc_data_i (wpc_data),
+    .wpc_we_i   (wpc_we)
   );
 
   assign alu_op_a_data = rpa_or_pc  ? program_counter : rf_alu_data_a;
@@ -184,14 +191,14 @@ module rvj1_top
     .clk_i                   (clk_i),
     .rstn_i                  (rstn_i),
     .lsu_valid_i             (lsu_ctrl_valid_r),
-    .lsu_ready_o             (),
+    .lsu_ready_o             (lsu_ready),
     .lsu_cmd_i               (lsu_ctrl_r),
     .lsu_addr_i              (alu_res),
     .lsu_data_i              (rf_alu_data_b_r),
     .lsu_regdest_i           (lsu_regdest_r),
-    .rf_data_o               (),
-    .rf_wb_o                 (),
-    .rf_dest_o               (),
+    .rf_data_o               (rf_data),
+    .rf_wb_o                 (rf_wb),
+    .rf_dest_o               (rf_dest),
     .ctrl_misaligned_load_o  (),
     .ctrl_misaligned_store_o (),
     .ctrl_bus_error_o        (),
@@ -212,8 +219,9 @@ module rvj1_top
   /*********************************************
   * WRITEBACK STAGE
   *********************************************/
-
-
+  assign wpc_addr = rf_wb ? rf_dest : alu_regdest_r;
+  assign wpc_data = rf_wb ? rf_data : alu_res;
+  assign wpc_we   = rf_wb || alu_write_rf_r;
 
   /*********************************************
   * CONTROLLER
@@ -226,6 +234,9 @@ module rvj1_top
     .rpa_or_pc_i       (rpa_or_pc),
     .rpb_or_imm_i      (rpb_or_imm),
     .alu_regdest_r_i   (alu_regdest_r),
+    .lsu_cmd_i         (lsu_ctrl),
+    .lsu_ctrl_valid_i  (lsu_ctrl_valid),
+    .lsu_ready_i       (lsu_ready),
     .instr_issued_i    (instr_issued),
     .stall_o           (stall),
     .program_counter_o (program_counter),

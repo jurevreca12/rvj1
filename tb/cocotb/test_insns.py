@@ -159,7 +159,6 @@ async def test_insn(tb: InsnsTB, log, insn):
     await ClockCycles(tb.clk, num_cycles=10)  # make sure everything is coputed
     state = State(RV32I, bootaddr=0x80000000)
     m = Model(state=state)
-    # import pdb; pdb.set_trace()
     m.execute(prog)
     for reg in range(0, 32):
         modval = str(m.state.intreg.regs[reg])  # hex string

@@ -22,9 +22,12 @@ module rvj1_ctrl #(
 
   input logic [RALEN-1:0] rf_addr_a_i,
   input logic [RALEN-1:0] rf_addr_b_i,
-  input logic rpa_or_pc_i,
-  input logic rpb_or_imm_i,
+  input logic             rpa_or_pc_i,
+  input logic             rpb_or_imm_i,
   input logic [RALEN-1:0] alu_regdest_r_i,
+  input lsu_ctrl_e        lsu_cmd_i,
+  input logic             lsu_ctrl_valid_i,
+  input logic             lsu_ready_i,
 
   input  logic instr_issued_i,
   output logic stall_o,
@@ -37,13 +40,15 @@ module rvj1_ctrl #(
       eRESET,
       eBOOT0,
       eBOOT1,
-      eRUN
+      eRUN,
+      eLOAD   // loading a value to a register
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic stall, prev_stall;
+  logic load, loaded;
   logic [XLEN-1:0] program_counter;
 
   assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
@@ -52,7 +57,17 @@ module rvj1_ctrl #(
   assign rf_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
                          ~rpb_or_imm_i &&
                          rf_addr_b_i != 5'b00000);
-  assign stall = rf_a_hazard || rf_b_hazard;
+  // LSU uses rpb port, even though an immediate is used.
+  // Because of this rf_b_hazard does not trigger.
+  assign lsu_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
+                          lsu_ctrl_valid_i &&
+                          lsu_cmd_i[3] && // is_write
+                          rf_addr_b_i != 5'b00000);
+  assign stall = (rf_a_hazard  ||
+                  rf_b_hazard  ||
+                  lsu_b_hazard ||
+                  load ||
+                  (state == eLOAD));
   register#(
     .WORD_WIDTH  (1),
     .RESET_VALUE (1'b0)
@@ -81,9 +96,15 @@ module rvj1_ctrl #(
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
+    load   = (state == eRUN)  && lsu_ctrl_valid_i && ~lsu_cmd_i[3];
+    loaded = (state == eLOAD) && lsu_ready_i;
+  end
+  always_comb begin
     state_next = (state == eRESET) ? eBOOT0 : state;
     state_next = (state == eBOOT0) ? eBOOT1 : state_next;
     state_next = (state == eBOOT1) ? eRUN   : state_next;
+    state_next = load              ? eLOAD  : state_next;
+    state_next = loaded            ? eRUN   : state_next;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
