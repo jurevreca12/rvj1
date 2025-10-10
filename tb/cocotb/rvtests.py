@@ -26,6 +26,8 @@ from riscvmodel.insn import (
     InstructionLW,
     InstructionSH,
     InstructionLH,
+    InstructionLBU,
+    InstructionLHU,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 from riscvmodel.program import Program
@@ -402,6 +404,46 @@ class SHLHTest(Program):
         super().__init__(insns)
 
 
+class SBLBUTest(Program):
+    """Basic test of LB instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x2, 0xDEADC),
+            InstructionADDI(x2, x2, 0x0DE),
+            InstructionLUI(x1, 0x60000),
+            InstructionSB(x1, x2, 0),
+            InstructionSRLI(x2, x2, 8),
+            InstructionSB(x1, x2, 1),
+            InstructionSRLI(x2, x2, 8),
+            InstructionSB(x1, x2, 2),
+            InstructionSRLI(x2, x2, 8),
+            InstructionSB(x1, x2, 3),
+            InstructionLBU(x3, x1, 0),
+            InstructionLBU(x4, x1, 1),
+            InstructionLBU(x5, x1, 2),
+            InstructionLBU(x6, x1, 3),
+        ]
+        super().__init__(insns)
+
+
+class SHLHUTest(Program):
+    """Basic test of LB instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x2, 0xDEADC),
+            InstructionADDI(x2, x2, 0x0DE),
+            InstructionLUI(x1, 0x60000),
+            InstructionSH(x1, x2, 0),
+            InstructionSRLI(x2, x2, 16),
+            InstructionSH(x1, x2, 2),
+            InstructionLHU(x3, x1, 0),
+            InstructionLHU(x4, x1, 2),
+        ]
+        super().__init__(insns)
+
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -426,4 +468,6 @@ RV32I_TESTS = {
     "sblb": SBLBTest(),
     "swlw": SWLWTest(),
     "shlh": SHLHTest(),
+    "sblbu": SBLBUTest(),
+    "shlhu": SHLHUTest(),
 }
