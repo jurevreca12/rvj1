@@ -24,6 +24,8 @@ from riscvmodel.insn import (
     InstructionLB,
     InstructionSW,
     InstructionLW,
+    InstructionSH,
+    InstructionLH,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 from riscvmodel.program import Program
@@ -383,6 +385,23 @@ class SWLWTest(Program):
         super().__init__(insns)
 
 
+class SHLHTest(Program):
+    """Basic test of LB instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x2, 0xDEADC),
+            InstructionADDI(x2, x2, 0x0DE),
+            InstructionLUI(x1, 0x60000),
+            InstructionSH(x1, x2, 0),
+            InstructionSRLI(x2, x2, 16),
+            InstructionSH(x1, x2, 2),
+            InstructionLH(x3, x1, 0),
+            InstructionLH(x4, x1, 2),
+        ]
+        super().__init__(insns)
+
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -406,4 +425,5 @@ RV32I_TESTS = {
     "and": ANDTest(),
     "sblb": SBLBTest(),
     "swlw": SWLWTest(),
+    "shlh": SHLHTest(),
 }
