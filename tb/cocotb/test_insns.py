@@ -8,56 +8,10 @@ from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
 from memory import RandomAccessMemory
 
-from rvtests import (
-    LUITest,
-    AUIPCTest,
-    ADDITest,
-    SLTITest,
-    SLTIUTest,
-    XORITest,
-    ORITest,
-    ANDITest,
-    SRLITest,
-    SRAITest,
-    ADDTest,
-    SUBTest,
-    SLLTest,
-    SLTTest,
-    SLTUTest,
-    XORTest,
-    SRLTest,
-    SRATest,
-    ORTest,
-    ANDTest,
-    SBLBTest,
-)
+from rvtests import RV32I_TESTS
 from riscvmodel.program import Program
 from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
-
-RV32I_TESTS = {
-    "lui": LUITest(),
-    "auipc": AUIPCTest(),
-    "addi": ADDITest(),
-    "slti": SLTITest(),
-    "sltiu": SLTIUTest(),
-    "xori": XORITest(),
-    "ori": ORITest(),
-    "andi": ANDITest(),
-    "srli": SRLITest(),
-    "srai": SRAITest(),
-    "add": ADDTest(),
-    "sub": SUBTest(),
-    "sll": SLLTest(),
-    "slt": SLTTest(),
-    "sltu": SLTUTest(),
-    "xor": XORTest(),
-    "srl": SRLTest(),
-    "sra": SRATest(),
-    "or": ORTest(),
-    "and": ANDTest(),
-    "sblb": SBLBTest(),
-}
 
 
 def test_insns_runner():

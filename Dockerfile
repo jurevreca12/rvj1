@@ -8,7 +8,7 @@ RUN pip install --upgrade pip && \
     pip install  riscof==1.25.3 && \
     pip install cocotb==2.0.0 && \
     pip install git+https://github.com/jurevreca12/forastero.git@09c1817 && \
-    pip install git+https://github.com/jurevreca12/riscv-python-model@07a3609
+    pip install git+https://github.com/jurevreca12/riscv-python-model@ed966cc
 
 
 USER 0:0

@@ -22,6 +22,8 @@ from riscvmodel.insn import (
     InstructionAND,
     InstructionSB,
     InstructionLB,
+    InstructionSW,
+    InstructionLW,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 from riscvmodel.program import Program
@@ -366,27 +368,42 @@ class SBLBTest(Program):
         super().__init__(insns)
 
 
-RV32ITests = [
-    LUITest,
-    AUIPCTest,
-    ADDITest,
-    SLTITest,
-    SLTIUTest,
-    XORITest,
-    ORITest,
-    ANDITest,
-    SLLITest,
-    SRLITest,
-    SRAITest,
-    ADDTest,
-    SUBTest,
-    SLLTest,
-    SLTTest,
-    SLTUTest,
-    XORTest,
-    SRLTest,
-    SRATest,
-    ORTest,
-    ANDTest,
-    SBLBTest,
-]
+class SWLWTest(Program):
+    """Basic test of LB instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x2, 0xDEADC),
+            InstructionADDI(x2, x2, 0x0DE),
+            InstructionLUI(x1, 0x60000),
+            InstructionSW(x1, x2, 0),
+            InstructionLW(x3, x1, 0),
+            InstructionLW(x4, x1, 0),
+        ]
+        super().__init__(insns)
+
+
+RV32I_TESTS = {
+    "lui": LUITest(),
+    "auipc": AUIPCTest(),
+    "addi": ADDITest(),
+    "slti": SLTITest(),
+    "sltiu": SLTIUTest(),
+    "xori": XORITest(),
+    "ori": ORITest(),
+    "andi": ANDITest(),
+    "srli": SRLITest(),
+    "srai": SRAITest(),
+    "add": ADDTest(),
+    "sub": SUBTest(),
+    "sll": SLLTest(),
+    "slt": SLTTest(),
+    "sltu": SLTUTest(),
+    "xor": XORTest(),
+    "srl": SRLTest(),
+    "sra": SRATest(),
+    "or": ORTest(),
+    "and": ANDTest(),
+    "sblb": SBLBTest(),
+    "swlw": SWLWTest(),
+}
