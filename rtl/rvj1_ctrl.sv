@@ -47,7 +47,6 @@ module rvj1_ctrl #(
 
   logic rf_a_hazard;
   logic rf_b_hazard;
-  logic stall, prev_stall;
   logic load, loaded;
   logic [XLEN-1:0] program_counter;
 
@@ -63,18 +62,10 @@ module rvj1_ctrl #(
                           lsu_ctrl_valid_i &&
                           lsu_cmd_i[3] && // is_write
                           rf_addr_b_i != 5'b00000);
-  assign stall = (rf_a_hazard  ||
-                  rf_b_hazard  ||
-                  lsu_b_hazard ||
-                  load ||
-                  (state == eLOAD));
-  register#(
-    .WORD_WIDTH  (1),
-    .RESET_VALUE (1'b0)
-  ) prev_stall_reg(
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall), .out(prev_stall)
-  );
-  assign stall_o = stall && ~prev_stall;
+  assign stall_o = (rf_a_hazard  ||
+                    rf_b_hazard  ||
+                    lsu_b_hazard ||
+                    (state == eLOAD));
 
   assign jmp_addr_valid_o = (state_next == eBOOT1);
   assign jmp_addr_o       = BOOT_ADDR;
