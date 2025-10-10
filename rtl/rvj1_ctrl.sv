@@ -28,10 +28,13 @@ module rvj1_ctrl #(
   input lsu_ctrl_e        lsu_cmd_i,
   input logic             lsu_ctrl_valid_i,
   input logic             lsu_ready_i,
+  input logic             ctrl_jump_i,
+  input logic [XLEN-1:0]  alu_res_i,
 
-  input  logic instr_issued_i,
-  output logic stall_o,
+  input  logic            instr_issued_i,
+  output logic            stall_o,
   output logic [XLEN-1:0] program_counter_o,
+  output logic            flush_o,
 
   output logic            jmp_addr_valid_o,
   output logic [XLEN-1:0] jmp_addr_o
@@ -40,6 +43,8 @@ module rvj1_ctrl #(
       eRESET,
       eBOOT0,
       eBOOT1,
+      eJUMP0,
+      eJUMP1,
       eRUN,
       eLOAD0,   // loading a value from data mem
       eLOAD1    // to a register.
@@ -48,8 +53,10 @@ module rvj1_ctrl #(
 
   logic rf_a_hazard;
   logic rf_b_hazard;
-  logic load, loaded;
+  logic lsu_b_hazard;
+  logic load, loaded, jump;
   logic [XLEN-1:0] program_counter;
+  logic is_booted;
 
   assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
@@ -67,11 +74,13 @@ module rvj1_ctrl #(
                     rf_b_hazard  ||
                     lsu_b_hazard ||
                     (state == eLOAD0) ||
-                    (state == eLOAD1));
+                    (state == eLOAD1)) ||
+                    (state == eJUMP0) ||
+                    (state == eJUMP1);
 
-  assign jmp_addr_valid_o = (state_next == eBOOT1);
-  assign jmp_addr_o       = BOOT_ADDR;
-
+  assign jmp_addr_valid_o = (state_next == eJUMP1) || (state_next == eBOOT1);
+  assign jmp_addr_o       = (state_next == eJUMP1) ?  {alu_res_i[31:1], 1'b0} : BOOT_ADDR;
+  assign flush_o          = ctrl_jump_i;
 
   /*************************************
   * Program Counter
@@ -79,6 +88,9 @@ module rvj1_ctrl #(
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       program_counter <= BOOT_ADDR;
+    else if (state_next == eJUMP1) begin
+      program_counter <= alu_res_i;
+    end
     else if (instr_issued_i) begin
       program_counter <= program_counter + 4;
     end
@@ -91,6 +103,7 @@ module rvj1_ctrl #(
   always_comb begin
     load   = (state == eRUN)   && lsu_ctrl_valid_i && ~lsu_cmd_i[3];
     loaded = (state == eLOAD1) && lsu_ready_i;
+    jump   = (state == eRUN)   && ctrl_jump_i;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0 : state;
@@ -99,6 +112,9 @@ module rvj1_ctrl #(
     state_next = load              ? eLOAD0 : state_next;
     state_next = (state == eLOAD0) ? eLOAD1 : state_next;
     state_next = loaded            ? eRUN   : state_next;
+    state_next = jump              ? eJUMP0 : state_next;
+    state_next = (state == eJUMP0) ? eJUMP1 : state_next;
+    state_next = (state == eJUMP1) ? eRUN   : state_next;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)

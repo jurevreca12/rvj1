@@ -114,13 +114,25 @@ async def test_insn(tb: InsnsTB, log, insn):
     state = State(RV32I, bootaddr=0x80000000)
     m = Model(state=state)
     m.execute(prog)
-    for reg in range(0, 32):
-        modval = str(m.state.intreg.regs[reg])  # hex string
-        modval = format(int(modval, 16), "032b")  # binary string
-        dutval = str(tb.dut.regfile_inst.regfile[reg].value)  # binary string
-        assert (
-            dutval == modval
-        ), f"Expected value of {modval} in register {reg}. Instead got {dutval}."
+    # The model does not work properly for some instructions, this is a workaround.
+    if prog.expects() is not None:
+        for regnum, regval in prog.expects().items():
+            modval = format(regval, "032b")
+            dutint = int(tb.dut.regfile_inst.regfile[regnum].value)
+            dutval = format(dutint, "032b")
+            assert (
+                dutval == modval
+            ), f"Expected value of {modval}=0x{regval:08x} in register {regnum}. Instead got {dutval}=0x{dutint:08x}."
+    else:
+        for regnum in range(0, 32):
+            regval = m.state.intreg.regs[regnum].value
+            modval = str(m.state.intreg.regs[regnum])  # hex string
+            modval = format(int(modval, 16), "032b")  # binary string
+            dutint = int(tb.dut.regfile_inst.regfile[regnum].value)
+            dutval = format(dutint, "032b")
+            assert (
+                dutval == modval
+            ), f"Expected value of {modval}=0x{regval:08x} in register {regnum}. Instead got {dutval}=0x{dutint:08x}."
 
 
 if __name__ == "__main__":

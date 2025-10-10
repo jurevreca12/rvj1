@@ -28,8 +28,9 @@ from riscvmodel.insn import (
     InstructionLH,
     InstructionLBU,
     InstructionLHU,
+    InstructionJAL,
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.program import Program
 
 
@@ -350,7 +351,7 @@ class ANDTest(Program):
 
 
 class SBLBTest(Program):
-    """Basic test of LB instruction."""
+    """Basic test of SB and LB instructions."""
 
     def __init__(self):
         insns = [
@@ -373,7 +374,7 @@ class SBLBTest(Program):
 
 
 class SWLWTest(Program):
-    """Basic test of LB instruction."""
+    """Basic test of SW and LW instructions."""
 
     def __init__(self):
         insns = [
@@ -388,7 +389,7 @@ class SWLWTest(Program):
 
 
 class SHLHTest(Program):
-    """Basic test of LB instruction."""
+    """Basic test of SH and LH instructions."""
 
     def __init__(self):
         insns = [
@@ -405,7 +406,7 @@ class SHLHTest(Program):
 
 
 class SBLBUTest(Program):
-    """Basic test of LB instruction."""
+    """Basic test of SB and LBU instruction."""
 
     def __init__(self):
         insns = [
@@ -428,7 +429,7 @@ class SBLBUTest(Program):
 
 
 class SHLHUTest(Program):
-    """Basic test of LB instruction."""
+    """Basic test of SH and LHU instructions."""
 
     def __init__(self):
         insns = [
@@ -442,6 +443,40 @@ class SHLHUTest(Program):
             InstructionLHU(x4, x1, 2),
         ]
         super().__init__(insns)
+
+
+class JALTest(Program):
+    """Basic test of JAL instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionADDI(x1, x0, 1),  # 0x8000_0000
+            InstructionADDI(x2, x0, 2),  # 0x8000_0004
+            InstructionADDI(x3, x0, 3),  # 0x8000_0008
+            InstructionJAL(x10, 0x8),  # 0x8000_000c ->
+            InstructionADDI(x4, x0, 4),  # 0x8000_0010   |
+            InstructionADDI(x5, x0, 5),  # 0x8000_0014 <-
+            InstructionADDI(x6, x0, 6),  # 0x8000_0018
+            InstructionADDI(x7, x0, 7),
+            InstructionADDI(x8, x0, 8),
+            InstructionADDI(x9, x0, 9),
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {
+            0: 0,
+            1: 1,
+            2: 2,
+            3: 3,
+            10: 0x80000010,
+            4: 0,
+            5: 5,
+            6: 6,
+            7: 7,
+            8: 8,
+            9: 9,
+        }
 
 
 RV32I_TESTS = {
@@ -470,4 +505,5 @@ RV32I_TESTS = {
     "shlh": SHLHTest(),
     "sblbu": SBLBUTest(),
     "shlhu": SHLHUTest(),
+    "jal": JALTest(),
 }

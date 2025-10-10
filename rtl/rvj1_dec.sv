@@ -36,7 +36,8 @@ module rvj1_dec
   output logic [XLEN-1:0]  immediate_o,  // Sign extended immediate.
   output logic             lsu_ctrl_valid_o,
   output lsu_ctrl_e        lsu_ctrl_o,
-  output logic [RALEN-1:0] lsu_regdest_o
+  output logic [RALEN-1:0] lsu_regdest_o,
+  output logic             ctrl_jump_o
 );
 
 /*************************************
@@ -53,6 +54,7 @@ logic [XLEN-1:0]  immediate;
 logic             lsu_ctrl_valid;
 lsu_ctrl_e        lsu_ctrl;
 logic [RALEN-1:0] lsu_regdest;
+logic             ctrl_jump;
 
 logic ifu_fire;
 
@@ -170,6 +172,7 @@ always_ff @(posedge clk_i) begin
     lsu_ctrl_valid_o <= 1'b0;
     lsu_ctrl_o       <= LSU_NO_CMD;
     lsu_regdest_o    <= 5'b00000;
+    ctrl_jump_o      <= 1'b0;
   end
   else if (ifu_fire) begin
     rf_addr_a_o      <= rf_addr_a;
@@ -183,6 +186,7 @@ always_ff @(posedge clk_i) begin
     lsu_ctrl_valid_o <= lsu_ctrl_valid;
     lsu_ctrl_o       <= lsu_ctrl;
     lsu_regdest_o    <= lsu_regdest;
+    ctrl_jump_o      <= ctrl_jump;
   end
   else if (~stall_i) begin
     rf_addr_a_o      <= 5'b00000;
@@ -196,6 +200,7 @@ always_ff @(posedge clk_i) begin
     lsu_ctrl_valid_o <= 1'b0;
     lsu_ctrl_o       <= LSU_NO_CMD;
     lsu_regdest_o    <= 5'b00000;
+    ctrl_jump_o      <= 1'b0;
   end
 end
 
@@ -217,6 +222,7 @@ begin
   lsu_ctrl_valid = 1'b0;
   lsu_ctrl       = LSU_NO_CMD;
   lsu_regdest    = 5'b00000;
+  ctrl_jump      = 1'b0;
   case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
@@ -267,6 +273,15 @@ begin
       lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b0);
       lsu_regdest    = regdest;
     end
+
+    OPCODE_JAL: begin
+      rpa_or_pc    = 1'b1;
+      rpb_or_imm   = 1'b1;
+      immediate    = imm_j_type;
+      alu_regdest  = regdest;
+      ctrl_jump    = 1'b1;
+    end
+
   endcase
 end
 

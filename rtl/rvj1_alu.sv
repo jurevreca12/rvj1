@@ -15,7 +15,6 @@ import rvj1_defines::*;
 
 module rvj1_alu (
     input logic clk_i,
-    input logic rstn_i,
 
     input alu_op_e sel_i,  // select arithmetic operation
 
@@ -57,19 +56,19 @@ module rvj1_alu (
   /*******************************
   * RESULT MUXING
   *******************************/
-  always_ff @(posedge clk_i) begin
-    res_o <= 32'b0;
+  always_comb begin
+    res_o = 32'b0;
     unique case (sel_i)
-      ALU_OP_ADD:  res_o <= op_a_i +  op_b_i;
-      ALU_OP_SUB:  res_o <= op_a_i -  op_b_i;
-      ALU_OP_XOR:  res_o <= op_a_i ^  op_b_i;
-      ALU_OP_OR:   res_o <= op_a_i |  op_b_i;
-      ALU_OP_AND:  res_o <= op_a_i &  op_b_i;
-      ALU_OP_SLT:  res_o <= lts(op_a_i, op_b_i);
-      ALU_OP_SLTU: res_o <= ltu(op_a_i, op_b_i);
-      ALU_OP_SLL:  res_o <= op_a_i << op_b_i[4:0];
-      ALU_OP_SRL:  res_o <= op_a_i >> op_b_i[4:0];
-      ALU_OP_SRA:  res_o <= $signed(op_a_i) >>> op_b_i[4:0];
+      ALU_OP_ADD:  res_o = op_a_i +  op_b_i;
+      ALU_OP_SUB:  res_o = op_a_i -  op_b_i;
+      ALU_OP_XOR:  res_o = op_a_i ^  op_b_i;
+      ALU_OP_OR:   res_o = op_a_i |  op_b_i;
+      ALU_OP_AND:  res_o = op_a_i &  op_b_i;
+      ALU_OP_SLT:  res_o = lts(op_a_i, op_b_i);
+      ALU_OP_SLTU: res_o = ltu(op_a_i, op_b_i);
+      ALU_OP_SLL:  res_o = op_a_i << op_b_i[4:0];
+      ALU_OP_SRL:  res_o = op_a_i >> op_b_i[4:0];
+      ALU_OP_SRA:  res_o = $signed(op_a_i) >>> op_b_i[4:0];
     endcase
   end
 

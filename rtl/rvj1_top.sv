@@ -79,26 +79,30 @@ module rvj1_top
   logic [XLEN-1:0] alu_op_a_data;
   logic [XLEN-1:0] alu_op_b_data;
   logic [XLEN-1:0] alu_res;
+  logic [XLEN-1:0] alu_res_r;
 
-  logic [XLEN-1:0] program_counter;
-  logic stall;
-  logic instr_issued;
-  logic jmp_addr_valid;
-  logic [XLEN-1:0] jmp_addr;
-  logic lsu_ready;
+  logic [XLEN-1:0]  program_counter;
+  logic             stall;
+  logic             instr_issued;
+  logic             jmp_addr_valid;
+  logic [XLEN-1:0]  jmp_addr;
+  logic             lsu_ready;
   logic [RALEN-1:0] wpc_addr;
   logic [XLEN-1:0]  wpc_data;
   logic             wpc_we;
   logic [RALEN-1:0] rf_dest;
   logic [XLEN-1:0]  rf_data;
   logic             rf_wb;
+  logic             jump;
+  logic             jump_r;
+  logic             flush;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
   ****************************************/
   rvj1_ifu ifu_inst(
     .clk_i              (clk_i),
-    .rstn_i             (rstn_i),
+    .rstn_i             (rstn_i && ~flush),
     .instr_req_addr_o   (instr_req_addr_o),
     .instr_req_data_o   (instr_req_data_o),
     .instr_req_strobe_o (instr_req_strobe_o),
@@ -128,7 +132,7 @@ module rvj1_top
   ****************************************/
   rvj1_dec decoder_inst(
     .clk_i               (clk_i),
-    .rstn_i              (rstn_i),
+    .rstn_i              (rstn_i && ~flush),
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (dec_ready),
@@ -144,12 +148,14 @@ module rvj1_top
     .immediate_o         (immediate),
     .lsu_ctrl_valid_o    (lsu_ctrl_valid),
     .lsu_ctrl_o          (lsu_ctrl),
-    .lsu_regdest_o       (lsu_regdest)
+    .lsu_regdest_o       (lsu_regdest),
+    .ctrl_jump_o         (jump)
   );
 
   /*********************************************
   * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
   *********************************************/
+
   rvj1_regfile regfile_inst(
     .clk_i      (clk_i),
     .rstn_i     (rstn_i),
@@ -167,7 +173,6 @@ module rvj1_top
 
   rvj1_alu alu_inst(
     .clk_i  (clk_i),
-    .rstn_i (rstn_i),
     .sel_i  (alu_op_sel),
     .op_a_i (alu_op_a_data),
     .op_b_i (alu_op_b_data),
@@ -175,13 +180,13 @@ module rvj1_top
   );
 
   pipeline_register #(
-    .WORD_WIDTH  (1 + RALEN + 1 + $bits(lsu_ctrl_e) + RALEN + XLEN),
+    .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + RALEN + XLEN + 1),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
     .ce   (~stall),
-    .in   ({alu_write_rf,   alu_regdest,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b}),
-    .out  ({alu_write_rf_r, alu_regdest_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r})
+    .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b, jump}),
+    .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r})
   );
 
   /*********************************************
@@ -193,7 +198,7 @@ module rvj1_top
     .lsu_valid_i             (lsu_ctrl_valid_r),
     .lsu_ready_o             (lsu_ready),
     .lsu_cmd_i               (lsu_ctrl_r),
-    .lsu_addr_i              (alu_res),
+    .lsu_addr_i              (alu_res_r),
     .lsu_data_i              (rf_alu_data_b_r),
     .lsu_regdest_i           (lsu_regdest_r),
     .rf_data_o               (rf_data),
@@ -220,8 +225,8 @@ module rvj1_top
   * WRITEBACK STAGE
   *********************************************/
   assign wpc_addr = rf_wb ? rf_dest : alu_regdest_r;
-  assign wpc_data = rf_wb ? rf_data : alu_res;
-  assign wpc_we   = rf_wb || alu_write_rf_r;
+  assign wpc_we   = rf_wb || alu_write_rf_r || jump_r;
+  assign wpc_data = jump_r ? program_counter : (rf_wb ? rf_data : alu_res_r);
 
   /*********************************************
   * CONTROLLER
@@ -238,8 +243,11 @@ module rvj1_top
     .lsu_ctrl_valid_i  (lsu_ctrl_valid),
     .lsu_ready_i       (lsu_ready),
     .instr_issued_i    (instr_issued),
+    .ctrl_jump_i       (jump),
+    .alu_res_i         (alu_res_r),
     .stall_o           (stall),
     .program_counter_o (program_counter),
+    .flush_o           (flush),
     .jmp_addr_valid_o  (jmp_addr_valid),
     .jmp_addr_o        (jmp_addr)
   );
