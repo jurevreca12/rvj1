@@ -133,6 +133,21 @@ function automatic logic is_write(input lsu_ctrl_e cmd);
   end
 endfunction
 
+function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
+  begin
+    logic [XLEN-1:0] ret;
+    case (cmd)
+      LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
+      LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
+      LSU_LOAD_WORD:        ret = data;
+      LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
+      LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
+      default:              ret = 32'h0000_0000;
+    endcase
+    return ret;
+  end
+endfunction
+
 logic         req_buff_inp_ready;
 lsu_req_t     req_buff_out_data;
 logic         act_req_buff_out_valid;
@@ -205,7 +220,7 @@ skidbuffer #(
 /*************************************
 * Reg File
 *************************************/
-assign rf_data_o = rsp_buff_out_data.data;
+assign rf_data_o = sign_extend(rsp_buff_out_data.data, act_req_buff_out_data.cmd);
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&

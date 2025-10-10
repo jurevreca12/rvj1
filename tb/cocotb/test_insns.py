@@ -140,7 +140,7 @@ def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
 @InsnsTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
-    timeout=40,
+    timeout=120,
     shutdown_delay=1,
     shutdown_loops=1,
 )
@@ -156,7 +156,7 @@ async def test_insn(tb: InsnsTB, log, insn):
     )
     for _ in prog.insns:
         await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
-    await ClockCycles(tb.clk, num_cycles=10)  # make sure everything is coputed
+    await ClockCycles(tb.clk, num_cycles=50)  # make sure everything is coputed
     state = State(RV32I, bootaddr=0x80000000)
     m = Model(state=state)
     m.execute(prog)

@@ -41,7 +41,8 @@ module rvj1_ctrl #(
       eBOOT0,
       eBOOT1,
       eRUN,
-      eLOAD   // loading a value to a register
+      eLOAD0,   // loading a value from data mem
+      eLOAD1    // to a register.
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
@@ -65,7 +66,8 @@ module rvj1_ctrl #(
   assign stall_o = (rf_a_hazard  ||
                     rf_b_hazard  ||
                     lsu_b_hazard ||
-                    (state == eLOAD));
+                    (state == eLOAD0) ||
+                    (state == eLOAD1));
 
   assign jmp_addr_valid_o = (state_next == eBOOT1);
   assign jmp_addr_o       = BOOT_ADDR;
@@ -87,14 +89,15 @@ module rvj1_ctrl #(
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load   = (state == eRUN)  && lsu_ctrl_valid_i && ~lsu_cmd_i[3];
-    loaded = (state == eLOAD) && lsu_ready_i;
+    load   = (state == eRUN)   && lsu_ctrl_valid_i && ~lsu_cmd_i[3];
+    loaded = (state == eLOAD1) && lsu_ready_i;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0 : state;
     state_next = (state == eBOOT0) ? eBOOT1 : state_next;
     state_next = (state == eBOOT1) ? eRUN   : state_next;
-    state_next = load              ? eLOAD  : state_next;
+    state_next = load              ? eLOAD0 : state_next;
+    state_next = (state == eLOAD0) ? eLOAD1 : state_next;
     state_next = loaded            ? eRUN   : state_next;
   end
   always_ff @(posedge clk_i) begin
