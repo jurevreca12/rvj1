@@ -282,6 +282,15 @@ begin
       ctrl_jump    = 1'b1;
     end
 
+    OPCODE_JALR: begin
+      rpa_or_pc    = 1'b1;
+      rpb_or_imm   = 1'b1;
+      immediate    = imm_i_type;
+      alu_regdest  = regdest;
+      rf_addr_a    = regs1;
+      ctrl_jump    = 1'b1;
+    end
+
   endcase
 end
 

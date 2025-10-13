@@ -29,6 +29,7 @@ from riscvmodel.insn import (
     InstructionLBU,
     InstructionLHU,
     InstructionJAL,
+    InstructionJALR,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.program import Program
@@ -479,6 +480,39 @@ class JALTest(Program):
         }
 
 
+class JALRTest(Program):
+    """Basic test of JALR instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionAUIPC(x1, 0x0),  # 0x8000_0000
+            InstructionADDI(x1, x1, 0xC),  # 0x8000_0004
+            InstructionADDI(x3, x0, 3),  # 0x8000_0008
+            InstructionJALR(x10, x1, 0x8),  # 0x8000_000c ->
+            InstructionADDI(x4, x0, 4),  # 0x8000_0010   |
+            InstructionADDI(x5, x0, 5),  # 0x8000_0014 <-
+            InstructionADDI(x6, x0, 6),  # 0x8000_0018
+            InstructionADDI(x7, x0, 7),
+            InstructionADDI(x8, x0, 8),
+            InstructionADDI(x9, x0, 9),
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {
+            0: 0,
+            1: 0x8000000C,
+            3: 3,
+            10: 0x80000010,
+            4: 0,
+            5: 5,
+            6: 6,
+            7: 7,
+            8: 8,
+            9: 9,
+        }
+
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -506,4 +540,5 @@ RV32I_TESTS = {
     "sblbu": SBLBUTest(),
     "shlhu": SHLHUTest(),
     "jal": JALTest(),
+    "jalr": JALRTest(),
 }
