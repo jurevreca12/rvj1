@@ -96,13 +96,15 @@ module rvj1_top
   logic             jump;
   logic             jump_r;
   logic             flush;
+  logic             ctrl_branch;
+  branch_ctrl_e     ctrl_branch_type;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
   ****************************************/
   rvj1_ifu ifu_inst(
     .clk_i              (clk_i),
-    .rstn_i             (rstn_i && ~flush),
+    .rstn_i             (rstn_i),
     .instr_req_addr_o   (instr_req_addr_o),
     .instr_req_data_o   (instr_req_data_o),
     .instr_req_strobe_o (instr_req_strobe_o),
@@ -149,7 +151,9 @@ module rvj1_top
     .lsu_ctrl_valid_o    (lsu_ctrl_valid),
     .lsu_ctrl_o          (lsu_ctrl),
     .lsu_regdest_o       (lsu_regdest),
-    .ctrl_jump_o         (jump)
+    .ctrl_jump_o         (jump),
+    .ctrl_branch_o       (ctrl_branch),
+    .ctrl_branch_type_o  (ctrl_branch_type)
   );
 
   /*********************************************
@@ -242,9 +246,11 @@ module rvj1_top
     .lsu_cmd_i         (lsu_ctrl),
     .lsu_ctrl_valid_i  (lsu_ctrl_valid),
     .lsu_ready_i       (lsu_ready),
-    .instr_issued_i    (instr_issued),
     .ctrl_jump_i       (jump),
     .alu_res_i         (alu_res_r),
+    .ctrl_branch_i     (ctrl_branch),
+    .ctrl_branch_type_i(ctrl_branch_type),
+    .instr_issued_i    (instr_issued),
     .stall_o           (stall),
     .program_counter_o (program_counter),
     .flush_o           (flush),

@@ -30,6 +30,8 @@ module rvj1_ctrl #(
   input logic             lsu_ready_i,
   input logic             ctrl_jump_i,
   input logic [XLEN-1:0]  alu_res_i,
+  input logic             ctrl_branch_i,
+  input branch_ctrl_e     ctrl_branch_type_i,
 
   input  logic            instr_issued_i,
   output logic            stall_o,
@@ -39,24 +41,27 @@ module rvj1_ctrl #(
   output logic            jmp_addr_valid_o,
   output logic [XLEN-1:0] jmp_addr_o
 );
-  typedef enum logic [2:0] {
+  typedef enum logic [3:0] {
       eRESET,
       eBOOT0,
       eBOOT1,
       eJUMP0,
       eJUMP1,
       eRUN,
-      eLOAD0,   // loading a value from data mem
-      eLOAD1    // to a register.
+      eLOAD0,   // loading a value from data mem to a register.
+      eLOAD1,
+      eBRANCH
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
-  logic load, loaded, jump;
+  logic load, loaded, jump, branch, takebr, nobr;
   logic [XLEN-1:0] program_counter;
   logic is_booted;
+  branch_ctrl_e ctrl_branch_type_reg;
+  logic cond_met;
 
   assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
@@ -78,9 +83,9 @@ module rvj1_ctrl #(
                     (state == eJUMP0) ||
                     (state == eJUMP1);
 
-  assign jmp_addr_valid_o = (state_next == eJUMP1) || (state_next == eBOOT1);
-  assign jmp_addr_o       = (state_next == eJUMP1) ?  {alu_res_i[31:1], 1'b0} : BOOT_ADDR;
-  assign flush_o          = ctrl_jump_i;
+  assign jmp_addr_valid_o = (state == eJUMP0) || (state == eBOOT0);
+  assign jmp_addr_o       = (state == eJUMP0) ?  {alu_res_i[31:1], 1'b0} : BOOT_ADDR;
+  assign flush_o          = (state == eJUMP0);
 
   /*************************************
   * Program Counter
@@ -98,23 +103,50 @@ module rvj1_ctrl #(
   assign program_counter_o = program_counter;
 
   /*************************************
+  * Branching conditions
+  *************************************/
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      ctrl_branch_type_reg <= BRANCH_EQ;
+    if (ctrl_branch_i)
+      ctrl_branch_type_reg <= ctrl_branch_type_i;
+  end
+
+  always_comb begin
+    cond_met = 1'b0;
+    unique case (ctrl_branch_type_reg)
+      BRANCH_EQ:  cond_met = (alu_res_i    == 0   );
+      BRANCH_NEQ: cond_met = (alu_res_i    != 0   );
+      BRANCH_LT:  cond_met = (alu_res_i[0] == 1'b1);
+      BRANCH_GE:  cond_met = (alu_res_i[0] == 1'b0);
+      BRANCH_LTU: cond_met = (alu_res_i[0] == 1'b1);
+      BRANCH_GEU: cond_met = (alu_res_i[0] == 1'b0);
+    endcase
+  end
+  /*************************************
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load   = (state == eRUN)   && lsu_ctrl_valid_i && ~lsu_cmd_i[3];
-    loaded = (state == eLOAD1) && lsu_ready_i;
-    jump   = (state == eRUN)   && ctrl_jump_i;
+    load   = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_o;
+    loaded = (state == eLOAD1)  &&  lsu_ready_i;
+    jump   = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_o;
+    branch = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
+    takebr = (state == eBRANCH) &&  cond_met                          && ~stall_o;
+    nobr   = (state == eBRANCH) && ~cond_met                          && ~stall_o;
   end
   always_comb begin
-    state_next = (state == eRESET) ? eBOOT0 : state;
-    state_next = (state == eBOOT0) ? eBOOT1 : state_next;
-    state_next = (state == eBOOT1) ? eRUN   : state_next;
-    state_next = load              ? eLOAD0 : state_next;
-    state_next = (state == eLOAD0) ? eLOAD1 : state_next;
-    state_next = loaded            ? eRUN   : state_next;
-    state_next = jump              ? eJUMP0 : state_next;
-    state_next = (state == eJUMP0) ? eJUMP1 : state_next;
-    state_next = (state == eJUMP1) ? eRUN   : state_next;
+    state_next = (state == eRESET) ? eBOOT0  : state;
+    state_next = (state == eBOOT0) ? eBOOT1  : state_next;
+    state_next = (state == eBOOT1) ? eRUN    : state_next;
+    state_next = load              ? eLOAD0  : state_next;
+    state_next = (state == eLOAD0) ? eLOAD1  : state_next;
+    state_next = loaded            ? eRUN    : state_next;
+    state_next = jump              ? eJUMP0  : state_next;
+    state_next = (state == eJUMP0) ? eJUMP1  : state_next;
+    state_next = (state == eJUMP1) ? eRUN    : state_next;
+    state_next = branch            ? eBRANCH : state_next;
+    state_next = takebr            ? eJUMP0  : state_next;
+    state_next = nobr              ? eRUN    : state_next;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)

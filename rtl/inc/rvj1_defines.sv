@@ -85,6 +85,16 @@ package rvj1_defines;
         LSU_STORE_WORD        = 4'b1010
     } lsu_ctrl_e;
 
+    // Branching defines
+    typedef enum logic [2:0] {
+        BRANCH_EQ   = 3'b000,
+        BRANCH_NEQ  = 3'b001,
+        BRANCH_LT   = 3'b100,
+        BRANCH_GE   = 3'b101,
+        BRANCH_LTU  = 3'b110,
+        BRANCH_GEU  = 3'b111
+    } branch_ctrl_e;
+
 
     // CONTROL AND STATUS REGISTERS
     parameter logic [29:0] TRAP_VEC_BASE_ADDR = 30'h0010_0000;

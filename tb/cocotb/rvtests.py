@@ -30,6 +30,7 @@ from riscvmodel.insn import (
     InstructionLHU,
     InstructionJAL,
     InstructionJALR,
+    InstructionBEQ,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.program import Program
@@ -513,6 +514,33 @@ class JALRTest(Program):
         }
 
 
+class BEQTest(Program):
+    """Basic test of JALR instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionADDI(x10, x0, 3),
+            InstructionBEQ(x0, x10, 8),
+            InstructionADDI(x1, x0, 1),
+            InstructionBEQ(x1, x10, 8),
+            InstructionADDI(x2, x0, 2),
+            InstructionBEQ(x2, x10, 8),
+            InstructionADDI(x3, x0, 3),
+            InstructionBEQ(x3, x10, 8),  # ->|
+            InstructionADDI(x4, x0, 4),  #   |
+            InstructionBEQ(x4, x10, 8),  # <-|
+            InstructionADDI(x5, x0, 5),
+            InstructionADDI(x6, x0, 6),
+            InstructionADDI(x7, x0, 7),
+            InstructionADDI(x8, x0, 8),
+            InstructionADDI(x9, x0, 9),
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {0: 0, 1: 1, 2: 2, 3: 3, 4: 0, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 3}
+
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -541,4 +569,5 @@ RV32I_TESTS = {
     "shlhu": SHLHUTest(),
     "jal": JALTest(),
     "jalr": JALRTest(),
+    "beq": BEQTest(),
 }
