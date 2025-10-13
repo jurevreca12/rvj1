@@ -15,15 +15,15 @@ class DecoderBackpressure(BaseTransaction):
 
 
 class LsuCmd(IntEnum):
-    NO_CMD = int("00000", 2)
-    LOAD_BYTE = int("00001", 2)
-    LOAD_HALF_WORD = int("00011", 2)
-    LOAD_WORD = int("00111", 2)
-    LOAD_BYTE_U = int("01001", 2)
-    LOAD_HALF_WORD_U = int("01011", 2)
-    STORE_BYTE = int("10001", 2)
-    STORE_HALF_WORD = int("10011", 2)
-    STORE_WORD = int("10111", 2)
+    NO_CMD = int("1111", 2)
+    LOAD_BYTE = int("0000", 2)
+    LOAD_HALF_WORD = int("0001", 2)
+    LOAD_WORD = int("0010", 2)
+    LOAD_BYTE_U = int("0100", 2)
+    LOAD_HALF_WORD_U = int("0101", 2)
+    STORE_BYTE = int("1000", 2)
+    STORE_HALF_WORD = int("1001", 2)
+    STORE_WORD = int("1010", 2)
 
 
 @dataclass(kw_only=True)
