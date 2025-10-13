@@ -31,6 +31,11 @@ from riscvmodel.insn import (
     InstructionJAL,
     InstructionJALR,
     InstructionBEQ,
+    InstructionBNE,
+    InstructionBLT,
+    InstructionBGE,
+    InstructionBLTU,
+    InstructionBGEU,
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.program import Program
@@ -515,7 +520,7 @@ class JALRTest(Program):
 
 
 class BEQTest(Program):
-    """Basic test of JALR instruction."""
+    """Basic test of BEQ instruction."""
 
     def __init__(self):
         insns = [
@@ -539,6 +544,113 @@ class BEQTest(Program):
 
     def expects(self) -> dict:
         return {0: 0, 1: 1, 2: 2, 3: 3, 4: 0, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 3}
+
+
+class BNETest(Program):
+    """Basic test of BNE instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionADDI(x10, x0, 3),
+            InstructionBNE(x0, x0, 8),
+            InstructionADDI(x1, x0, 1),
+            InstructionBNE(x10, x10, 8),
+            InstructionADDI(x2, x0, 2),
+            InstructionBNE(x2, x2, 8),
+            InstructionADDI(x3, x0, 3),
+            InstructionBNE(x3, x0, 8),  # ->|
+            InstructionADDI(x4, x0, 4),  #   |
+            InstructionBNE(x4, x4, 8),  # <-|
+            InstructionADDI(x5, x0, 5),
+            InstructionADDI(x6, x0, 6),
+            InstructionADDI(x7, x0, 7),
+            InstructionADDI(x8, x0, 8),
+            InstructionADDI(x9, x0, 9),
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {0: 0, 1: 1, 2: 2, 3: 3, 4: 0, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 3}
+
+
+class BLTTest(Program):
+    """Basic test of BLT instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x1, 0xFFFFF),  # 0x80000000
+            InstructionBLT(x0, x1, 8),  # 0x80000004
+            InstructionADDI(x2, x0, 2),  # 0x80000008
+            InstructionADDI(x3, x0, 3),  # 0x8000000c
+            InstructionBLT(x1, x0, 8),  # 0x80000010 ->|
+            InstructionADDI(x4, x0, 4),  # 0x80000014   |
+            InstructionADDI(x5, x0, 5),  # 0x80000018 <-|
+            InstructionADDI(x6, x0, 6),  # 0x8000001c
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {1: 0xFFFFF000, 2: 2, 3: 3, 4: 0, 5: 5, 6: 6}
+
+
+class BGETest(Program):
+    """Basic test of BGE instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x1, 0xFFFFF),  # 0x80000000
+            InstructionBGE(x0, x1, 8),  # 0x80000004 ->|
+            InstructionADDI(x2, x0, 2),  # 0x80000008   |
+            InstructionADDI(x3, x0, 3),  # 0x8000000c <-|
+            InstructionBGE(x1, x0, 8),  # 0x80000010
+            InstructionADDI(x4, x0, 4),  # 0x80000014
+            InstructionADDI(x5, x0, 5),  # 0x80000018
+            InstructionADDI(x6, x0, 6),  # 0x8000001c
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {1: 0xFFFFF000, 2: 0, 3: 3, 4: 4, 5: 5, 6: 6}
+
+
+class BLTUTest(Program):
+    """Basic test of BLTU instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x1, 0xFFFFF),  # 0x80000000
+            InstructionBLTU(x0, x1, 8),  # 0x80000004 ->|
+            InstructionADDI(x2, x0, 2),  # 0x80000008   |
+            InstructionADDI(x3, x0, 3),  # 0x8000000c <-|
+            InstructionBLTU(x1, x0, 8),  # 0x80000010
+            InstructionADDI(x4, x0, 4),  # 0x80000014
+            InstructionADDI(x5, x0, 5),  # 0x80000018
+            InstructionADDI(x6, x0, 6),  # 0x8000001c
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {1: 0xFFFFF000, 2: 0, 3: 3, 4: 4, 5: 5, 6: 6}
+
+
+class BGEUTest(Program):
+    """Basic test of BGEU instruction."""
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x1, 0xFFFFF),
+            InstructionBGEU(x1, x0, 8),
+            InstructionADDI(x2, x0, 2),
+            InstructionADDI(x3, x0, 3),
+            InstructionBGEU(x0, x1, 8),
+            InstructionADDI(x4, x0, 4),
+            InstructionADDI(x5, x0, 5),
+            InstructionADDI(x6, x0, 6),
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {1: 0xFFFFF000, 2: 0, 3: 3, 4: 4, 5: 5, 6: 6}
 
 
 RV32I_TESTS = {
@@ -570,4 +682,9 @@ RV32I_TESTS = {
     "jal": JALTest(),
     "jalr": JALRTest(),
     "beq": BEQTest(),
+    "bne": BNETest(),
+    "blt": BLTTest(),
+    "bge": BGETest(),
+    "bltu": BLTUTest(),
+    "bgeu": BGEUTest(),
 }

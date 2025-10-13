@@ -46,6 +46,7 @@ module rvj1_dec
 * INTERNAL SIGNAL DEFINITION
 *************************************/
 logic update_output, reset_output;
+logic instr_issued;
 
 logic [RALEN-1:0] rf_addr_a;
 logic [RALEN-1:0] rf_addr_b;
@@ -187,12 +188,6 @@ always_ff @(posedge clk_i) begin
   else if (ifu_fire)
     instr_buff <= ifu_instr_i;
 end
-always_ff @(posedge clk_i) begin
-  if (~rstn_i)
-    instr_issued_o <= 1'b0;
-  else
-    instr_issued_o <= ifu_fire;
-end
 
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC
@@ -214,6 +209,7 @@ always_ff @(posedge clk_i) begin
     ctrl_branch_o      <= 1'b0;
     ctrl_branch_type_o <= BRANCH_EQ;
     state              <= eDEC_FIRST_CYCLE;
+    instr_issued_o     <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o        <= rf_addr_a;
@@ -231,6 +227,7 @@ always_ff @(posedge clk_i) begin
     ctrl_branch_o      <= ctrl_branch;
     ctrl_branch_type_o <= ctrl_branch_type;
     state              <= state_next;
+    instr_issued_o     <= instr_issued;
   end
 end
 
@@ -255,6 +252,7 @@ begin
   ctrl_branch      = 1'b0;
   ctrl_branch_type = BRANCH_EQ;
   state_next       = eDEC_FIRST_CYCLE;
+  instr_issued     = 1'b1; // Most instructions are single-cycle
   case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
@@ -333,6 +331,7 @@ begin
           ctrl_branch      = 1'b1;
           ctrl_branch_type = branch_ctrl_e'(funct3);
           state_next       = eDEC_SECOND_CYCLE;
+          instr_issued     = 1'b0;
         end
         // Jump if condition is met
         eDEC_SECOND_CYCLE: begin
