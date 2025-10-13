@@ -96,7 +96,7 @@ module rvj1_ctrl #(
     else if (state_next == eJUMP1) begin
       program_counter <= alu_res_i;
     end
-    else if (instr_issued_i) begin
+    else if (instr_issued_i && ~stall_o) begin
       program_counter <= program_counter + 4;
     end
   end
