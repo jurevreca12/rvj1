@@ -181,8 +181,8 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 *************************************/
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
 assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE);
-assign update_output = ifu_fire ||  ((state != eDEC_FIRST_CYCLE) && ~stall_i);
-assign reset_output  = ~rstn_i  || ~update_output;
+assign update_output = ifu_fire ||  (state != eDEC_FIRST_CYCLE && ~stall_i);
+assign reset_output  = ~rstn_i  || (~update_output && ~stall_i);
 always_ff @(posedge clk_i) begin
   if (~rstn_i)
     instr_buff <= 32'h0000_0000;
@@ -338,9 +338,9 @@ begin
         end
         // Jump if condition is met
         eDEC_SECOND_CYCLE: begin
-          rpa_or_pc  = 1'b1;
-          rpb_or_imm = 1'b1;
-          immediate  = imm_b_type;
+          rpa_or_pc    = 1'b1;
+          rpb_or_imm   = 1'b1;
+          immediate    = imm_b_type;
         end
       endcase
     end

@@ -190,7 +190,7 @@ module rvj1_top
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
-    .ce   (control),
+    .ce   (control && ~stall),
     .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b, jump}),
     .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r})
   );
