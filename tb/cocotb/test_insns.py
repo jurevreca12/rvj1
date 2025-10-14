@@ -99,12 +99,13 @@ def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
     shutdown_loops=1,
 )
 @InsnsTB.parameter("insn", Program, [*RV32I_TESTS])
-async def test_insn(tb: InsnsTB, log, insn):
+@InsnsTB.parameter("delay", int, [0, 1, 2, 3])
+async def test_insn(tb: InsnsTB, log, insn, delay):
     prog = RV32I_TESTS[insn]
     test_mem = prog_to_mem(prog)
     tb.instr_memory.flash(test_mem)
-    tb.instr_memory.set_delay(lambda _: 0)
-    tb.data_memory.set_delay(lambda _: 0)
+    tb.instr_memory.set_delay(lambda _: delay)
+    tb.data_memory.set_delay(lambda _: delay)
     log.info(
         f"Testing instruction {insn} with instr memory content:\n{str(tb.instr_memory)}."
     )

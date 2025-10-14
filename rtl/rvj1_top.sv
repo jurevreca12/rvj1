@@ -98,6 +98,7 @@ module rvj1_top
   logic             flush;
   logic             ctrl_branch;
   branch_ctrl_e     ctrl_branch_type;
+  logic             control;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -140,6 +141,7 @@ module rvj1_top
     .ifu_ready_o         (dec_ready),
     .stall_i             (stall),
     .instr_issued_o      (instr_issued),
+    .control_o           (control),
     .rf_addr_a_o         (rf_addr_a),
     .rf_addr_b_o         (rf_addr_b),
     .alu_sel_o           (alu_op_sel),
@@ -188,7 +190,7 @@ module rvj1_top
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
-    .ce   (~stall),
+    .ce   (control),
     .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b, jump}),
     .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r})
   );

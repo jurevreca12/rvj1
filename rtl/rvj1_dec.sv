@@ -24,6 +24,7 @@ module rvj1_dec
 
   input  logic            stall_i,
   output logic            instr_issued_o,
+  output logic            control_o, // signals that controls signals have been activated
 
   // OUTGOING CONTROL SIGNALS
   output logic [RALEN-1:0] rf_addr_a_o,
@@ -181,7 +182,7 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
 assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE);
 assign update_output = ifu_fire ||  ((state != eDEC_FIRST_CYCLE) && ~stall_i);
-assign reset_output  = ~rstn_i  && ~update_output;
+assign reset_output  = ~rstn_i  || ~update_output;
 always_ff @(posedge clk_i) begin
   if (~rstn_i)
     instr_buff <= 32'h0000_0000;
@@ -210,6 +211,7 @@ always_ff @(posedge clk_i) begin
     ctrl_branch_type_o <= BRANCH_EQ;
     state              <= eDEC_FIRST_CYCLE;
     instr_issued_o     <= 1'b0;
+    control_o          <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o        <= rf_addr_a;
@@ -228,6 +230,7 @@ always_ff @(posedge clk_i) begin
     ctrl_branch_type_o <= ctrl_branch_type;
     state              <= state_next;
     instr_issued_o     <= instr_issued;
+    control_o          <= 1'b1;
   end
 end
 
