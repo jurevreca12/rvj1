@@ -99,7 +99,6 @@ class rvj1(pluginTemplate):
                 "work_dir"
             ]  # where the artifacts of this test will be dumped
             elf_file = os.path.join(test_dir, "my.elf")
-            hex_file = os.path.join(test_dir, "out.hex")
             sim_dir = os.path.join(test_dir, "obj_dir/")
 
             #  RISCOF expects the signature to be named as DUT-<dut-name>.signature.
@@ -113,8 +112,8 @@ class rvj1(pluginTemplate):
                 self.elf2hex
                 + " --bit-width 32 --input "
                 + elf_file
-                + " --output "
-                + hex_file
+                + " --output-dir "
+                + test_dir
             )
             rtl_dirs = (
                 "/foss/designs/rvj1/rtl/inc",  # needs to be before others
@@ -139,7 +138,8 @@ class rvj1(pluginTemplate):
                 + " -Wno-fatal "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
-                + f" -GMEM_INIT_FILE=\\\"{testentry['work_dir']}/out.hex\\\" "
+                + f" -GINSTR_MEM_INIT_FILE=\\\"{testentry['work_dir']}/text.hex\\\" "
+                + f" -GDATA_MEM_INIT_FILE=\\\"{testentry['work_dir']}/data.hex\\\" "
                 + f' -GSIGNATURE_FILE=\\"{sig_file}\\" '
             )
 

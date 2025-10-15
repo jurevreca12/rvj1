@@ -114,10 +114,12 @@ function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd, logic [1:0] a
     logic btye = 1'b1;
     logic half = cmd[0];
     logic word = cmd[1];
-    if (word)
-      assert (addr == 2'b00);
-    if (half)
-      assert (addr == 2'b00 || addr == 2'b10);
+    `ifdef ASSERTIONS
+      if (word)
+        assert (addr == 2'b00);
+      if (half)
+        assert (addr == 2'b00 || addr == 2'b10);
+    `endif
     assign aligned_strobe = {word,
                              word,
                              half | word,
