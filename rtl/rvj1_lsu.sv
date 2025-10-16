@@ -91,6 +91,7 @@ typedef struct packed {
 
 typedef struct packed {
   lsu_ctrl_e        cmd;
+  logic [1:0]       byteaddr;
   logic [RALEN-1:0] regdest;
 } lsu_act_req_t;
 
@@ -135,6 +136,19 @@ function automatic logic is_write(input lsu_ctrl_e cmd);
   end
 endfunction
 
+function automatic logic [XLEN-1:0] byte_select(logic [XLEN-1:0] data, logic [1:0] byteaddr);
+  begin
+    logic [XLEN-1:0] ret;
+    unique case (byteaddr)
+      2'b00: ret = data;
+      2'b01: ret = {24'b0, data[15:8]};
+      2'b10: ret = {16'b0, data[31:16]};
+      2'b11: ret = {24'b0, data[31:24]};
+    endcase
+    return ret;
+  end
+endfunction
+
 function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
   begin
     logic [XLEN-1:0] ret;
@@ -157,6 +171,8 @@ lsu_act_req_t act_req_buff_out_data;
 logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
+
+logic [XLEN-1:0] byte_selected_data;
 
 logic retire_request;
 
@@ -198,7 +214,7 @@ skidbuffer #(
 
   .input_valid  (data_req_fire),
   .input_ready  (act_req_buff_inp_ready),
-  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.regdest}),
+  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr[1:0], req_buff_out_data.regdest}),
 
   .output_valid (act_req_buff_out_valid),
   .output_ready (retire_request),
@@ -222,7 +238,8 @@ skidbuffer #(
 /*************************************
 * Reg File
 *************************************/
-assign rf_data_o = sign_extend(rsp_buff_out_data.data, act_req_buff_out_data.cmd);
+assign byte_selected_data = byte_select(rsp_buff_out_data.data,  act_req_buff_out_data.byteaddr);
+assign rf_data_o = sign_extend(byte_selected_data, act_req_buff_out_data.cmd);
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
