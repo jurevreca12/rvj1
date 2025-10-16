@@ -492,9 +492,9 @@ class JALRTest(Program):
     def __init__(self):
         insns = [
             InstructionAUIPC(x1, 0x0),  # 0x8000_0000
-            InstructionADDI(x1, x1, 0xC),  # 0x8000_0004
+            InstructionADDI(x1, x1, 0),  # 0x8000_0004
             InstructionADDI(x3, x0, 3),  # 0x8000_0008
-            InstructionJALR(x10, x1, 0x8),  # 0x8000_000c ->
+            InstructionJALR(x10, x1, 0x14),  # 0x8000_000c ->
             InstructionADDI(x4, x0, 4),  # 0x8000_0010   |
             InstructionADDI(x5, x0, 5),  # 0x8000_0014 <-
             InstructionADDI(x6, x0, 6),  # 0x8000_0018
@@ -507,7 +507,7 @@ class JALRTest(Program):
     def expects(self) -> dict:
         return {
             0: 0,
-            1: 0x8000000C,
+            1: 0x80000000,
             3: 3,
             10: 0x80000010,
             4: 0,
