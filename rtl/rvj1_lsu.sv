@@ -149,6 +149,34 @@ function automatic logic [XLEN-1:0] byte_select(logic [XLEN-1:0] data, logic [1:
   end
 endfunction
 
+function automatic logic [XLEN-1:0] byte_select_write(logic [XLEN-1:0] data, lsu_ctrl_e cmd, logic [1:0] byteaddr);
+  begin
+    logic [XLEN-1:0] ret;
+    case (cmd)
+      LSU_STORE_BYTE: begin
+        unique case (byteaddr)
+          2'b00: ret = data;
+          2'b01: ret = {16'b0, data[7:0], 8'b0};
+          2'b10: ret = {8'b0,  data[7:0], 16'b0};
+          2'b11: ret = {data[7:0], 24'b0};
+        endcase
+      end
+
+      LSU_STORE_HALF_WORD: begin
+        unique case (byteaddr)
+          2'b00: ret = data;
+          2'b10: ret = {data[15:0], 16'b0};
+        endcase
+      end
+
+      LSU_STORE_WORD: ret = data;
+
+      default: ret = 32'b0;
+    endcase
+    return ret;
+  end
+endfunction
+
 function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
   begin
     logic [XLEN-1:0] ret;
@@ -172,7 +200,8 @@ logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
 
-logic [XLEN-1:0] byte_selected_data;
+logic [XLEN-1:0] byte_select_read_data;
+logic [XLEN-1:0] byte_select_write_data;
 
 logic retire_request;
 
@@ -196,8 +225,8 @@ skidbuffer #(
   .output_ready (data_req_ready_i),
   .output_data  (req_buff_out_data)
 );
-assign data_req_addr_o   = req_buff_out_data.addr;
-assign data_req_data_o   = req_buff_out_data.data;
+assign data_req_addr_o   = {req_buff_out_data.addr[31:2], 2'b00};
+assign data_req_data_o   = byte_select_write(req_buff_out_data.data, req_buff_out_data.cmd, req_buff_out_data.addr[1:0]);
 assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd, req_buff_out_data.addr[1:0]);
 assign data_req_write_o  = req_buff_out_data.cmd[3];
 
@@ -238,8 +267,8 @@ skidbuffer #(
 /*************************************
 * Reg File
 *************************************/
-assign byte_selected_data = byte_select(rsp_buff_out_data.data,  act_req_buff_out_data.byteaddr);
-assign rf_data_o = sign_extend(byte_selected_data, act_req_buff_out_data.cmd);
+assign byte_select_read_data = byte_select(rsp_buff_out_data.data,  act_req_buff_out_data.byteaddr);
+assign rf_data_o = sign_extend(byte_select_read_data, act_req_buff_out_data.cmd);
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
