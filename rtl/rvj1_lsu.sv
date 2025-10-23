@@ -3,7 +3,7 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    jedro_1_lsu                                                //
+// Design Name:    rvj1_lsu                                                   //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       System Verilog                                             //
 //                                                                            //
@@ -43,60 +43,61 @@
 // to finnish, before issuing further requests.                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_lsu (
+module rvj1_lsu (
     input logic clk_i,
     input logic rstn_i,
 
     // Interface to/from the decoder/ALU/ctrl
-    input  logic                      lsu_valid_i,
-    output logic                      lsu_ready_o,
-    input  lsu_ctrl_e                 lsu_cmd_i,
-    input  logic [DATA_WIDTH-1:0]     lsu_addr_i,
-    input  logic [DATA_WIDTH-1:0]     lsu_data_i,
-    input  logic [REG_ADDR_WIDTH-1:0] lsu_regdest_i,
+    input  logic             lsu_valid_i,
+    output logic             lsu_ready_o,
+    input  lsu_ctrl_e        lsu_cmd_i,
+    input  logic [XLEN-1:0]  lsu_addr_i,
+    input  logic [XLEN-1:0]  lsu_data_i,
+    input  logic [RALEN-1:0] lsu_regdest_i,
 
     // Interface to the register file
-    output logic [DATA_WIDTH-1:0]     rf_data_o,
-    output logic                      rf_wb_o,    // write-back
-    output logic [REG_ADDR_WIDTH-1:0] rf_dest_o,
+    output logic [XLEN-1:0]  rf_data_o,
+    output logic             rf_wb_o,    // write-back
+    output logic [RALEN-1:0] rf_dest_o,
 
     // Interface to the core controller
-    output logic                  ctrl_misaligned_load_o,
-    output logic                  ctrl_misaligned_store_o,
-    output logic                  ctrl_bus_error_o,
-    output logic [DATA_WIDTH-1:0] ctrl_exception_addr_o,
+    output logic            ctrl_misaligned_load_o,
+    output logic            ctrl_misaligned_store_o,
+    output logic            ctrl_bus_error_o,
+    output logic [XLEN-1:0] ctrl_exception_addr_o,
 
     // Interface to data RAM
-    output logic [DATA_WIDTH-1:0] data_req_addr_o,
-    output logic [DATA_WIDTH-1:0] data_req_data_o,
-    output logic [3:0]            data_req_strobe_o,
-    output logic                  data_req_write_o,
-    output logic                  data_req_valid_o,
-    input  logic                  data_req_ready_i,
+    output logic [XLEN-1:0]   data_req_addr_o,
+    output logic [XLEN-1:0]   data_req_data_o,
+    output logic [NBYTES-1:0] data_req_strobe_o,
+    output logic              data_req_write_o,
+    output logic              data_req_valid_o,
+    input  logic              data_req_ready_i,
 
-    input  logic [DATA_WIDTH-1:0] data_rsp_data_i,
-    input  logic                  data_rsp_error_i,
-    input  logic                  data_rsp_valid_i,
-    output logic                  data_rsp_ready_o
+    input  logic [XLEN-1:0] data_rsp_data_i,
+    input  logic            data_rsp_error_i,
+    input  logic            data_rsp_valid_i,
+    output logic            data_rsp_ready_o
 );
 
 typedef struct packed {
-  lsu_ctrl_e                 cmd;
-  logic [DATA_WIDTH-1:0]     addr;
-  logic [DATA_WIDTH-1:0]     data;
-  logic [REG_ADDR_WIDTH-1:0] regdest;
+  lsu_ctrl_e        cmd;
+  logic [XLEN-1:0]  addr;
+  logic [XLEN-1:0]  data;
+  logic [RALEN-1:0] regdest;
 } lsu_req_t;
 
 typedef struct packed {
-  lsu_ctrl_e                 cmd;
-  logic [REG_ADDR_WIDTH-1:0] regdest;
+  lsu_ctrl_e        cmd;
+  logic [1:0]       byteaddr;
+  logic [RALEN-1:0] regdest;
 } lsu_act_req_t;
 
 typedef struct packed {
-  logic [DATA_WIDTH-1:0] data;
-  logic                  error;
+  logic [XLEN-1:0] data;
+  logic            error;
 } lsu_rsp_t;
 
 typedef enum logic [1:0] {
@@ -106,16 +107,88 @@ typedef enum logic [1:0] {
 } lsu_state_e;
 lsu_state_e state, state_next;
 
-function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd);
+
+function automatic logic [3:0] cmd_to_strobe(input lsu_ctrl_e cmd, logic [1:0] addr);
   begin
-    logic [3:0] strobe = {cmd[2], cmd[2], cmd[1], cmd[0]};
+    logic [3:0] aligned_strobe;
+    logic [3:0] strobe;
+    logic btye = 1'b1;
+    logic half = cmd[0];
+    logic word = cmd[1];
+    `ifdef ASSERTIONS
+      if (word)
+        assert (addr == 2'b00);
+      if (half)
+        assert (addr == 2'b00 || addr == 2'b10);
+    `endif
+    assign aligned_strobe = {word,
+                             word,
+                             half | word,
+                             btye | half | word};
+    assign strobe = aligned_strobe << addr;
     return strobe;
   end
 endfunction
 
 function automatic logic is_write(input lsu_ctrl_e cmd);
   begin
-      return cmd[4];
+      return cmd[3];
+  end
+endfunction
+
+function automatic logic [XLEN-1:0] byte_select(logic [XLEN-1:0] data, logic [1:0] byteaddr);
+  begin
+    logic [XLEN-1:0] ret;
+    unique case (byteaddr)
+      2'b00: ret = data;
+      2'b01: ret = {24'b0, data[15:8]};
+      2'b10: ret = {16'b0, data[31:16]};
+      2'b11: ret = {24'b0, data[31:24]};
+    endcase
+    return ret;
+  end
+endfunction
+
+function automatic logic [XLEN-1:0] byte_select_write(logic [XLEN-1:0] data, lsu_ctrl_e cmd, logic [1:0] byteaddr);
+  begin
+    logic [XLEN-1:0] ret;
+    case (cmd)
+      LSU_STORE_BYTE: begin
+        unique case (byteaddr)
+          2'b00: ret = data;
+          2'b01: ret = {16'b0, data[7:0], 8'b0};
+          2'b10: ret = {8'b0,  data[7:0], 16'b0};
+          2'b11: ret = {data[7:0], 24'b0};
+        endcase
+      end
+
+      LSU_STORE_HALF_WORD: begin
+        unique case (byteaddr)
+          2'b00: ret = data;
+          2'b10: ret = {data[15:0], 16'b0};
+        endcase
+      end
+
+      LSU_STORE_WORD: ret = data;
+
+      default: ret = 32'b0;
+    endcase
+    return ret;
+  end
+endfunction
+
+function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
+  begin
+    logic [XLEN-1:0] ret;
+    case (cmd)
+      LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
+      LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
+      LSU_LOAD_WORD:        ret = data;
+      LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
+      LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
+      default:              ret = 32'h0000_0000;
+    endcase
+    return ret;
   end
 endfunction
 
@@ -126,6 +199,9 @@ lsu_act_req_t act_req_buff_out_data;
 logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
+
+logic [XLEN-1:0] byte_select_read_data;
+logic [XLEN-1:0] byte_select_write_data;
 
 logic retire_request;
 
@@ -149,10 +225,10 @@ skidbuffer #(
   .output_ready (data_req_ready_i),
   .output_data  (req_buff_out_data)
 );
-assign data_req_addr_o   = req_buff_out_data.addr;
-assign data_req_data_o   = req_buff_out_data.data;
-assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd);
-assign data_req_write_o  = req_buff_out_data.cmd[4];
+assign data_req_addr_o   = {req_buff_out_data.addr[31:2], 2'b00};
+assign data_req_data_o   = byte_select_write(req_buff_out_data.data, req_buff_out_data.cmd, req_buff_out_data.addr[1:0]);
+assign data_req_strobe_o = cmd_to_strobe(req_buff_out_data.cmd, req_buff_out_data.addr[1:0]);
+assign data_req_write_o  = req_buff_out_data.cmd[3];
 
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
 
@@ -167,7 +243,7 @@ skidbuffer #(
 
   .input_valid  (data_req_fire),
   .input_ready  (act_req_buff_inp_ready),
-  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.regdest}),
+  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr[1:0], req_buff_out_data.regdest}),
 
   .output_valid (act_req_buff_out_valid),
   .output_ready (retire_request),
@@ -191,7 +267,8 @@ skidbuffer #(
 /*************************************
 * Reg File
 *************************************/
-assign rf_data_o = rsp_buff_out_data.data;
+assign byte_select_read_data = byte_select(rsp_buff_out_data.data,  act_req_buff_out_data.byteaddr);
+assign rf_data_o = sign_extend(byte_select_read_data, act_req_buff_out_data.cmd);
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&

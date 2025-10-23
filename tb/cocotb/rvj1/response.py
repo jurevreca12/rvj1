@@ -15,7 +15,6 @@ class IfuToDecMonitor(BaseMonitor):
             if self.io.get("valid") and self.io.get("ready"):
                 tran = InstrAddrResponse(
                     instr=self.io.get("instr", 0),
-                    addr=self.io.get("pc", 0),
                 )
                 capture(tran)
 

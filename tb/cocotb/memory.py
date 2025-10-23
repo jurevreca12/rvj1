@@ -101,5 +101,5 @@ def mem_to_instr_addr_rsp(
         item_range = range(0, len(memory))
     for index, (addr, data) in enumerate(memory.items()):
         if index in item_range:
-            responses.append(InstrAddrResponse(instr=data, addr=addr))
+            responses.append(InstrAddrResponse(instr=data))
     return responses

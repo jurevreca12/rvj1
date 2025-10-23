@@ -2,30 +2,40 @@
 
 unset bit_width
 unset input
-unset output
+unset output_dir
 objcopy=$(which riscv64-unknown-elf-objcopy)
 bin2hex=$(which riscv32-unknown-elf-bin2hex)
 
+help_str="$0 [-h, --help] --bit-width BIT_WIDTH --input INPUT.ELF --output-dir OUTPUT_DIR"
 while [[ "$1" != "" ]]
 do
     case "$1" in
-    -h | --help) echo "$0 [-h, --help] --bit-width BIT_WIDTH --input INPUT.ELF [--output OUTPUT.HEX]" >&2; exit 0;;
+    -h | --help) echo $help_str >&2; exit 0;;
     -w | --bit-width) bit_width="$2"; shift 2;;
     --input) input="$2"; shift 2;;
-    --output) output="$2"; shift 2;;
+    --output-dir) output_dir="$2"; shift 2;;
     *) echo "$0: unknown argument $1">&2; exit 1;;
     esac
 done
    
 if [[ "$bit_width" == "" ]]
 then
-    echo "$0 [-h] --bit-width BIT_WIDTH --input INPUT.ELF [--output OUTPUT.HEX]" >&2
+    echo "The bit-width argument is missing." >&2
+    echo $help_str >&2
     exit 1
 fi
 
 if [[ "$input" == "" ]]
 then
-    echo "$0 [-h] --bit-width BIT_WIDTH --input INPUT.ELF [--output OUTPUT.HEX]" >&2
+    echo "The input argument is missing." >&2
+    echo $help_str >&2
+    exit 1
+fi
+
+if [[ "$output_dir" == "" ]]
+then
+    echo "The output argument is missing." >&2
+    echo $help_str >&2
     exit 1
 fi
 
@@ -38,10 +48,7 @@ fi
 temp="$(mktemp -d)"
 trap "rm -rf $temp" EXIT
 
-"$objcopy" "$input" -O binary "$temp"/output.bin
-if [[ "$output" == "" ]]
-then
-    "$bin2hex" -w "$bit_width" "$temp"/output.bin
-else
-    "$bin2hex" -w "$bit_width" "$temp"/output.bin "$output"
-fi
+"$objcopy" -j .text.init "$input" -O binary "$temp"/output_text.bin
+"$objcopy" -j .data      "$input" -O binary "$temp"/output_data.bin
+"$bin2hex" -w "$bit_width" "$temp"/output_text.bin "$output_dir/text.hex"
+"$bin2hex" -w "$bit_width" "$temp"/output_data.bin "$output_dir/data.hex"

@@ -9,8 +9,8 @@ from riscof.pluginTemplate import pluginTemplate
 logger = logging.getLogger()
 
 
-class jedro_1(pluginTemplate):
-    __model__ = "jedro_1"
+class rvj1(pluginTemplate):
+    __model__ = "rvj1"
     __version__ = "0.3"  # TODO: please update
 
     def __init__(self, *args, **kwargs):
@@ -99,7 +99,6 @@ class jedro_1(pluginTemplate):
                 "work_dir"
             ]  # where the artifacts of this test will be dumped
             elf_file = os.path.join(test_dir, "my.elf")
-            hex_file = os.path.join(test_dir, "out.hex")
             sim_dir = os.path.join(test_dir, "obj_dir/")
 
             #  RISCOF expects the signature to be named as DUT-<dut-name>.signature.
@@ -113,14 +112,14 @@ class jedro_1(pluginTemplate):
                 self.elf2hex
                 + " --bit-width 32 --input "
                 + elf_file
-                + " --output "
-                + hex_file
+                + " --output-dir "
+                + test_dir
             )
             rtl_dirs = (
-                "/foss/designs/riscv-jedro-1/rtl/inc",  # needs to be before others
-                "/foss/designs/riscv-jedro-1/rtl",
-                "/foss/designs/riscv-jedro-1/tb/support",
-                "/foss/designs/riscv-jedro-1/tb/riscof-plugin/tb/",
+                "/foss/designs/rvj1/rtl/inc",  # needs to be before others
+                "/foss/designs/rvj1/rtl",
+                "/foss/designs/rvj1/tb/support",
+                "/foss/designs/rvj1/tb/riscof-plugin/tb/",
             )
             rtl_files = []
             for rootdir in rtl_dirs:
@@ -135,19 +134,20 @@ class jedro_1(pluginTemplate):
             verilator_args = (
                 " --timescale 1ns/1ps "
                 + " --binary "
-                + " -I/riscv-jedro-1/rtl/inc "
+                + " -I/rvj1/rtl/inc "
                 + " -Wno-fatal "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
-                + f" -GMEM_INIT_FILE=\\\"{testentry['work_dir']}/out.hex\\\" "
+                + f" -GINSTR_MEM_INIT_FILE=\\\"{testentry['work_dir']}/text.hex\\\" "
+                + f" -GDATA_MEM_INIT_FILE=\\\"{testentry['work_dir']}/data.hex\\\" "
                 + f' -GSIGNATURE_FILE=\\"{sig_file}\\" '
             )
 
             # if the user wants to disable running the tests and only compile the tests
             if self.target_run:
                 sim_cmd = (
-                    f"verilator {verilator_args} --top jedro_1_riscof_tb; "
-                    + f"{sim_dir}/Vjedro_1_riscof_tb;\n"
+                    f"verilator {verilator_args} --top rvj1_riscof_tb; "
+                    + f"{sim_dir}/Vrvj1_riscof_tb;\n"
                 )
             else:
                 sim_cmd = 'echo "NO RUN"'

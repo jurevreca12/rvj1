@@ -18,7 +18,7 @@ read_verilog [ glob $source_dir/alu/sign_extension/sign_extender.v ]
 read_xdc     $script_path/constr.xdc
 
 # Run synthesis
-synth_design -top jedro_1_top \
+synth_design -top rvj1_top \
 	     -include_dirs $source_dir/inc \
 	     -mode out_of_context
 write_checkpoint -force $output_dir/post_synth

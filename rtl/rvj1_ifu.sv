@@ -3,7 +3,7 @@
 //                                                                                //
 //                                                                                //
 //                                                                                //
-// Design Name:    jedro_1_ifu                                                    //
+// Design Name:    rvj1_ifu                                                       //
 // Project Name:   riscv-jedro-1                                                  //
 // Language:       System Verilog                                                 //
 //                                                                                //
@@ -11,46 +11,43 @@
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 
-import jedro_1_defines::*;
+import rvj1_defines::*;
 
-module jedro_1_ifu #(
-    parameter bit [31:0] BOOT_ADDR = 32'h8000_0000
-)
-(
+module rvj1_ifu(
   input logic clk_i,
   input logic rstn_i,
 
-  output logic [DATA_WIDTH-1:0] instr_req_addr_o,
-  output logic [DATA_WIDTH-1:0] instr_req_data_o,
-  output logic [3:0]            instr_req_strobe_o,
-  output logic                  instr_req_write_o,
-  output logic                  instr_req_valid_o,
-  input  logic                  instr_req_ready_i,
+  output logic [XLEN-1:0]   instr_req_addr_o,
+  output logic [XLEN-1:0]   instr_req_data_o,
+  output logic [NBYTES-1:0] instr_req_strobe_o,
+  output logic              instr_req_write_o,
+  output logic              instr_req_valid_o,
+  input  logic              instr_req_ready_i,
 
-  input  logic [DATA_WIDTH-1:0] instr_rsp_data_i,
-  input  logic                  instr_rsp_error_i,
-  input  logic                  instr_rsp_valid_i,
-  output logic                  instr_rsp_ready_o,
+  input  logic [XLEN-1:0] instr_rsp_data_i,
+  input  logic            instr_rsp_error_i,
+  input  logic            instr_rsp_valid_i,
+  output logic            instr_rsp_ready_o,
 
   // Interface to the decoder
-  output logic [DATA_WIDTH-1:0] dec_instr_o,  // The current instruction (to be decoded)
-  output logic [DATA_WIDTH-1:0] dec_pc_o,     // Used by instructons that calculate on the PC.
-  output logic                  dec_valid_o,
-  input  logic                  dec_ready_i,  // Decoder ready to accept new instruction (stall)
+  output logic [XLEN-1:0] dec_instr_o,  // The current instruction (to be decoded)
+  output logic            dec_valid_o,
+  input  logic            dec_ready_i,  // Decoder ready to accept new instruction (stall)
 
-  input logic                   jmp_addr_valid_i, // change PC to jmp_addr_i
-  input logic [DATA_WIDTH-1:0]  jmp_addr_i,       // The jump address
+  input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
+  input logic [XLEN-1:0]  jmp_addr_i,       // The jump address
 
-  output logic                  ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
-  output logic [DATA_WIDTH-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
+  output logic            ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
+  output logic [XLEN-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
 );
-    logic [DATA_WIDTH-1:0] input_buffer;
-    logic [DATA_WIDTH-1:0] output_buffer;
-    logic [DATA_WIDTH-1:0] selected_data;
+    logic [XLEN-1:0] input_buffer;
+    logic [XLEN-1:0] output_buffer;
+    logic [XLEN-1:0] selected_data;
     logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
-    logic load, flow, fill, flush, unload, jmpn;
-    typedef enum logic [1:0] {
+    logic boot, load, flow, fill, flush, unload, jmpi, jmpn;
+    typedef enum logic [2:0] {
+        eWAIT,   // no address, wait for jmp (controller jumps to boot addr at boot)
         eEMPTY,  // Output and buffer registers empty
         eBUSY,   // Output register holds data
         eFULL,   // Both output and buffer registers full,
@@ -89,7 +86,7 @@ module jedro_1_ifu #(
     assign instr_req_strobe_o = 4'b1111;
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            instr_req_addr_o <= BOOT_ADDR;
+            instr_req_addr_o <= 32'h0000_0000;
         else begin
             if (jmp_addr_valid_i)
                 instr_req_addr_o <= jmp_addr_i;
@@ -103,8 +100,8 @@ module jedro_1_ifu #(
             instr_rsp_ready_o <= 1'b0;
         end
         else begin
-            instr_req_valid_o <= (state_next != eFULL);
-            instr_rsp_ready_o <= (state_next != eFULL);
+            instr_req_valid_o <= (state_next != eFULL) && (state_next != eWAIT);
+            instr_rsp_ready_o <= (state_next != eFULL) && (state_next != eWAIT);
         end
     end
 
@@ -114,30 +111,24 @@ module jedro_1_ifu #(
     assign dec_instr_o = output_buffer;
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            dec_pc_o <= BOOT_ADDR;
-        else begin
-            if (jmp_addr_valid_i)
-                dec_pc_o <= jmp_addr_i;
-            else if (dec_fire)
-                dec_pc_o <= dec_pc_o + 4;
-        end
-    end
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
             dec_valid_o <= 1'b0;
         else
-            dec_valid_o <= ~((state_next == eEMPTY) || (state_next == eJMP));
+            dec_valid_o <= ~((state_next == eEMPTY) ||
+                             (state_next == eJMP)   ||
+                             (state_next == eWAIT));
     end
 
     /*************************************
     * Finite State Machine (FSM)
     *************************************/
     always_comb begin
+        boot   = (state == eWAIT)  &&  jmp_addr_valid_i;
         load   = (state == eEMPTY) &&  instr_rsp_fire;
         flow   = (state == eBUSY)  &&  instr_rsp_fire  &&  dec_fire;
         fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
+        jmpi   = (state != eWAIT)  &&  jmp_addr_valid_i;
         jmpn   = (state == eJMP)   &&  instr_req_fire;
     end
 
@@ -148,17 +139,18 @@ module jedro_1_ifu #(
     end
 
     always_comb begin
-        state_next = load   ? eBUSY  : state;
+        state_next = boot   ? eEMPTY : state;
+        state_next = load   ? eBUSY  : state_next;
         state_next = flow   ? eBUSY  : state_next;
         state_next = fill   ? eFULL  : state_next;
         state_next = flush  ? eBUSY  : state_next;
         state_next = unload ? eEMPTY : state_next;
-        state_next = jmp_addr_valid_i ? eJMP : state_next;
+        state_next = jmpi   ? eJMP   : state_next;
         state_next = jmpn   ? eEMPTY  : state_next;
     end
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            state <= eEMPTY;
+            state <= eWAIT;
         else
             state <= state_next;
     end
