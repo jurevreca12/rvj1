@@ -42,8 +42,21 @@ class RandomAccessMemory:
     def set_delay(self, delay: Callable[[], int]) -> None:
         self._delay = delay
 
-    def write(self, addr: int, data: int) -> None:
-        self._memory[addr] = data
+    def write(self, addr: int, data: int, strobe: int) -> None:
+        assert strobe in (0b1111, 0b0011, 0b1100, 0b1000, 0b0100, 0b0010, 0b0001)
+        waddr = addr - (addr % 4)  # get word addr
+        strs = format(strobe, "04b")  # returns "1111" string
+        mask = (
+            (int(strs[0]) * 0xFF << 24)
+            + (int(strs[1]) * 0xFF << 16)
+            + (int(strs[2]) * 0xFF << 8)
+            + (int(strs[3]) * 0xFF)
+        )
+        if waddr not in self._memory:
+            prev_data = 0
+        else:
+            prev_data = self._memory[waddr]
+        self._memory[waddr] = (prev_data & ~mask) + (data & mask)
 
     def flash(self, memory: dict[int, int]) -> None:
         self._memory = memory
@@ -62,7 +75,7 @@ class RandomAccessMemory:
         assert component is self._request
         assert event is MonitorEvent.CAPTURE
         if transaction.mode == MappedAccess.WRITE:
-            self.write(transaction.address, transaction.data)
+            self.write(transaction.address, transaction.data, transaction.strobe)
             self._response.enqueue(
                 MappedResponse(valid=True, valid_delay=self._delay(self))
             )
