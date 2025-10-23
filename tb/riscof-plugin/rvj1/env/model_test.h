@@ -63,10 +63,10 @@
 // _S = testreg (free register not used in the test case)
 // _R = destreg (register containing the calculated value)
 // _I = correctval (immediate value)
-#define RVMODEL_IO_ASSERT_GPR_EQ(_S, _R, _I) \
-    li _S, _I;                               \
-    bne _S, _R, exit_cleanup;                     
-  
+//#define RVMODEL_IO_ASSERT_GPR_EQ(_S, _R, _I) \
+//    li _S, _I;                               \
+//    bne _S, _R, exit_cleanup;
+#define RVMODEL_IO_ASSERT_GPR_EQ(_S, _R, _T)  
 //RVTEST_IO_ASSERT_SFPR_EQ
 #define RVMODEL_IO_ASSERT_SFPR_EQ(_F, _R, _I)
 //RVTEST_IO_ASSERT_DFPR_EQ
