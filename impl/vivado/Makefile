@@ -8,4 +8,4 @@ output/impl_netlist.v:
 	vivado -mode batch -source synth.tcl
 
 clean:
-	rm -rf output/ *.jou *.log
+	rm -rf output/ *.jou *.log *.pb xsim.dir
