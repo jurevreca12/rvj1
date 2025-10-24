@@ -3,36 +3,31 @@
 //                                                                            //
 //                                                                            //
 //                                                                            //
-// Design Name:    less_than_unsign_Nb                                        //
+// Design Name:    less_than_sign_Nb                                          //
 // Project Name:   riscv-jedro-1                                              //
 // Language:       Verilog                                                    //
 //                                                                            //
 // Description:    The module checks if a is less than b (a < b).             //
-//                 This is for unsigned binary numbers.                       //
+//                 This is for signed (2's complement numbers)                //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-module less_than_unsign_Nb #(parameter N = 32) (
-	input  [N-1:0] a,
-	input  [N-1:0] b,
-	output [N-1:0] r
+module less_than_sign_Nb #(parameter int N = 32) (
+  input  logic [N-1:0] a,
+  input  logic [N-1:0] b,
+  output logic [N-1:0] r
 );
-/*
-wire [N-1:0] w0 = ~( a ^ b ); // check bits for equality
-wire [N-1:0] w1 =  ( ~a & b ); // check if a is less than b  (i.e. a is zero and b is 1)
-wire [N-1:0] w2;
+logic [N-2:0]  res_abs;
 
-assign w2[0] = w1[0];
-assign r = { {N-1{1'b0}} , w2[N-1]};
+// This comparator module compares all but the signed bit.
+less_than_unsign_Nb #(.N(31)) ltu_31b (.a(a[N-2:0]), .b(b[N-2:0]), .r(res_abs));
+always_comb
+begin
+  unique case ({a[N-1], b[N-1]})
+    2'b10 :   r = 32'h0000_0001;
+    2'b01 :   r = 32'h0000_0000;
+    default : r = {1'b0, res_abs};
+endcase
+end
 
-genvar i;
-generate 
-	for (i = 1; i < N; i = i + 1) begin
-        assign w2[i] = w1[i] | ( w0[i] & w2[i-1] );
-    end
-endgenerate
-*/
-wire lt;
-assign lt = a < b;
-assign r = { {N-1{1'b0}}, lt};
 endmodule
