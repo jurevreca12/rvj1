@@ -230,6 +230,7 @@ module rvj1_top
   * WRITEBACK STAGE
   *********************************************/
   always_comb begin
+    // This is one cycle after jump is received, control logic ensures pc is incremented.
     if      (jump_r)         wpc_data = program_counter;
     else if (rf_wb)          wpc_data = rf_data;
     else if (alu_write_rf_r) wpc_data = alu_res_r;
