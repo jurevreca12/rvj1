@@ -96,7 +96,9 @@ module rvj1_ctrl #(
     else if (state_next == eJUMP1) begin
       program_counter <= alu_res_i;
     end
-    else if (instr_issued_i && ~stall_o) begin
+    // ctrl_jump_i makes sure that we increment the program counter on the jump instruction.
+    // This gives us pc + 4 required for JAL and JALR.
+    else if ((instr_issued_i && ~stall_o) || ctrl_jump_i) begin
       program_counter <= program_counter + 4;
     end
   end

@@ -190,7 +190,7 @@ module rvj1_top
   ) ex_mem_stage_reg (
     .clk  (clk_i),
     .ce   (control && ~stall),
-    .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b, jump}),
+    .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b,   jump}),
     .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r})
   );
 
@@ -229,9 +229,19 @@ module rvj1_top
   /*********************************************
   * WRITEBACK STAGE
   *********************************************/
+  always_comb begin
+    if      (jump_r)         wpc_data = program_counter;
+    else if (rf_wb)          wpc_data = rf_data;
+    else if (alu_write_rf_r) wpc_data = alu_res_r;
+    else                     wpc_data = '0;
+  end
   assign wpc_addr = rf_wb ? rf_dest : alu_regdest_r;
   assign wpc_we   = rf_wb || alu_write_rf_r || jump_r;
-  assign wpc_data = jump_r ? program_counter : (rf_wb ? rf_data : alu_res_r);
+
+  `ifdef ASSERTIONS
+      one_hot_write: assert($countbits({jump_r, rf_wb, alu_write_rf_r}) == 1 ||
+                            $countbits({jump_r, rf_wb, alu_write_rf_r}) == 0);
+  `endif
 
   /*********************************************
   * CONTROLLER
