@@ -32,6 +32,9 @@ module rvj1_ctrl #(
   input logic [XLEN-1:0]  alu_res_i,
   input logic             ctrl_branch_i,
   input branch_ctrl_e     ctrl_branch_type_i,
+  input logic             csr_valid_i,
+  input logic [11:0]      csr_addr_i,
+  input csr_cmd_t         csr_cmd_i,
 
   input  logic            instr_issued_i,
   output logic            stall_o,
@@ -39,7 +42,10 @@ module rvj1_ctrl #(
   output logic            flush_o,
 
   output logic            jmp_addr_valid_o,
-  output logic [XLEN-1:0] jmp_addr_o
+  output logic [XLEN-1:0] jmp_addr_o,
+
+  output logic [XLEN-1:0] csr_value_o,
+  output logic            csr_wb_o
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -54,6 +60,39 @@ module rvj1_ctrl #(
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
+  // CSR defintions
+  logic [XLEN-3:0] mtvec; // only direct mode supported
+  logic [XLEN-3:0] mepc;  // holds valid PCs
+  logic [4:0]      mcause;
+  logic            mcause_int;
+  logic [XLEN-1:0] mscratch;
+  logic            mip_msi;  // machine sw irq
+  logic            mip_mti;  // machine timer irq
+  logic            mip_mei;  // machine ext irq
+  logic            mip_lcofi; // local cnt overflow irq
+  logic            mie_msip;
+  logic            mie_mtip;
+  logic            mie_meip;
+  logic            mie_lcofi;
+  logic [XLEN-1:0] misa;
+  logic [XLEN-1:0] mhartid;
+  logic [XLEN-1:0] mtvendorid;
+  logic            mstatus_mie;  // machine interrupt enable
+  logic            mstatus_mpie; // machine previous irq enable
+
+  // full output values of registers
+  logic [XLEN-1:0] csr_mstatus_value;
+  logic [XLEN-1:0] csr_mie_value;
+  logic [XLEN-1:0] csr_mtvec_value;
+  logic [XLEN-1:0] csr_msratch_value;
+  logic [XLEN-1:0] csr_mepc_value;
+  logic [XLEN-1:0] csr_mcause_value;
+  logic [XLEN-1:0] csr_mtval_value;
+  logic [XLEN-1:0] csr_mip_value;
+
+  logic [XLEN-1:0] csr_value;
+
+  // Other defintions
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
@@ -86,6 +125,7 @@ module rvj1_ctrl #(
   assign jmp_addr_valid_o = (state == eJUMP0) || (state == eBOOT0);
   assign jmp_addr_o       = (state == eJUMP0) ?  {alu_res_i[31:1], 1'b0} : BOOT_ADDR;
   assign flush_o          = (state == eJUMP0);
+
 
   /*************************************
   * Program Counter
@@ -125,6 +165,51 @@ module rvj1_ctrl #(
       BRANCH_GEU: cond_met = (alu_res_i[0] == 1'b0);
     endcase
   end
+
+  /*************************************
+  * Control and Status Registers
+  *************************************/
+  assign csr_mstatus_value = (
+      (mstatus_mie  << CSR_MSTATUS_MIE_BIT)
+    | (mstatus_mpie << CSR_MSTATUS_MPIE_BIT)
+  );
+  assign csr_mie_value = (
+      (mie_msi   << CSR_MIE_MSI_BIT)
+    | (mie_mti   << CSR_MIE_MTI_BIT)
+    | (mie_mei   << CSR_MIE_MEI_BIT)
+    | (mie_lcofi << CSR_MIE_LCOFI_BIT)
+  );
+
+  always_comb begin
+    csr_value_o = '0;
+    // ONLY implemented registers, others default to zero
+    unique case (csr_addr_i)
+      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_ADDR;
+      CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
+      CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
+      CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
+      CSR_MSTATUS_ADDR:   csr_value = csr_mstatus_value;
+      CSR_MSTATUSH_ADDR:  csr_value = CSR_MSTATUSH_VALUE;
+      CSR_MISA_ADDR:      csr_value = CSR_MISA_VALUE;
+      CSR_MIE_ADDR:       csr_value = csr_mie_value;
+      CSR_MTVEC_ADDR:     csr_value = csr_mtvec_value;
+      CSR_MSCRATCH_ADDR:  csr_value = csr_msratch_value;
+      CSR_MEPC_ADDR:      csr_value = csr_mepc_value;
+      CSR_MCAUSE_ADDR:    csr_value = csr_mcause_value;
+      CSR_MTVAL_ADDR:     csr_value = csr_mtval_value;
+      CSR_MIP_ADDR:       csr_value = csr_mip_value;
+      default:            csr_value = '0;
+    endcase
+  end
+  always_ff @(posedge clk_i) begin
+    if (!rstn_i)
+      csr_value_o <= '0;
+    else begin
+      csr_value_o <= csr_value;
+    end
+  end
+
+
   /*************************************
   * Finite State Machine (FSM)
   *************************************/

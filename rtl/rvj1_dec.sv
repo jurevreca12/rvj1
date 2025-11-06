@@ -40,7 +40,10 @@ module rvj1_dec
   output logic [RALEN-1:0] lsu_regdest_o,
   output logic             ctrl_jump_o,
   output logic             ctrl_branch_o,
-  output branch_ctrl_e     ctrl_branch_type_o
+  output branch_ctrl_e     ctrl_branch_type_o,
+  output logic             csr_valid_o,
+  output logic [11:0]      csr_addr_o,
+  output csr_cmd_t         csr_cmd_o
 );
 
 /*************************************
@@ -73,6 +76,7 @@ logic [XLEN-1:0] imm_s_type;
 logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
 logic [XLEN-1:0] imm_j_type;
+logic [XLEN-1:0] imm_c_type; // for CSRs
 
 typedef enum logic {
   eDEC_FIRST_CYCLE,
@@ -180,6 +184,23 @@ begin
 end
 endfunction
 
+function automatic logic is_csr_imm(input logic funct3);
+begin
+  return funct3[2];
+end
+endfunction
+
+function automatic logic is_priv_non_csr_instr(
+  input logic [4:0]  regs1,
+  input logic [4:0]  regdest,
+  input logic [2:0]  funct3,
+  input logic [11:0] funct12);
+  return ((regs1 == 5'b0) &&
+          (regdest == 5'b0) &&
+          (funct3 == 3'b0) &&
+          ((funct12 == 12'b0) || funct12 == 12'b0000_0000_0001));
+endfunction
+
 /*************************************
 * INSN PARTS and IMMEDIATES
 *************************************/
@@ -200,7 +221,7 @@ assign imm_s_type  = {{20{imm11_5[31]}}, imm11_5, imm4_0};
 assign imm_b_type  = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
 assign imm_u_type  = {imm31_12, 12'b0};
 assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
-
+assign imm_c_type  = {27'b0, regs1};
 
 /*************************************
 * Instruction issuing
@@ -370,6 +391,28 @@ begin
       endcase
     end
 
+    OPCODE_SYSTEM: begin
+      csr_valid_o = 1'b1;
+      csr_addr_o  = funct12;
+      csr_cmd_o   = csr_cmd_t'(funct3[1:0]);
+      alu_regdest = regdest;
+      // if (is_priv_non_csr_instr(regs1, regdest, funct3, funct12)) begin
+      //   if (funct12 == '0) begin
+
+      //   end
+      //   else if (funct12 == 12'b0000_0000_0001) begin
+
+      //   end // TODO: add else decode error
+      // end
+      // else
+      if (is_csr_imm(funct3)) begin
+        rpb_or_imm = 1'b1;
+        immediate  = imm_c_type;
+      end
+      else begin
+        rf_addr_a = regs1;
+      end
+    end
   endcase
 end
 

@@ -9,7 +9,7 @@ package rvj1_defines;
     parameter int IALIGN = 32;  // instr addr alignment constraint (32 for RV32I, 16 for RV32IC)
     parameter int ILEN   = 32;  // the max instr length supported (multiple of IALIGN, 32 for RV32I)
 
-    parameter logic [31:0] BOOT_ADDR = 32'h8000_0000;
+    parameter logic [XLEN-:0] BOOT_ADDR = 32'h8000_0000;
 
 
     // OPCODES for RV32G/RV64G (all are defined but not necessarily implemented)
@@ -97,71 +97,67 @@ package rvj1_defines;
 
 
     // CONTROL AND STATUS REGISTERS
-    parameter logic [29:0] TRAP_VEC_BASE_ADDR = 30'h0010_0000;
-    parameter logic [1:0] TRAP_VEC_MODE = 2'b00; // direct mode (vectored == 01)
-    parameter logic [2:0] CSRRW_INSTR_FUNCT3 = 3'b001;
-    parameter logic [2:0] CSRRWI_INSTR_FUNCT3 = 3'b101;
-    parameter logic [2:0] CSRRS_INSTR_FUCNT3 = 3'b010;
-    parameter logic [2:0] CSRRSI_INSTR_FUCNT3 = 3'b110;
-    parameter int CSR_ADDR_WIDTH = 12;
-    parameter int CSR_UIMM_WIDTH = 5;
-    parameter int CSR_WMODE_WIDTH = 2;
-    parameter logic [1:0] CSR_WMODE_NORMAL = 2'b00;
-    parameter logic [1:0] CSR_WMODE_SET_BITS = 2'b01;
-    parameter logic [1:0] CSR_WMODE_CLEAR_BITS = 2'b10;
+    typedef enum logic [1:0] {
+        CSRRW  = 2'b01,
+        CSRRS  = 2'b10,
+        CSRRC  = 2'b11
+    } csr_cmd_t;
 
-    parameter int CSR_MCAUSE_INSTR_ADDR_MISALIGNED = 0;
-    parameter int CSR_MCAUSE_ILLEGAL_INSTRUCTION   = 2;
-    parameter int CSR_MCAUSE_EBREAK                = 3;
-    parameter int CSR_MCAUSE_LOAD_ADDR_MISALIGNED  = 4;
-    parameter int CSR_MCAUSE_LOAD_ACCESS_FAULT     = 5;
-    parameter int CSR_MCAUSE_STORE_ADDR_MISALIGNED = 6;
-    parameter int CSR_MCAUSE_ECALL_M_MODE          = 11;
+    parameter logic [11:0] CSR_MVENDORID_ADDR  = 12'hF11;
+    parameter logic [11:0] CSR_MARCHID_ADDR    = 12'hF12;
+    parameter logic [11:0] CSR_MIMPID_ADDR     = 12'hF13;
+    parameter logic [11:0] CSR_MHARTID_ADDR    = 12'hF14;
+    parameter logic [11:0] CSR_MCONFIGPTR_ADDR = 12'hF15;
 
-    // Machine Information Registers
-    parameter logic [11:0] CSR_ADDR_MVENDORID    = 12'hF11;
-    parameter logic [31:0] CSR_DEF_VAL_MVENDORID = 32'b0;
-    parameter logic [11:0] CSR_ADDR_MARCHID      = 12'hF12;
-    parameter logic [31:0] CSR_DEF_VAL_MARCHID   = 32'b0;
-    parameter logic [11:0] CSR_ADDR_MIMPID       = 12'hF13;
-    parameter logic [31:0] CSR_DEF_VAL_MIMPID    = 32'b0;
-    parameter logic [11:0] CSR_ADDR_MHARTID      = 12'hF14;
-    parameter logic [31:0] CSR_DEF_VAL_MHARTID   = 32'b0;
+    parameter logic [11:0] CSR_MSTATUS_ADDR    = 12'h300;
+    parameter logic [11:0] CSR_MISA_ADDR       = 12'h301;
+    parameter logic [11:0] CSR_MEDELEG_ADDR    = 12'h302;
+    parameter logic [11:0] CSR_MIDELEG_ADDR    = 12'h303;
+    parameter logic [11:0] CSR_MIE_ADDR        = 12'h304;
+    parameter logic [11:0] CSR_MTVEC_ADDR      = 12'h305;
+    parameter logic [11:0] CSR_MCOUNTEREN_ADDR = 12'h306;
+    parameter logic [11:0] CSR_MSTATUSH_ADDR   = 12'h310;
+    parameter logic [11:0] CSR_MEDELEG_ADDR    = 12'h312;
 
-    // Machine Trap Registers
-    parameter logic [11:0] CSR_ADDR_MSTATUS    = 12'h300;
-    parameter int CSR_MSTATUS_BIT_MIE        = 3; // machine interrupt enable
-    parameter int CSR_MSTATUS_BIT_MPIE       = 7; // previous machine interrupt enable
-    parameter logic [31:0] CSR_DEF_VAL_MSTATUS = 32'b00000000_0000000_0000000_00000000;
-    parameter logic [11:0] CSR_ADDR_MISA       = 12'h301;
-    parameter logic [31:0] CSR_DEF_VAL_MISA    = 32'b01_0000_00000000000000000100000000;
+    parameter logic [11:0] CSR_MSCRATCH_ADDR   = 12'h340;
+    parameter logic [11:0] CSR_MEPC_ADDR       = 12'h341;
+    parameter logic [11:0] CSR_MCAUSE_ADDR     = 12'h342;
+    parameter logic [11:0] CSR_MTVAL_ADDR      = 12'h343;
+    parameter logic [11:0] CSR_MIP_ADDR        = 12'h344;
+    parameter logic [11:0] CSR_MTINST_ADDR     = 12'h34A;
+    parameter logic [11:0] CSR_MTVAL2_ADDR     = 12'h34B;
 
-    parameter logic [11:0] CSR_ADDR_MTVEC    = 12'h305;
-    parameter int CSR_MTVEC_BASE_LEN       = 30;
-    parameter logic [31:0] CSR_DEF_VAL_MTVEC = {TRAP_VEC_BASE_ADDR, TRAP_VEC_MODE};
+    parameter logic [11:0] CSR_MENVCFG_ADDR    = 12'h30A;
+    parameter logic [11:0] CSR_MENVCFGH_ADDR   = 12'h31A;
+    parameter logic [11:0] CSR_SECCFG_ADDR     = 12'h747;
+    parameter logic [11:0] CSR_SECCFGH_ADDR    = 12'h757;
 
-    parameter logic [11:0] CSR_ADDR_MIP    = 12'h344;
-    parameter int CSR_MIP_BIT_MSIP       = 3; // machine software interrupt pending
-    parameter int CSR_MIP_BIT_MTIP       = 7; // machine timer interrupt pending
-    parameter int CSR_MIP_BIT_MEIP       = 11; // machine external interrupt pending
-    parameter logic [31:0] CSR_DEF_VAL_MIP = 32'b00000000_00000000_00000000_00000000;
+    parameter logic CSR_MISA_MXLEN = 2'b01; // XLEN == 32
+    parameter logic [XLEN-1:0] CSR_MISA_VALUE = (
+          (0 << 0)   // A - Atomic extension
+        | (0 << 1)   // B - Bit Manipulation
+        | (0 << 2)   // C - Compressed extension
+        | (0 << 3)   // D - Double precison floats
+        | (0 << 4)   // E - RV32E/64E base
+        | (0 << 5)   // F - Single precision floats
+        | (0 << 7)   // H - Hypervison extension
+        | (1 << 8)   // I - RV32I/64I base ISA
+        | (0 << 12)  // M - Integer Multiply/Divide extension
+        | (0 << 16)  // Q - Quad-precison floats
+        | (0 << 18)  // S - Supervison mode implemented
+        | (0 << 20)  // U - User mode implemented
+        | (0 << 23)  // X - Non-standard extensions present
+        | (CSR_MISA_MXLEN << 30)
+    );
+    parameter logic [XLEN-1:0] CSR_MVENDORID_VALUE = '0;
+    parameter logic [XLEN-1:0] CSR_MARCHID_VALUE   = '0;
+    parameter logic [XLEN-1:0] CSR_MIMPID_VALUE    = '0;
+    parameter logic [XLEN-1:0] CSR_MHARTID_VALUE   = '0;
+    parameter logic [XLEN-1:0] CSR_MSTATUSH_VALUE  = '0;
 
-    parameter logic [11:0] CSR_ADDR_MIE    = 12'h304;
-    parameter int CSR_MIE_BIT_MSIE       = 3; // machine software interrupt enabled
-    parameter int CSR_MIE_BIT_MTIE       = 7; // machine timer interrupt enabled
-    parameter int CSR_MIE_BIT_MEIE       = 11; // machine external interrupt enabled
-    parameter logic [31:0] CSR_DEF_VAL_MIE = 32'b00000000_00000000_00000000_00000000;
+    parameter int unsigned CSR_MSTATUS_MIE_BIT     = 3;
+    parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;
 
-    parameter logic [11:0] CSR_ADDR_MSCRATCH    = 12'h340;
-    parameter logic [31:0] CSR_DEF_VAL_MSCRATCH = 32'b00000000_00000000_00000000_00000000;
-
-    parameter logic [11:0] CSR_ADDR_MEPC    = 12'h341;
-    parameter logic [31:0] CSR_DEF_VAL_MEPC = 32'b00000000_00000000_00000000_00000000;
-
-    parameter logic [11:0] CSR_ADDR_MCAUSE    = 12'h342;
-    parameter logic [31:0] CSR_DEF_VAL_MCAUSE = 32'b00000000_00000000_00000000_00000000;
-
-    parameter logic [11:0] CSR_ADDR_MTVAL    = 12'h343;
-    parameter logic [31:0] CSR_DEF_VAL_MTVAL = 32'b00000000_00000000_00000000_00000000;
-
+    parameter int unsigned CSR_MIE_MSI_BIT         = 3;
+    parameter int unsigned CSR_MIE_MTI_BIT = 00;
 endpackage
