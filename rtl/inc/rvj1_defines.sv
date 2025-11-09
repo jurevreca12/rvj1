@@ -9,7 +9,7 @@ package rvj1_defines;
     parameter int IALIGN = 32;  // instr addr alignment constraint (32 for RV32I, 16 for RV32IC)
     parameter int ILEN   = 32;  // the max instr length supported (multiple of IALIGN, 32 for RV32I)
 
-    parameter logic [XLEN-:0] BOOT_ADDR = 32'h8000_0000;
+    parameter logic [XLEN-1:0] BOOT_ADDR = 32'h8000_0000;
 
 
     // OPCODES for RV32G/RV64G (all are defined but not necessarily implemented)
@@ -117,7 +117,6 @@ package rvj1_defines;
     parameter logic [11:0] CSR_MTVEC_ADDR      = 12'h305;
     parameter logic [11:0] CSR_MCOUNTEREN_ADDR = 12'h306;
     parameter logic [11:0] CSR_MSTATUSH_ADDR   = 12'h310;
-    parameter logic [11:0] CSR_MEDELEG_ADDR    = 12'h312;
 
     parameter logic [11:0] CSR_MSCRATCH_ADDR   = 12'h340;
     parameter logic [11:0] CSR_MEPC_ADDR       = 12'h341;
@@ -132,7 +131,7 @@ package rvj1_defines;
     parameter logic [11:0] CSR_SECCFG_ADDR     = 12'h747;
     parameter logic [11:0] CSR_SECCFGH_ADDR    = 12'h757;
 
-    parameter logic CSR_MISA_MXLEN = 2'b01; // XLEN == 32
+    parameter logic [1:0]      CSR_MISA_MXLEN = 2'b01; // XLEN == 32
     parameter logic [XLEN-1:0] CSR_MISA_VALUE = (
           (0 << 0)   // A - Atomic extension
         | (0 << 1)   // B - Bit Manipulation
@@ -159,5 +158,7 @@ package rvj1_defines;
     parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;
 
     parameter int unsigned CSR_MIE_MSI_BIT         = 3;
-    parameter int unsigned CSR_MIE_MTI_BIT = 00;
+    parameter int unsigned CSR_MIE_MTI_BIT         = 7;
+    parameter int unsigned CSR_MIE_MEI_BIT         = 11;
+    parameter int unsigned CSR_MIE_LCOFI_BIT       = 13;
 endpackage

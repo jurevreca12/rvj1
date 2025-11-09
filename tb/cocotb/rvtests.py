@@ -36,8 +36,10 @@ from riscvmodel.insn import (
     InstructionBGE,
     InstructionBLTU,
     InstructionBGEU,
+    InstructionCSRRW
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
+from riscvmodel.csrnames import misa
 from riscvmodel.program import Program
 
 
@@ -652,6 +654,23 @@ class BGEUTest(Program):
     def expects(self) -> dict:
         return {1: 0xFFFFF000, 2: 0, 3: 3, 4: 4, 5: 5, 6: 6}
 
+class CSRRWTest1(Program):
+    "Basic test of CSRRW instruction. Reading the MISA register."
+
+    def __init__(self):
+        self.MISA_VALUE= (1 << 8) + (1 << 30)
+        insns = [
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionCSRRW(x2, x0, misa), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {2:self.MISA_VALUE}
 
 RV32I_TESTS = {
     "lui": LUITest(),
@@ -687,4 +706,5 @@ RV32I_TESTS = {
     "bge": BGETest(),
     "bltu": BLTUTest(),
     "bgeu": BGEUTest(),
+    "misa": CSRRWTest1(),
 }

@@ -70,9 +70,9 @@ module rvj1_ctrl #(
   logic            mip_mti;  // machine timer irq
   logic            mip_mei;  // machine ext irq
   logic            mip_lcofi; // local cnt overflow irq
-  logic            mie_msip;
-  logic            mie_mtip;
-  logic            mie_meip;
+  logic            mie_msi;
+  logic            mie_mti;
+  logic            mie_mei;
   logic            mie_lcofi;
   logic [XLEN-1:0] misa;
   logic [XLEN-1:0] mhartid;
@@ -181,7 +181,7 @@ module rvj1_ctrl #(
   );
 
   always_comb begin
-    csr_value_o = '0;
+    csr_value = '0;
     // ONLY implemented registers, others default to zero
     unique case (csr_addr_i)
       CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_ADDR;
@@ -202,11 +202,10 @@ module rvj1_ctrl #(
     endcase
   end
   always_ff @(posedge clk_i) begin
-    if (!rstn_i)
+    if (!rstn_i && !csr_valid_i)
       csr_value_o <= '0;
-    else begin
+    else if (csr_valid_i)
       csr_value_o <= csr_value;
-    end
   end
 
 

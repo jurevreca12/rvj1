@@ -96,6 +96,7 @@ logic [14:12] funct3;
 logic [19:15] regs1;
 logic [24:20] regs2;
 logic [31:25] funct7;
+logic [11:0]  csr_addr;
 
 /*************************************
 * Helper functions
@@ -184,7 +185,7 @@ begin
 end
 endfunction
 
-function automatic logic is_csr_imm(input logic funct3);
+function automatic logic is_csr_imm(input logic [2:0] funct3);
 begin
   return funct3[2];
 end
@@ -194,11 +195,11 @@ function automatic logic is_priv_non_csr_instr(
   input logic [4:0]  regs1,
   input logic [4:0]  regdest,
   input logic [2:0]  funct3,
-  input logic [11:0] funct12);
+  input logic [11:0] csr_addr);
   return ((regs1 == 5'b0) &&
           (regdest == 5'b0) &&
           (funct3 == 3'b0) &&
-          ((funct12 == 12'b0) || funct12 == 12'b0000_0000_0001));
+          ((csr_addr == 12'b0) || csr_addr == 12'b0000_0000_0001));
 endfunction
 
 /*************************************
@@ -215,6 +216,7 @@ assign funct3   = instr[14:12];
 assign regs1    = instr[19:15];
 assign regs2    = instr[24:20];
 assign funct7   = instr[31:25];
+assign csr_addr = instr[31:20];
 
 assign imm_i_type  = {{20{imm11_0[31]}}, imm11_0};
 assign imm_s_type  = {{20{imm11_5[31]}}, imm11_5, imm4_0};
@@ -393,14 +395,14 @@ begin
 
     OPCODE_SYSTEM: begin
       csr_valid_o = 1'b1;
-      csr_addr_o  = funct12;
+      csr_addr_o  = csr_addr;
       csr_cmd_o   = csr_cmd_t'(funct3[1:0]);
       alu_regdest = regdest;
-      // if (is_priv_non_csr_instr(regs1, regdest, funct3, funct12)) begin
-      //   if (funct12 == '0) begin
+      // if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
+      //   if (csr_addr == '0) begin
 
       //   end
-      //   else if (funct12 == 12'b0000_0000_0001) begin
+      //   else if (csr_addr == 12'b0000_0000_0001) begin
 
       //   end // TODO: add else decode error
       // end
