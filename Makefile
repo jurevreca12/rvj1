@@ -12,6 +12,7 @@ RTL_FILES := ${V_FILES} ${SV_FILES}
 
 CUID := $(shell id -u)
 CGID := $(shell id -g)
+CWD  := $(abspath $(dir $$PWD))
 
 all: lint-verilator test vivado doc
 
@@ -44,5 +45,5 @@ docker-run-it:
                -v /etc/passwd:/etc/passwd:ro \
                -v /etc/shadow:/etc/shadow:ro \
 			   -v ~/.cache/:/headless/.cache:rw \
-			   -v $(PWD):/foss/designs/rvj1 \
+			   -v $(CWD):/foss/designs/rvj1 \
 			    iic-osic-tools-plus:0.1 -s /bin/bash
