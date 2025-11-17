@@ -15,6 +15,7 @@ package rvj1_defines;
     // OPCODES for RV32G/RV64G (all are defined but not necessarily implemented)
     parameter int OPCODE_WIDTH = 7;
     typedef enum logic [OPCODE_WIDTH-1:0] {
+        OPCODE_ALLZERO = 7'b0000000,
         OPCODE_LOAD    = 7'b0000011,
         OPCODE_LOADFP  = 7'b0000111,
         OPCODE_CUSTOM0 = 7'b0001011,
@@ -98,6 +99,7 @@ package rvj1_defines;
 
     // CONTROL AND STATUS REGISTERS
     typedef enum logic [1:0] {
+        CSRNO  = 2'b00, // NO COMMAND
         CSRRW  = 2'b01,
         CSRRS  = 2'b10,
         CSRRC  = 2'b11

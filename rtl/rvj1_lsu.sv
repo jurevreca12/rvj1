@@ -305,7 +305,7 @@ module byte_select_write(input logic [XLEN-1:0] data, input lsu_ctrl_e cmd, inpu
                          output logic [XLEN-1:0] data_out, output logic error);
   always_comb begin
     error = 1'b0;
-    data_out = 1'b1;
+    data_out = 32'b0;
     unique case (cmd)
       LSU_STORE_BYTE: begin
         unique case (byteaddr)

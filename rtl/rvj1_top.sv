@@ -99,6 +99,11 @@ module rvj1_top
   logic             ctrl_branch;
   branch_ctrl_e     ctrl_branch_type;
   logic             control;
+  logic             csr_valid;
+  logic [11:0]      csr_addr;
+  csr_cmd_t         csr_cmd;
+  logic             csr_wb;
+  logic [XLEN-1:0]  csr_value;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -155,7 +160,10 @@ module rvj1_top
     .lsu_regdest_o       (lsu_regdest),
     .ctrl_jump_o         (jump),
     .ctrl_branch_o       (ctrl_branch),
-    .ctrl_branch_type_o  (ctrl_branch_type)
+    .ctrl_branch_type_o  (ctrl_branch_type),
+    .csr_valid_o         (csr_valid),
+    .csr_addr_o          (csr_addr),
+    .csr_cmd_o           (csr_cmd)
   );
 
   /*********************************************
@@ -230,18 +238,36 @@ module rvj1_top
   * WRITEBACK STAGE
   *********************************************/
   always_comb begin
-    // This is one cycle after jump is received, control logic ensures pc is incremented.
-    if      (jump_r)         wpc_data = program_counter;
-    else if (rf_wb)          wpc_data = rf_data;
-    else if (alu_write_rf_r) wpc_data = alu_res_r;
-    else                     wpc_data = '0;
+    wpc_addr = '0;
+    wpc_data = '0;
+    unique case ({jump_r, rf_wb, alu_write_rf_r, csr_wb})
+      4'b1000: begin // JUMP
+        wpc_addr = alu_regdest_r;
+        wpc_data = program_counter;
+      end
+      4'b0100: begin // RF_WB
+        wpc_addr = rf_dest;
+        wpc_data = rf_data;
+      end
+      4'b0010: begin // ALU_WRITE
+        wpc_addr = alu_regdest_r;
+        wpc_data = alu_res_r;
+      end
+      4'b0001: begin // CSR_WB
+        wpc_addr = alu_regdest_r;
+        wpc_data = csr_value;
+      end
+      default: begin // should not happen
+        wpc_addr = '0;
+        wpc_data = '0;
+      end
+    endcase
   end
-  assign wpc_addr = rf_wb ? rf_dest : alu_regdest_r;
-  assign wpc_we   = rf_wb || alu_write_rf_r || jump_r;
+  assign wpc_we   = rf_wb || alu_write_rf_r || jump_r || csr_wb;
 
   `ifdef ASSERTIONS
-      one_hot_write: assert($countbits({jump_r, rf_wb, alu_write_rf_r}) == 1 ||
-                            $countbits({jump_r, rf_wb, alu_write_rf_r}) == 0);
+      one_hot_write: assert($countbits({jump_r, rf_wb, alu_write_rf_r, csr_wb}) == 1 ||
+                            $countbits({jump_r, rf_wb, alu_write_rf_r, csr_wb}) == 0);
   `endif
 
   /*********************************************
@@ -267,6 +293,11 @@ module rvj1_top
     .program_counter_o (program_counter),
     .flush_o           (flush),
     .jmp_addr_valid_o  (jmp_addr_valid),
-    .jmp_addr_o        (jmp_addr)
+    .jmp_addr_o        (jmp_addr),
+    .csr_valid_i       (csr_valid),
+    .csr_addr_i        (csr_addr),
+    .csr_cmd_i         (csr_cmd),
+    .csr_value_o       (csr_value),
+    .csr_wb_o          (csr_wb)
   );
 endmodule

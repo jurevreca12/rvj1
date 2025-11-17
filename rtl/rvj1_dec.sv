@@ -66,6 +66,8 @@ logic [RALEN-1:0] lsu_regdest;
 logic             ctrl_jump;
 logic             ctrl_branch;
 branch_ctrl_e     ctrl_branch_type;
+logic             csr_valid;
+csr_cmd_t         csr_cmd;
 
 logic ifu_fire;
 logic [XLEN-1:0] instr_buff;
@@ -202,6 +204,20 @@ function automatic logic is_priv_non_csr_instr(
           ((csr_addr == 12'b0) || csr_addr == 12'b0000_0000_0001));
 endfunction
 
+function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] funct3);
+begin
+  logic [1:0] f3x = funct3[1:0];
+  csr_cmd_t res = CSRNO;
+  unique case (f3x) // 2 bits of funct3
+    2'b00: res = CSRNO;
+    2'b01: res = CSRRW;
+    2'b10: res = CSRRS;
+    2'b11: res = CSRRC;
+  endcase
+  return res;
+end
+endfunction
+
 /*************************************
 * INSN PARTS and IMMEDIATES
 *************************************/
@@ -261,6 +277,9 @@ always_ff @(posedge clk_i) begin
     state              <= eDEC_FIRST_CYCLE;
     instr_issued_o     <= 1'b0;
     control_o          <= 1'b0;
+    csr_valid_o        <= 1'b0;
+    csr_addr_o         <= 12'b0;
+    csr_cmd_o          <= CSRNO;
   end
   else if (update_output) begin
     rf_addr_a_o        <= rf_addr_a;
@@ -280,6 +299,9 @@ always_ff @(posedge clk_i) begin
     state              <= state_next;
     instr_issued_o     <= instr_issued;
     control_o          <= 1'b1;
+    csr_valid_o        <= csr_valid;
+    csr_addr_o         <= csr_addr;
+    csr_cmd_o          <= csr_cmd;
   end
 end
 
@@ -305,7 +327,9 @@ begin
   ctrl_branch_type = BRANCH_EQ;
   state_next       = eDEC_FIRST_CYCLE;
   instr_issued     = 1'b1; // Most instructions are single-cycle
-  case (opcode)
+  csr_valid        = 1'b0;
+  csr_cmd          = CSRNO;
+  unique case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
       alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
@@ -394,9 +418,8 @@ begin
     end
 
     OPCODE_SYSTEM: begin
-      csr_valid_o = 1'b1;
-      csr_addr_o  = csr_addr;
-      csr_cmd_o   = csr_cmd_t'(funct3[1:0]);
+      csr_valid = 1'b1;
+      csr_cmd   = f3_to_csr_cmd(funct3);
       alu_regdest = regdest;
       // if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
       //   if (csr_addr == '0) begin
@@ -415,6 +438,8 @@ begin
         rf_addr_a = regs1;
       end
     end
+    OPCODE_ALLZERO:; // EMPTY REGISTER
+    // TODO - default - unknown instr
   endcase
 end
 

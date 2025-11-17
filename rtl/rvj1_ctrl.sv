@@ -32,9 +32,6 @@ module rvj1_ctrl #(
   input logic [XLEN-1:0]  alu_res_i,
   input logic             ctrl_branch_i,
   input branch_ctrl_e     ctrl_branch_type_i,
-  input logic             csr_valid_i,
-  input logic [11:0]      csr_addr_i,
-  input csr_cmd_t         csr_cmd_i,
 
   input  logic            instr_issued_i,
   output logic            stall_o,
@@ -44,6 +41,9 @@ module rvj1_ctrl #(
   output logic            jmp_addr_valid_o,
   output logic [XLEN-1:0] jmp_addr_o,
 
+  input logic             csr_valid_i,
+  input logic [11:0]      csr_addr_i,
+  input csr_cmd_t         csr_cmd_i,
   output logic [XLEN-1:0] csr_value_o,
   output logic            csr_wb_o
 );
@@ -202,10 +202,13 @@ module rvj1_ctrl #(
     endcase
   end
   always_ff @(posedge clk_i) begin
-    if (!rstn_i && !csr_valid_i)
+    if (!rstn_i && !csr_valid_i) begin
       csr_value_o <= '0;
-    else if (csr_valid_i)
+      csr_wb_o    <= 1'b0;
+    end else if (csr_valid_i) begin
       csr_value_o <= csr_value;
+      csr_wb_o    <= 1'b1; // TODO
+    end
   end
 
 
