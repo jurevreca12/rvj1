@@ -329,7 +329,7 @@ begin
   instr_issued     = 1'b1; // Most instructions are single-cycle
   csr_valid        = 1'b0;
   csr_cmd          = CSRNO;
-  unique case (opcode)
+  case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
       alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));

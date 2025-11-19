@@ -170,21 +170,23 @@ module rvj1_ctrl #(
   * Control and Status Registers
   *************************************/
   assign csr_mstatus_value = (
-      (mstatus_mie  << CSR_MSTATUS_MIE_BIT)
-    | (mstatus_mpie << CSR_MSTATUS_MPIE_BIT)
+      ({31'b0, mstatus_mie}  << CSR_MSTATUS_MIE_BIT)
+    | ({31'b0, mstatus_mpie} << CSR_MSTATUS_MPIE_BIT)
+    | 32'b0
   );
   assign csr_mie_value = (
-      (mie_msi   << CSR_MIE_MSI_BIT)
-    | (mie_mti   << CSR_MIE_MTI_BIT)
-    | (mie_mei   << CSR_MIE_MEI_BIT)
-    | (mie_lcofi << CSR_MIE_LCOFI_BIT)
+      ({31'b0, mie_msi}   << CSR_MIE_MSI_BIT)
+    | ({31'b0, mie_mti}   << CSR_MIE_MTI_BIT)
+    | ({31'b0, mie_mei}   << CSR_MIE_MEI_BIT)
+    | ({31'b0, mie_lcofi} << CSR_MIE_LCOFI_BIT)
+    | 32'b0
   );
 
   always_comb begin
     csr_value = '0;
     // ONLY implemented registers, others default to zero
     unique case (csr_addr_i)
-      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_ADDR;
+      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
       CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
       CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
       CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;

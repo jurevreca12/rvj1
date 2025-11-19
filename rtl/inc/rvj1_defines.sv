@@ -149,6 +149,7 @@ package rvj1_defines;
         | (0 << 20)  // U - User mode implemented
         | (0 << 23)  // X - Non-standard extensions present
         | (CSR_MISA_MXLEN << 30)
+        | 32'b0
     );
     parameter logic [XLEN-1:0] CSR_MVENDORID_VALUE = '0;
     parameter logic [XLEN-1:0] CSR_MARCHID_VALUE   = '0;
