@@ -60,25 +60,21 @@ module rvj1_ctrl #(
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
-  // CSR defintions
-  logic [XLEN-3:0] mtvec; // only direct mode supported
-  logic [XLEN-3:0] mepc;  // holds valid PCs
-  logic [4:0]      mcause;
-  logic            mcause_int;
-  logic [XLEN-1:0] mscratch;
-  logic            mip_msi;  // machine sw irq
-  logic            mip_mti;  // machine timer irq
-  logic            mip_mei;  // machine ext irq
-  logic            mip_lcofi; // local cnt overflow irq
-  logic            mie_msi;
-  logic            mie_mti;
-  logic            mie_mei;
-  logic            mie_lcofi;
-  logic [XLEN-1:0] misa;
-  logic [XLEN-1:0] mhartid;
-  logic [XLEN-1:0] mtvendorid;
-  logic            mstatus_mie;  // machine interrupt enable
-  logic            mstatus_mpie; // machine previous irq enable
+  // CSR register signal defintions
+  //     +------+
+  // --->|D     |
+  //     |      |
+  //     |     Q|--->
+  //     |      |
+  //     |CLK   |
+  //     +------+
+  logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
+  logic [XLEN-3:0] mepc_d, mepc_q;
+  logic [4:0]      mcause_d, mcause_q;
+  logic [XLEN-1:0] mscratch_d, mscratch_q;
+  mip_mie_reg_t    mip_d, mip_q;
+  mip_mie_reg_t    mie_d, mie_q;
+  status_reg_t     mstatus_d, mstatus_q;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value;
@@ -182,27 +178,38 @@ module rvj1_ctrl #(
     | 32'b0
   );
 
+  // Read logic
   always_comb begin
     csr_value = '0;
     // ONLY implemented registers, others default to zero
     unique case (csr_addr_i)
+      // Machine Information Registers
       CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
       CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
       CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
       CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
-      CSR_MSTATUS_ADDR:   csr_value = csr_mstatus_value;
-      CSR_MSTATUSH_ADDR:  csr_value = CSR_MSTATUSH_VALUE;
-      CSR_MISA_ADDR:      csr_value = CSR_MISA_VALUE;
-      CSR_MIE_ADDR:       csr_value = csr_mie_value;
-      CSR_MTVEC_ADDR:     csr_value = csr_mtvec_value;
-      CSR_MSCRATCH_ADDR:  csr_value = csr_msratch_value;
-      CSR_MEPC_ADDR:      csr_value = csr_mepc_value;
-      CSR_MCAUSE_ADDR:    csr_value = csr_mcause_value;
-      CSR_MTVAL_ADDR:     csr_value = csr_mtval_value;
-      CSR_MIP_ADDR:       csr_value = csr_mip_value;
-      default:            csr_value = '0;
+
+      // Machine Trap Setup
+      CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
+      CSR_MSTATUSH_ADDR:   csr_value = CSR_MSTATUSH_VALUE;
+      CSR_MISA_ADDR:       csr_value = CSR_MISA_VALUE;
+      CSR_MEDELEG_ADDR:    csr_value = CSR_MEDELEG_VALUE;
+      CSR_MEDELEGH_ADDR:   csr_value = CSR_MEDELEGH_VALUE;
+      CSR_MIDELEG_ADDR:    csr_value = CSR_MIDELEG_VALUE;
+      CSR_MIE_ADDR:        csr_value = csr_mie_value;
+      CSR_MTVEC_ADDR:      csr_value = csr_mtvec_value;
+      CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
+
+      // Machine Trap Handling
+      CSR_MSCRATCH_ADDR:   csr_value = csr_msratch_value;
+      CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
+      CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
+      CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
+      CSR_MIP_ADDR:        csr_value = csr_mip_value;
+      default:             csr_value = '0;
     endcase
   end
+
   always_ff @(posedge clk_i) begin
     if (!rstn_i && !csr_valid_i) begin
       csr_value_o <= '0;
@@ -211,6 +218,41 @@ module rvj1_ctrl #(
       csr_value_o <= csr_value;
       csr_wb_o    <= 1'b1; // TODO
     end
+  end
+
+  register #(
+    .WORD_WIDTH(),
+    .RESET_VALUE()
+  ) csr_regs (
+
+  );
+
+  `ifdef ASSERTIONS
+    if (csr_valid_i)
+      req_val_cmd: assert (csr_cmd_i != CSRNO);
+  `endif
+
+  // Write logic
+  always_comb begin
+    mtvec        = mtvec_q;
+    mepc         = mepc_q;
+    mcause       = mcause_q;
+    mscratch     = mscratch_q;
+    mip_msi      = mip_msi_q;
+    mip_mti      = mip_mti_q;
+    mip_mei      = mip_mei_q;
+    mip_lcofi    = mip_lcofi_q;
+    mie_msi      = mie_msi_q;
+    mie_mti      = mie_mti_q;
+    mie_mei      = mie_mei_q;
+    mie_lcofi    = mie_lcofi_q;
+    mstatus_mie  = mstatus_mie_q;
+    mstatus_mpie = mstatus_mpie_q;
+    unique case (csr_addr_i)
+      CSR_MSCRATCH_ADDR: begin
+        
+      end
+    endcase
   end
 
 

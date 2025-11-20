@@ -164,4 +164,18 @@ package rvj1_defines;
     parameter int unsigned CSR_MIE_MTI_BIT         = 7;
     parameter int unsigned CSR_MIE_MEI_BIT         = 11;
     parameter int unsigned CSR_MIE_LCOFI_BIT       = 13;
+
+    typedef struct packed {
+        logic msi;   // machine sw irq
+        logic mti;   // machine timer irq
+        logic mei;   // machine ext irq
+        logic lcofi; // local cnt overflow irq
+    } mip_mie_reg_t;
+
+    typedef struct packed {
+        logic mie;  // machine interrupt enable
+        logic mpie; // machine previous irq enable
+    } status_reg_t;
+
+
 endpackage
