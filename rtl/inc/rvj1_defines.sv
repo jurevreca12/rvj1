@@ -119,6 +119,7 @@ package rvj1_defines;
     parameter logic [11:0] CSR_MTVEC_ADDR      = 12'h305;
     parameter logic [11:0] CSR_MCOUNTEREN_ADDR = 12'h306;
     parameter logic [11:0] CSR_MSTATUSH_ADDR   = 12'h310;
+    parameter logic [11:0] CSR_MEDELEGH_ADDR   = 12'h312;
 
     parameter logic [11:0] CSR_MSCRATCH_ADDR   = 12'h340;
     parameter logic [11:0] CSR_MEPC_ADDR       = 12'h341;
@@ -151,11 +152,15 @@ package rvj1_defines;
         | (CSR_MISA_MXLEN << 30)
         | 32'b0
     );
-    parameter logic [XLEN-1:0] CSR_MVENDORID_VALUE = '0;
-    parameter logic [XLEN-1:0] CSR_MARCHID_VALUE   = '0;
-    parameter logic [XLEN-1:0] CSR_MIMPID_VALUE    = '0;
-    parameter logic [XLEN-1:0] CSR_MHARTID_VALUE   = '0;
-    parameter logic [XLEN-1:0] CSR_MSTATUSH_VALUE  = '0;
+    parameter logic [XLEN-1:0] CSR_MVENDORID_VALUE  = '0;
+    parameter logic [XLEN-1:0] CSR_MARCHID_VALUE    = '0;
+    parameter logic [XLEN-1:0] CSR_MIMPID_VALUE     = '0;
+    parameter logic [XLEN-1:0] CSR_MHARTID_VALUE    = '0;
+    parameter logic [XLEN-1:0] CSR_MSTATUSH_VALUE   = '0;
+    parameter logic [XLEN-1:0] CSR_MEDELEG_VALUE    = '0;
+    parameter logic [XLEN-1:0] CSR_MEDELEGH_VALUE   = '0;
+    parameter logic [XLEN-1:0] CSR_MIDELEG_VALUE    = '0;
+    parameter logic [XLEN-1:0] CSR_MCOUNTEREN_VALUE = '0;
 
     parameter int unsigned CSR_MSTATUS_MIE_BIT     = 3;
     parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;

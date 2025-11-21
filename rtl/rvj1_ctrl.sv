@@ -71,7 +71,11 @@ module rvj1_ctrl #(
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
   logic [XLEN-3:0] mepc_d, mepc_q;
   logic [4:0]      mcause_d, mcause_q;
+
   logic [XLEN-1:0] mscratch_d, mscratch_q;
+  logic            mscratch_ce;
+  logic [XLEN-1:0] csr_mscratch_value;
+
   mip_mie_reg_t    mip_d, mip_q;
   mip_mie_reg_t    mie_d, mie_q;
   status_reg_t     mstatus_d, mstatus_q;
@@ -80,7 +84,7 @@ module rvj1_ctrl #(
   logic [XLEN-1:0] csr_mstatus_value;
   logic [XLEN-1:0] csr_mie_value;
   logic [XLEN-1:0] csr_mtvec_value;
-  logic [XLEN-1:0] csr_msratch_value;
+
   logic [XLEN-1:0] csr_mepc_value;
   logic [XLEN-1:0] csr_mcause_value;
   logic [XLEN-1:0] csr_mtval_value;
@@ -97,6 +101,22 @@ module rvj1_ctrl #(
   logic is_booted;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
+
+  /*************************************
+  * Helper functions
+  *************************************/
+  function automatic [XLEN-1:0] csr_mask_op(input logic [XLEN-1:0] rs1, input logic [XLEN-1:0] csr_reg, input csr_cmd_t cmd);
+    begin
+      logic [XLEN-1:0] res;
+      unique case (cmd)
+        CSRRW: res = rs1;
+        CSRRS: res = rs1 | csr_reg;
+        CSRRC: res = (rs1 & (~csr_reg));
+        default: res = rs1;
+      endcase
+      return res;
+    end
+  endfunction
 
   assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
@@ -165,7 +185,7 @@ module rvj1_ctrl #(
   /*************************************
   * Control and Status Registers
   *************************************/
-  assign csr_mstatus_value = (
+  /*assign csr_mstatus_value = (
       ({31'b0, mstatus_mie}  << CSR_MSTATUS_MIE_BIT)
     | ({31'b0, mstatus_mpie} << CSR_MSTATUS_MPIE_BIT)
     | 32'b0
@@ -176,7 +196,9 @@ module rvj1_ctrl #(
     | ({31'b0, mie_mei}   << CSR_MIE_MEI_BIT)
     | ({31'b0, mie_lcofi} << CSR_MIE_LCOFI_BIT)
     | 32'b0
-  );
+  );*/
+
+  assign csr_mscratch_value = mscratch_q;
 
   // Read logic
   always_comb begin
@@ -201,7 +223,7 @@ module rvj1_ctrl #(
       CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
 
       // Machine Trap Handling
-      CSR_MSCRATCH_ADDR:   csr_value = csr_msratch_value;
+      CSR_MSCRATCH_ADDR:   csr_value = csr_mscratch_value;
       CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
       CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
       CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
@@ -210,21 +232,20 @@ module rvj1_ctrl #(
     endcase
   end
 
-  always_ff @(posedge clk_i) begin
-    if (!rstn_i && !csr_valid_i) begin
-      csr_value_o <= '0;
-      csr_wb_o    <= 1'b0;
-    end else if (csr_valid_i) begin
-      csr_value_o <= csr_value;
-      csr_wb_o    <= 1'b1; // TODO
-    end
-  end
+  register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg(
+    .clk  (clk_i),
+    .rstn (!rstn_i && !csr_valid_i),
+    .ce   (csr_valid_i && ~stall_o),
+    .in   (csr_value),
+    .out  (csr_value_o)
+  );
 
-  register #(
-    .WORD_WIDTH(),
-    .RESET_VALUE()
-  ) csr_regs (
-
+  register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg(
+    .clk  (clk_i),
+    .rstn (!rstn_i && !csr_valid_i),
+    .ce   (csr_valid_i && ~stall_o),
+    .in   (1'b1),
+    .out  (csr_wb_o)
   );
 
   `ifdef ASSERTIONS
@@ -234,26 +255,26 @@ module rvj1_ctrl #(
 
   // Write logic
   always_comb begin
-    mtvec        = mtvec_q;
-    mepc         = mepc_q;
-    mcause       = mcause_q;
-    mscratch     = mscratch_q;
-    mip_msi      = mip_msi_q;
-    mip_mti      = mip_mti_q;
-    mip_mei      = mip_mei_q;
-    mip_lcofi    = mip_lcofi_q;
-    mie_msi      = mie_msi_q;
-    mie_mti      = mie_mti_q;
-    mie_mei      = mie_mei_q;
-    mie_lcofi    = mie_lcofi_q;
-    mstatus_mie  = mstatus_mie_q;
-    mstatus_mpie = mstatus_mpie_q;
-    unique case (csr_addr_i)
+    mscratch_d = mscratch_q;
+    mscratch_ce = 1'b0;
+    case (csr_addr_i)
       CSR_MSCRATCH_ADDR: begin
-        
+        mscratch_d = csr_mask_op(alu_res_i, mscratch_q, csr_cmd_i);
+        mscratch_ce = 1'b1;
       end
     endcase
   end
+
+  register #(
+    .WORD_WIDTH(XLEN),
+    .RESET_VALUE(0)
+  ) csr_mscratch_reg (
+    .clk (clk_i),
+    .rstn(rstn_i),
+    .ce  (mscratch_ce & ~stall_o),
+    .in  (mscratch_d),
+    .out (mscratch_q)
+  );
 
 
   /*************************************

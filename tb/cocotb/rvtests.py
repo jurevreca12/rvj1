@@ -676,19 +676,20 @@ class MSCRATCHTest(Program):
     "Basic test of CSRRW instructions. Save value to mscratch and read it back."
 
     def __init__(self):
-        self.MISA_VALUE= (1 << 8) + (1 << 30)
         insns = [
             InstructionLUI (x3, 0x80000),
             InstructionADDI(x3, x3, 0x123),
             InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
-            InstructionCSRRW(x4, x4, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
         ]
         super().__init__(insns)
     def expects(self) -> dict:
-        return {2:self.MISA_VALUE}
+        return {0:0, 3: 0x80000123, 4: 0x80000123}
 
 RV32I_TESTS = {
     "lui": LUITest(),
