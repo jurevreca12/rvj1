@@ -110,10 +110,10 @@ module rvj1_ctrl #(
     begin
       logic [XLEN-1:0] res;
       unique case (cmd)
-        CSRRW: res = rs1;
-        CSRRS: res = rs1 | csr_reg;
-        CSRRC: res = (rs1 & (~csr_reg));
-        default: res = rs1;
+        CSRRW:   res =  rs1;
+        CSRRS:   res =  rs1 | csr_reg;
+        CSRRC:   res = ~rs1 & csr_reg;
+        default: res =  rs1;
       endcase
       return res;
     end

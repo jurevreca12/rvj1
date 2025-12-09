@@ -427,8 +427,7 @@ begin
           rf_addr_b   = '0;
           state_next  = eDEC_SECOND_CYCLE;
         end
-        eDEC_SECOND_CYCLE: begin // wait one cycle
-        end
+        eDEC_SECOND_CYCLE:;  // wait one cycle
       endcase
 
       // if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin

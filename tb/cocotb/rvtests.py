@@ -36,7 +36,9 @@ from riscvmodel.insn import (
     InstructionBGE,
     InstructionBLTU,
     InstructionBGEU,
-    InstructionCSRRW
+    InstructionCSRRW,
+    InstructionCSRRS,
+    InstructionCSRRC
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.csrnames import misa, mscratch
@@ -691,6 +693,45 @@ class MSCRATCHTest(Program):
     def expects(self) -> dict:
         return {0:0, 3: 0x80000123, 4: 0x80000123}
 
+class MSCRATCHTest2(Program):
+    "Basic test of CSRRS instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x1),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x2, x0, 2),
+            InstructionCSRRS(x0, x2, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 2:2, 3: 0x80000001, 4: 0x80000003}
+
+
+class MSCRATCHTest3(Program):
+    "Basic test of CSRRC instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x1),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x2, x0, 3),
+            InstructionCSRRC(x0, x2, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 2:3, 3: 0x80000001, 4: 0x80000000}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -726,5 +767,7 @@ RV32I_TESTS = {
     "bltu": BLTUTest(),
     "bgeu": BGEUTest(),
     "misa": MISATest(),
-    "mscratch": MSCRATCHTest()
+    "mscratch": MSCRATCHTest(),
+    "mscratch2": MSCRATCHTest2(),
+    "mscratch3": MSCRATCHTest3()
 }
