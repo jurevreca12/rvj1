@@ -418,9 +418,19 @@ begin
     end
 
     OPCODE_SYSTEM: begin
-      csr_valid = 1'b1;
-      csr_cmd   = f3_to_csr_cmd(funct3);
-      alu_regdest = regdest;
+      unique case (state)
+        eDEC_FIRST_CYCLE: begin
+          csr_valid   = 1'b1;
+          csr_cmd     = f3_to_csr_cmd(funct3);
+          alu_regdest = regdest;
+          rf_addr_a   = regs1;
+          rf_addr_b   = '0;
+          state_next  = eDEC_SECOND_CYCLE;
+        end
+        eDEC_SECOND_CYCLE: begin // wait one cycle
+        end
+      endcase
+
       // if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
       //   if (csr_addr == '0) begin
 
@@ -430,13 +440,13 @@ begin
       //   end // TODO: add else decode error
       // end
       // else
-      if (is_csr_imm(funct3)) begin
-        rpb_or_imm = 1'b1;
-        immediate  = imm_c_type;
-      end
-      else begin
-        rf_addr_a = regs1;
-      end
+      //if (is_csr_imm(funct3)) begin
+      //  rpb_or_imm = 1'b1;
+      //  immediate  = imm_c_type;
+      //end
+      //else begin
+      //  rf_addr_a = regs1;
+      //end
     end
     OPCODE_ALLZERO:; // EMPTY REGISTER
     // TODO - default - unknown instr

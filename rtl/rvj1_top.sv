@@ -99,11 +99,12 @@ module rvj1_top
   logic             ctrl_branch;
   branch_ctrl_e     ctrl_branch_type;
   logic             control;
-  logic             csr_valid;
-  logic [11:0]      csr_addr;
-  csr_cmd_t         csr_cmd;
+  logic             csr_valid, csr_valid_r;
+  logic [11:0]      csr_addr, csr_addr_r;
+  csr_cmd_t         csr_cmd, csr_cmd_r;
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
+  logic [RALEN-1:0] csr_regdest;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -193,13 +194,13 @@ module rvj1_top
   );
 
   pipeline_register #(
-    .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + RALEN + XLEN + 1),
+    .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + RALEN + XLEN + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
     .ce   (control && ~stall),
-    .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b,   jump}),
-    .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r})
+    .in   ({alu_write_rf,   alu_regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   lsu_regdest,   rf_alu_data_b,   jump,   csr_valid,   csr_addr,   csr_cmd}),
+    .out  ({alu_write_rf_r, alu_regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, lsu_regdest_r, rf_alu_data_b_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );
 
   /*********************************************
@@ -254,7 +255,7 @@ module rvj1_top
         wpc_data = alu_res_r;
       end
       4'b0001: begin // CSR_WB
-        wpc_addr = alu_regdest_r;
+        wpc_addr = csr_regdest;
         wpc_data = csr_value;
       end
       default: begin // should not happen
@@ -294,10 +295,11 @@ module rvj1_top
     .flush_o           (flush),
     .jmp_addr_valid_o  (jmp_addr_valid),
     .jmp_addr_o        (jmp_addr),
-    .csr_valid_i       (csr_valid),
-    .csr_addr_i        (csr_addr),
-    .csr_cmd_i         (csr_cmd),
+    .csr_valid_i       (csr_valid_r),
+    .csr_addr_i        (csr_addr_r),
+    .csr_cmd_i         (csr_cmd_r),
     .csr_value_o       (csr_value),
+    .csr_regdest_o     (csr_regdest),
     .csr_wb_o          (csr_wb)
   );
 endmodule

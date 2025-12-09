@@ -20,32 +20,33 @@ module rvj1_ctrl #(
   input logic clk_i,
   input logic rstn_i,
 
-  input logic [RALEN-1:0] rf_addr_a_i,
-  input logic [RALEN-1:0] rf_addr_b_i,
-  input logic             rpa_or_pc_i,
-  input logic             rpb_or_imm_i,
-  input logic [RALEN-1:0] alu_regdest_r_i,
-  input lsu_ctrl_e        lsu_cmd_i,
-  input logic             lsu_ctrl_valid_i,
-  input logic             lsu_ready_i,
-  input logic             ctrl_jump_i,
-  input logic [XLEN-1:0]  alu_res_i,
-  input logic             ctrl_branch_i,
-  input branch_ctrl_e     ctrl_branch_type_i,
+  input logic [RALEN-1:0]  rf_addr_a_i,
+  input logic [RALEN-1:0]  rf_addr_b_i,
+  input logic              rpa_or_pc_i,
+  input logic              rpb_or_imm_i,
+  input logic [RALEN-1:0]  alu_regdest_r_i,
+  input lsu_ctrl_e         lsu_cmd_i,
+  input logic              lsu_ctrl_valid_i,
+  input logic              lsu_ready_i,
+  input logic              ctrl_jump_i,
+  input logic [XLEN-1:0]   alu_res_i,
+  input logic              ctrl_branch_i,
+  input branch_ctrl_e      ctrl_branch_type_i,
 
-  input  logic            instr_issued_i,
-  output logic            stall_o,
-  output logic [XLEN-1:0] program_counter_o,
-  output logic            flush_o,
+  input  logic             instr_issued_i,
+  output logic             stall_o,
+  output logic [XLEN-1:0]  program_counter_o,
+  output logic             flush_o,
 
-  output logic            jmp_addr_valid_o,
-  output logic [XLEN-1:0] jmp_addr_o,
+  output logic             jmp_addr_valid_o,
+  output logic [XLEN-1:0]  jmp_addr_o,
 
-  input logic             csr_valid_i,
-  input logic [11:0]      csr_addr_i,
-  input csr_cmd_t         csr_cmd_i,
-  output logic [XLEN-1:0] csr_value_o,
-  output logic            csr_wb_o
+  input logic              csr_valid_i,
+  input logic [11:0]       csr_addr_i,
+  input csr_cmd_t          csr_cmd_i,
+  output logic [XLEN-1:0]  csr_value_o,
+  output logic [RALEN-1:0] csr_regdest_o,
+  output logic             csr_wb_o
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -232,20 +233,28 @@ module rvj1_ctrl #(
     endcase
   end
 
-  register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg(
+  register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
     .clk  (clk_i),
-    .rstn (!rstn_i && !csr_valid_i),
-    .ce   (csr_valid_i && ~stall_o),
+    .rstn (rstn_i && !csr_wb_o),
+    .ce   (csr_valid_i && !stall_o),
     .in   (csr_value),
     .out  (csr_value_o)
   );
 
-  register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg(
+  register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg (
     .clk  (clk_i),
-    .rstn (!rstn_i && !csr_valid_i),
+    .rstn (rstn_i && !csr_wb_o),
     .ce   (csr_valid_i && ~stall_o),
     .in   (1'b1),
     .out  (csr_wb_o)
+  );
+
+  register #(.WORD_WIDTH(RALEN), .RESET_VALUE(0)) csr_regdest_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i && !csr_wb_o),
+    .ce   (csr_valid_i && ~stall_o),
+    .in   (alu_regdest_r_i),
+    .out  (csr_regdest_o)
   );
 
   `ifdef ASSERTIONS
@@ -256,12 +265,14 @@ module rvj1_ctrl #(
   // Write logic
   always_comb begin
     mscratch_d = mscratch_q;
+    case (csr_addr_i)
+      CSR_MSCRATCH_ADDR: mscratch_d = csr_mask_op(alu_res_i, mscratch_q, csr_cmd_i);
+    endcase
+  end
+  always_comb begin
     mscratch_ce = 1'b0;
     case (csr_addr_i)
-      CSR_MSCRATCH_ADDR: begin
-        mscratch_d = csr_mask_op(alu_res_i, mscratch_q, csr_cmd_i);
-        mscratch_ce = 1'b1;
-      end
+      CSR_MSCRATCH_ADDR: mscratch_ce = csr_valid_i;
     endcase
   end
 
