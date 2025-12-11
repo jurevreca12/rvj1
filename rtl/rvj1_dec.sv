@@ -423,9 +423,14 @@ begin
           csr_valid   = 1'b1;
           csr_cmd     = f3_to_csr_cmd(funct3);
           alu_regdest = regdest;
-          rf_addr_a   = regs1;
-          rf_addr_b   = '0;
           state_next  = eDEC_SECOND_CYCLE;
+          if (is_csr_imm(funct3)) begin
+            rpb_or_imm = 1'b1;
+            immediate  = regs1;
+          end
+          else begin
+            rf_addr_a = regs1;
+          end
         end
         eDEC_SECOND_CYCLE:;  // wait one cycle
       endcase

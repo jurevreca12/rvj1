@@ -38,7 +38,10 @@ from riscvmodel.insn import (
     InstructionBGEU,
     InstructionCSRRW,
     InstructionCSRRS,
-    InstructionCSRRC
+    InstructionCSRRC,
+    InstructionCSRRWI,
+    InstructionCSRRSI,
+    InstructionCSRRCI
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
 from riscvmodel.csrnames import misa, mscratch
@@ -732,6 +735,41 @@ class MSCRATCHTest3(Program):
     def expects(self) -> dict:
         return {0:0, 2:3, 3: 0x80000001, 4: 0x80000000}
 
+class MSCRATCHTest4(Program):
+    "Basic test of CSRRSI instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRSI(x0, 0x2, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 3: 0x80000000, 4: 0x80000002}
+
+class MSCRATCHTest5(Program):
+    "Basic test of CSRRWCI instructions."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x7),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRCI(x0, 1, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 3: 0x80000007, 4: 0x80000006}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -769,5 +807,7 @@ RV32I_TESTS = {
     "misa": MISATest(),
     "mscratch": MSCRATCHTest(),
     "mscratch2": MSCRATCHTest2(),
-    "mscratch3": MSCRATCHTest3()
+    "mscratch3": MSCRATCHTest3(),
+    "mscratch4": MSCRATCHTest4(),
+    "mscratch5": MSCRATCHTest5()
 }

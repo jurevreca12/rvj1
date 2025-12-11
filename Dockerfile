@@ -5,7 +5,7 @@ RUN pip install --upgrade pip && \
     pip install "PyYAML==5.2" --no-build-isolation && \
     pip install cocotb==2.0.0 && \
     pip install git+https://github.com/jurevreca12/forastero.git@09c1817 && \
-    pip install git+https://github.com/jurevreca12/riscv-python-model@5f300a9 && \
+    pip install git+https://github.com/jurevreca12/riscv-python-model@24daba0 && \
     pip uninstall -y riscv-config && \
     pip install git+https://github.com/riscv-software-src/riscv-config@54171f2 && \
     pip install git+https://github.com/riscv-software-src/riscof@aa146d4 && \
