@@ -175,6 +175,7 @@ package rvj1_defines;
         logic mti;   // machine timer irq
         logic mei;   // machine ext irq
         logic lcofi; // local cnt overflow irq
+        logic [15:0] platform_irq;
     } mip_mie_reg_t;
 
     typedef struct packed {

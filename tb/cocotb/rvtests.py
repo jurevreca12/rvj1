@@ -41,10 +41,13 @@ from riscvmodel.insn import (
     InstructionCSRRC,
     InstructionCSRRWI,
     InstructionCSRRSI,
-    InstructionCSRRCI
+    InstructionCSRRCI,
+    InstructionNOP,
+    InstructionECALL,
+    InstructionMRET
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
-from riscvmodel.csrnames import misa, mscratch
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x31
+from riscvmodel.csrnames import misa, mscratch, mtvec
 from riscvmodel.program import Program
 
 
@@ -770,6 +773,28 @@ class MSCRATCHTest5(Program):
     def expects(self) -> dict:
         return {0:0, 3: 0x80000007, 4: 0x80000006}
 
+
+class ECALLTest(Program):
+    "Basic test of an ECALL instruction."
+    def __init__(self):
+        insn = [
+            InstructionLUI  (x31, 0x80000),     # 0x8000_0000
+            InstructionADDI (x31, x0, 0x20),    # 0x8000_0004
+            InstructionCSRRW(x0, x31, mtvec),   # 0x8000_0008
+            InstructionECALL(),                 # 0x8000_000c
+            InstructionADDI (x2, 2),            # 0x8000_0010   0x28 - 0x14 = 0x14
+            InstructionJAL(x10, 0x14),          # 0x8000_0014 ------------------->
+            InstructionADDI(x3, 3),             # 0x8000_0010                    |
+            InstructionADDI(x4, 4),             # 0x8000_0014                    |
+            InstructionADDI(x5, 5),             # 0x8000_0018                    |
+            InstructionADDI(x6, 6),             # 0x8000_001c                    |
+            InstructionADDI(x1, 1),             # 0x8000_0020 - TRAP HANDLER     |
+            InstructionMRET(),                  # 0x8000_0024                    |
+            InstructionNOP()                    # 0x8000_0028 <-------------------
+        ]
+    def expects(self) -> dict:
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x31: 0x80000020}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -809,5 +834,6 @@ RV32I_TESTS = {
     "mscratch2": MSCRATCHTest2(),
     "mscratch3": MSCRATCHTest3(),
     "mscratch4": MSCRATCHTest4(),
-    "mscratch5": MSCRATCHTest5()
+    "mscratch5": MSCRATCHTest5(),
+    "ecall": ECALLTest()
 }
