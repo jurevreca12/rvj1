@@ -165,17 +165,19 @@ package rvj1_defines;
     parameter int unsigned CSR_MSTATUS_MIE_BIT     = 3;
     parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;
 
-    parameter int unsigned CSR_MIE_MSI_BIT         = 3;
-    parameter int unsigned CSR_MIE_MTI_BIT         = 7;
-    parameter int unsigned CSR_MIE_MEI_BIT         = 11;
-    parameter int unsigned CSR_MIE_LCOFI_BIT       = 13;
+    // For MIE and MIP registers (MIEP)
+    parameter int unsigned CSR_MIEP_MSI_BIT           = 3; 
+    parameter int unsigned CSR_MIEP_MTI_BIT           = 7;
+    parameter int unsigned CSR_MIEP_MEI_BIT           = 11;
+    parameter int unsigned CSR_MIEP_LCOFI_BIT         = 13;
+    parameter int unsigned CSR_MIEP_PLATFORM_IRQS_BIT = 16;
 
     typedef struct packed {
         logic msi;   // machine sw irq
         logic mti;   // machine timer irq
         logic mei;   // machine ext irq
         logic lcofi; // local cnt overflow irq
-        logic [15:0] platform_irq;
+        logic [15:0] irqs; // platform irqs
     } mip_mie_reg_t;
 
     typedef struct packed {

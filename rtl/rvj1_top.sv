@@ -42,12 +42,14 @@ module rvj1_top
   input  logic [XLEN-1:0] data_rsp_data_i,
   input  logic            data_rsp_error_i,
   input  logic            data_rsp_valid_i,
-  output logic            data_rsp_ready_o
+  output logic            data_rsp_ready_o,
 
-
-
- // IRQ/Debug interface TODO
-
+  // Interrupt sources
+  input logic        irq_external_i,
+  input logic        irq_timer_i,
+  input logic        irq_sw_i,
+  input logic [15:0] irq_platform_i,
+  input logic        irq_nmi_i
 );
 
   /****************************************
@@ -105,6 +107,8 @@ module rvj1_top
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
+  logic             ecall_insn;
+  logic             mret_insn;
 
   /****************************************
   * INSTRUCTION FETCH STAGE
@@ -164,7 +168,9 @@ module rvj1_top
     .ctrl_branch_type_o  (ctrl_branch_type),
     .csr_valid_o         (csr_valid),
     .csr_addr_o          (csr_addr),
-    .csr_cmd_o           (csr_cmd)
+    .csr_cmd_o           (csr_cmd),
+    .ecall_insn_o        (ecall_insn),
+    .mret_insn_o         (mret_insn)
   );
 
   /*********************************************
@@ -300,6 +306,13 @@ module rvj1_top
     .csr_cmd_i         (csr_cmd_r),
     .csr_value_o       (csr_value),
     .csr_regdest_o     (csr_regdest),
-    .csr_wb_o          (csr_wb)
+    .csr_wb_o          (csr_wb),
+    .irq_external_i    (irq_external_i),
+    .irq_timer_i       (irq_timer_i),
+    .irq_sw_i          (irq_sw_i),
+    .irq_platform_i    (irq_platform_i),
+    .irq_nmi_i         (irq_nmi_i),
+    .ecall_insn_i      (ecall_insn),
+    .mret_insn_i       (mret_insn)
   );
 endmodule

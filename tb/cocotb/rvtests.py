@@ -46,8 +46,8 @@ from riscvmodel.insn import (
     InstructionECALL,
     InstructionMRET
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x31
-from riscvmodel.csrnames import misa, mscratch, mtvec
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x30, x31
+from riscvmodel.csrnames import misa, mscratch, mtvec, mepc
 from riscvmodel.program import Program
 
 
@@ -777,21 +777,26 @@ class MSCRATCHTest5(Program):
 class ECALLTest(Program):
     "Basic test of an ECALL instruction."
     def __init__(self):
-        insn = [
+        insns = [
             InstructionLUI  (x31, 0x80000),     # 0x8000_0000
-            InstructionADDI (x31, x0, 0x20),    # 0x8000_0004
+            InstructionADDI (x31, x31, 0x28),   # 0x8000_0004
             InstructionCSRRW(x0, x31, mtvec),   # 0x8000_0008
             InstructionECALL(),                 # 0x8000_000c
-            InstructionADDI (x2, 2),            # 0x8000_0010   0x28 - 0x14 = 0x14
-            InstructionJAL(x10, 0x14),          # 0x8000_0014 ------------------->
-            InstructionADDI(x3, 3),             # 0x8000_0010                    |
-            InstructionADDI(x4, 4),             # 0x8000_0014                    |
-            InstructionADDI(x5, 5),             # 0x8000_0018                    |
-            InstructionADDI(x6, 6),             # 0x8000_001c                    |
-            InstructionADDI(x1, 1),             # 0x8000_0020 - TRAP HANDLER     |
-            InstructionMRET(),                  # 0x8000_0024                    |
-            InstructionNOP()                    # 0x8000_0028 <-------------------
+            InstructionADDI (x2, 2),            # 0x8000_0010   0x3c - 0x14 = 0x20
+            InstructionJAL(x10, 0x28),          # 0x8000_0014 ------------------->
+            InstructionADDI(x3, x0, 3),         # 0x8000_0018                    |
+            InstructionADDI(x4, x0, 4),         # 0x8000_001c                    |
+            InstructionADDI(x5, x0, 5),         # 0x8000_0020                    |
+            InstructionADDI(x6, x0, 6),         # 0x8000_0024                    |
+            InstructionADDI(x1, x0, 1),         # 0x8000_0028 - TRAP HANDLER |   |
+            InstructionCSRRS(x30, x0, mepc),    # 0x8000_002c                |   |
+            InstructionADDI(x30, x30, 4),       # 0x8000_0030                |   |
+            InstructionCSRRW(x0, x30, mepc),    # 0x8000_0034                |   |
+            InstructionMRET(),                  # 0x8000_0038   <------------    |
+            InstructionNOP()                    # 0x8000_003c <-------------------
         ]
+        super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x31: 0x80000020}
 

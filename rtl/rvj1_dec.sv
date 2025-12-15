@@ -43,7 +43,9 @@ module rvj1_dec
   output branch_ctrl_e     ctrl_branch_type_o,
   output logic             csr_valid_o,
   output logic [11:0]      csr_addr_o,
-  output csr_cmd_t         csr_cmd_o
+  output csr_cmd_t         csr_cmd_o,
+  output logic             ecall_insn_o,
+  output logic             mret_insn_o
 );
 
 /*************************************
@@ -68,6 +70,8 @@ logic             ctrl_branch;
 branch_ctrl_e     ctrl_branch_type;
 logic             csr_valid;
 csr_cmd_t         csr_cmd;
+logic             ecall_insn;
+logic             mret_insn;
 
 logic ifu_fire;
 logic [XLEN-1:0] instr_buff;
@@ -196,12 +200,10 @@ endfunction
 function automatic logic is_priv_non_csr_instr(
   input logic [4:0]  regs1,
   input logic [4:0]  regdest,
-  input logic [2:0]  funct3,
-  input logic [11:0] csr_addr);
+  input logic [2:0]  funct3);
   return ((regs1 == 5'b0) &&
           (regdest == 5'b0) &&
-          (funct3 == 3'b0) &&
-          ((csr_addr == 12'b0) || csr_addr == 12'b0000_0000_0001));
+          (funct3 == 3'b0));
 endfunction
 
 function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] funct3);
@@ -280,6 +282,8 @@ always_ff @(posedge clk_i) begin
     csr_valid_o        <= 1'b0;
     csr_addr_o         <= 12'b0;
     csr_cmd_o          <= CSRNO;
+    ecall_insn_o       <= 1'b0;
+    mret_insn_o        <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o        <= rf_addr_a;
@@ -302,6 +306,8 @@ always_ff @(posedge clk_i) begin
     csr_valid_o        <= csr_valid;
     csr_addr_o         <= csr_addr;
     csr_cmd_o          <= csr_cmd;
+    ecall_insn_o       <= ecall_insn;
+    mret_insn_o        <= mret_insn;
   end
 end
 
@@ -329,6 +335,8 @@ begin
   instr_issued     = 1'b1; // Most instructions are single-cycle
   csr_valid        = 1'b0;
   csr_cmd          = CSRNO;
+  ecall_insn       = 1'b0;
+  mret_insn        = 1'b0;
   case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
@@ -418,39 +426,31 @@ begin
     end
 
     OPCODE_SYSTEM: begin
-      unique case (state)
-        eDEC_FIRST_CYCLE: begin
-          csr_valid   = 1'b1;
-          csr_cmd     = f3_to_csr_cmd(funct3);
-          alu_regdest = regdest;
-          state_next  = eDEC_SECOND_CYCLE;
-          if (is_csr_imm(funct3)) begin
-            rpb_or_imm = 1'b1;
-            immediate  = regs1;
+      if (is_priv_non_csr_instr(regs1, regdest, funct3)) begin
+        if (csr_addr == '0) // ECALL
+          ecall_insn = 1'b1;
+        else if ((funct7 == 7'b0011000) && (regs2 == 5'b00010)) // MRET
+          mret_insn = 1'b1;
+        /*else if (csr_addr == 12'b0000_0000_0001) begin // EBREAK
+        end*/
+      end else begin
+        unique case (state)
+          eDEC_FIRST_CYCLE: begin
+            csr_valid   = 1'b1;
+            csr_cmd     = f3_to_csr_cmd(funct3);
+            alu_regdest = regdest;
+            state_next  = eDEC_SECOND_CYCLE;
+            if (is_csr_imm(funct3)) begin
+              rpb_or_imm = 1'b1;
+              immediate  = {27'b0, regs1};
+            end
+            else begin
+              rf_addr_a = regs1;
+            end
           end
-          else begin
-            rf_addr_a = regs1;
-          end
-        end
-        eDEC_SECOND_CYCLE:;  // wait one cycle
-      endcase
-
-      // if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
-      //   if (csr_addr == '0) begin
-
-      //   end
-      //   else if (csr_addr == 12'b0000_0000_0001) begin
-
-      //   end // TODO: add else decode error
-      // end
-      // else
-      //if (is_csr_imm(funct3)) begin
-      //  rpb_or_imm = 1'b1;
-      //  immediate  = imm_c_type;
-      //end
-      //else begin
-      //  rf_addr_a = regs1;
-      //end
+          eDEC_SECOND_CYCLE:;  // wait one cycle
+        endcase
+      end
     end
     OPCODE_ALLZERO:; // EMPTY REGISTER
     // TODO - default - unknown instr

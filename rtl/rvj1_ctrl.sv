@@ -46,7 +46,16 @@ module rvj1_ctrl #(
   input csr_cmd_t          csr_cmd_i,
   output logic [XLEN-1:0]  csr_value_o,
   output logic [RALEN-1:0] csr_regdest_o,
-  output logic             csr_wb_o
+  output logic             csr_wb_o,
+
+  input logic        irq_external_i,
+  input logic        irq_timer_i,
+  input logic        irq_sw_i,
+  input logic [15:0] irq_platform_i,
+  input logic        irq_nmi_i,
+
+  input logic        ecall_insn_i,
+  input logic        mret_insn_i
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -57,7 +66,8 @@ module rvj1_ctrl #(
       eRUN,
       eLOAD0,   // loading a value from data mem to a register.
       eLOAD1,
-      eBRANCH
+      eBRANCH,
+      eCALL
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
@@ -70,12 +80,13 @@ module rvj1_ctrl #(
   //     |CLK   |
   //     +------+
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
+  logic mtvec_ce;
   logic [XLEN-3:0] mepc_d, mepc_q;
+  logic mepc_ce;
   logic [4:0]      mcause_d, mcause_q;
-
+  logic mcause_ce;
   logic [XLEN-1:0] mscratch_d, mscratch_q;
   logic            mscratch_ce;
-  logic [XLEN-1:0] csr_mscratch_value;
 
   mip_mie_reg_t    mip_d, mip_q;
   mip_mie_reg_t    mie_d, mie_q;
@@ -84,12 +95,12 @@ module rvj1_ctrl #(
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value;
   logic [XLEN-1:0] csr_mie_value;
+  logic [XLEN-1:0] csr_mip_value;
   logic [XLEN-1:0] csr_mtvec_value;
-
   logic [XLEN-1:0] csr_mepc_value;
   logic [XLEN-1:0] csr_mcause_value;
   logic [XLEN-1:0] csr_mtval_value;
-  logic [XLEN-1:0] csr_mip_value;
+  logic [XLEN-1:0] csr_mscratch_value;
 
   logic [XLEN-1:0] csr_value;
 
@@ -97,8 +108,7 @@ module rvj1_ctrl #(
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
-  logic load, loaded, jump, branch, takebr, nobr;
-  logic [XLEN-1:0] program_counter;
+  logic load, loaded, jump, branch, takebr, nobr, ecall;
   logic is_booted;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
@@ -137,11 +147,20 @@ module rvj1_ctrl #(
                     (state == eLOAD0) ||
                     (state == eLOAD1)) ||
                     (state == eJUMP0) ||
-                    (state == eJUMP1);
+                    (state == eJUMP1) ||
+                    (state == eCALL);
+  assign flush_o          = (state == eJUMP0) || (state == eCALL);
 
-  assign jmp_addr_valid_o = (state == eJUMP0) || (state == eBOOT0);
-  assign jmp_addr_o       = (state == eJUMP0) ?  {alu_res_i[31:1], 1'b0} : BOOT_ADDR;
-  assign flush_o          = (state == eJUMP0);
+  assign jmp_addr_valid_o = (state == eJUMP0) || (state == eBOOT0) || (state == eCALL);
+  always_comb begin
+    jmp_addr_o = '0;
+    if (state == eJUMP0)
+      jmp_addr_o = {alu_res_i[31:1], 1'b0};
+    else if (state == eCALL)
+      jmp_addr_o = csr_mtvec_value;
+    else
+      jmp_addr_o = BOOT_ADDR;
+  end
 
 
   /*************************************
@@ -149,17 +168,19 @@ module rvj1_ctrl #(
   *************************************/
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
-      program_counter <= BOOT_ADDR;
+      program_counter_o <= BOOT_ADDR;
     else if (state_next == eJUMP1) begin
-      program_counter <= alu_res_i;
+      program_counter_o <= alu_res_i;
+    end
+    else if (ecall_insn_i) begin
+      program_counter_o <= csr_mtvec_value;
     end
     // ctrl_jump_i makes sure that we increment the program counter on the jump instruction.
     // This gives us pc + 4 required for JAL and JALR.
     else if ((instr_issued_i && ~stall_o) || ctrl_jump_i) begin
-      program_counter <= program_counter + 4;
+      program_counter_o <= program_counter_o + 4;
     end
   end
-  assign program_counter_o = program_counter;
 
   /*************************************
   * Branching conditions
@@ -186,18 +207,29 @@ module rvj1_ctrl #(
   /*************************************
   * Control and Status Registers
   *************************************/
-  /*assign csr_mstatus_value = (
-      ({31'b0, mstatus_mie}  << CSR_MSTATUS_MIE_BIT)
-    | ({31'b0, mstatus_mpie} << CSR_MSTATUS_MPIE_BIT)
+  assign csr_mstatus_value = (
+      ({31'b0, mstatus_q.mie}  << CSR_MSTATUS_MIE_BIT)
+    | ({31'b0, mstatus_q.mpie} << CSR_MSTATUS_MPIE_BIT)
     | 32'b0
   );
   assign csr_mie_value = (
-      ({31'b0, mie_msi}   << CSR_MIE_MSI_BIT)
-    | ({31'b0, mie_mti}   << CSR_MIE_MTI_BIT)
-    | ({31'b0, mie_mei}   << CSR_MIE_MEI_BIT)
-    | ({31'b0, mie_lcofi} << CSR_MIE_LCOFI_BIT)
+      ({31'b0, mie_q.msi}   << CSR_MIEP_MSI_BIT)
+    | ({31'b0, mie_q.mti}   << CSR_MIEP_MTI_BIT)
+    | ({31'b0, mie_q.mei}   << CSR_MIEP_MEI_BIT)
+    | ({31'b0, mie_q.lcofi} << CSR_MIEP_LCOFI_BIT)
+    | ({16'b0, mie_q.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
     | 32'b0
-  );*/
+  );
+  assign csr_mip_value = (
+      ({31'b0, mip_q.msi}   << CSR_MIEP_MSI_BIT)
+    | ({31'b0, mip_q.mti}   << CSR_MIEP_MTI_BIT)
+    | ({31'b0, mip_q.mei}   << CSR_MIEP_MEI_BIT)
+    | ({31'b0, mip_q.lcofi} << CSR_MIEP_LCOFI_BIT)
+    | ({16'b0, mip_q.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
+    | 32'b0
+  );
+  assign csr_mepc_value  = {mepc_q, 2'b00}; // IALIGN=32
+  assign csr_mtvec_value = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
 
   assign csr_mscratch_value = mscratch_q;
 
@@ -265,15 +297,32 @@ module rvj1_ctrl #(
   // Write logic
   always_comb begin
     mscratch_d = mscratch_q;
-    case (csr_addr_i)
-      CSR_MSCRATCH_ADDR: mscratch_d = csr_mask_op(alu_res_i, mscratch_q, csr_cmd_i);
-    endcase
-  end
-  always_comb begin
     mscratch_ce = 1'b0;
+    mtvec_d = mtvec_q;
+    mtvec_ce = 1'b0;
+    mepc_d = mepc_q;
+    mepc_ce = 1'b0;
+    if (csr_valid_i) begin
     case (csr_addr_i)
-      CSR_MSCRATCH_ADDR: mscratch_ce = csr_valid_i;
+      CSR_MSCRATCH_ADDR: begin
+        mscratch_d = csr_mask_op(alu_res_i, csr_mscratch_value, csr_cmd_i);
+        mscratch_ce = 1'b1;
+      end
+      CSR_MTVEC_ADDR: begin
+        mtvec_d = csr_mask_op(alu_res_i, csr_mtvec_value, csr_cmd_i)[31:2];
+        mtvec_ce = 1'b1;
+      end
+      CSR_MEPC_ADDR : begin
+        mepc_d = csr_mask_op(alu_res_i, csr_mepc_value, csr_cmd_i)[31:2];
+        mepc_ce = 1'b1;
+      end
     endcase
+    end else if (ecall_insn_i) begin
+      mepc_d = program_counter_o[31:2];
+      mepc_ce = 1'b1;
+    end /*else if (mret_insn_i) begin
+
+    end*/
   end
 
   register #(
@@ -287,6 +336,28 @@ module rvj1_ctrl #(
     .out (mscratch_q)
   );
 
+  register #(
+    .WORD_WIDTH(XLEN-2),
+    .RESET_VALUE(0)
+  ) csr_mtvec_reg (
+    .clk (clk_i),
+    .rstn(rstn_i),
+    .ce  (mtvec_ce & ~stall_o),
+    .in  (mtvec_d),
+    .out (mtvec_q)
+  );
+
+  register #(
+    .WORD_WIDTH(XLEN-2),
+    .RESET_VALUE(0)
+  ) csr_mepc_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (mepc_ce & ~stall_o),
+    .in   (mepc_d),
+    .out  (mepc_q)
+  );
+
 
   /*************************************
   * Finite State Machine (FSM)
@@ -298,6 +369,7 @@ module rvj1_ctrl #(
     branch = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
     takebr = (state == eBRANCH) &&  cond_met                          && ~stall_o;
     nobr   = (state == eBRANCH) && ~cond_met                          && ~stall_o;
+    ecall  = (state == eRUN)    &&  ecall_insn_i                      && ~stall_o;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0  : state;
@@ -312,6 +384,8 @@ module rvj1_ctrl #(
     state_next = branch            ? eBRANCH : state_next;
     state_next = takebr            ? eJUMP0  : state_next;
     state_next = nobr              ? eRUN    : state_next;
+    state_next = ecall             ? eCALL   : state_next;
+    state_next = (state == eCALL)  ? eRUN    : state_next;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
