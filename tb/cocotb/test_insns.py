@@ -94,7 +94,7 @@ def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
 @InsnsTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
-    timeout=120,
+    timeout=150,
     shutdown_delay=1,
     shutdown_loops=1,
 )

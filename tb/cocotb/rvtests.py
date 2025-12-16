@@ -795,8 +795,6 @@ class ECALLTest(Program):
             InstructionMRET (),                 # 0x8000_0038   <------------    |
             InstructionNOP  (),                 # 0x8000_003c <-------------------
             InstructionNOP  (),
-            InstructionNOP  (),
-            InstructionNOP  (),
         ]
         super().__init__(insns)
 
