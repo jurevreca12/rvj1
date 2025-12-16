@@ -67,7 +67,8 @@ module rvj1_ctrl #(
       eLOAD0,   // loading a value from data mem to a register.
       eLOAD1,
       eBRANCH,
-      eCALL
+      eCALL,
+      eMRET
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
@@ -107,8 +108,10 @@ module rvj1_ctrl #(
   // Other defintions
   logic rf_a_hazard;
   logic rf_b_hazard;
+  logic csr_wb_a_hazard;
+  logic csr_wb_b_hazard;
   logic lsu_b_hazard;
-  logic load, loaded, jump, branch, takebr, nobr, ecall;
+  logic load, loaded, jump, branch, takebr, nobr, ecall, mret;
   logic is_booted;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
@@ -135,6 +138,14 @@ module rvj1_ctrl #(
   assign rf_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
                          ~rpb_or_imm_i &&
                          rf_addr_b_i != 5'b00000);
+  assign csr_wb_a_hazard = (csr_wb_o &&
+                           (csr_regdest_o == rf_addr_a_i) &&
+                           ~rpa_or_pc_i &&
+                           rf_addr_a_i != 5'b00000);
+  assign csr_wb_b_hazard = (csr_wb_o &&
+                           (csr_regdest_o == rf_addr_b_i) &&
+                           ~rpb_or_imm_i &&
+                           rf_addr_b_i != 5'b00000);
   // LSU uses rpb port, even though an immediate is used.
   // Because of this rf_b_hazard does not trigger.
   assign lsu_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
@@ -144,20 +155,28 @@ module rvj1_ctrl #(
   assign stall_o = (rf_a_hazard  ||
                     rf_b_hazard  ||
                     lsu_b_hazard ||
+                    csr_wb_a_hazard ||
+                    csr_wb_b_hazard ||
                     (state == eLOAD0) ||
                     (state == eLOAD1)) ||
                     (state == eJUMP0) ||
                     (state == eJUMP1) ||
-                    (state == eCALL);
-  assign flush_o          = (state == eJUMP0) || (state == eCALL);
+                    (state == eCALL) ||
+                    (state == eMRET);
+  assign flush_o = (state == eJUMP0) || (state == eCALL) || (state == eMRET);
 
-  assign jmp_addr_valid_o = (state == eJUMP0) || (state == eBOOT0) || (state == eCALL);
+  assign jmp_addr_valid_o = ((state == eJUMP0) ||
+                             (state == eBOOT0) ||
+                             (state == eCALL)  ||
+                             (state == eMRET));
   always_comb begin
     jmp_addr_o = '0;
     if (state == eJUMP0)
       jmp_addr_o = {alu_res_i[31:1], 1'b0};
     else if (state == eCALL)
       jmp_addr_o = csr_mtvec_value;
+    else if (state == eMRET)
+      jmp_addr_o = csr_mepc_value;
     else
       jmp_addr_o = BOOT_ADDR;
   end
@@ -169,17 +188,14 @@ module rvj1_ctrl #(
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       program_counter_o <= BOOT_ADDR;
-    else if (state_next == eJUMP1) begin
+    else if (state_next == eJUMP1)
       program_counter_o <= alu_res_i;
-    end
-    else if (ecall_insn_i) begin
+    else if (ecall_insn_i)
       program_counter_o <= csr_mtvec_value;
-    end
-    // ctrl_jump_i makes sure that we increment the program counter on the jump instruction.
-    // This gives us pc + 4 required for JAL and JALR.
-    else if ((instr_issued_i && ~stall_o) || ctrl_jump_i) begin
-      program_counter_o <= program_counter_o + 4;
-    end
+    else if (mret_insn_i)
+      program_counter_o <= csr_mepc_value;
+    else if ((instr_issued_i && ~stall_o) || ctrl_jump_i)
+      program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
   /*************************************
@@ -370,6 +386,7 @@ module rvj1_ctrl #(
     takebr = (state == eBRANCH) &&  cond_met                          && ~stall_o;
     nobr   = (state == eBRANCH) && ~cond_met                          && ~stall_o;
     ecall  = (state == eRUN)    &&  ecall_insn_i                      && ~stall_o;
+    mret   = (state == eRUN)    &&  mret_insn_i                       && ~stall_o;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0  : state;
@@ -386,6 +403,8 @@ module rvj1_ctrl #(
     state_next = nobr              ? eRUN    : state_next;
     state_next = ecall             ? eCALL   : state_next;
     state_next = (state == eCALL)  ? eRUN    : state_next;
+    state_next = mret              ? eMRET   : state_next;
+    state_next = (state == eMRET)  ? eRUN    : state_next;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)

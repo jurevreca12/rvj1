@@ -436,10 +436,11 @@ begin
       end else begin
         unique case (state)
           eDEC_FIRST_CYCLE: begin
-            csr_valid   = 1'b1;
-            csr_cmd     = f3_to_csr_cmd(funct3);
-            alu_regdest = regdest;
-            state_next  = eDEC_SECOND_CYCLE;
+            csr_valid    = 1'b1;
+            csr_cmd      = f3_to_csr_cmd(funct3);
+            alu_regdest  = regdest;
+            state_next   = eDEC_SECOND_CYCLE;
+            instr_issued = 1'b0;
             if (is_csr_imm(funct3)) begin
               rpb_or_imm = 1'b1;
               immediate  = {27'b0, regs1};
