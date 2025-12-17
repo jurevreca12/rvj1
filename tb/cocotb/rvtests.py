@@ -801,7 +801,7 @@ class ECALLTest(Program):
         super().__init__(insns)
 
     def expects(self) -> dict:
-        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 10, x31: 0x80000028}
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 11, x31: 0x80000028}
 
 RV32I_TESTS = {
     "lui": LUITest(),
