@@ -166,7 +166,7 @@ package rvj1_defines;
     parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;
 
     // For MIE and MIP registers (MIEP)
-    parameter int unsigned CSR_MIEP_MSI_BIT           = 3; 
+    parameter int unsigned CSR_MIEP_MSI_BIT           = 3;
     parameter int unsigned CSR_MIEP_MTI_BIT           = 7;
     parameter int unsigned CSR_MIEP_MEI_BIT           = 11;
     parameter int unsigned CSR_MIEP_LCOFI_BIT         = 13;
@@ -185,5 +185,21 @@ package rvj1_defines;
         logic mpie; // machine previous irq enable
     } status_reg_t;
 
+    parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0
+    parameter logic [5:0] MCAUSE_INSTR_ACCESS_FAULT    = 6'b0_00001; // 1
+    parameter logic [5:0] MCAUSE_ILLEGAL_INSTRUCTION   = 6'b0_00010; // 2
+    parameter logic [5:0] MCAUSE_BREAKPOINT            = 6'b0_00011; // 3
+    parameter logic [5:0] MCAUSE_LOAD_ADDR_MISALIGNED  = 6'b0_00100; // 4
+    parameter logic [5:0] MCAUSE_LOAD_ACCESS_FAULT     = 6'b0_00101; // 5
+    parameter logic [5:0] MCAUSE_STORE_ADDR_MISALINGED = 6'b0_00110; // 6
+    parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
+    parameter logic [5:0] MCAUSE_ECALL_FROM_U_MODE     = 6'b0_01000; // 8
+    parameter logic [5:0] MCAUSE_ECALL_FROM_S_MODE     = 6'b0_01001; // 9
+    parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01010; // 10
+    parameter logic [5:0] MCAUSE_INSTR_PAGE_FAULT      = 6'b0_01011; // 11
+    parameter logic [5:0] MCAUSE_LOAD_PAGE_FAULT       = 6'b0_01100; // 12
+    parameter logic [5:0] MCAUSE_STORE_PAGE_FAULT      = 6'b0_01101; // 13
+    parameter logic [5:0] MCAUSE_SW_CHECK              = 6'b0_10010; // 18
+    parameter logic [5:0] MCAUSE_HW_ERROR              = 6'b0_10011; // 19
 
 endpackage

@@ -46,8 +46,8 @@ from riscvmodel.insn import (
     InstructionECALL,
     InstructionMRET
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x30, x31
-from riscvmodel.csrnames import misa, mscratch, mtvec, mepc
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x29, x30, x31
+from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause
 from riscvmodel.program import Program
 
 
@@ -782,8 +782,8 @@ class ECALLTest(Program):
             InstructionADDI (x31, x31, 0x28),   # 0x8000_0004
             InstructionCSRRW(x0, x31, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
             InstructionECALL(),                 # 0x8000_000c
-            InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x3c - 0x14 = 0x20
-            InstructionJAL  (x10, 0x28),        # 0x8000_0014 ------------------->
+            InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x40 - 0x14 = 0x2c
+            InstructionJAL  (x10, 0x2c),        # 0x8000_0014 ------------------->
             InstructionADDI (x3, x0, 3),        # 0x8000_0018                    |
             InstructionADDI (x4, x0, 4),        # 0x8000_001c                    |
             InstructionADDI (x5, x0, 5),        # 0x8000_0020                    |
@@ -792,14 +792,16 @@ class ECALLTest(Program):
             InstructionCSRRS(x30, x0, mepc),    # 0x8000_002c                |   |
             InstructionADDI (x30, x30, 4),      # 0x8000_0030                |   |
             InstructionCSRRW(x0, x30, mepc),    # 0x8000_0034                |   |
-            InstructionMRET (),                 # 0x8000_0038   <------------    |
-            InstructionNOP  (),                 # 0x8000_003c <-------------------
-            InstructionNOP  (),
+            InstructionCSRRS(x29, x0, mcause),  # 0x8000_0038                |   |
+            InstructionMRET (),                 # 0x8000_003c   <------------    |
+            InstructionNOP  (),                 # 0x8000_0040 <-------------------
+            InstructionNOP  (),                 # 0x8000_0044                
+            InstructionNOP  (),                 # 0x8000_0048   
         ]
         super().__init__(insns)
 
     def expects(self) -> dict:
-        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x31: 0x80000028}
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 10, x31: 0x80000028}
 
 RV32I_TESTS = {
     "lui": LUITest(),

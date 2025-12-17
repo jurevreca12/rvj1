@@ -48,14 +48,14 @@ module rvj1_ctrl #(
   output logic [RALEN-1:0] csr_regdest_o,
   output logic             csr_wb_o,
 
-  input logic        irq_external_i,
-  input logic        irq_timer_i,
-  input logic        irq_sw_i,
-  input logic [15:0] irq_platform_i,
-  input logic        irq_nmi_i,
+  input logic              irq_external_i,
+  input logic              irq_timer_i,
+  input logic              irq_sw_i,
+  input logic [15:0]       irq_platform_i,
+  input logic              irq_nmi_i,
 
-  input logic        ecall_insn_i,
-  input logic        mret_insn_i
+  input logic              ecall_insn_i,
+  input logic              mret_insn_i
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -84,8 +84,9 @@ module rvj1_ctrl #(
   logic mtvec_ce;
   logic [XLEN-3:0] mepc_d, mepc_q;
   logic mepc_ce;
-  logic [4:0]      mcause_d, mcause_q;
+  logic [5:0]  mcause_d, mcause_q; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
   logic mcause_ce;
+
   logic [XLEN-1:0] mscratch_d, mscratch_q;
   logic            mscratch_ce;
 
@@ -244,8 +245,9 @@ module rvj1_ctrl #(
     | ({16'b0, mip_q.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
     | 32'b0
   );
-  assign csr_mepc_value  = {mepc_q, 2'b00}; // IALIGN=32
-  assign csr_mtvec_value = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
+  assign csr_mepc_value   = {mepc_q, 2'b00}; // IALIGN=32
+  assign csr_mtvec_value  = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
+  assign csr_mcause_value = {mcause_q[5], 26'b0, mcause_q[4:0]};
 
   assign csr_mscratch_value = mscratch_q;
 
@@ -318,6 +320,8 @@ module rvj1_ctrl #(
     mtvec_ce = 1'b0;
     mepc_d = mepc_q;
     mepc_ce = 1'b0;
+    mcause_d = mcause_q;
+    mcause_ce = 1'b0;
     if (csr_valid_i) begin
     case (csr_addr_i)
       CSR_MSCRATCH_ADDR: begin
@@ -328,12 +332,20 @@ module rvj1_ctrl #(
         mtvec_d = csr_mask_op(alu_res_i, csr_mtvec_value, csr_cmd_i)[31:2];
         mtvec_ce = 1'b1;
       end
-      CSR_MEPC_ADDR : begin
+      CSR_MEPC_ADDR: begin
         mepc_d = csr_mask_op(alu_res_i, csr_mepc_value, csr_cmd_i)[31:2];
         mepc_ce = 1'b1;
       end
+      CSR_MCAUSE_ADDR: begin
+        mcause_d = {csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i)[31],
+                    csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i)[4:0]
+        };
+        mcause_ce = 1'b1;
+      end
     endcase
     end else if (ecall_insn_i) begin
+      mcause_d = MCAUSE_ECALL_FROM_M_MODE;
+      mcause_ce = 1'b1;
       mepc_d = program_counter_o[31:2];
       mepc_ce = 1'b1;
     end /*else if (mret_insn_i) begin
@@ -372,6 +384,17 @@ module rvj1_ctrl #(
     .ce   (mepc_ce & ~stall_o),
     .in   (mepc_d),
     .out  (mepc_q)
+  );
+
+   register #(
+    .WORD_WIDTH(6),
+    .RESET_VALUE(0)
+   ) csr_mcause_reg (
+    .clk (clk_i),
+    .rstn(rstn_i),
+    .ce  (mcause_ce & ~stall_o),
+    .in  (mcause_d),
+    .out (mcause_q)
   );
 
 
