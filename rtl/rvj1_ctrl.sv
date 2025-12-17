@@ -90,9 +90,10 @@ module rvj1_ctrl #(
   logic [XLEN-1:0] mscratch_d, mscratch_q;
   logic            mscratch_ce;
 
-  mip_mie_reg_t    mip_d, mip_q;
-  mip_mie_reg_t    mie_d, mie_q;
-  status_reg_t     mstatus_d, mstatus_q;
+  miep_reg_t    mip_d, mip_q;
+  miep_reg_t    mie_d, mie_q;
+  mstatus_reg_t mstatus_d, mstatus_q;
+  logic mstatus_ce;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value;
@@ -322,8 +323,16 @@ module rvj1_ctrl #(
     mepc_ce = 1'b0;
     mcause_d = mcause_q;
     mcause_ce = 1'b0;
+    mstatus_d = mstatus_q;
+    mstatus_ce = 1'b0;
     if (csr_valid_i) begin
     case (csr_addr_i)
+      CSR_MSTATUS_ADDR: begin
+        // Will the synthesis tool optimize these two function calls into a single module?
+        mstatus_d.mie = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i)[CSR_MSTATUS_MIE_BIT];
+        mstatus_d.mpie = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i)[CSR_MSTATUS_MPIE_BIT];
+        mstatus_ce = 1'b1;
+      end
       CSR_MSCRATCH_ADDR: begin
         mscratch_d = csr_mask_op(alu_res_i, csr_mscratch_value, csr_cmd_i);
         mscratch_ce = 1'b1;
@@ -348,10 +357,25 @@ module rvj1_ctrl #(
       mcause_ce = 1'b1;
       mepc_d = program_counter_o[31:2];
       mepc_ce = 1'b1;
-    end /*else if (mret_insn_i) begin
-
-    end*/
+      mstatus_d.mie = 1'b0;
+      mstatus_d.mpie = mstatus_q.mie;
+      mstatus_ce = 1'b1;
+    end else if (mret_insn_i) begin
+      mstatus_d.mie = mstatus_q.mpie;
+      mstatus_ce = 1'b1;
+    end
   end
+
+  register #(
+    .WORD_WIDTH($bits(mstatus_reg_t)),
+    .RESET_VALUE(0)
+  ) csr_mstatus_reg (
+    .clk (clk_i),
+    .rstn(rstn_i),
+    .ce  (mstatus_ce & ~stall_o),
+    .in  (mstatus_d),
+    .out (mstatus_q)
+  );
 
   register #(
     .WORD_WIDTH(XLEN),

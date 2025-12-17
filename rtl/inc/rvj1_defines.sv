@@ -178,12 +178,15 @@ package rvj1_defines;
         logic mei;   // machine ext irq
         logic lcofi; // local cnt overflow irq
         logic [15:0] irqs; // platform irqs
-    } mip_mie_reg_t;
+    } miep_reg_t;
+
+    parameter int unsigned CSR_MSTATUS_MIE_BIT  = 3;
+    parameter int unsigned CSR_MSTATUS_MPIE_BIT = 7;
 
     typedef struct packed {
         logic mie;  // machine interrupt enable
         logic mpie; // machine previous irq enable
-    } status_reg_t;
+    } mstatus_reg_t;
 
     parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0
     parameter logic [5:0] MCAUSE_INSTR_ACCESS_FAULT    = 6'b0_00001; // 1
