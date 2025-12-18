@@ -805,7 +805,7 @@ class ECALLTest(Program):
 
 
 class MSTATUSTest(Program):
-    "Test the behavior of MSTATUS register."
+    "Test the behavior of MSTATUS register. Specificaly the MIE an MIEP bits usage in ecall and mret."
     def __init__(self):
         insns = [
             InstructionCSRRS (x1, x0, mstatus),  # 0x8000_0000
