@@ -180,9 +180,6 @@ package rvj1_defines;
         logic [15:0] irqs; // platform irqs
     } miep_reg_t;
 
-    parameter int unsigned CSR_MSTATUS_MIE_BIT  = 3;
-    parameter int unsigned CSR_MSTATUS_MPIE_BIT = 7;
-
     typedef struct packed {
         logic mie;  // machine interrupt enable
         logic mpie; // machine previous irq enable

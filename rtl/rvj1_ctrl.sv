@@ -362,6 +362,7 @@ module rvj1_ctrl #(
       mstatus_ce = 1'b1;
     end else if (mret_insn_i) begin
       mstatus_d.mie = mstatus_q.mpie;
+      mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
   end

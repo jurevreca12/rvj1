@@ -47,7 +47,7 @@ from riscvmodel.insn import (
     InstructionMRET
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x29, x30, x31
-from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause
+from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus
 from riscvmodel.program import Program
 
 
@@ -803,6 +803,34 @@ class ECALLTest(Program):
     def expects(self) -> dict:
         return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 11, x31: 0x80000028}
 
+
+class MSTATUSTest(Program):
+    "Test the behavior of MSTATUS register."
+    def __init__(self):
+        insns = [
+            InstructionCSRRS (x1, x0, mstatus),  # 0x8000_0000
+            InstructionLUI   (x31, 0x80000),     # 0x8000_0004
+            InstructionADDI  (x31, x31, 0x20),   # 0x8000_0008
+            InstructionCSRRW (x0, x31, mtvec),   # 0x8000_000c  rd, rs1, csr_addr
+            InstructionCSRRSI(x0, 0x8, mstatus), # 0x8000_0010 - set MIE
+            InstructionCSRRS (x2, x0, mstatus),  # 0x8000_0014
+            InstructionECALL (),                 # 0x8000_0018
+            InstructionJAL   (x10, 0x18),        # 0x8000_001c  0x34 - 0x1c = 0x18 
+            InstructionCSRRS (x3, x0, mstatus),  # 0x8000_0020 - TRAP HANDLER |
+            InstructionCSRRS (x30, x0, mepc),    # 0x8000_0024                |
+            InstructionADDI  (x30, x30, 4),      # 0x8000_0028                |
+            InstructionCSRRW (x0, x30, mepc),    # 0x8000_002c                |
+            InstructionMRET  (),                 # 0x8000_0030 ---------------
+            InstructionCSRRS (x4, x0, mstatus),  # 0x8000_0034
+            InstructionNOP   (),                 # 0x8000_0038
+            InstructionNOP   (),                 # 0x8000_003c
+            InstructionNOP   (),                 # 0x8000_0040
+        ]
+        super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {x1:0, x2: 8, x3: (1 << 7), x4: (8 + (1 << 7))}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -843,5 +871,6 @@ RV32I_TESTS = {
     "mscratch3": MSCRATCHTest3(),
     "mscratch4": MSCRATCHTest4(),
     "mscratch5": MSCRATCHTest5(),
-    "ecall": ECALLTest()
+    "ecall": ECALLTest(),
+    "mstatus": MSTATUSTest()
 }
