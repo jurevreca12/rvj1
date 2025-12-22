@@ -97,12 +97,19 @@ module rvj1_ctrl #(
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value;
+  logic [XLEN-1:0] csr_mstatus_masked;
   logic [XLEN-1:0] csr_mie_value;
+  logic [XLEN-1:0] csr_mie_masked;
   logic [XLEN-1:0] csr_mip_value;
+  logic [XLEN-1:0] csr_mip_masked;
   logic [XLEN-1:0] csr_mtvec_value;
+  logic [XLEN-1:0] csr_mtvec_masked;
   logic [XLEN-1:0] csr_mepc_value;
+  logic [XLEN-1:0] csr_mepc_masked;
   logic [XLEN-1:0] csr_mcause_value;
+  logic [XLEN-1:0] csr_mcause_masked;
   logic [XLEN-1:0] csr_mtval_value;
+  logic [XLEN-1:0] csr_mtval_masked;
   logic [XLEN-1:0] csr_mscratch_value;
 
   logic [XLEN-1:0] csr_value;
@@ -319,18 +326,23 @@ module rvj1_ctrl #(
     mscratch_ce = 1'b0;
     mtvec_d = mtvec_q;
     mtvec_ce = 1'b0;
+    csr_mtvec_masked = '0;
     mepc_d = mepc_q;
     mepc_ce = 1'b0;
+    csr_mepc_masked = '0;
     mcause_d = mcause_q;
     mcause_ce = 1'b0;
+    csr_mcause_masked = '0;
     mstatus_d = mstatus_q;
     mstatus_ce = 1'b0;
+    csr_mstatus_masked = '0;
     if (csr_valid_i) begin
     case (csr_addr_i)
       CSR_MSTATUS_ADDR: begin
         // Will the synthesis tool optimize these two function calls into a single module?
-        mstatus_d.mie = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i)[CSR_MSTATUS_MIE_BIT];
-        mstatus_d.mpie = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i)[CSR_MSTATUS_MPIE_BIT];
+        csr_mstatus_masked = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i);
+        mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
+        mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
         mstatus_ce = 1'b1;
       end
       CSR_MSCRATCH_ADDR: begin
@@ -338,17 +350,18 @@ module rvj1_ctrl #(
         mscratch_ce = 1'b1;
       end
       CSR_MTVEC_ADDR: begin
-        mtvec_d = csr_mask_op(alu_res_i, csr_mtvec_value, csr_cmd_i)[31:2];
+        csr_mtvec_masked = csr_mask_op(alu_res_i, csr_mtvec_value, csr_cmd_i);
+        mtvec_d = csr_mtvec_masked[31:2];
         mtvec_ce = 1'b1;
       end
       CSR_MEPC_ADDR: begin
-        mepc_d = csr_mask_op(alu_res_i, csr_mepc_value, csr_cmd_i)[31:2];
+        csr_mepc_masked = csr_mask_op(alu_res_i, csr_mepc_value, csr_cmd_i);
+        mepc_d = csr_mepc_masked[31:2];
         mepc_ce = 1'b1;
       end
       CSR_MCAUSE_ADDR: begin
-        mcause_d = {csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i)[31],
-                    csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i)[4:0]
-        };
+        csr_mcause_masked = csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i);
+        mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
         mcause_ce = 1'b1;
       end
     endcase
