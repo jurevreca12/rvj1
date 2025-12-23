@@ -102,7 +102,13 @@ module rvj1_riscof_tb();
       .data_rsp_data_i   (data_rsp_data),
       .data_rsp_error_i  (data_rsp_error),
       .data_rsp_valid_i  (data_rsp_valid),
-      .data_rsp_ready_o  (data_rsp_ready)
+      .data_rsp_ready_o  (data_rsp_ready),
+
+      .irq_external_i    (1'b0),
+      .irq_timer_i       (1'b0),
+      .irq_sw_i          (1'b0),
+      .irq_platform_i    (16'b0),
+      .irq_nmi_i         (1'b0)
   );
 
   // data memory
