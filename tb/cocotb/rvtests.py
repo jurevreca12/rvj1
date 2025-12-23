@@ -528,6 +528,32 @@ class JALRTest(Program):
             9: 9,
         }
 
+class JALRTest2(Program):
+    """Test of JALR instruction bit clearning."""
+
+    def __init__(self):
+        insns = [
+            InstructionAUIPC(x1, 0x0),      # 0x8000_0000
+            InstructionADDI(x3, x0, 3),     # 0x8000_0004
+            InstructionJALR(x10, x1, 0x15), # 0x8000_0008 ->
+            InstructionADDI(x4, x0, 4),     # 0x8000_000c   |
+            InstructionADDI(x5, x0, 5),     # 0x8000_0010   |
+            InstructionADDI(x6, x0, 6),     # 0x8000_0014 <-|
+            InstructionADDI(x7, x0, 7),     # 0x8000_0018
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {
+            1: 0x80000000,
+            3: 3,
+            10: 0x8000000c,
+            4: 0,
+            5: 0,
+            6: 6,
+            7: 7,
+        }
+
 
 class BEQTest(Program):
     """Basic test of BEQ instruction."""
@@ -859,6 +885,7 @@ RV32I_TESTS = {
     "shlhu": SHLHUTest(),
     "jal": JALTest(),
     "jalr": JALRTest(),
+    "jalr2": JALRTest2(),
     "beq": BEQTest(),
     "bne": BNETest(),
     "blt": BLTTest(),
