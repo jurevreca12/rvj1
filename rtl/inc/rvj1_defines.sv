@@ -195,4 +195,16 @@ package rvj1_defines;
     parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
     parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
 
+    `ifdef RVFI
+    typedef struct packed {
+        logic [XLEN-1:0] instr;
+        logic [4:0]      rs1_addr;
+        logic [4:0]      rs2_addr;
+        logic [XLEN-1:0] rs1_rdata;
+        logic [XLEN-1:0] rs2_rdata;
+        logic [4:0]      rd_addr;
+        logic [XLEN-1:0] alu_res;
+        logic [XLEN-1:0] pc_rdata;
+    } rvfi_stage_info_t;
+    `endif
 endpackage

@@ -34,6 +34,8 @@ module rvj1_ctrl #(
   input branch_ctrl_e      ctrl_branch_type_i,
 
   input  logic             instr_issued_i,
+  input  logic             instr_will_retire_i,
+  output logic             instr_retiring_o,
   output logic             stall_o,
   output logic [XLEN-1:0]  program_counter_o,
   output logic             flush_o,
@@ -203,7 +205,7 @@ module rvj1_ctrl #(
       program_counter_o <= csr_mtvec_value;
     else if (mret_insn_i)
       program_counter_o <= csr_mepc_value;
-    else if ((instr_issued_i && ~stall_o) || ctrl_jump_i)
+    else if ((instr_will_retire_i && ~stall_o) || ctrl_jump_i)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
@@ -227,6 +229,18 @@ module rvj1_ctrl #(
       BRANCH_LTU: cond_met = (alu_res_i[0] == 1'b1);
       BRANCH_GEU: cond_met = (alu_res_i[0] == 1'b0);
     endcase
+  end
+
+  /*************************************
+  * Retiring
+  *************************************/
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      instr_retiring_o <= 1'b0;
+    else if (instr_will_retire_i || loaded)
+      instr_retiring_o <= 1'b1;
+    else
+      instr_retiring_o <= 1'b0;
   end
 
   /*************************************

@@ -24,7 +24,12 @@ module rvj1_dec
 
   input  logic            stall_i,
   output logic            instr_issued_o,
+  output logic            instr_will_retire_o,
   output logic            control_o, // signals that controls signals have been activated
+
+  `ifdef RVFI
+  output logic [XLEN-1:0] instr_exec_o, // the word of the instruction currently being executed
+  `endif
 
   // OUTGOING CONTROL SIGNALS
   output logic [RALEN-1:0] rf_addr_a_o,
@@ -33,11 +38,10 @@ module rvj1_dec
   output logic             rpa_or_pc_o,
   output logic             rpb_or_imm_o,
   output logic             alu_write_rf_o,
-  output logic [RALEN-1:0] alu_regdest_o,
+  output logic [RALEN-1:0] regdest_o,
   output logic [XLEN-1:0]  immediate_o,  // Sign extended immediate.
   output logic             lsu_ctrl_valid_o,
   output lsu_ctrl_e        lsu_ctrl_o,
-  output logic [RALEN-1:0] lsu_regdest_o,
   output logic             ctrl_jump_o,
   output logic             ctrl_branch_o,
   output branch_ctrl_e     ctrl_branch_type_o,
@@ -52,7 +56,7 @@ module rvj1_dec
 * INTERNAL SIGNAL DEFINITION
 *************************************/
 logic update_output, reset_output;
-logic instr_issued;
+logic instr_issued, instr_will_retire;
 
 logic [RALEN-1:0] rf_addr_a;
 logic [RALEN-1:0] rf_addr_b;
@@ -60,11 +64,9 @@ alu_op_e          alu_sel;
 logic             rpa_or_pc;
 logic             rpb_or_imm;
 logic             alu_write_rf;
-logic [RALEN-1:0] alu_regdest;
 logic [XLEN-1:0]  immediate;
 logic             lsu_ctrl_valid;
 lsu_ctrl_e        lsu_ctrl;
-logic [RALEN-1:0] lsu_regdest;
 logic             ctrl_jump;
 logic             ctrl_branch;
 branch_ctrl_e     ctrl_branch_type;
@@ -257,57 +259,61 @@ always_ff @(posedge clk_i) begin
     instr_buff <= ifu_instr_i;
 end
 
+`ifdef RVFI
+assign instr_exec_o = instr_buff;
+`endif
+
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff @(posedge clk_i) begin
   if (reset_output) begin
-    rf_addr_a_o        <= 5'b00000;
-    rf_addr_b_o        <= 5'b00000;
-    alu_sel_o          <= ALU_OP_ADD;
-    rpa_or_pc_o        <= 1'b0;
-    rpb_or_imm_o       <= 1'b0;
-    alu_write_rf_o     <= 1'b0;
-    alu_regdest_o      <= 5'b00000;
-    immediate_o        <= 32'h0000_0000;
-    lsu_ctrl_valid_o   <= 1'b0;
-    lsu_ctrl_o         <= LSU_NO_CMD;
-    lsu_regdest_o      <= 5'b00000;
-    ctrl_jump_o        <= 1'b0;
-    ctrl_branch_o      <= 1'b0;
-    ctrl_branch_type_o <= BRANCH_EQ;
-    state              <= eDEC_FIRST_CYCLE;
-    instr_issued_o     <= 1'b0;
-    control_o          <= 1'b0;
-    csr_valid_o        <= 1'b0;
-    csr_addr_o         <= 12'b0;
-    csr_cmd_o          <= CSRNO;
-    ecall_insn_o       <= 1'b0;
-    mret_insn_o        <= 1'b0;
+    rf_addr_a_o         <= 5'b00000;
+    rf_addr_b_o         <= 5'b00000;
+    alu_sel_o           <= ALU_OP_ADD;
+    rpa_or_pc_o         <= 1'b0;
+    rpb_or_imm_o        <= 1'b0;
+    alu_write_rf_o      <= 1'b0;
+    regdest_o           <= 5'b00000;
+    immediate_o         <= 32'h0000_0000;
+    lsu_ctrl_valid_o    <= 1'b0;
+    lsu_ctrl_o          <= LSU_NO_CMD;
+    ctrl_jump_o         <= 1'b0;
+    ctrl_branch_o       <= 1'b0;
+    ctrl_branch_type_o  <= BRANCH_EQ;
+    state               <= eDEC_FIRST_CYCLE;
+    instr_issued_o      <= 1'b0;
+    instr_will_retire_o <= 1'b0;
+    control_o           <= 1'b0;
+    csr_valid_o         <= 1'b0;
+    csr_addr_o          <= 12'b0;
+    csr_cmd_o           <= CSRNO;
+    ecall_insn_o        <= 1'b0;
+    mret_insn_o         <= 1'b0;
   end
   else if (update_output) begin
-    rf_addr_a_o        <= rf_addr_a;
-    rf_addr_b_o        <= rf_addr_b;
-    alu_sel_o          <= alu_sel;
-    rpa_or_pc_o        <= rpa_or_pc;
-    rpb_or_imm_o       <= rpb_or_imm;
-    alu_write_rf_o     <= alu_write_rf;
-    alu_regdest_o      <= alu_regdest;
-    immediate_o        <= immediate;
-    lsu_ctrl_valid_o   <= lsu_ctrl_valid;
-    lsu_ctrl_o         <= lsu_ctrl;
-    lsu_regdest_o      <= lsu_regdest;
-    ctrl_jump_o        <= ctrl_jump;
-    ctrl_branch_o      <= ctrl_branch;
-    ctrl_branch_type_o <= ctrl_branch_type;
-    state              <= state_next;
-    instr_issued_o     <= instr_issued;
-    control_o          <= 1'b1;
-    csr_valid_o        <= csr_valid;
-    csr_addr_o         <= csr_addr;
-    csr_cmd_o          <= csr_cmd;
-    ecall_insn_o       <= ecall_insn;
-    mret_insn_o        <= mret_insn;
+    rf_addr_a_o         <= rf_addr_a;
+    rf_addr_b_o         <= rf_addr_b;
+    alu_sel_o           <= alu_sel;
+    rpa_or_pc_o         <= rpa_or_pc;
+    rpb_or_imm_o        <= rpb_or_imm;
+    alu_write_rf_o      <= alu_write_rf;
+    regdest_o           <= alu_write_rf ? regdest : 5'b0;
+    immediate_o         <= immediate;
+    lsu_ctrl_valid_o    <= lsu_ctrl_valid;
+    lsu_ctrl_o          <= lsu_ctrl;
+    ctrl_jump_o         <= ctrl_jump;
+    ctrl_branch_o       <= ctrl_branch;
+    ctrl_branch_type_o  <= ctrl_branch_type;
+    state               <= state_next;
+    instr_issued_o      <= instr_issued;
+    instr_will_retire_o <= instr_will_retire;
+    control_o           <= 1'b1;
+    csr_valid_o         <= csr_valid;
+    csr_addr_o          <= csr_addr;
+    csr_cmd_o           <= csr_cmd;
+    ecall_insn_o        <= ecall_insn;
+    mret_insn_o         <= mret_insn;
   end
 end
 
@@ -317,33 +323,31 @@ end
 *************************************/
 always_comb
 begin
-  rf_addr_a        = 5'b00000;
-  rf_addr_b        = 5'b00000;
-  alu_sel          = ALU_OP_ADD;
-  rpa_or_pc        = 1'b0;
-  rpb_or_imm       = 1'b0;
-  alu_write_rf     = 1'b0;
-  alu_regdest      = 5'b00000;
-  immediate        = 32'h0000_0000;
-  lsu_ctrl_valid   = 1'b0;
-  lsu_ctrl         = LSU_NO_CMD;
-  lsu_regdest      = 5'b00000;
-  ctrl_jump        = 1'b0;
-  ctrl_branch      = 1'b0;
-  ctrl_branch_type = BRANCH_EQ;
-  state_next       = eDEC_FIRST_CYCLE;
-  instr_issued     = 1'b1; // Most instructions are single-cycle
-  csr_valid        = 1'b0;
-  csr_cmd          = CSRNO;
-  ecall_insn       = 1'b0;
-  mret_insn        = 1'b0;
+  rf_addr_a         = 5'b00000;
+  rf_addr_b         = 5'b00000;
+  alu_sel           = ALU_OP_ADD;
+  rpa_or_pc         = 1'b0;
+  rpb_or_imm        = 1'b0;
+  alu_write_rf      = 1'b0;
+  immediate         = 32'h0000_0000;
+  lsu_ctrl_valid    = 1'b0;
+  lsu_ctrl          = LSU_NO_CMD;
+  ctrl_jump         = 1'b0;
+  ctrl_branch       = 1'b0;
+  ctrl_branch_type  = BRANCH_EQ;
+  state_next        = eDEC_FIRST_CYCLE;
+  instr_issued      = 1'b1; // Most instructions are single-cycle
+  instr_will_retire = 1'b1;
+  csr_valid         = 1'b0;
+  csr_cmd           = CSRNO;
+  ecall_insn        = 1'b0;
+  mret_insn         = 1'b0;
   case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
       alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
-      alu_regdest  = regdest;
       immediate    = imm_i_type;
     end
 
@@ -352,13 +356,11 @@ begin
       rf_addr_b    = regs2;
       alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
       alu_write_rf = 1'b1;
-      alu_regdest  = regdest;
     end
 
     OPCODE_LUI: begin
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
-      alu_regdest  = regdest;
       immediate    = imm_u_type;
     end
 
@@ -366,7 +368,6 @@ begin
       rpa_or_pc    = 1'b1;
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
-      alu_regdest  = regdest;
       immediate    = imm_u_type;
     end
 
@@ -380,47 +381,46 @@ begin
     end
 
     OPCODE_LOAD: begin
-      rpb_or_imm     = 1'b1;
-      immediate      = imm_i_type;
-      rf_addr_a      = regs1;
-      lsu_ctrl_valid = 1'b1;
-      lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b0);
-      lsu_regdest    = regdest;
+      rpb_or_imm        = 1'b1;
+      immediate         = imm_i_type;
+      rf_addr_a         = regs1;
+      lsu_ctrl_valid    = 1'b1;
+      lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
+      instr_will_retire = 1'b0;
     end
 
     OPCODE_JAL: begin
-      rpa_or_pc    = 1'b1;
-      rpb_or_imm   = 1'b1;
-      immediate    = imm_j_type;
-      alu_regdest  = regdest;
-      ctrl_jump    = 1'b1;
+      rpa_or_pc         = 1'b1;
+      rpb_or_imm        = 1'b1;
+      immediate         = imm_j_type;
+      ctrl_jump         = 1'b1;
     end
 
     OPCODE_JALR: begin
-      rpb_or_imm   = 1'b1;
-      immediate    = imm_i_type;
-      alu_regdest  = regdest;
-      rf_addr_a    = regs1;
-      ctrl_jump    = 1'b1;
+      rpb_or_imm        = 1'b1;
+      immediate         = imm_i_type;
+      rf_addr_a         = regs1;
+      ctrl_jump         = 1'b1;
     end
 
     OPCODE_BRANCH: begin
       unique case (state)
         // First cycle calculates condition
         eDEC_FIRST_CYCLE: begin
-          rf_addr_a        = regs1;
-          rf_addr_b        = regs2;
-          alu_sel          = branch_type_to_alu_op( branch_ctrl_e'(funct3));
-          ctrl_branch      = 1'b1;
-          ctrl_branch_type = branch_ctrl_e'(funct3);
-          state_next       = eDEC_SECOND_CYCLE;
-          instr_issued     = 1'b0;
+          rf_addr_a         = regs1;
+          rf_addr_b         = regs2;
+          alu_sel           = branch_type_to_alu_op( branch_ctrl_e'(funct3));
+          ctrl_branch       = 1'b1;
+          ctrl_branch_type  = branch_ctrl_e'(funct3);
+          state_next        = eDEC_SECOND_CYCLE;
+          instr_will_retire = 1'b0;
         end
         // Jump if condition is met
         eDEC_SECOND_CYCLE: begin
           rpa_or_pc    = 1'b1;
           rpb_or_imm   = 1'b1;
           immediate    = imm_b_type;
+          instr_issued = 1'b0;
         end
       endcase
     end
@@ -436,11 +436,10 @@ begin
       end else begin
         unique case (state)
           eDEC_FIRST_CYCLE: begin
-            csr_valid    = 1'b1;
-            csr_cmd      = f3_to_csr_cmd(funct3);
-            alu_regdest  = regdest;
-            state_next   = eDEC_SECOND_CYCLE;
-            instr_issued = 1'b0;
+            csr_valid         = 1'b1;
+            csr_cmd           = f3_to_csr_cmd(funct3);
+            state_next        = eDEC_SECOND_CYCLE;
+            instr_will_retire = 1'b0;
             if (is_csr_imm(funct3)) begin
               rpb_or_imm = 1'b1;
               immediate  = {27'b0, regs1};
@@ -449,7 +448,9 @@ begin
               rf_addr_a = regs1;
             end
           end
-          eDEC_SECOND_CYCLE:;  // wait one cycle
+          eDEC_SECOND_CYCLE: begin;  // wait one cycle
+            instr_issued = 1'b0;
+          end
         endcase
       end
     end

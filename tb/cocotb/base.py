@@ -11,6 +11,7 @@ RTL_DIRS = (
 )
 LANGUAGE = os.getenv("HDL_TOPLEVEL_LANG", "verilog").lower().strip()
 WAVES = os.getenv("WAVES", default=False)
+RVFI = os.getenv("RVFI", default=False)
 
 
 def get_rtl_files(lang):
@@ -34,6 +35,8 @@ def get_test_runner(hdl_top):
     build_args = ["-Wno-fatal"]
     if WAVES:
         build_args += ["--trace-fst"]
+    if RVFI:
+        build_args += [f"-DRVFI"]
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(LANGUAGE),
