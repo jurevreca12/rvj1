@@ -205,7 +205,7 @@ module rvj1_ctrl #(
       program_counter_o <= csr_mtvec_value;
     else if (mret_insn_i)
       program_counter_o <= csr_mepc_value;
-    else if ((instr_will_retire_i && ~stall_o) || ctrl_jump_i)
+    else if ((instr_will_retire_i && ~stall_o) || ctrl_jump_i || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 

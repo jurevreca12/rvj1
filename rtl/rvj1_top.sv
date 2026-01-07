@@ -359,35 +359,34 @@ module rvj1_top
   *********************************************/
   `ifdef RVFI
   logic instr_retired;
-  rvfi_stage_info_t exec_stage, mem_stage, wb_stage;
+  rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage;
 
   always_comb begin
-      exec_stage.instr         = instr_exec;
-      exec_stage.rs1_addr      = rf_addr_a;
-      exec_stage.rs2_addr      = rf_addr_b;
-      exec_stage.rs1_rdata     = rf_alu_data_a;
-      exec_stage.rs2_rdata     = rf_alu_data_b;
-      exec_stage.rd_addr       = regdest;
-      exec_stage.alu_res       = alu_res;
-      exec_stage.pc_rdata      = program_counter;
-      exec_stage.lsu_cmd_valid = lsu_ctrl_valid;
-      exec_stage.lsu_cmd       = lsu_ctrl;
+    exec_stage_comb.instr         = instr_exec;
+    exec_stage_comb.rs1_addr      = rf_addr_a;
+    exec_stage_comb.rs2_addr      = rf_addr_b;
+    exec_stage_comb.rs1_rdata     = rf_alu_data_a;
+    exec_stage_comb.rs2_rdata     = rf_alu_data_b;
+    exec_stage_comb.rd_addr       = regdest;
+    exec_stage_comb.alu_res       = alu_res;
+    exec_stage_comb.pc_rdata      = program_counter;
+    exec_stage_comb.lsu_cmd_valid = lsu_ctrl_valid;
+    exec_stage_comb.lsu_cmd       = lsu_ctrl;
   end
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (lsu_ctrl_valid_r && lsu_ready)
-      mem_stage <= exec_stage;
+    else if (instr_issued && lsu_ctrl_valid)
+      mem_stage <= exec_stage_comb;
   end
   always_ff @(posedge clk_i) begin
-    if (~rstn_i || stall)
+    if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (instr_retiring)
-      if (rf_wb)
-        wb_stage <= mem_stage;
-      else
-        wb_stage <= exec_stage;
+    else if (instr_issued && instr_will_retire) // simple instructions  
+      wb_stage <= exec_stage_comb;
+    else if (rf_wb)
+      wb_stage <= mem_stage;
   end
 
   always_ff @(posedge clk_i) begin
@@ -409,7 +408,7 @@ module rvj1_top
   assign rvfi_insn = wb_stage.instr;
   assign rvfi_trap = 1'b0; // TODO
   assign rvfi_halt = 1'b0; // TODO
-  assign rvfi_intr = 
+  assign rvfi_intr = 1'b0; // TODO
   assign rvfi_mode = 2'b11; // M-mode only
   assign rvfi_ixl  = 2'b01; // MXL = 32
 
@@ -419,10 +418,18 @@ module rvj1_top
   assign rvfi_rs2_rdata = wb_stage.rs2_rdata;
 
   assign rvfi_rd_addr = wb_stage.rd_addr;
-  assign rvfi_rd_wdata = wpc_data;
+  
+  logic [XLEN-1:0] wpc_data_r;
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      wpc_data_r <= '0;
+    else if (jump_r || rf_wb || alu_write_rf_r || csr_wb)
+      wpc_data_r <= wpc_data;
+  end
+  assign rvfi_rd_wdata = wpc_data_r;
 
   assign rvfi_pc_rdata = wb_stage.pc_rdata;
-  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (program_counter + 4);
+  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (wb_stage.pc_rdata + 4);
 
   assign rvfi_mem_addr = wb_stage.alu_res;
   logic [3:0] strobe_sig;

@@ -196,7 +196,7 @@ package rvj1_defines;
     parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
 
     `ifdef RVFI
-    typedef struct packed {
+    typedef struct {
         logic [XLEN-1:0] instr;
         logic [4:0]      rs1_addr;
         logic [4:0]      rs2_addr;
