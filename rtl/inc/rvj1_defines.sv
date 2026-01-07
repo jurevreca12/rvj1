@@ -205,6 +205,8 @@ package rvj1_defines;
         logic [4:0]      rd_addr;
         logic [XLEN-1:0] alu_res;
         logic [XLEN-1:0] pc_rdata;
+        logic            lsu_cmd_valid;
+        lsu_ctrl_e       lsu_cmd;
     } rvfi_stage_info_t;
     `endif
 endpackage

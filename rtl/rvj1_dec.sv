@@ -60,6 +60,7 @@ logic instr_issued, instr_will_retire;
 
 logic [RALEN-1:0] rf_addr_a;
 logic [RALEN-1:0] rf_addr_b;
+logic [RALEN-1:0] regdest2; // should be zero when regdest not present
 alu_op_e          alu_sel;
 logic             rpa_or_pc;
 logic             rpb_or_imm;
@@ -298,7 +299,7 @@ always_ff @(posedge clk_i) begin
     rpa_or_pc_o         <= rpa_or_pc;
     rpb_or_imm_o        <= rpb_or_imm;
     alu_write_rf_o      <= alu_write_rf;
-    regdest_o           <= alu_write_rf ? regdest : 5'b0;
+    regdest_o           <= regdest2;
     immediate_o         <= immediate;
     lsu_ctrl_valid_o    <= lsu_ctrl_valid;
     lsu_ctrl_o          <= lsu_ctrl;
@@ -342,6 +343,7 @@ begin
   csr_cmd           = CSRNO;
   ecall_insn        = 1'b0;
   mret_insn         = 1'b0;
+  regdest2          = 5'b0;
   case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
@@ -349,6 +351,7 @@ begin
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
       immediate    = imm_i_type;
+      regdest2     = regdest;
     end
 
     OPCODE_OP: begin
@@ -356,12 +359,14 @@ begin
       rf_addr_b    = regs2;
       alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
       alu_write_rf = 1'b1;
+      regdest2     = regdest;
     end
 
     OPCODE_LUI: begin
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
       immediate    = imm_u_type;
+      regdest2     = regdest;
     end
 
     OPCODE_AUIPC: begin
@@ -369,6 +374,7 @@ begin
       rpb_or_imm   = 1'b1;
       alu_write_rf = 1'b1;
       immediate    = imm_u_type;
+      regdest2     = regdest;
     end
 
     OPCODE_STORE: begin
@@ -387,20 +393,23 @@ begin
       lsu_ctrl_valid    = 1'b1;
       lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
       instr_will_retire = 1'b0;
+      regdest2          = regdest;
     end
 
     OPCODE_JAL: begin
-      rpa_or_pc         = 1'b1;
-      rpb_or_imm        = 1'b1;
-      immediate         = imm_j_type;
-      ctrl_jump         = 1'b1;
+      rpa_or_pc  = 1'b1;
+      rpb_or_imm = 1'b1;
+      immediate  = imm_j_type;
+      ctrl_jump  = 1'b1;
+      regdest2   = regdest;
     end
 
     OPCODE_JALR: begin
-      rpb_or_imm        = 1'b1;
-      immediate         = imm_i_type;
-      rf_addr_a         = regs1;
-      ctrl_jump         = 1'b1;
+      rpb_or_imm = 1'b1;
+      immediate  = imm_i_type;
+      rf_addr_a  = regs1;
+      ctrl_jump  = 1'b1;
+      regdest2   = regdest;
     end
 
     OPCODE_BRANCH: begin
@@ -434,6 +443,7 @@ begin
         /*else if (csr_addr == 12'b0000_0000_0001) begin // EBREAK
         end*/
       end else begin
+        regdest2 = regdest;
         unique case (state)
           eDEC_FIRST_CYCLE: begin
             csr_valid         = 1'b1;
