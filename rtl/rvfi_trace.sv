@@ -1,0 +1,112 @@
+////////////////////////////////////////////////////////////////////////////////
+// Engineer:       Jure Vreca - jurevreca12@gmail.com                         //
+//                                                                            //
+//                                                                            //
+//                                                                            //
+// Design Name:    rvfi_trace                                                 //
+// Project Name:   riscv-jedro-1                                              //
+// Language:       System Verilog                                             //
+//                                                                            //
+// Description:    Traces the rvfi interface to produce a log equivalent to   //
+//                 the log produced by spike with --log-commits option.       //
+//                 This enables easy debuging of traces.                      //
+////////////////////////////////////////////////////////////////////////////////
+import rvj1_defines::*;
+
+module rvfi_trace #(
+    parameter int CORE_NUM = 0,
+    parameter string LOG_FILE = "rvfi_trace.log"
+)
+(
+    input logic        clk,
+    input logic        rvfi_valid,
+    input logic [63:0] rvfi_order,
+    input logic [31:0] rvfi_insn,
+    input logic        rvfi_trap,
+    input logic        rvfi_halt,
+    input logic        rvfi_intr,
+    input logic [ 1:0] rvfi_mode,
+    input logic [ 1:0] rvfi_ixl,
+    input logic [ 4:0] rvfi_rs1_addr,
+    input logic [ 4:0] rvfi_rs2_addr,
+    input logic [31:0] rvfi_rs1_rdata,
+    input logic [31:0] rvfi_rs2_rdata,
+    input logic [ 4:0] rvfi_rd_addr,
+    input logic [31:0] rvfi_rd_wdata,
+    input logic [31:0] rvfi_pc_rdata,
+    input logic [31:0] rvfi_pc_wdata,
+    input logic [31:0] rvfi_mem_addr,
+    input logic [ 3:0] rvfi_mem_rmask,
+    input logic [ 3:0] rvfi_mem_wmask,
+    input logic [31:0] rvfi_mem_rdata,
+    input logic [31:0] rvfi_mem_wdata
+);
+    int file_handle;
+    logic reg_write;
+    logic mem_load;
+    logic mem_write;
+
+    initial begin
+        file_handle = $fopen(LOG_FILE, "w");
+    end
+
+    always_ff @(posedge clk) begin
+        if (rvfi_valid)
+            log_insn_commit();
+    end
+
+    final begin
+        if (file_handle != 32'h0)
+            $fclose(file_handle);
+    end
+
+    function automatic void log_insn_commit();
+        string commit_str;
+        $fwrite(file_handle, "core%4d:%2d 0x%8h (0x%8h)",
+            CORE_NUM,
+            rvfi_mode,
+            rvfi_pc_rdata,
+            rvfi_insn
+        );
+        if (reg_write)
+            log_reg_write();
+        if (mem_load)
+            $fwrite(file_handle, " mem 0x%8h", rvfi_mem_addr);
+        if (mem_write)
+            $fwrite(file_handle, " mem 0x%8h 0x%8h", rvfi_mem_addr, rvfi_mem_wdata); // mask?
+        // TODO: CSR
+        $fwrite(file_handle, "\n");
+    endfunction
+
+    function automatic void log_reg_write();
+        if (rvfi_rd_addr != 0) begin
+            if (rvfi_rd_addr > 9)
+                $fwrite(file_handle, " x%0d 0x%8h", rvfi_rd_addr, rvfi_rd_wdata);
+            else
+                $fwrite(file_handle, " x%0d  0x%8h", rvfi_rd_addr, rvfi_rd_wdata);
+        end
+    endfunction
+
+    always_comb begin
+        reg_write = 1'b0;
+        mem_load = 1'b0;
+        mem_write = 1'b0;
+        unique case(rvfi_insn[6:0])
+            OPCODE_OPIMM: reg_write = 1'b1;
+            OPCODE_OP:    reg_write = 1'b1;
+            OPCODE_LUI:   reg_write = 1'b1;
+            OPCODE_AUIPC: reg_write = 1'b1;
+            OPCODE_STORE: mem_write = 1'b1;
+            OPCODE_LOAD:  begin
+                reg_write = 1'b1;
+                mem_load = 1'b1;
+            end
+            OPCODE_JAL:    reg_write = 1'b1;
+            OPCODE_JALR:   reg_write = 1'b1;
+            OPCODE_BRANCH:;
+            OPCODE_SYSTEM:;
+            default:;
+        endcase
+    end
+
+endmodule

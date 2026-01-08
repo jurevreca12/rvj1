@@ -108,7 +108,33 @@ module rvj1_riscof_tb();
       .irq_timer_i       (1'b0),
       .irq_sw_i          (1'b0),
       .irq_platform_i    (16'b0),
-      .irq_nmi_i         (1'b0)
+      .irq_nmi_i         (1'b0),
+
+      `ifdef RVFI
+      .rvfi_valid        (),
+      .rvfi_order        (),
+      .rvfi_insn         (),
+      .rvfi_trap         (),
+      .rvfi_halt         (),
+      .rvfi_intr         (),
+      .rvfi_mode         (),
+      .rvfi_ixl          (),
+      .rvfi_rs1_addr     (),
+      .rvfi_rs2_addr     (),
+      .rvfi_rs1_rdata    (),
+      .rvfi_rs2_rdata    (),
+      .rvfi_rd_addr      (),
+      .rvfi_rd_wdata     (),
+      .rvfi_pc_rdata     (),
+      .rvfi_pc_wdata     (),
+      .rvfi_mem_addr     (),
+      .rvfi_mem_rmask    (),
+      .rvfi_mem_wmask    (),
+      .rvfi_mem_rdata    (),
+      .rvfi_mem_wdata    (),
+      `endif
+
+      .fetch_enable_i    (1'b0)
   );
 
   // data memory

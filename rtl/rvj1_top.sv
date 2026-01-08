@@ -418,7 +418,7 @@ module rvj1_top
   assign rvfi_rs2_rdata = wb_stage.rs2_rdata;
 
   assign rvfi_rd_addr = wb_stage.rd_addr;
-  
+
   logic [XLEN-1:0] wpc_data_r;
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
@@ -444,5 +444,32 @@ module rvj1_top
   assign rvfi_mem_wmask = strobe_sig;
   assign rvfi_mem_rdata = rf_data;
   assign rvfi_mem_wdata = wb_stage.rs2_rdata;
+  `ifdef RVFI_TRACE
+    rvfi_trace trace_mod (
+      .clk            (clk_i),
+      .rvfi_valid     (rvfi_valid),
+      .rvfi_order     (rvfi_order),
+      .rvfi_insn      (rvfi_insn),
+      .rvfi_trap      (rvfi_trap),
+      .rvfi_halt      (rvfi_halt),
+      .rvfi_intr      (rvfi_intr),
+      .rvfi_mode      (rvfi_mode),
+      .rvfi_ixl       (rvfi_ixl),
+      .rvfi_rs1_addr  (rvfi_rs1_addr),
+      .rvfi_rs2_addr  (rvfi_rs2_addr),
+      .rvfi_rs1_rdata (rvfi_rs1_rdata),
+      .rvfi_rs2_rdata (rvfi_rs2_rdata),
+      .rvfi_rd_addr   (rvfi_rd_addr),
+      .rvfi_rd_wdata  (rvfi_rd_wdata),
+      .rvfi_pc_rdata  (rvfi_pc_rdata),
+      .rvfi_pc_wdata  (rvfi_pc_wdata),
+      .rvfi_mem_addr  (rvfi_mem_addr),
+      .rvfi_mem_rmask (rvfi_mem_rmask),
+      .rvfi_mem_wmask (rvfi_mem_wmask),
+      .rvfi_mem_rdata (rvfi_mem_rdata),
+      .rvfi_mem_wdata (rvfi_mem_wdata)
+    );
   `endif
+  `endif
+  
 endmodule

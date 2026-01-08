@@ -50,7 +50,7 @@ class rvj1(pluginTemplate):
         # We use riscv64 because it is compiled with multiarch. It emits 32 bit code
         self.compile_cmd = (
             "riscv64-unknown-elf-gcc -o0 -march={0} \
-         -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -g\
+         -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles\
          -T "
             + self.pluginpath
             + "/env/link.ld\
