@@ -24,7 +24,8 @@ module rvj1_ctrl #(
   input logic [RALEN-1:0]  rf_addr_b_i,
   input logic              rpa_or_pc_i,
   input logic              rpb_or_imm_i,
-  input logic [RALEN-1:0]  alu_regdest_r_i,
+  input logic [RALEN-1:0]  regdest_i,
+  input logic [RALEN-1:0]  regdest_r_i,
   input lsu_ctrl_e         lsu_cmd_i,
   input logic              lsu_ctrl_valid_i,
   input logic              lsu_ready_i,
@@ -143,31 +144,21 @@ module rvj1_ctrl #(
     end
   endfunction
 
-  assign rf_a_hazard = ((alu_regdest_r_i == rf_addr_a_i) &&
+  assign rf_a_hazard = ((regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
                          rf_addr_a_i != 5'b00000);
-  assign rf_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
+  assign rf_b_hazard = ((regdest_r_i == rf_addr_b_i) &&
                          ~rpb_or_imm_i &&
                          rf_addr_b_i != 5'b00000);
-  assign csr_wb_a_hazard = (csr_wb_o &&
-                           (csr_regdest_o == rf_addr_a_i) &&
-                           ~rpa_or_pc_i &&
-                           rf_addr_a_i != 5'b00000);
-  assign csr_wb_b_hazard = (csr_wb_o &&
-                           (csr_regdest_o == rf_addr_b_i) &&
-                           ~rpb_or_imm_i &&
-                           rf_addr_b_i != 5'b00000);
   // LSU uses rpb port, even though an immediate is used.
   // Because of this rf_b_hazard does not trigger.
-  assign lsu_b_hazard = ((alu_regdest_r_i == rf_addr_b_i) &&
+  assign lsu_b_hazard = ((regdest_r_i == rf_addr_b_i) &&
                           lsu_ctrl_valid_i &&
                           lsu_cmd_i[3] && // is_write
                           rf_addr_b_i != 5'b00000);
   assign stall_o = (rf_a_hazard  ||
                     rf_b_hazard  ||
                     lsu_b_hazard ||
-                    csr_wb_a_hazard ||
-                    csr_wb_b_hazard ||
                     (state == eLOAD0) ||
                     (state == eLOAD1)) ||
                     (state == eJUMP0) ||
@@ -237,7 +228,7 @@ module rvj1_ctrl #(
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       instr_retiring_o <= 1'b0;
-    else if (instr_will_retire_i || loaded)
+    else if ((instr_will_retire_i & ~stall_o) || loaded)
       instr_retiring_o <= 1'b1;
     else
       instr_retiring_o <= 1'b0;
@@ -325,13 +316,15 @@ module rvj1_ctrl #(
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
     .ce   (csr_valid_i && ~stall_o),
-    .in   (alu_regdest_r_i),
+    .in   (regdest_i),
     .out  (csr_regdest_o)
   );
 
   `ifdef ASSERTIONS
+  always_ff @(posedge clk_i) begin
     if (csr_valid_i)
       req_val_cmd: assert (csr_cmd_i != CSRNO);
+  end
   `endif
 
   // Write logic

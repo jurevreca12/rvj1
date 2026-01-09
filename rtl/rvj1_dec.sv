@@ -87,9 +87,10 @@ logic [XLEN-1:0] imm_u_type;
 logic [XLEN-1:0] imm_j_type;
 logic [XLEN-1:0] imm_c_type; // for CSRs
 
-typedef enum logic {
+typedef enum logic [1:0] {
   eDEC_FIRST_CYCLE,
-  eDEC_SECOND_CYCLE
+  eDEC_SECOND_CYCLE,
+  eDEC_THIRD_CYCLE
 } dec_fsm_e;
 dec_fsm_e state, state_next;
 
@@ -431,6 +432,7 @@ begin
           immediate    = imm_b_type;
           instr_issued = 1'b0;
         end
+        default:;
       endcase
     end
 
@@ -458,7 +460,10 @@ begin
               rf_addr_a = regs1;
             end
           end
-          eDEC_SECOND_CYCLE: begin;  // wait one cycle
+          eDEC_SECOND_CYCLE: begin;  // wait a cycle
+            instr_issued = 1'b0;
+          end
+          eDEC_THIRD_CYCLE: begin;  // wait a cycle
             instr_issued = 1'b0;
           end
         endcase

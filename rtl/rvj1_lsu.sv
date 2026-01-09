@@ -261,7 +261,7 @@ end
     if (lsu_valid_i) begin
       // There should be no request if either req or act_req buffers are full.
       bad_req: assert(req_buff_inp_ready);
-      bad_act: assert(act_req_buff_inp_read);
+      bad_act: assert(act_req_buff_inp_ready);
       // Requests can only be issued when in running state (no stall).
       state_r: assert(state == eRUN);
     end
@@ -277,10 +277,14 @@ module cmd_to_strobe(input lsu_ctrl_e cmd, input logic [1:0] addr, output logic 
   assign half = cmd[0];
   assign word = cmd[1];
   `ifdef ASSERTIONS
-    if (word)
-      assert (addr == 2'b00);
-    if (half)
-      assert (addr == 2'b00 || addr == 2'b10);
+  always_comb begin
+    if (cmd != LSU_NO_CMD) begin
+      if (word)
+        word_aligned_addr: assert (addr == 2'b00);
+      if (half)
+        hword_aligned_addr: assert (addr == 2'b00 || addr == 2'b10);
+    end
+  end
   `endif
   assign aligned_strobe = {word,
                            word,

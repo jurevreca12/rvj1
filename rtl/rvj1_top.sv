@@ -82,60 +82,72 @@ module rvj1_top
   /****************************************
   * SIGNAL DECLARATION
   ****************************************/
-  logic             dec_valid;
+  // IF/DEC
+  logic             fetched_instr_valid;
   logic [XLEN-1:0]  fetched_instr;
-  logic             dec_ready;
+  logic             fetched_instr_ready;
+
+  // DEC/EX
+  logic             control;
   logic [RALEN-1:0] rf_addr_a;
   logic [RALEN-1:0] rf_addr_b;
   alu_op_e          alu_op_sel;
   logic             rpa_or_pc;
   logic             rpb_or_imm;
   logic             alu_write_rf;
-  logic             alu_write_rf_r;
   logic [RALEN-1:0] regdest;
-  logic [RALEN-1:0] regdest_r;
   logic [XLEN-1:0]  immediate;
   logic             lsu_ctrl_valid;
-  logic             lsu_ctrl_valid_r;
   lsu_ctrl_e        lsu_ctrl;
-  lsu_ctrl_e        lsu_ctrl_r;
-  logic [XLEN-1:0]  rf_alu_data_a;
-  logic [XLEN-1:0]  rf_alu_data_b;
-  logic [XLEN-1:0]  rf_alu_data_b_r;
-
-  logic [XLEN-1:0] alu_op_a_data;
-  logic [XLEN-1:0] alu_op_b_data;
-  logic [XLEN-1:0] alu_res;
-  logic [XLEN-1:0] alu_res_r;
-
-  logic [XLEN-1:0]  program_counter;
-  logic             stall;
+  logic [XLEN-1:0]  regs1_data;
+  logic [XLEN-1:0]  regs2_data;
   logic             instr_issued;
   logic             instr_will_retire;
+  logic             ecall_insn;
+  logic             mret_insn;
+  logic             csr_valid;
+  logic [11:0]      csr_addr;
+  csr_cmd_t         csr_cmd;
+  logic             ctrl_branch;
+  branch_ctrl_e     ctrl_branch_type;
+  logic             jump;
+
+  // EXECUTE
+  logic [XLEN-1:0]  alu_op_a_data;
+  logic [XLEN-1:0]  alu_op_b_data;
+  logic [XLEN-1:0]  alu_res;
+  logic [XLEN-1:0]  program_counter;
+  logic             stall;
+
+  // MEM - WB
+  logic             alu_write_rf_r;
+  logic [RALEN-1:0] regdest_r;
+  logic             lsu_ctrl_valid_r;
+  lsu_ctrl_e        lsu_ctrl_r;
+  logic [XLEN-1:0]  regs2_data_r;
+  logic [XLEN-1:0]  alu_res_r;
+  logic             jump_r;
+  logic             csr_valid_r;
+  logic [11:0]      csr_addr_r;
+  csr_cmd_t         csr_cmd_r;
+
+  logic [RALEN-1:0] wpc_addr;
+  logic [XLEN-1:0]  wpc_data;
+  logic             wpc_we;
+  logic [RALEN-1:0] lsu_wb_regdest;
+  logic [XLEN-1:0]  lsu_wb_data;
+  logic             lsu_wb_valid;
+
+  // CONTROL SIGNALS
   logic             instr_retiring;
   logic             jmp_addr_valid;
   logic [XLEN-1:0]  jmp_addr;
   logic             lsu_ready;
-  logic [RALEN-1:0] wpc_addr;
-  logic [XLEN-1:0]  wpc_data;
-  logic             wpc_we;
-  logic [RALEN-1:0] rf_dest;
-  logic [XLEN-1:0]  rf_data;
-  logic             rf_wb;
-  logic             jump;
-  logic             jump_r;
   logic             flush;
-  logic             ctrl_branch;
-  branch_ctrl_e     ctrl_branch_type;
-  logic             control;
-  logic             csr_valid, csr_valid_r;
-  logic [11:0]      csr_addr, csr_addr_r;
-  csr_cmd_t         csr_cmd, csr_cmd_r;
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
-  logic             ecall_insn;
-  logic             mret_insn;
+
 
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
@@ -160,8 +172,8 @@ module rvj1_top
     .instr_rsp_ready_o  (instr_rsp_ready_o),
 
     .dec_instr_o        (fetched_instr),
-    .dec_valid_o        (dec_valid),
-    .dec_ready_i        (dec_ready),
+    .dec_valid_o        (fetched_instr_valid),
+    .dec_ready_i        (fetched_instr_ready),
 
     .jmp_addr_valid_i   (jmp_addr_valid),
     .jmp_addr_i         (jmp_addr),
@@ -178,8 +190,8 @@ module rvj1_top
     .clk_i               (clk_i),
     .rstn_i              (rstn_i && ~flush),
     .ifu_instr_i         (fetched_instr),
-    .ifu_valid_i         (dec_valid),
-    .ifu_ready_o         (dec_ready),
+    .ifu_valid_i         (fetched_instr_valid),
+    .ifu_ready_o         (fetched_instr_ready),
     .stall_i             (stall),
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
@@ -215,16 +227,16 @@ module rvj1_top
     .clk_i      (clk_i),
     .rstn_i     (rstn_i),
     .rpa_addr_i (rf_addr_a),
-    .rpa_data_o (rf_alu_data_a),
+    .rpa_data_o (regs1_data),
     .rpb_addr_i (rf_addr_b),
-    .rpb_data_o (rf_alu_data_b),
+    .rpb_data_o (regs2_data),
     .wpc_addr_i (wpc_addr),
     .wpc_data_i (wpc_data),
     .wpc_we_i   (wpc_we)
   );
 
-  assign alu_op_a_data = rpa_or_pc  ? program_counter : rf_alu_data_a;
-  assign alu_op_b_data = rpb_or_imm ? immediate       : rf_alu_data_b;
+  assign alu_op_a_data = rpa_or_pc  ? program_counter : regs1_data;
+  assign alu_op_b_data = rpb_or_imm ? immediate       : regs2_data;
 
   rvj1_alu alu_inst(
     .sel_i  (alu_op_sel),
@@ -239,8 +251,8 @@ module rvj1_top
   ) ex_mem_stage_reg (
     .clk  (clk_i),
     .ce   (control && ~stall),
-    .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   rf_alu_data_b,   jump,   csr_valid,   csr_addr,   csr_cmd}),
-    .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, rf_alu_data_b_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
+    .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   regs2_data,   jump,   csr_valid,   csr_addr,   csr_cmd}),
+    .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, regs2_data_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );
 
   /*********************************************
@@ -253,11 +265,11 @@ module rvj1_top
     .lsu_ready_o             (lsu_ready),
     .lsu_cmd_i               (lsu_ctrl_r),
     .lsu_addr_i              (alu_res_r),
-    .lsu_data_i              (rf_alu_data_b_r),
+    .lsu_data_i              (regs2_data_r),
     .lsu_regdest_i           (regdest_r),
-    .rf_data_o               (rf_data),
-    .rf_wb_o                 (rf_wb),
-    .rf_dest_o               (rf_dest),
+    .rf_data_o               (lsu_wb_data),
+    .rf_wb_o                 (lsu_wb_valid),
+    .rf_dest_o               (lsu_wb_regdest),
     .ctrl_misaligned_load_o  (),
     .ctrl_misaligned_store_o (),
     .ctrl_bus_error_o        (),
@@ -281,20 +293,20 @@ module rvj1_top
   always_comb begin
     wpc_addr = '0;
     wpc_data = '0;
-    unique case ({jump_r, rf_wb, alu_write_rf_r, csr_wb})
-      4'b1000: begin // JUMP
+    unique case ({jump_r, lsu_wb_valid, alu_write_rf_r, csr_wb})
+      4'b1000: begin // jump_r - one cycle after execute
         wpc_addr = regdest_r;
         wpc_data = program_counter;
       end
-      4'b0100: begin // RF_WB
-        wpc_addr = rf_dest;
-        wpc_data = rf_data;
+      4'b0100: begin // lsu_wb_valid - ctrl logic stalls execution path
+        wpc_addr = lsu_wb_regdest;
+        wpc_data = lsu_wb_data;
       end
-      4'b0010: begin // ALU_WRITE
+      4'b0010: begin // alu_write_rf_r - one cycle after execute
         wpc_addr = regdest_r;
         wpc_data = alu_res_r;
       end
-      4'b0001: begin // CSR_WB
+      4'b0001: begin // csr_wb - two cycles after execute (thats why csr insns takes 3 cycles)
         wpc_addr = csr_regdest;
         wpc_data = csr_value;
       end
@@ -304,11 +316,11 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we   = rf_wb || alu_write_rf_r || jump_r || csr_wb;
+  assign wpc_we   = lsu_wb_valid || alu_write_rf_r || jump_r || csr_wb;
 
   `ifdef ASSERTIONS
-      one_hot_write: assert($countbits({jump_r, rf_wb, alu_write_rf_r, csr_wb}) == 1 ||
-                            $countbits({jump_r, rf_wb, alu_write_rf_r, csr_wb}) == 0);
+    always_ff @(posedge clk_i)
+      one_hot_write: assert( $onehot0({jump_r, lsu_wb_valid, alu_write_rf_r, csr_wb}) );
   `endif
 
   /*********************************************
@@ -321,7 +333,8 @@ module rvj1_top
     .rf_addr_b_i         (rf_addr_b),
     .rpa_or_pc_i         (rpa_or_pc),
     .rpb_or_imm_i        (rpb_or_imm),
-    .alu_regdest_r_i     (regdest_r),
+    .regdest_i           (regdest),
+    .regdest_r_i         (regdest_r),
     .lsu_cmd_i           (lsu_ctrl),
     .lsu_ctrl_valid_i    (lsu_ctrl_valid),
     .lsu_ready_i         (lsu_ready),
@@ -365,8 +378,8 @@ module rvj1_top
     exec_stage_comb.instr         = instr_exec;
     exec_stage_comb.rs1_addr      = rf_addr_a;
     exec_stage_comb.rs2_addr      = rf_addr_b;
-    exec_stage_comb.rs1_rdata     = rf_alu_data_a;
-    exec_stage_comb.rs2_rdata     = rf_alu_data_b;
+    exec_stage_comb.rs1_rdata     = regs1_data;
+    exec_stage_comb.rs2_rdata     = regs2_data;
     exec_stage_comb.rd_addr       = regdest;
     exec_stage_comb.alu_res       = alu_res;
     exec_stage_comb.pc_rdata      = program_counter;
@@ -377,15 +390,15 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (instr_issued && lsu_ctrl_valid)
+    else if ((instr_issued && lsu_ctrl_valid) || csr_valid)
       mem_stage <= exec_stage_comb;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (instr_issued && instr_will_retire) // simple instructions  
+    else if (instr_issued && instr_will_retire) // simple insns
       wb_stage <= exec_stage_comb;
-    else if (rf_wb)
+    else if (lsu_wb_valid || csr_wb)
       wb_stage <= mem_stage;
   end
 
@@ -423,7 +436,7 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wpc_data_r <= '0;
-    else if (jump_r || rf_wb || alu_write_rf_r || csr_wb)
+    else if (jump_r || lsu_wb_valid || alu_write_rf_r || csr_wb)
       wpc_data_r <= wpc_data;
   end
   assign rvfi_rd_wdata = wpc_data_r;
@@ -442,7 +455,7 @@ module rvj1_top
   );
   assign rvfi_mem_rmask = strobe_sig;
   assign rvfi_mem_wmask = strobe_sig;
-  assign rvfi_mem_rdata = rf_data;
+  assign rvfi_mem_rdata = lsu_wb_data;
   assign rvfi_mem_wdata = wb_stage.rs2_rdata;
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
