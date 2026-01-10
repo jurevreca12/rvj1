@@ -120,8 +120,6 @@ module rvj1_ctrl #(
   // Other defintions
   logic rf_a_hazard;
   logic rf_b_hazard;
-  logic csr_wb_a_hazard;
-  logic csr_wb_b_hazard;
   logic lsu_b_hazard;
   logic load, loaded, jump, branch, takebr, nobr, ecall, mret;
   logic is_booted;
@@ -228,10 +226,10 @@ module rvj1_ctrl #(
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       instr_retiring_o <= 1'b0;
-    else if ((instr_will_retire_i & ~stall_o) || loaded)
-      instr_retiring_o <= 1'b1;
     else
-      instr_retiring_o <= 1'b0;
+      instr_retiring_o <= ((instr_will_retire_i & ~stall_o) ||
+                          loaded ||
+                          csr_valid_i);
   end
 
   /*************************************

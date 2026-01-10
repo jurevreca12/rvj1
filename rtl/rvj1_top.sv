@@ -372,7 +372,14 @@ module rvj1_top
   *********************************************/
   `ifdef RVFI
   logic instr_retired;
-  rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage;
+  logic simple_insn_issued;
+  logic load_insn_issued;
+  logic csr_insn_issued;
+  rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
+
+  assign simple_insn_issued = instr_issued && instr_will_retire && ~stall;
+  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
+  assign csr_insn_issued = instr_issued && csr_valid && ~stall;
 
   always_comb begin
     exec_stage_comb.instr         = instr_exec;
@@ -390,23 +397,28 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if ((instr_issued && lsu_ctrl_valid) || csr_valid)
+    else if (load_insn_issued || csr_insn_issued)
       mem_stage <= exec_stage_comb;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (instr_issued && instr_will_retire) // simple insns
+    else if (simple_insn_issued || csr_insn_issued)
       wb_stage <= exec_stage_comb;
-    else if (lsu_wb_valid || csr_wb)
+    else if (lsu_wb_valid)
       wb_stage <= mem_stage;
   end
+  always_ff @(posedge clk_i)
+    retired_stage <= wb_stage;
+
+  always_ff @(posedge clk_i)
+    wb_collison: assert ($onehot0({simple_insn_issued, lsu_wb_valid, csr_wb}));
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring;
+      instr_retired <= instr_retiring & ~stall;
   end
   assign rvfi_valid = instr_retired;
   counter #(
@@ -418,19 +430,19 @@ module rvj1_top
     .ce   (rvfi_valid),
     .count(rvfi_order)
   );
-  assign rvfi_insn = wb_stage.instr;
+  assign rvfi_insn = retired_stage.instr;
   assign rvfi_trap = 1'b0; // TODO
   assign rvfi_halt = 1'b0; // TODO
   assign rvfi_intr = 1'b0; // TODO
   assign rvfi_mode = 2'b11; // M-mode only
   assign rvfi_ixl  = 2'b01; // MXL = 32
 
-  assign rvfi_rs1_addr = wb_stage.rs1_addr;
-  assign rvfi_rs2_addr = wb_stage.rs2_addr;
-  assign rvfi_rs1_rdata = wb_stage.rs1_rdata;
-  assign rvfi_rs2_rdata = wb_stage.rs2_rdata;
+  assign rvfi_rs1_addr = retired_stage.rs1_addr;
+  assign rvfi_rs2_addr = retired_stage.rs2_addr;
+  assign rvfi_rs1_rdata = retired_stage.rs1_rdata;
+  assign rvfi_rs2_rdata = retired_stage.rs2_rdata;
 
-  assign rvfi_rd_addr = wb_stage.rd_addr;
+  assign rvfi_rd_addr = retired_stage.rd_addr;
 
   logic [XLEN-1:0] wpc_data_r;
   always_ff @(posedge clk_i) begin
@@ -441,22 +453,22 @@ module rvj1_top
   end
   assign rvfi_rd_wdata = wpc_data_r;
 
-  assign rvfi_pc_rdata = wb_stage.pc_rdata;
-  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (wb_stage.pc_rdata + 4);
+  assign rvfi_pc_rdata = retired_stage.pc_rdata;
+  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (retired_stage.pc_rdata + 4);
 
-  assign rvfi_mem_addr = wb_stage.alu_res;
+  assign rvfi_mem_addr = retired_stage.alu_res;
   logic [3:0] strobe_sig;
   // This module is used also in LSU! It was just easier to instatiate
   // another copy here.
   cmd_to_strobe cmd2strb_dummy (
-    .cmd(wb_stage.lsu_cmd),
-    .addr(wb_stage.alu_res[1:0]),
+    .cmd(retired_stage.lsu_cmd),
+    .addr(retired_stage.alu_res[1:0]),
     .strobe(strobe_sig)
   );
   assign rvfi_mem_rmask = strobe_sig;
   assign rvfi_mem_wmask = strobe_sig;
   assign rvfi_mem_rdata = lsu_wb_data;
-  assign rvfi_mem_wdata = wb_stage.rs2_rdata;
+  assign rvfi_mem_wdata = retired_stage.rs2_rdata;
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
       .clk            (clk_i),

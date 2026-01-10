@@ -45,6 +45,9 @@ module rvfi_trace #(
     logic reg_write;
     logic mem_load;
     logic mem_write;
+    logic [11:7]  regdest;
+    logic [14:12] funct3;
+    logic [19:15] regs1;
 
     initial begin
         file_handle = $fopen(LOG_FILE, "w");
@@ -89,8 +92,11 @@ module rvfi_trace #(
 
     always_comb begin
         reg_write = 1'b0;
-        mem_load = 1'b0;
+        mem_load  = 1'b0;
         mem_write = 1'b0;
+        regs1     = rvfi_insn[19:15];
+        regdest   = rvfi_insn[11:7];
+        funct3    = rvfi_insn[14:12];
         unique case(rvfi_insn[6:0])
             OPCODE_OPIMM: reg_write = 1'b1;
             OPCODE_OP:    reg_write = 1'b1;
@@ -104,7 +110,10 @@ module rvfi_trace #(
             OPCODE_JAL:    reg_write = 1'b1;
             OPCODE_JALR:   reg_write = 1'b1;
             OPCODE_BRANCH:;
-            OPCODE_SYSTEM:;
+            OPCODE_SYSTEM: begin
+                if (~((regs1 == 5'b0) && (regdest == 5'b0) && (funct3 == 3'b0)))
+                    reg_write = 1'b1;
+            end
             default:;
         endcase
     end

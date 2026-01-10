@@ -462,6 +462,8 @@ begin
           end
           eDEC_SECOND_CYCLE: begin;  // wait a cycle
             instr_issued = 1'b0;
+            state_next   = eDEC_THIRD_CYCLE;
+            instr_will_retire = 1'b0;
           end
           eDEC_THIRD_CYCLE: begin;  // wait a cycle
             instr_issued = 1'b0;
