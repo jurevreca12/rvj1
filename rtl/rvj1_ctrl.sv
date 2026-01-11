@@ -385,6 +385,13 @@ module rvj1_ctrl #(
     end
   end
 
+  always_ff @(posedge clk_i) begin
+      if (~rstn_i)
+        mip_q.mti <= 1'b0;
+      else
+        mip_q.mti <= irq_timer_i;
+  end
+
   register #(
     .WORD_WIDTH($bits(mstatus_reg_t)),
     .RESET_VALUE(0)
