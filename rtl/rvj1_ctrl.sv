@@ -54,6 +54,7 @@ module rvj1_ctrl #(
   input logic              irq_external_i,
   input logic              irq_timer_i,
   input logic              irq_sw_i,
+  input logic              irq_lcofi_i,
   input logic [15:0]       irq_platform_i,
   input logic              irq_nmi_i,
 
@@ -385,12 +386,23 @@ module rvj1_ctrl #(
     end
   end
 
-  always_ff @(posedge clk_i) begin
-      if (~rstn_i)
-        mip_q.mti <= 1'b0;
-      else
-        mip_q.mti <= irq_timer_i;
-  end
+  assign mip_d = '{
+    msi:irq_sw_i,
+    mti:irq_timer_i,
+    mei:irq_external_i,
+    lcofi:irq_lcofi_i,
+    irqs:irq_platform_i
+  };
+  register #(
+    .WORD_WIDTH($bits(miep_reg_t)),
+    .RESET_VALUE(0)
+  ) mip_buffer (
+    .clk (clk_i),
+    .rstn(rstn_i),
+    .ce  (1'b1),
+    .in  (mip_d),
+    .out (mip_q)
+  );
 
   register #(
     .WORD_WIDTH($bits(mstatus_reg_t)),

@@ -48,6 +48,7 @@ module rvj1_top
   input logic        irq_external_i,
   input logic        irq_timer_i,
   input logic        irq_sw_i,
+  input logic        irq_lcofi_i,
   input logic [15:0] irq_platform_i,
   input logic        irq_nmi_i,
 
@@ -359,6 +360,7 @@ module rvj1_top
     .irq_external_i      (irq_external_i),
     .irq_timer_i         (irq_timer_i),
     .irq_sw_i            (irq_sw_i),
+    .irq_lcofi_i         (irq_lcofi_i),
     .irq_platform_i      (irq_platform_i),
     .irq_nmi_i           (irq_nmi_i),
     .ecall_insn_i        (ecall_insn),
