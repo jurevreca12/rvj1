@@ -19,23 +19,21 @@ module rvj1_soc (
   input  logic rst,
   output logic [7:0] gpio_out
 );
-  parameter int MEM_SIZE_WORDS = 1 << 12;
-  parameter int TIMEOUT        = 1000000;
-  parameter string INSTR_MEM_INIT_FILE = "text.hex";
+  parameter MEM_SIZE_WORDS = 1 << 12;
+  parameter TIMEOUT        = 1000000;
+  parameter INSTR_MEM_INIT_FILE = "text.hex";
 
-  localparam int InstrMemBaseAddr  = 32'h8000_0000;
-  localparam int DataMemBaseAddr   = 32'h8002_0000;
-  localparam int GpioAddr          = 32'h8002_0000; // overlaped with data mem
+  localparam  InstrMemBaseAddr  = 32'h8000_0000;
+  localparam  DataMemBaseAddr   = 32'h8002_0000;
+  localparam  GpioAddr          = 32'h8002_0000; // overlaped with data mem
 
-  localparam int InstrMemSizeWords = MEM_SIZE_WORDS;
-  localparam int DataMemSizeWords  = MEM_SIZE_WORDS;
-  localparam int InstrMemSizeBytes = InstrMemSizeWords * 4;
-  localparam int DataMemSizeBytes  = DataMemSizeWords  * 4;
-  localparam int InstrMemEndAddr   = InstrMemBaseAddr + InstrMemSizeBytes;
-  localparam int DataMemEndAddr    = DataMemBaseAddr + DataMemSizeBytes;
+  localparam  InstrMemSizeWords = MEM_SIZE_WORDS;
+  localparam  DataMemSizeWords  = MEM_SIZE_WORDS;
+  localparam  InstrMemSizeBytes = InstrMemSizeWords * 4;
+  localparam  DataMemSizeBytes  = DataMemSizeWords  * 4;
+  localparam  InstrMemEndAddr   = InstrMemBaseAddr + InstrMemSizeBytes;
+  localparam  DataMemEndAddr    = DataMemBaseAddr + DataMemSizeBytes;
 
-  logic rstn_i;
-  assign rstn_i = ~rst;
   logic [XLEN-1:0]   instr_req_addr;
   logic [XLEN-1:0]   instr_req_data;
   logic [NBYTES-1:0] instr_req_strobe;
@@ -64,6 +62,19 @@ module rvj1_soc (
   logic [7:0] gpio_reg;
   logic       gpio_write;
 
+  wire clk, rstn;
+
+  (* blackbox *)
+  plle2_base_clkgen #(
+    .DIVCLK_DIVIDE(1)  // set clock to 50 MHz
+  ) clkgen_inst (
+    .sys_clk_pad_i(clk_i),
+    .rst_pad_i    (rst),
+    .async_rstn_o (),
+    .clk_o        (clk),
+    .rstn_o       (rstn)
+  );
+
   bytewrite_sram_wrap #(
     .MEM_INIT_FILE (INSTR_MEM_INIT_FILE),
     .INIT_FILE_BIN (0),
@@ -71,8 +82,8 @@ module rvj1_soc (
     .BASE_ADDR     (InstrMemSizeWords),
     .MEM_SIZE_WORDS(1024)
   ) instr_mem (
-    .clk_i       (clk_i),
-    .rstn_i      (rstn_i),
+    .clk_i       (clk),
+    .rstn_i      (rstn),
  
     .req_addr_i  (instr_req_addr),
     .req_data_i  (instr_req_data),
@@ -88,8 +99,8 @@ module rvj1_soc (
   ); 
  
   rvj1_top core_0 (
-    .clk_i  (clk_i),
-    .rstn_i (rstn_i),
+    .clk_i  (clk),
+    .rstn_i (rstn),
  
     .instr_req_addr_o  (instr_req_addr),
     .instr_req_data_o  (instr_req_data),
@@ -126,8 +137,8 @@ module rvj1_soc (
     .BASE_ADDR(DataMemBaseAddr),
     .MEM_SIZE_WORDS(DataMemSizeWords)
   ) data_mem (
-      .clk_i  (clk_i),
-      .rstn_i (rstn_i),
+      .clk_i  (clk),
+      .rstn_i (rstn),
  
       .req_addr_i   (data_req_addr),
       .req_data_i   (data_req_data),
@@ -144,8 +155,8 @@ module rvj1_soc (
  
  
   assign gpio_write = data_req_valid && data_req_ready && data_req_write && (data_req_addr == GpioAddr);
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i) 
+  always_ff @(posedge clk) begin
+    if (~rstn) 
       gpio_reg <= '0;
     else if (gpio_write)
       gpio_reg <= data_req_data[7:0];

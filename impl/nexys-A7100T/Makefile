@@ -15,7 +15,7 @@ output:
 output/impl_netlist.edif: synth.flist output
 	yosys -c synth.tcl -l output/yosys.log
 
-output/rvj1_soc.fasm: output/impl_netlist.edif
+output/rvj1_soc.fasm: output/impl_netlist.json
 	nextpnr-xilinx --freq 50 --json output/impl_netlist.json --chipdb $(FPGA_DB) --xdc constr_nexys.xdc --fasm output/rvj1_soc.fasm --log output/nextpnr-xilinx.log
 
 output/rvj1_soc.frames: output/rvj1_soc.fasm
