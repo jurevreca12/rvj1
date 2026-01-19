@@ -13,9 +13,6 @@ for searchdir in (SOURCE_DIR, SCRIPT_DIR, TB_DIR):
             if file.endswith('.sv') or file.endswith('.v'):
                 rel_path = os.path.relpath(root + "/" + file, SCRIPT_DIR)
                 _file_list.append(str(rel_path))
-_file_list.remove('src/ibuf.v')
-_file_list.remove('src/bufg.v')
-_file_list.remove('src/plle2_base.v')
 _file_str = '\n'.join(_file_list)
 with open("synth.flist", 'w') as f:
     f.write(_file_str)
