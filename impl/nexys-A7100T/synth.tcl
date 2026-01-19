@@ -7,7 +7,7 @@ yosys read_verilog src/ibuf.v
 yosys read_verilog src/bufg.v
 yosys read_verilog src/plle2_base.v
 yosys plugin -i slang
-yosys read_slang --top rvj1_soc -F synth.flist --extern-modules
+yosys read_slang --top rvj1_soc -F synth.flist --extern-modules --ignore-unknown-modules
 yosys check
 yosys synth_xilinx -top    rvj1_soc \
            -family xc7 \
