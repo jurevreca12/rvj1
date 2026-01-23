@@ -385,11 +385,13 @@ module rvj1_top
   `ifdef RVFI
   logic instr_retired;
   logic simple_insn_issued;
+  logic branch_insn_issued;
   logic load_insn_issued;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
 
   assign simple_insn_issued = instr_issued && instr_will_retire && ~stall;
+  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
   assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
   assign csr_insn_issued = instr_issued && csr_valid && ~stall;
 
@@ -415,7 +417,7 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (simple_insn_issued || csr_insn_issued)
+    else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
       wb_stage <= exec_stage_comb;
     else if (lsu_wb_valid)
       wb_stage <= mem_stage;
