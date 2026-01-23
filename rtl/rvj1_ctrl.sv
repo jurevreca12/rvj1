@@ -90,39 +90,25 @@ module rvj1_ctrl #(
   //     |      |
   //     |CLK   |
   //     +------+
+  mstatus_reg_t    mstatus_d, mstatus_q;
+  miep_reg_t       mie_d, mie_q;
+  miep_reg_t       mip_d, mip_q;
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
-  logic mtvec_ce;
   logic [XLEN-3:0] mepc_d, mepc_q;
-  logic mepc_ce;
-  logic [5:0]  mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
-  logic mcause_ce;
-
-  logic [XLEN-1:0] mscratch_d, mscratch_q;
-  logic            mscratch_ce;
-
-  miep_reg_t    mip_d, mip_q;
-  miep_reg_t    mie_d, mie_q;
-  mstatus_reg_t mstatus_d, mstatus_q;
-  logic mstatus_ce;
-
+  logic [5:0]      mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
   logic [XLEN-1:0] mtval_d, mtval_q;
-  logic mtval_ce;
+  logic [XLEN-1:0] mscratch_d, mscratch_q;
+
+  logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
 
   // full output values of registers
-  logic [XLEN-1:0] csr_mstatus_value;
-  logic [XLEN-1:0] csr_mstatus_masked;
-  logic [XLEN-1:0] csr_mie_value;
-  logic [XLEN-1:0] csr_mie_masked;
-  logic [XLEN-1:0] csr_mip_value;
-  logic [XLEN-1:0] csr_mip_masked;
-  logic [XLEN-1:0] csr_mtvec_value;
-  logic [XLEN-1:0] csr_mtvec_masked;
-  logic [XLEN-1:0] csr_mepc_value;
-  logic [XLEN-1:0] csr_mepc_masked;
-  logic [XLEN-1:0] csr_mcause_value;
-  logic [XLEN-1:0] csr_mcause_masked;
-  logic [XLEN-1:0] csr_mtval_value;
-  logic [XLEN-1:0] csr_mtval_masked;
+  logic [XLEN-1:0] csr_mstatus_value, csr_mstatus_masked;
+  logic [XLEN-1:0] csr_mie_value, csr_mie_masked;
+  logic [XLEN-1:0] csr_mip_value, csr_mip_masked;
+  logic [XLEN-1:0] csr_mtvec_value, csr_mtvec_masked;
+  logic [XLEN-1:0] csr_mepc_value, csr_mepc_masked;
+  logic [XLEN-1:0] csr_mcause_value, csr_mcause_masked;
+  logic [XLEN-1:0] csr_mtval_value, csr_mtval_masked;
   logic [XLEN-1:0] csr_mscratch_value;
 
   logic [XLEN-1:0] csr_value;
@@ -136,6 +122,7 @@ module rvj1_ctrl #(
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
   logic synhr_trap, lsu_trap;
+  logic instr_will_retire;
 
   /*************************************
   * Helper functions
@@ -153,6 +140,9 @@ module rvj1_ctrl #(
     end
   endfunction
 
+  /*************************************
+  * Stalling logic
+  *************************************/
   assign rf_a_hazard = ((regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
                          rf_addr_a_i != 5'b00000);
@@ -177,6 +167,9 @@ module rvj1_ctrl #(
                     (state == eMRET);
   assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET);
 
+  /*************************************
+  * Jumping logic
+  *************************************/
   assign jmp_addr_valid_o = ((state == eJUMP0) ||
                              (state == eBOOT0) ||
                              (state == eTRAP)  ||
@@ -191,6 +184,22 @@ module rvj1_ctrl #(
       jmp_addr_o = csr_mepc_value;
     else
       jmp_addr_o = BOOT_ADDR;
+  end
+
+  /*************************************
+  * Program Counter
+  *************************************/
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      program_counter_o <= BOOT_ADDR;
+    else if (state_next == eJUMP1)
+      program_counter_o <= alu_res_i;
+    else if (synhr_trap)
+      program_counter_o <= csr_mtvec_value;
+    else if (mret_insn_i)
+      program_counter_o <= csr_mepc_value;
+    else if (instr_will_retire || (ctrl_jump_i && ~stall_o) || loaded)
+      program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
   /*************************************
@@ -218,23 +227,7 @@ module rvj1_ctrl #(
   end
 
   /*************************************
-  * Program Counter
-  *************************************/
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      program_counter_o <= BOOT_ADDR;
-    else if (state_next == eJUMP1)
-      program_counter_o <= alu_res_i;
-    else if (synhr_trap)
-      program_counter_o <= csr_mtvec_value;
-    else if (mret_insn_i)
-      program_counter_o <= csr_mepc_value;
-    else if ((instr_will_retire_i && ~stall_o) || (ctrl_jump_i && ~stall_o) || loaded)
-      program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
-  end
-
-  /*************************************
-  * Branching conditions
+  * Branching conditions - TODO: Move this to ALU?
   *************************************/
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
@@ -258,13 +251,12 @@ module rvj1_ctrl #(
   /*************************************
   * Retiring
   *************************************/
+  assign instr_will_retire = (instr_will_retire_i & ~stall_o) || loaded;
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       instr_retiring_o <= 1'b0;
     else
-      instr_retiring_o <= ((instr_will_retire_i & ~stall_o) ||
-                          loaded ||
-                          csr_valid_i);
+      instr_retiring_o <= instr_will_retire;
   end
 
   /*************************************

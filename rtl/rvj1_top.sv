@@ -430,7 +430,7 @@ module rvj1_top
     if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring & ~stall;
+      instr_retired <= instr_retiring;
   end
   assign rvfi_valid = instr_retired;
   counter #(
