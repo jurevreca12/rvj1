@@ -47,7 +47,7 @@ from riscvmodel.insn import (
     InstructionMRET
 )
 from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x29, x30, x31
-from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus
+from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval
 from riscvmodel.program import Program
 
 
@@ -857,6 +857,70 @@ class MSTATUSTest(Program):
     def expects(self) -> dict:
         return {x1:0, x2: 8, x3: (1 << 7), x4: (8 + (1 << 7))}
 
+class MISALIGNEDLWTest(Program):
+        """
+            Test that an exception is triggered on an unaligned memory load.
+            x31 - trap address
+            x2  - store base address = 0x6000_0002
+            x1  - 0xDEADC0DE
+            x3  - unaligned load destination addr
+            x4  - mstatus value
+            x5  - mepc
+            x6  - mtval
+            x7  - loading
+
+            0x6000_0000 |
+            0x6000_0001 |
+            0x6000_0002 | 0xDE
+            0x6000_0003 | 0xAD
+            0x6000_0004 | 0xC0
+            0x6000_0005 | 0xDE
+            0x6000_0006 |
+
+        """
+        def __init__(self):
+            insns = [
+                InstructionLUI  (x31, 0x80000),    # 0x8000_0000
+                InstructionADDI (x31, x31, 0x40),  # 0x8000_0004
+                InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+                InstructionLUI  (x2, 0x60000),     # 0x8000_000c
+                InstructionADDI (x2, x2, 0x2),     # 0x8000_0010
+                InstructionLUI  (x1, 0xDEADC),     # 0x8000_0014
+                InstructionADDI (x1, x1, 0x0DE),   # 0x8000_0018
+                InstructionSB   (x2, x1, 3),       # 0x8000_001c
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0020
+                InstructionSB   (x2, x1, 2),       # 0x8000_0024
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0028
+                InstructionSB   (x2, x1, 1),       # 0x8000_002c
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0030
+                InstructionSB   (x2, x1, 0),       # 0x8000_0034
+                InstructionLW   (x3, x2, 0),       # 0x8000_0038
+                InstructionJAL  (x0, 0x48),        # 0x8000_003c --------------------
+                InstructionCSRRS(x4, x0, mstatus), # 0x8000_0040 -- TRAP HANDLER |  |
+                InstructionCSRRS(x5, x0, mepc),    # 0x8000_0044                 |  |
+                InstructionADDI (x5, x5, 4),       # 0x8000_0048                 |  |
+                InstructionCSRRW(x0, x5, mepc),    # 0x8000_004c                 |  |
+                InstructionCSRRW(x6, x0, mtval),   # 0x8000_0050                 |  |
+                InstructionLBU  (x7, x6, 0),       # 0x8000_0054                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0058                 |  |
+                InstructionLBU  (x8, x6, 1),       # 0x8000_005c                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_0060                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0064                 |  |
+                InstructionLBU  (x8, x6, 2),       # 0x8000_0068                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_006c                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0070                 |  |
+                InstructionLBU  (x8, x6, 3),       # 0x8000_0074                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_0078                 |  |
+                InstructionMRET (),                # 0x8000_007c  <---------------  |
+                InstructionADDI (x9, x0, 1),       # 0x8000_0080                    |
+                InstructionNOP  (),                # 0x8000_0084 <------------------|
+                InstructionNOP  (),                # 0x8000_0088
+                InstructionNOP  (),                # 0x8000_008c
+            ]
+            super().__init__(insns)
+        def expects(self) -> dict:
+            return {x0:0, x5: 0x8000003c, x6: 0x60000002, x7: 0xDEADC0DE, x9: 0}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -899,5 +963,6 @@ RV32I_TESTS = {
     "mscratch4": MSCRATCHTest4(),
     "mscratch5": MSCRATCHTest5(),
     "ecall": ECALLTest(),
-    "mstatus": MSTATUSTest()
+    "mstatus": MSTATUSTest(),
+    "misaligned-lw": MISALIGNEDLWTest(),
 }

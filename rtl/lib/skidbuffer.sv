@@ -61,7 +61,7 @@ module skidbuffer
         .RESET_VALUE (0)
     ) output_buffer (
         .clk  (clk),
-        .rstn (rstn),
+        .rstn (rstn && ~unload),
         .ce   (output_buffer_ce),
         .in   (selected_data),
         .out  (output_data)

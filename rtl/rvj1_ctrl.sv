@@ -59,7 +59,13 @@ module rvj1_ctrl #(
   input logic              irq_nmi_i,
 
   input logic              ecall_insn_i,
-  input logic              mret_insn_i
+  input logic              mret_insn_i,
+
+  input logic              load_addr_misaligned_i,
+  input logic              load_access_fault_i,
+  input logic              store_addr_misaligned_i,
+  input logic              store_access_fault_i,
+  input logic [XLEN-1:0]   lsu_misaligned_addr_i
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -71,7 +77,7 @@ module rvj1_ctrl #(
       eLOAD0,   // loading a value from data mem to a register.
       eLOAD1,
       eBRANCH,
-      eCALL,
+      eTRAP,
       eMRET
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
@@ -88,7 +94,7 @@ module rvj1_ctrl #(
   logic mtvec_ce;
   logic [XLEN-3:0] mepc_d, mepc_q;
   logic mepc_ce;
-  logic [5:0]  mcause_d, mcause_q; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
+  logic [5:0]  mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
   logic mcause_ce;
 
   logic [XLEN-1:0] mscratch_d, mscratch_q;
@@ -98,6 +104,9 @@ module rvj1_ctrl #(
   miep_reg_t    mie_d, mie_q;
   mstatus_reg_t mstatus_d, mstatus_q;
   logic mstatus_ce;
+
+  logic [XLEN-1:0] mtval_d, mtval_q;
+  logic mtval_ce;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value;
@@ -122,10 +131,11 @@ module rvj1_ctrl #(
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
-  logic load, loaded, jump, branch, takebr, nobr, ecall, mret;
+  logic load, loaded, jump, branch, takebr, nobr, trap, mret;
   logic is_booted;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
+  logic synhr_trap, lsu_trap;
 
   /*************************************
   * Helper functions
@@ -162,19 +172,20 @@ module rvj1_ctrl #(
                     (state == eLOAD1)) ||
                     (state == eJUMP0) ||
                     (state == eJUMP1) ||
-                    (state == eCALL) ||
+                    (state == eTRAP) ||
+                    lsu_trap ||
                     (state == eMRET);
-  assign flush_o = (state == eJUMP0) || (state == eCALL) || (state == eMRET);
+  assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET);
 
   assign jmp_addr_valid_o = ((state == eJUMP0) ||
                              (state == eBOOT0) ||
-                             (state == eCALL)  ||
+                             (state == eTRAP)  ||
                              (state == eMRET));
   always_comb begin
     jmp_addr_o = '0;
     if (state == eJUMP0)
       jmp_addr_o = {alu_res_i[31:1], 1'b0};
-    else if (state == eCALL)
+    else if (state == eTRAP)
       jmp_addr_o = csr_mtvec_value;
     else if (state == eMRET)
       jmp_addr_o = csr_mepc_value;
@@ -182,6 +193,29 @@ module rvj1_ctrl #(
       jmp_addr_o = BOOT_ADDR;
   end
 
+  /*************************************
+  * Traps
+  *************************************/
+  assign lsu_trap = load_addr_misaligned_i ||
+                    load_access_fault_i ||
+                    store_addr_misaligned_i ||
+                    store_access_fault_i;
+
+  assign synhr_trap = ecall_insn_i || lsu_trap;
+
+  always_comb begin
+    trap_cause = 6'b0;
+    if (ecall_insn_i)
+      trap_cause = MCAUSE_ECALL_FROM_M_MODE;
+    else if (load_addr_misaligned_i)
+      trap_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
+    else if (store_addr_misaligned_i)
+      trap_cause = MCAUSE_STORE_ADDR_MISALINGED;
+    else if (load_access_fault_i)
+      trap_cause = MCAUSE_LOAD_ACCESS_FAULT;
+    else if (store_access_fault_i)
+      trap_cause = MCAUSE_STORE_ACCESS_FAULT;
+  end
 
   /*************************************
   * Program Counter
@@ -191,11 +225,11 @@ module rvj1_ctrl #(
       program_counter_o <= BOOT_ADDR;
     else if (state_next == eJUMP1)
       program_counter_o <= alu_res_i;
-    else if (ecall_insn_i)
+    else if (synhr_trap)
       program_counter_o <= csr_mtvec_value;
     else if (mret_insn_i)
       program_counter_o <= csr_mepc_value;
-    else if ((instr_will_retire_i && ~stall_o) || ctrl_jump_i || loaded)
+    else if ((instr_will_retire_i && ~stall_o) || (ctrl_jump_i && ~stall_o) || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
@@ -257,10 +291,10 @@ module rvj1_ctrl #(
     | ({16'b0, mip_q.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
     | 32'b0
   );
-  assign csr_mepc_value   = {mepc_q, 2'b00}; // IALIGN=32
-  assign csr_mtvec_value  = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
-  assign csr_mcause_value = {mcause_q[5], 26'b0, mcause_q[4:0]};
-
+  assign csr_mepc_value     = {mepc_q, 2'b00}; // IALIGN=32
+  assign csr_mtvec_value    = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
+  assign csr_mcause_value   = {mcause_q[5], 26'b0, mcause_q[4:0]};
+  assign csr_mtval_value    = mtval_q;
   assign csr_mscratch_value = mscratch_q;
 
   // Read logic
@@ -342,6 +376,9 @@ module rvj1_ctrl #(
     mstatus_d = mstatus_q;
     mstatus_ce = 1'b0;
     csr_mstatus_masked = '0;
+    mtval_d = mtval_q;
+    mtval_ce = 1'b0;
+    csr_mtval_masked = '0;
     if (csr_valid_i) begin
     case (csr_addr_i)
       CSR_MSTATUS_ADDR: begin
@@ -370,15 +407,24 @@ module rvj1_ctrl #(
         mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
         mcause_ce = 1'b1;
       end
+      CSR_MTVAL_ADDR: begin
+        csr_mtval_masked = csr_mask_op(alu_res_i, csr_mtval_value, csr_cmd_i);
+        mtval_d = csr_mtval_masked;
+        mtval_ce = 1'b1;
+      end
     endcase
-    end else if (ecall_insn_i) begin
-      mcause_d = MCAUSE_ECALL_FROM_M_MODE;
+    end else if (synhr_trap) begin
+      mcause_d = trap_cause;
       mcause_ce = 1'b1;
       mepc_d = program_counter_o[31:2];
       mepc_ce = 1'b1;
       mstatus_d.mie = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
       mstatus_ce = 1'b1;
+      if (lsu_trap) begin
+        mtval_d = lsu_misaligned_addr_i;
+        mtval_ce = 1'b1;
+      end
     end else if (mret_insn_i) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
@@ -443,7 +489,7 @@ module rvj1_ctrl #(
   ) csr_mepc_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (mepc_ce & ~stall_o),
+    .ce   (mepc_ce), // The core is stalled in exceptions
     .in   (mepc_d),
     .out  (mepc_q)
   );
@@ -459,6 +505,17 @@ module rvj1_ctrl #(
     .out (mcause_q)
   );
 
+  register #(
+    .WORD_WIDTH(XLEN),
+    .RESET_VALUE(0)
+  ) csr_mtval_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (mtval_ce), // The core is stalled in exceptions
+    .in   (mtval_d),
+    .out  (mtval_q)
+  );
+
 
   /*************************************
   * Finite State Machine (FSM)
@@ -470,7 +527,6 @@ module rvj1_ctrl #(
     branch = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
     takebr = (state == eBRANCH) &&  cond_met                          && ~stall_o;
     nobr   = (state == eBRANCH) && ~cond_met                          && ~stall_o;
-    ecall  = (state == eRUN)    &&  ecall_insn_i                      && ~stall_o;
     mret   = (state == eRUN)    &&  mret_insn_i                       && ~stall_o;
   end
   always_comb begin
@@ -486,8 +542,8 @@ module rvj1_ctrl #(
     state_next = branch            ? eBRANCH : state_next;
     state_next = takebr            ? eJUMP0  : state_next;
     state_next = nobr              ? eRUN    : state_next;
-    state_next = ecall             ? eCALL   : state_next;
-    state_next = (state == eCALL)  ? eRUN    : state_next;
+    state_next = synhr_trap        ? eTRAP   : state_next;
+    state_next = (state == eTRAP)  ? eRUN    : state_next;
     state_next = mret              ? eMRET   : state_next;
     state_next = (state == eMRET)  ? eRUN    : state_next;
   end

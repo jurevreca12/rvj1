@@ -33,7 +33,7 @@ def get_rtl_files(lang):
 
 def get_test_runner(hdl_top):
     sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal"]
+    build_args = ["-Wno-fatal", "--no-stop-fail"]
     if WAVES:
         build_args += ["--trace-fst"]
     if RVFI:

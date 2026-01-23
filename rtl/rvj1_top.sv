@@ -149,6 +149,11 @@ module rvj1_top
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
 
+  logic             load_addr_misaligned;
+  logic             load_access_fault;
+  logic             store_addr_misaligned;
+  logic             store_access_fault;
+  logic [XLEN-1:0]  lsu_misaligned_addr;
 
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
@@ -271,10 +276,11 @@ module rvj1_top
     .rf_data_o               (lsu_wb_data),
     .rf_wb_o                 (lsu_wb_valid),
     .rf_dest_o               (lsu_wb_regdest),
-    .ctrl_misaligned_load_o  (),
-    .ctrl_misaligned_store_o (),
-    .ctrl_bus_error_o        (),
-    .ctrl_exception_addr_o   (),
+    .load_addr_misaligned_o  (load_addr_misaligned),
+    .load_access_fault_o     (load_access_fault),
+    .store_addr_misaligned_o (store_addr_misaligned),
+    .store_access_fault_o    (store_access_fault),
+    .lsu_misaligned_addr_o   (lsu_misaligned_addr),
     .data_req_addr_o         (data_req_addr_o),
     .data_req_data_o         (data_req_data_o),
     .data_req_strobe_o       (data_req_strobe_o),
@@ -321,52 +327,56 @@ module rvj1_top
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
-      one_hot_write: assert( $onehot0({jump_r, lsu_wb_valid, alu_write_rf_r, csr_wb}) );
+      one_hot_writeback: assert( $onehot0({jump_r, lsu_wb_valid, alu_write_rf_r, csr_wb}) );
   `endif
 
   /*********************************************
   * CONTROLLER
   *********************************************/
   rvj1_ctrl ctrl_inst(
-    .clk_i               (clk_i),
-    .rstn_i              (rstn_i),
-    .rf_addr_a_i         (rf_addr_a),
-    .rf_addr_b_i         (rf_addr_b),
-    .rpa_or_pc_i         (rpa_or_pc),
-    .rpb_or_imm_i        (rpb_or_imm),
-    .regdest_i           (regdest),
-    .regdest_r_i         (regdest_r),
-    .lsu_cmd_i           (lsu_ctrl),
-    .lsu_ctrl_valid_i    (lsu_ctrl_valid),
-    .lsu_ready_i         (lsu_ready),
-    .ctrl_jump_i         (jump),
-    .alu_res_i           (alu_res_r),
-    .ctrl_branch_i       (ctrl_branch),
-    .ctrl_branch_type_i  (ctrl_branch_type),
-    .instr_issued_i      (instr_issued),
-    .instr_will_retire_i (instr_will_retire),
-    .instr_retiring_o    (instr_retiring),
-    .stall_o             (stall),
-    .program_counter_o   (program_counter),
-    .flush_o             (flush),
-    .jmp_addr_valid_o    (jmp_addr_valid),
-    .jmp_addr_o          (jmp_addr),
-    .csr_valid_i         (csr_valid_r),
-    .csr_addr_i          (csr_addr_r),
-    .csr_cmd_i           (csr_cmd_r),
-    .csr_value_o         (csr_value),
-    .csr_regdest_o       (csr_regdest),
-    .csr_wb_o            (csr_wb),
-    .irq_external_i      (irq_external_i),
-    .irq_timer_i         (irq_timer_i),
-    .irq_sw_i            (irq_sw_i),
-    .irq_lcofi_i         (irq_lcofi_i),
-    .irq_platform_i      (irq_platform_i),
-    .irq_nmi_i           (irq_nmi_i),
-    .ecall_insn_i        (ecall_insn),
-    .mret_insn_i         (mret_insn)
+    .clk_i                  (clk_i),
+    .rstn_i                 (rstn_i),
+    .rf_addr_a_i            (rf_addr_a),
+    .rf_addr_b_i            (rf_addr_b),
+    .rpa_or_pc_i            (rpa_or_pc),
+    .rpb_or_imm_i           (rpb_or_imm),
+    .regdest_i              (regdest),
+    .regdest_r_i            (regdest_r),
+    .lsu_cmd_i              (lsu_ctrl),
+    .lsu_ctrl_valid_i       (lsu_ctrl_valid),
+    .lsu_ready_i            (lsu_ready),
+    .ctrl_jump_i            (jump),
+    .alu_res_i              (alu_res_r),
+    .ctrl_branch_i          (ctrl_branch),
+    .ctrl_branch_type_i     (ctrl_branch_type),
+    .instr_issued_i         (instr_issued),
+    .instr_will_retire_i    (instr_will_retire),
+    .instr_retiring_o       (instr_retiring),
+    .stall_o                (stall),
+    .program_counter_o      (program_counter),
+    .flush_o                (flush),
+    .jmp_addr_valid_o       (jmp_addr_valid),
+    .jmp_addr_o             (jmp_addr),
+    .csr_valid_i            (csr_valid_r),
+    .csr_addr_i             (csr_addr_r),
+    .csr_cmd_i              (csr_cmd_r),
+    .csr_value_o            (csr_value),
+    .csr_regdest_o          (csr_regdest),
+    .csr_wb_o               (csr_wb),
+    .irq_external_i         (irq_external_i),
+    .irq_timer_i            (irq_timer_i),
+    .irq_sw_i               (irq_sw_i),
+    .irq_lcofi_i            (irq_lcofi_i),
+    .irq_platform_i         (irq_platform_i),
+    .irq_nmi_i              (irq_nmi_i),
+    .ecall_insn_i           (ecall_insn),
+    .mret_insn_i            (mret_insn),
+    .load_addr_misaligned_i (load_addr_misaligned),
+    .load_access_fault_i    (load_access_fault),
+    .store_addr_misaligned_i(store_addr_misaligned),
+    .store_access_fault_i   (store_access_fault),
+    .lsu_misaligned_addr_i  (lsu_misaligned_addr)
   );
-
 
   /*********************************************
   * RISC-V Formal Interface (RVFI)
@@ -465,7 +475,9 @@ module rvj1_top
   cmd_to_strobe cmd2strb_dummy (
     .cmd(retired_stage.lsu_cmd),
     .addr(retired_stage.alu_res[1:0]),
-    .strobe(strobe_sig)
+    .strobe(strobe_sig),
+    .write_error(),
+    .read_error()
   );
   assign rvfi_mem_rmask = strobe_sig;
   assign rvfi_mem_wmask = strobe_sig;
@@ -498,5 +510,5 @@ module rvj1_top
     );
   `endif
   `endif
-  
+
 endmodule
