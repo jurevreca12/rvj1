@@ -39,7 +39,11 @@ module rvfi_trace #(
     input logic [ 3:0] rvfi_mem_rmask,
     input logic [ 3:0] rvfi_mem_wmask,
     input logic [31:0] rvfi_mem_rdata,
-    input logic [31:0] rvfi_mem_wdata
+    input logic [31:0] rvfi_mem_wdata,
+    input logic [11:0] rvfi_csr_waddr,
+    input logic [31:0] rvfi_csr_rval,
+    input logic        rvfi_csr_written,
+    input logic        rvfi_csr_mod
 );
     int file_handle;
     logic reg_write;
@@ -77,6 +81,12 @@ module rvfi_trace #(
             $fwrite(file_handle, " mem 0x%8h", rvfi_mem_addr);
         if (mem_write)
             $fwrite(file_handle, " mem 0x%8h 0x%8h", rvfi_mem_addr, rvfi_mem_wdata); // mask?
+        if (rvfi_csr_written && rvfi_csr_mod)
+            $fwrite(file_handle, " c%3d_%s 0x%8h",
+                rvfi_csr_waddr,
+                csr_addr_to_name(rvfi_csr_waddr),
+                rvfi_csr_rval
+            );
         // TODO: CSR
         $fwrite(file_handle, "\n");
     endfunction
@@ -88,6 +98,37 @@ module rvfi_trace #(
             else
                 $fwrite(file_handle, " x%0d  0x%8h", rvfi_rd_addr, rvfi_rd_wdata);
         end
+    endfunction
+
+    function automatic string csr_addr_to_name(logic [11:0] csr_addr);
+        string ret;
+        unique case(csr_addr)
+            // Machine Information Registers
+            CSR_MVENDORID_ADDR: ret = "mvendorid";
+            CSR_MARCHID_ADDR:   ret = "marchid";
+            CSR_MIMPID_ADDR:    ret = "mimpid";
+            CSR_MHARTID_ADDR:   ret = "mhartid";
+
+            // Machine Trap Setup
+            CSR_MSTATUS_ADDR:    ret = "mstatus";
+            CSR_MSTATUSH_ADDR:   ret = "mstatush";
+            CSR_MISA_ADDR:       ret = "misa";
+            CSR_MEDELEG_ADDR:    ret = "medeleg";
+            CSR_MEDELEGH_ADDR:   ret = "medelegh";
+            CSR_MIDELEG_ADDR:    ret = "mideleg";
+            CSR_MIE_ADDR:        ret = "mie";
+            CSR_MTVEC_ADDR:      ret = "mtvec";
+            CSR_MCOUNTEREN_ADDR: ret = "mcounteren";
+
+            // Machine Trap Handling
+            CSR_MSCRATCH_ADDR:   ret = "mscratch";
+            CSR_MEPC_ADDR:       ret = "mepc";
+            CSR_MCAUSE_ADDR:     ret = "mcause";
+            CSR_MTVAL_ADDR:      ret = "mtval";
+            CSR_MIP_ADDR:        ret = "mip";
+            default:             ret = "";
+        endcase
+        return ret;
     endfunction
 
     always_comb begin

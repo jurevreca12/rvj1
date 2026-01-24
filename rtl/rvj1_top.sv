@@ -149,6 +149,13 @@ module rvj1_top
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
 
+  `ifdef RVFI
+  logic [11:0]      rvfi_csr_waddr;
+  logic [XLEN-1:0]  rvfi_csr_rval;
+  logic             rvfi_csr_written;
+  logic             rvfi_csr_mod;
+ `endif
+
   logic             load_addr_misaligned;
   logic             load_access_fault;
   logic             store_addr_misaligned;
@@ -371,6 +378,12 @@ module rvj1_top
     .irq_nmi_i              (irq_nmi_i),
     .ecall_insn_i           (ecall_insn),
     .mret_insn_i            (mret_insn),
+    `ifdef RVFI
+    .rvfi_csr_waddr_o       (rvfi_csr_waddr),
+    .rvfi_csr_rval_o        (rvfi_csr_rval),
+    .rvfi_csr_written_o     (rvfi_csr_written),
+    .rvfi_csr_mod_o         (rvfi_csr_mod),
+  `endif
     .load_addr_misaligned_i (load_addr_misaligned),
     .load_access_fault_i    (load_access_fault),
     .store_addr_misaligned_i(store_addr_misaligned),
@@ -389,11 +402,29 @@ module rvj1_top
   logic load_insn_issued;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
+  logic [11:0]      rvfi_csr_waddr_r;
+  logic [XLEN-1:0]  rvfi_csr_rval_r;
+  logic             rvfi_csr_written_r;
+  logic             rvfi_csr_mod_r;
 
   assign simple_insn_issued = instr_issued && instr_will_retire && ~stall;
   assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
   assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
   assign csr_insn_issued = instr_issued && csr_valid && ~stall;
+
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i) begin
+      rvfi_csr_waddr_r   <= '0;
+      rvfi_csr_rval_r    <= '0;
+      rvfi_csr_written_r <= '0;
+      rvfi_csr_mod_r     <= '0;
+    end else begin
+      rvfi_csr_waddr_r   <= rvfi_csr_waddr;
+      rvfi_csr_rval_r    <= rvfi_csr_rval;
+      rvfi_csr_written_r <= rvfi_csr_written;
+      rvfi_csr_mod_r     <= rvfi_csr_mod;
+    end
+  end
 
   always_comb begin
     exec_stage_comb.instr         = instr_exec;
@@ -411,7 +442,7 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (load_insn_issued || csr_insn_issued)
+    else if (load_insn_issued)
       mem_stage <= exec_stage_comb;
   end
   always_ff @(posedge clk_i) begin
@@ -487,28 +518,32 @@ module rvj1_top
   assign rvfi_mem_wdata = retired_stage.rs2_rdata;
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
-      .clk            (clk_i),
-      .rvfi_valid     (rvfi_valid),
-      .rvfi_order     (rvfi_order),
-      .rvfi_insn      (rvfi_insn),
-      .rvfi_trap      (rvfi_trap),
-      .rvfi_halt      (rvfi_halt),
-      .rvfi_intr      (rvfi_intr),
-      .rvfi_mode      (rvfi_mode),
-      .rvfi_ixl       (rvfi_ixl),
-      .rvfi_rs1_addr  (rvfi_rs1_addr),
-      .rvfi_rs2_addr  (rvfi_rs2_addr),
-      .rvfi_rs1_rdata (rvfi_rs1_rdata),
-      .rvfi_rs2_rdata (rvfi_rs2_rdata),
-      .rvfi_rd_addr   (rvfi_rd_addr),
-      .rvfi_rd_wdata  (rvfi_rd_wdata),
-      .rvfi_pc_rdata  (rvfi_pc_rdata),
-      .rvfi_pc_wdata  (rvfi_pc_wdata),
-      .rvfi_mem_addr  (rvfi_mem_addr),
-      .rvfi_mem_rmask (rvfi_mem_rmask),
-      .rvfi_mem_wmask (rvfi_mem_wmask),
-      .rvfi_mem_rdata (rvfi_mem_rdata),
-      .rvfi_mem_wdata (rvfi_mem_wdata)
+      .clk              (clk_i),
+      .rvfi_valid       (rvfi_valid),
+      .rvfi_order       (rvfi_order),
+      .rvfi_insn        (rvfi_insn),
+      .rvfi_trap        (rvfi_trap),
+      .rvfi_halt        (rvfi_halt),
+      .rvfi_intr        (rvfi_intr),
+      .rvfi_mode        (rvfi_mode),
+      .rvfi_ixl         (rvfi_ixl),
+      .rvfi_rs1_addr    (rvfi_rs1_addr),
+      .rvfi_rs2_addr    (rvfi_rs2_addr),
+      .rvfi_rs1_rdata   (rvfi_rs1_rdata),
+      .rvfi_rs2_rdata   (rvfi_rs2_rdata),
+      .rvfi_rd_addr     (rvfi_rd_addr),
+      .rvfi_rd_wdata    (rvfi_rd_wdata),
+      .rvfi_pc_rdata    (rvfi_pc_rdata),
+      .rvfi_pc_wdata    (rvfi_pc_wdata),
+      .rvfi_mem_addr    (rvfi_mem_addr),
+      .rvfi_mem_rmask   (rvfi_mem_rmask),
+      .rvfi_mem_wmask   (rvfi_mem_wmask),
+      .rvfi_mem_rdata   (rvfi_mem_rdata),
+      .rvfi_mem_wdata   (rvfi_mem_wdata),
+      .rvfi_csr_waddr   (rvfi_csr_waddr_r),
+      .rvfi_csr_rval    (rvfi_csr_rval_r),
+      .rvfi_csr_written (rvfi_csr_written_r),
+      .rvfi_csr_mod     (rvfi_csr_mod_r)
     );
   `endif
   `endif

@@ -20,19 +20,19 @@ module rvj1_ctrl #(
   input logic clk_i,
   input logic rstn_i,
 
-  input logic [RALEN-1:0]  rf_addr_a_i,
-  input logic [RALEN-1:0]  rf_addr_b_i,
-  input logic              rpa_or_pc_i,
-  input logic              rpb_or_imm_i,
-  input logic [RALEN-1:0]  regdest_i,
-  input logic [RALEN-1:0]  regdest_r_i,
-  input lsu_ctrl_e         lsu_cmd_i,
-  input logic              lsu_ctrl_valid_i,
-  input logic              lsu_ready_i,
-  input logic              ctrl_jump_i,
-  input logic [XLEN-1:0]   alu_res_i,
-  input logic              ctrl_branch_i,
-  input branch_ctrl_e      ctrl_branch_type_i,
+  input  logic [RALEN-1:0] rf_addr_a_i,
+  input  logic [RALEN-1:0] rf_addr_b_i,
+  input  logic             rpa_or_pc_i,
+  input  logic             rpb_or_imm_i,
+  input  logic [RALEN-1:0] regdest_i,
+  input  logic [RALEN-1:0] regdest_r_i,
+  input  lsu_ctrl_e        lsu_cmd_i,
+  input  logic             lsu_ctrl_valid_i,
+  input  logic             lsu_ready_i,
+  input  logic             ctrl_jump_i,
+  input  logic [XLEN-1:0]  alu_res_i,
+  input  logic             ctrl_branch_i,
+  input  branch_ctrl_e     ctrl_branch_type_i,
 
   input  logic             instr_issued_i,
   input  logic             instr_will_retire_i,
@@ -44,28 +44,35 @@ module rvj1_ctrl #(
   output logic             jmp_addr_valid_o,
   output logic [XLEN-1:0]  jmp_addr_o,
 
-  input logic              csr_valid_i,
-  input logic [11:0]       csr_addr_i,
-  input csr_cmd_t          csr_cmd_i,
+  input  logic             csr_valid_i,
+  input  logic [11:0]      csr_addr_i,
+  input  csr_cmd_t         csr_cmd_i,
   output logic [XLEN-1:0]  csr_value_o,
   output logic [RALEN-1:0] csr_regdest_o,
   output logic             csr_wb_o,
 
-  input logic              irq_external_i,
-  input logic              irq_timer_i,
-  input logic              irq_sw_i,
-  input logic              irq_lcofi_i,
-  input logic [15:0]       irq_platform_i,
-  input logic              irq_nmi_i,
+  input  logic             irq_external_i,
+  input  logic             irq_timer_i,
+  input  logic             irq_sw_i,
+  input  logic             irq_lcofi_i,
+  input  logic [15:0]      irq_platform_i,
+  input  logic             irq_nmi_i,
 
-  input logic              ecall_insn_i,
-  input logic              mret_insn_i,
+  input  logic             ecall_insn_i,
+  input  logic             mret_insn_i,
 
-  input logic              load_addr_misaligned_i,
-  input logic              load_access_fault_i,
-  input logic              store_addr_misaligned_i,
-  input logic              store_access_fault_i,
-  input logic [XLEN-1:0]   lsu_misaligned_addr_i
+  `ifdef RVFI
+  output logic [11:0]      rvfi_csr_waddr_o,
+  output logic [XLEN-1:0]  rvfi_csr_rval_o,
+  output logic             rvfi_csr_written_o,
+  output logic             rvfi_csr_mod_o,
+ `endif
+
+  input  logic             load_addr_misaligned_i,
+  input  logic             load_access_fault_i,
+  input  logic             store_addr_misaligned_i,
+  input  logic             store_access_fault_i,
+  input  logic [XLEN-1:0]  lsu_misaligned_addr_i
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -434,7 +441,7 @@ module rvj1_ctrl #(
   register #(
     .WORD_WIDTH($bits(miep_reg_t)),
     .RESET_VALUE(0)
-  ) mip_buffer (
+  ) csr_mip_reg (
     .clk (clk_i),
     .rstn(rstn_i),
     .ce  (1'b1),
@@ -508,6 +515,57 @@ module rvj1_ctrl #(
     .out  (mtval_q)
   );
 
+  `ifdef RVFI
+  always_comb begin
+    rvfi_csr_rval_o = '0;
+    unique case (rvfi_csr_waddr_o)
+      // Machine Information Registers
+      CSR_MVENDORID_ADDR: rvfi_csr_rval_o = CSR_MVENDORID_VALUE;
+      CSR_MARCHID_ADDR:   rvfi_csr_rval_o = CSR_MARCHID_VALUE;
+      CSR_MIMPID_ADDR:    rvfi_csr_rval_o = CSR_MIMPID_VALUE;
+      CSR_MHARTID_ADDR:   rvfi_csr_rval_o = CSR_MHARTID_VALUE;
+
+      // Machine Trap Setup
+      CSR_MSTATUS_ADDR:    rvfi_csr_rval_o = csr_mstatus_value;
+      CSR_MSTATUSH_ADDR:   rvfi_csr_rval_o = CSR_MSTATUSH_VALUE;
+      CSR_MISA_ADDR:       rvfi_csr_rval_o = CSR_MISA_VALUE;
+      CSR_MEDELEG_ADDR:    rvfi_csr_rval_o = CSR_MEDELEG_VALUE;
+      CSR_MEDELEGH_ADDR:   rvfi_csr_rval_o = CSR_MEDELEGH_VALUE;
+      CSR_MIDELEG_ADDR:    rvfi_csr_rval_o = CSR_MIDELEG_VALUE;
+      CSR_MIE_ADDR:        rvfi_csr_rval_o = csr_mie_value;
+      CSR_MTVEC_ADDR:      rvfi_csr_rval_o = csr_mtvec_value;
+      CSR_MCOUNTEREN_ADDR: rvfi_csr_rval_o = CSR_MCOUNTEREN_VALUE;
+
+      // Machine Trap Handling
+      CSR_MSCRATCH_ADDR:   rvfi_csr_rval_o = csr_mscratch_value;
+      CSR_MEPC_ADDR:       rvfi_csr_rval_o = csr_mepc_value;
+      CSR_MCAUSE_ADDR:     rvfi_csr_rval_o = csr_mcause_value;
+      CSR_MTVAL_ADDR:      rvfi_csr_rval_o = csr_mtval_value;
+      CSR_MIP_ADDR:        rvfi_csr_rval_o = csr_mip_value;
+      default:             rvfi_csr_rval_o = '0;
+    endcase
+  end
+
+  logic [XLEN-1:0] rvfi_csr_rval_prev;
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      rvfi_csr_rval_prev <= '0;
+    else if (csr_valid_i)
+      rvfi_csr_rval_prev <= csr_value;
+  end
+
+  assign rvfi_csr_mod_o = (rvfi_csr_rval_o != rvfi_csr_rval_prev);
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i) begin
+      rvfi_csr_written_o <= 1'b0;
+      rvfi_csr_waddr_o   <= '0;
+    end else begin
+      rvfi_csr_written_o <= csr_valid_i;
+      rvfi_csr_waddr_o   <= csr_addr_i;
+    end
+  end
+
+ `endif
 
   /*************************************
   * Finite State Machine (FSM)
