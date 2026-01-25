@@ -272,6 +272,8 @@ module rvj1_ctrl #(
   assign csr_mstatus_value = (
       ({31'b0, mstatus_q.mie}  << CSR_MSTATUS_MIE_BIT)
     | ({31'b0, mstatus_q.mpie} << CSR_MSTATUS_MPIE_BIT)
+    | ({31'b0, mstatus_q.mpp}  << CSR_MSTATUS_MPP_BIT_0)
+    | ({31'b0, mstatus_q.mpp}  << CSR_MSTATUS_MPP_BIT_1)
     | 32'b0
   );
   assign csr_mie_value = (
@@ -385,6 +387,7 @@ module rvj1_ctrl #(
         csr_mstatus_masked = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i);
         mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
         mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
+        mstatus_d.mpp = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
         mstatus_ce = 1'b1;
       end
       CSR_MSCRATCH_ADDR: begin
@@ -419,6 +422,7 @@ module rvj1_ctrl #(
       mepc_ce = 1'b1;
       mstatus_d.mie = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
+      mstatus_d.mpp = 1'b1;
       mstatus_ce = 1'b1;
       if (lsu_trap) begin
         mtval_d = lsu_misaligned_addr_i;
@@ -451,7 +455,7 @@ module rvj1_ctrl #(
 
   register #(
     .WORD_WIDTH($bits(mstatus_reg_t)),
-    .RESET_VALUE(0)
+    .RESET_VALUE(3'b001) // MPP reset to 0 (spike compat)
   ) csr_mstatus_reg (
     .clk (clk_i),
     .rstn(rstn_i),
@@ -499,7 +503,7 @@ module rvj1_ctrl #(
    ) csr_mcause_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mcause_ce & ~stall_o),
+    .ce  (mcause_ce),
     .in  (mcause_d),
     .out (mcause_q)
   );

@@ -164,6 +164,8 @@ package rvj1_defines;
 
     parameter int unsigned CSR_MSTATUS_MIE_BIT     = 3;
     parameter int unsigned CSR_MSTATUS_MPIE_BIT    = 7;
+    parameter int unsigned CSR_MSTATUS_MPP_BIT_0   = 11;
+    parameter int unsigned CSR_MSTATUS_MPP_BIT_1   = 12;
 
     // For MIE and MIP registers (MIEP)
     parameter int unsigned CSR_MIEP_MSI_BIT           = 3;
@@ -183,6 +185,7 @@ package rvj1_defines;
     typedef struct packed {
         logic mie;  // machine interrupt enable
         logic mpie; // machine previous irq enable
+        logic mpp;  // machine previous priv (1 bit mirrored)
     } mstatus_reg_t;
 
     parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0

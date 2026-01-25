@@ -147,7 +147,7 @@ class spike(pluginTemplate):
                 )
             else:
                 execute += (
-                    self.dut_exe + r" ${SPIKE_OPTS} "
+                    self.dut_exe + r" ${SPIKE_OPTS} --priv=m "
                     + " --isa={0} +signature={1} +signature-granularity=4 {2};".format(
                         self.isa, sig_file, elf
                     )
