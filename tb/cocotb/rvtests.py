@@ -855,7 +855,8 @@ class MSTATUSTest(Program):
         super().__init__(insns)
     
     def expects(self) -> dict:
-        return {x1:0, x2: 8, x3: (1 << 7), x4: (8 + (1 << 7))}
+        MPP = (1 << 11) + (1 << 12)
+        return {x1: (0 + MPP), x2: (8 + MPP), x3: ((1 << 7) + MPP), x4: (8 + (1 << 7) + MPP)}
 
 class MISALIGNEDLWTest(Program):
         """
