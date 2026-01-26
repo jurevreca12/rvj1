@@ -160,7 +160,7 @@ module rvj1_top
   logic             load_access_fault;
   logic             store_addr_misaligned;
   logic             store_access_fault;
-  logic [XLEN-1:0]  lsu_misaligned_addr;
+  logic [XLEN-1:0]  lsu_exc_addr;
 
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
@@ -287,7 +287,7 @@ module rvj1_top
     .load_access_fault_o     (load_access_fault),
     .store_addr_misaligned_o (store_addr_misaligned),
     .store_access_fault_o    (store_access_fault),
-    .lsu_misaligned_addr_o   (lsu_misaligned_addr),
+    .lsu_exc_addr_o          (lsu_exc_addr),
     .data_req_addr_o         (data_req_addr_o),
     .data_req_data_o         (data_req_data_o),
     .data_req_strobe_o       (data_req_strobe_o),
@@ -388,7 +388,7 @@ module rvj1_top
     .load_access_fault_i    (load_access_fault),
     .store_addr_misaligned_i(store_addr_misaligned),
     .store_access_fault_i   (store_access_fault),
-    .lsu_misaligned_addr_i  (lsu_misaligned_addr)
+    .lsu_exc_addr_i         (lsu_exc_addr)
   );
 
   /*********************************************
@@ -463,7 +463,7 @@ module rvj1_top
     if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring;
+      instr_retired <= instr_retiring && ~store_addr_misaligned;
   end
   assign rvfi_valid = instr_retired;
   counter #(
@@ -508,9 +508,7 @@ module rvj1_top
   cmd_to_strobe cmd2strb_dummy (
     .cmd(retired_stage.lsu_cmd),
     .addr(retired_stage.alu_res[1:0]),
-    .strobe(strobe_sig),
-    .write_error(),
-    .read_error()
+    .strobe(strobe_sig)
   );
   assign rvfi_mem_rmask = strobe_sig;
   assign rvfi_mem_wmask = strobe_sig;

@@ -112,7 +112,7 @@ module rvj1_lsu (
     output logic            load_access_fault_o,
     output logic            store_addr_misaligned_o,
     output logic            store_access_fault_o,
-    output logic [XLEN-1:0] lsu_misaligned_addr_o,
+    output logic [XLEN-1:0] lsu_exc_addr_o,
 
     // Interface to data RAM
     output logic [XLEN-1:0]   data_req_addr_o,
@@ -137,9 +137,6 @@ lsu_act_req_t act_req_buff_out_data;
 logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
-logic         data_req_valid;
-logic         load_addr_misaligned;
-logic         store_addr_misaligned;
 logic         exception;
 
 logic [XLEN-1:0] byte_select_read_data;
@@ -147,7 +144,23 @@ logic [XLEN-1:0] byte_select_read_data;
 logic retire_request;
 
 logic data_req_fire, data_rsp_fire;
-logic read_req, read_rsp, req_full, req_ready, rsp_full, read_err;
+logic read_req, read_rsp, req_full, req_ready, rsp_full;
+logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
+
+
+/*************************************
+* Address Check
+*************************************/
+  lsu_addr_check lsu_addr_check_instr(
+  .lsu_cmd_i     (lsu_cmd_i),
+  .valid_i       (lsu_valid_i),
+  .eff_addr_i    (lsu_addr_i[1:0]),
+  .write_error_o (store_addr_misaligned),
+  .read_error_o  (load_addr_misaligned)
+);
+assign addr_misaligned = store_addr_misaligned || load_addr_misaligned;
+assign load_addr_misaligned_o = load_addr_misaligned  && lsu_valid_i && lsu_ready_o;
+assign store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu_ready_o;
 
 /*************************************
 * Data Path
@@ -158,15 +171,14 @@ skidbuffer #(
   .clk  (clk_i),
   .rstn (rstn_i),
 
-  .input_valid  (lsu_valid_i && lsu_ready_o),
+  .input_valid  (lsu_valid_i && lsu_ready_o && ~addr_misaligned),
   .input_ready  (req_buff_inp_ready),
   .input_data   ({lsu_cmd_i, lsu_addr_i, lsu_data_i, lsu_regdest_i}),
 
-  .output_valid (data_req_valid),
+  .output_valid (data_req_valid_o),
   .output_ready (data_req_ready_i),
   .output_data  (req_buff_out_data)
 );
-assign data_req_valid_o = data_req_valid && ~store_addr_misaligned_o && ~load_addr_misaligned_o;
 assign data_req_addr_o  = {req_buff_out_data.addr[31:2], 2'b00};
 byte_select_write bsw_inst(
   .data(req_buff_out_data.data),
@@ -177,24 +189,17 @@ byte_select_write bsw_inst(
 cmd_to_strobe cmd_to_strobe_inst (
   .cmd(req_buff_out_data.cmd),
   .addr(req_buff_out_data.addr[1:0]),
-  .strobe(data_req_strobe_o),
-  .write_error(store_addr_misaligned),
-  .read_error(load_addr_misaligned)
+  .strobe(data_req_strobe_o)
 );
-assign load_addr_misaligned_o = load_addr_misaligned && data_req_valid && data_req_ready_i;
-assign store_addr_misaligned_o = store_addr_misaligned && data_req_valid && data_req_ready_i;
 assign data_req_write_o  = is_write(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
 assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 
-assign exception = store_addr_misaligned_o ||
-                   store_access_fault_o ||
-                   load_addr_misaligned_o ||
-                   load_access_fault_o;
+assign exception = store_access_fault_o || load_access_fault_o;
 always_comb begin
-  lsu_misaligned_addr_o = 32'b0;
+  lsu_exc_addr_o = 32'b0;
   if (exception)
-    lsu_misaligned_addr_o = req_buff_out_data.addr;
+    lsu_exc_addr_o = req_buff_out_data.addr;
 end
 
 skidbuffer #(
@@ -260,9 +265,8 @@ assign lsu_ready_o = (state == eRUN) && req_buff_inp_ready && act_req_buff_inp_r
 * FSM
 *************************************/
 always_comb begin
-  read_req  = (state == eRUN)   && lsu_valid_i    && ~is_write(lsu_cmd_i);
+  read_req  = (state == eRUN)   && lsu_valid_i    && ~is_write(lsu_cmd_i) && ~load_addr_misaligned;
   read_rsp  = (state == eREAD)  && retire_request && ~is_write(act_req_buff_out_data.cmd);
-  read_err  = (state == eREAD)  && load_addr_misaligned;
   req_full  = (state == eRUN)   && ~req_buff_inp_ready;
   rsp_full  = (state == eRUN)   && ~act_req_buff_inp_ready;
   req_ready = (state == eSTALL) && req_buff_inp_ready;
@@ -270,7 +274,6 @@ end
 always_comb begin
   state_next = read_req  ? eREAD  : state;
   state_next = read_rsp  ? eRUN   : state_next;
-  state_next = read_err  ? eRUN   : state_next;
   state_next = req_full  ? eSTALL : state_next;
   state_next = req_ready ? eRUN   : state_next;
 end
@@ -304,32 +307,42 @@ endmodule
 module cmd_to_strobe(
   input lsu_ctrl_e cmd,
   input logic [1:0] addr,
-  output logic [3:0] strobe,
-  output logic write_error,
-  output logic read_error
+  output logic [3:0] strobe
 );
   logic [3:0] aligned_strobe;
   logic btye, half, word;
-  logic error;
   assign btye = 1'b1;
   assign half = cmd[0];
   assign word = cmd[1];
-  always_comb begin
-    error = 1'b0;
-    if (cmd != LSU_NO_CMD) begin
-      if (word)
-        error = ~(addr == 2'b00);
-      if (half)
-        error = ~(addr == 2'b00 || addr == 2'b10);
-    end
-  end
-  assign write_error = error &&  is_write(cmd);
-  assign read_error  = error && ~is_write(cmd);
   assign aligned_strobe = {word,
                            word,
                            half | word,
                            btye | half | word};
   assign strobe = aligned_strobe << addr;
+endmodule
+
+module lsu_addr_check (
+  input  lsu_ctrl_e  lsu_cmd_i,
+  input  logic       valid_i,
+  input  logic [1:0] eff_addr_i,
+  output logic       write_error_o,
+  output logic       read_error_o
+);
+  logic half, word;
+  logic error;
+  assign half = lsu_cmd_i[0];
+  assign word = lsu_cmd_i[1];
+  always_comb begin
+    error = 1'b0;
+    if (lsu_cmd_i != LSU_NO_CMD) begin
+      if (word)
+        error = ~(eff_addr_i == 2'b00);
+      if (half)
+        error = ~(eff_addr_i == 2'b00 || eff_addr_i == 2'b10);
+    end
+  end
+  assign write_error_o = error &&  is_write(lsu_cmd_i) && valid_i;
+  assign read_error_o  = error && ~is_write(lsu_cmd_i) && valid_i;
 endmodule
 
 module byte_select_read(

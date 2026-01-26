@@ -72,7 +72,7 @@ module rvj1_ctrl #(
   input  logic             load_access_fault_i,
   input  logic             store_addr_misaligned_i,
   input  logic             store_access_fault_i,
-  input  logic [XLEN-1:0]  lsu_misaligned_addr_i
+  input  logic [XLEN-1:0]  lsu_exc_addr_i
 );
   typedef enum logic [3:0] {
       eRESET,
@@ -128,8 +128,10 @@ module rvj1_ctrl #(
   logic is_booted;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
-  logic synhr_trap, lsu_trap;
+  logic synhr_trap, lsu_trap, addr_unaligned_trap;
   logic instr_will_retire;
+  logic pc_change;
+  logic [XLEN-1:0]  program_counter_prev;
 
   /*************************************
   * Helper functions
@@ -209,15 +211,28 @@ module rvj1_ctrl #(
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
+  // TODO: Is there anyway to get rid of this extra state?
+  // This is here because we need mepc on write misalign trap
+  assign pc_change = (state_next == eJUMP1) ||
+                      synhr_trap ||
+                      mret_insn_i ||
+                      instr_will_retire ||
+                      (ctrl_jump_i && ~stall_o) ||
+                      loaded;
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
+      program_counter_prev <= BOOT_ADDR;
+    else if (pc_change)
+      program_counter_prev <= program_counter_o;
+  end
+
   /*************************************
   * Traps
   *************************************/
-  assign lsu_trap = load_addr_misaligned_i ||
-                    load_access_fault_i ||
-                    store_addr_misaligned_i ||
-                    store_access_fault_i;
+  assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
+  assign lsu_trap = load_access_fault_i || store_access_fault_i;
 
-  assign synhr_trap = ecall_insn_i || lsu_trap;
+  assign synhr_trap = ecall_insn_i || lsu_trap || addr_unaligned_trap;
 
   always_comb begin
     trap_cause = 6'b0;
@@ -418,14 +433,21 @@ module rvj1_ctrl #(
     end else if (synhr_trap) begin
       mcause_d = trap_cause;
       mcause_ce = 1'b1;
-      mepc_d = program_counter_o[31:2];
+      if (store_addr_misaligned_i)
+        mepc_d = program_counter_prev[31:2];
+      else
+        mepc_d = program_counter_o[31:2];
       mepc_ce = 1'b1;
       mstatus_d.mie = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
       mstatus_d.mpp = 1'b1;
       mstatus_ce = 1'b1;
       if (lsu_trap) begin
-        mtval_d = lsu_misaligned_addr_i;
+        mtval_d = lsu_exc_addr_i;
+        mtval_ce = 1'b1;
+      end
+      else if (addr_unaligned_trap) begin
+        mtval_d = alu_res_i;
         mtval_ce = 1'b1;
       end
     end else if (mret_insn_i) begin
