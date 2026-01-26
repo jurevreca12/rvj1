@@ -40,6 +40,7 @@ module rvj1_ctrl #(
   output logic             stall_o,
   output logic [XLEN-1:0]  program_counter_o,
   output logic             flush_o,
+  output logic             stop_jmp_write_o,
 
   output logic             jmp_addr_valid_o,
   output logic [XLEN-1:0]  jmp_addr_o,
@@ -132,6 +133,7 @@ module rvj1_ctrl #(
   logic instr_will_retire;
   logic pc_change;
   logic [XLEN-1:0]  program_counter_prev;
+  logic instr_addr_misaligned;
 
   /*************************************
   * Helper functions
@@ -179,10 +181,11 @@ module rvj1_ctrl #(
   /*************************************
   * Jumping logic
   *************************************/
-  assign jmp_addr_valid_o = ((state == eJUMP0) ||
+  assign jmp_addr_valid_o = (((state == eJUMP0) && ~instr_addr_misaligned) ||
                              (state == eBOOT0) ||
                              (state == eTRAP)  ||
                              (state == eMRET));
+  assign stop_jmp_write_o = instr_addr_misaligned;
   always_comb begin
     jmp_addr_o = '0;
     if (state == eJUMP0)
@@ -201,19 +204,19 @@ module rvj1_ctrl #(
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       program_counter_o <= BOOT_ADDR;
-    else if (state_next == eJUMP1)
-      program_counter_o <= alu_res_i;
     else if (synhr_trap)
       program_counter_o <= csr_mtvec_value;
     else if (mret_insn_i)
       program_counter_o <= csr_mepc_value;
+    else if (state == eJUMP0)
+      program_counter_o <= alu_res_i;
     else if (instr_will_retire || (ctrl_jump_i && ~stall_o) || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
   // TODO: Is there anyway to get rid of this extra state?
   // This is here because we need mepc on write misalign trap
-  assign pc_change = (state_next == eJUMP1) ||
+  assign pc_change = (state == eJUMP0) ||
                       synhr_trap ||
                       mret_insn_i ||
                       instr_will_retire ||
@@ -231,8 +234,8 @@ module rvj1_ctrl #(
   *************************************/
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
-
-  assign synhr_trap = ecall_insn_i || lsu_trap || addr_unaligned_trap;
+  assign instr_addr_misaligned = alu_res_i[1] && (state == eJUMP0);
+  assign synhr_trap = ecall_insn_i || lsu_trap || addr_unaligned_trap || instr_addr_misaligned;
 
   always_comb begin
     trap_cause = 6'b0;
@@ -246,6 +249,8 @@ module rvj1_ctrl #(
       trap_cause = MCAUSE_LOAD_ACCESS_FAULT;
     else if (store_access_fault_i)
       trap_cause = MCAUSE_STORE_ACCESS_FAULT;
+    else if (instr_addr_misaligned)
+      trap_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
   end
 
   /*************************************
@@ -433,7 +438,7 @@ module rvj1_ctrl #(
     end else if (synhr_trap) begin
       mcause_d = trap_cause;
       mcause_ce = 1'b1;
-      if (store_addr_misaligned_i)
+      if (store_addr_misaligned_i || instr_addr_misaligned)
         mepc_d = program_counter_prev[31:2];
       else
         mepc_d = program_counter_o[31:2];
@@ -446,7 +451,7 @@ module rvj1_ctrl #(
         mtval_d = lsu_exc_addr_i;
         mtval_ce = 1'b1;
       end
-      else if (addr_unaligned_trap) begin
+      else if (addr_unaligned_trap || instr_addr_misaligned) begin
         mtval_d = alu_res_i;
         mtval_ce = 1'b1;
       end

@@ -148,6 +148,7 @@ module rvj1_top
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
+  logic             stop_jmp_write;
 
   `ifdef RVFI
   logic [11:0]      rvfi_csr_waddr;
@@ -191,8 +192,8 @@ module rvj1_top
     .jmp_addr_valid_i   (jmp_addr_valid),
     .jmp_addr_i         (jmp_addr),
 
-    .ctrl_insn_misalign_exception_o (),
-    .ctrl_fault_addr_o              ()
+    .instr_fetch_err_o  (),
+    .instr_fault_addr_o ()
   );
 
 
@@ -330,7 +331,7 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we   = lsu_wb_valid || alu_write_rf_r || jump_r || csr_wb;
+  assign wpc_we   = lsu_wb_valid || alu_write_rf_r || (jump_r && ~stop_jmp_write) || csr_wb;
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
@@ -362,6 +363,7 @@ module rvj1_top
     .stall_o                (stall),
     .program_counter_o      (program_counter),
     .flush_o                (flush),
+    .stop_jmp_write_o       (stop_jmp_write),
     .jmp_addr_valid_o       (jmp_addr_valid),
     .jmp_addr_o             (jmp_addr),
     .csr_valid_i            (csr_valid_r),

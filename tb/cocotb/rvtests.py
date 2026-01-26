@@ -921,6 +921,34 @@ class MISALIGNEDLWTest(Program):
             super().__init__(insns)
         def expects(self) -> dict:
             return {x0:0, x5: 0x8000003c, x6: 0x60000002, x7: 0xDEADC0DE, x9: 0}
+        
+
+class MISALIGNEDJALTest(Program):
+    """
+            Test that an exception is triggered on an unaligned jump.
+    """
+    def __init__(self):
+        insns = [
+            InstructionLUI  (x31, 0x80000),    # 0x8000_0000
+            InstructionADDI (x31, x31, 0x18),  # 0x8000_0004
+            InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+            InstructionJAL  (x3, 0xa),         # 0x8000_000c
+            InstructionADDI (x1, x0, 0x1),     # 0x8000_0010
+            InstructionJAL  (x0, 0x20),        # 0x8000_0014 --------------------
+            InstructionCSRRS(x4, x0, mstatus), # 0x8000_0018 -- TRAP HANDLER |  |
+            InstructionCSRRS(x5, x0, mepc),    # 0x8000_001c                 |  |
+            InstructionADDI (x5, x5, 4),       # 0x8000_0020                 |  |
+            InstructionCSRRW(x0, x5, mepc),    # 0x8000_0024                 |  |
+            InstructionCSRRW(x6, x0, mtval),   # 0x8000_0028                 |  |
+            InstructionMRET (),                # 0x8000_002c  <---------------  |
+            InstructionADDI (x2, x0, 1),       # 0x8000_0030                    |
+            InstructionADDI (x7, x0, 1),       # 0x8000_0034 <------------------|
+            InstructionNOP  (),                # 0x8000_0038
+            InstructionNOP  (),                # 0x8000_003c
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {x0:0, x1: 1, x2:0, x3: 0, x5:0x80000010, x6:0x80000016, x7:1}
 
 RV32I_TESTS = {
     "lui": LUITest(),
@@ -966,4 +994,5 @@ RV32I_TESTS = {
     "ecall": ECALLTest(),
     "mstatus": MSTATUSTest(),
     "misaligned-lw": MISALIGNEDLWTest(),
+    "misaligned-jal": MISALIGNEDJALTest(),
 }

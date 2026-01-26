@@ -37,8 +37,8 @@ module rvj1_ifu(
   input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
   input logic [XLEN-1:0]  jmp_addr_i,       // The jump address
 
-  output logic            ctrl_insn_misalign_exception_o, // Signal isntr misaligned exception
-  output logic [XLEN-1:0] ctrl_fault_addr_o // the address that caused the misaligned exception
+  output logic            instr_fetch_err_o, // Signal isntr fetch exception
+  output logic [XLEN-1:0] instr_fault_addr_o // the address that caused the misaligned exception
 );
     logic [XLEN-1:0] input_buffer;
     logic [XLEN-1:0] output_buffer;
