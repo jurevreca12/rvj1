@@ -43,6 +43,7 @@
 // to finnish, before issuing further requests.                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
 typedef struct packed {
@@ -64,12 +65,12 @@ typedef struct packed {
 } lsu_rsp_t;
 
 typedef enum logic [1:0] {
-  eRUN,   // waiting on requests
-  eREAD,  // stall to finnish read
-  eSTALL  // stall because buffer full
+  eLSU_RUN,   // waiting on requests
+  eLSU_READ,  // stall to finnish read
+  eLSU_STALL  // stall because buffer full
 } lsu_state_e;
 
-function automatic logic is_write(input lsu_ctrl_e cmd);
+function automatic logic is_write_cmd(input lsu_ctrl_e cmd);
   begin
       return cmd[3];
   end
@@ -144,7 +145,7 @@ logic [XLEN-1:0] byte_select_read_data;
 logic retire_request;
 
 logic data_req_fire, data_rsp_fire;
-logic read_req, read_rsp, req_full, req_ready, rsp_full;
+logic read_req, read_rsp, req_full, req_ready;
 logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
 
 
@@ -191,7 +192,7 @@ cmd_to_strobe cmd_to_strobe_inst (
   .addr(req_buff_out_data.addr[1:0]),
   .strobe(data_req_strobe_o)
 );
-assign data_req_write_o  = is_write(req_buff_out_data.cmd);
+assign data_req_write_o  = is_write_cmd(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
 assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 
@@ -244,7 +245,7 @@ assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
                     retire_request &&
-                    ~is_write(act_req_buff_out_data.cmd));
+                    ~is_write_cmd(act_req_buff_out_data.cmd));
 
 /*************************************
 * Control
@@ -259,27 +260,27 @@ register #(
   .in   (data_rsp_fire),
   .out  (retire_request)
 );
-assign lsu_ready_o = (state == eRUN) && req_buff_inp_ready && act_req_buff_inp_ready;
+assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && act_req_buff_inp_ready;
 
 /*************************************
 * FSM
 *************************************/
 always_comb begin
-  read_req  = (state == eRUN)   && lsu_valid_i    && ~is_write(lsu_cmd_i) && ~load_addr_misaligned;
-  read_rsp  = (state == eREAD)  && retire_request && ~is_write(act_req_buff_out_data.cmd);
-  req_full  = (state == eRUN)   && ~req_buff_inp_ready;
-  rsp_full  = (state == eRUN)   && ~act_req_buff_inp_ready;
-  req_ready = (state == eSTALL) && req_buff_inp_ready;
+  read_req  = (state == eLSU_RUN)   && lsu_valid_i    && ~is_write_cmd(lsu_cmd_i) && ~load_addr_misaligned;
+  read_rsp  = (state == eLSU_READ)  && retire_request && ~is_write_cmd(act_req_buff_out_data.cmd);
+  req_full  = (state == eLSU_RUN)   && ~req_buff_inp_ready;
+  //rsp_full  = (state == eLSU_RUN)   && ~act_req_buff_inp_ready;
+  req_ready = (state == eLSU_STALL) && req_buff_inp_ready;
 end
 always_comb begin
-  state_next = read_req  ? eREAD  : state;
-  state_next = read_rsp  ? eRUN   : state_next;
-  state_next = req_full  ? eSTALL : state_next;
-  state_next = req_ready ? eRUN   : state_next;
+  state_next = read_req  ? eLSU_READ  : state;
+  state_next = read_rsp  ? eLSU_RUN   : state_next;
+  state_next = req_full  ? eLSU_STALL : state_next;
+  state_next = req_ready ? eLSU_RUN   : state_next;
 end
 always_ff @(posedge clk_i) begin
   if (~rstn_i)
-    state <= eRUN;
+    state <= eLSU_RUN;
   else
     state <= state_next;
 end
@@ -297,13 +298,14 @@ end
       bad_req: assert(req_buff_inp_ready);
       bad_act: assert(act_req_buff_inp_ready);
       // Requests can only be issued when in running state (no stall).
-      state_r: assert(state == eRUN);
+      state_r: assert(state == eLSU_RUN);
     end
   end
 `endif
 
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module cmd_to_strobe(
   input lsu_ctrl_e cmd,
   input logic [1:0] addr,
@@ -321,6 +323,7 @@ module cmd_to_strobe(
   assign strobe = aligned_strobe << addr;
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module lsu_addr_check (
   input  lsu_ctrl_e  lsu_cmd_i,
   input  logic       valid_i,
@@ -341,10 +344,11 @@ module lsu_addr_check (
         error = ~(eff_addr_i == 2'b00 || eff_addr_i == 2'b10);
     end
   end
-  assign write_error_o = error &&  is_write(lsu_cmd_i) && valid_i;
-  assign read_error_o  = error && ~is_write(lsu_cmd_i) && valid_i;
+  assign write_error_o = error &&  is_write_cmd(lsu_cmd_i) && valid_i;
+  assign read_error_o  = error && ~is_write_cmd(lsu_cmd_i) && valid_i;
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module byte_select_read(
   input logic [XLEN-1:0] data,
   input logic [1:0] byteaddr,
@@ -361,6 +365,7 @@ module byte_select_read(
   end
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module byte_select_write(
   input logic [XLEN-1:0] data,
   input lsu_ctrl_e cmd,

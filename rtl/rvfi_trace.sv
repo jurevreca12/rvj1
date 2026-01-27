@@ -11,6 +11,8 @@
 //                 the log produced by spike with --log-commits option.       //
 //                 This enables easy debuging of traces.                      //
 ////////////////////////////////////////////////////////////////////////////////
+
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
 module rvfi_trace #(

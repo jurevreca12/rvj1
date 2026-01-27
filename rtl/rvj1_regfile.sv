@@ -10,6 +10,8 @@
 // Description:    The register file and its interface.                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
 module rvj1_regfile (

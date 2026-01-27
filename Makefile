@@ -22,7 +22,7 @@ vivado:
 	cd impl && $(MAKE) vivado
 
 lint-verilator:
-	verilator --timescale 1ns/1ps -I${INC_DIR} -lint-only -Wall -Wno-fatal ${RTL_FILES}
+	verilator --timescale 1ns/1ps -I${INC_DIR} -DRVFI -DASSERTIONS -lint-only -Wall -Wno-fatal ${RTL_FILES} --top-module rvj1_top
 
 clean:
 	cd impl && $(MAKE) clean

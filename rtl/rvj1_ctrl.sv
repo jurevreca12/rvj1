@@ -11,11 +11,10 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
-module rvj1_ctrl #(
-  parameter bit [31:0] BOOT_ADDR = 32'h8000_0000
-)
+module rvj1_ctrl
 (
   input logic clk_i,
   input logic rstn_i,
@@ -103,7 +102,7 @@ module rvj1_ctrl #(
   miep_reg_t       mip_d, mip_q;
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
   logic [XLEN-3:0] mepc_d, mepc_q;
-  logic [5:0]      mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits for code log2(19) = 4.24
+  logic [5:0]      mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
   logic [XLEN-1:0] mtval_d, mtval_q;
   logic [XLEN-1:0] mscratch_d, mscratch_q;
 
@@ -125,8 +124,7 @@ module rvj1_ctrl #(
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
-  logic load, loaded, jump, branch, takebr, nobr, trap, mret;
-  logic is_booted;
+  logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
@@ -170,12 +168,12 @@ module rvj1_ctrl #(
                     rf_b_hazard  ||
                     lsu_b_hazard ||
                     (state == eLOAD0) ||
-                    (state == eLOAD1)) ||
+                    (state == eLOAD1) ||
                     (state == eJUMP0) ||
                     (state == eJUMP1) ||
                     (state == eTRAP) ||
                     lsu_trap ||
-                    (state == eMRET);
+                    (state == eMRET));
   assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET);
 
   /*************************************
@@ -206,7 +204,7 @@ module rvj1_ctrl #(
       program_counter_o <= BOOT_ADDR;
     else if (synhr_trap)
       program_counter_o <= csr_mtvec_value;
-    else if (mret_insn_i)
+    else if (mret)
       program_counter_o <= csr_mepc_value;
     else if (state == eJUMP0)
       program_counter_o <= alu_res_i;
@@ -452,7 +450,7 @@ module rvj1_ctrl #(
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_i;
       mtval_ce = 1'b1;
-    end else if (mret_insn_i) begin
+    end else if (mret) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;

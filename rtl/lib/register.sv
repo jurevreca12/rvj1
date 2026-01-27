@@ -31,6 +31,7 @@ module register
     end
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module pipeline_register
 #(
     parameter int WORD_WIDTH = 0,

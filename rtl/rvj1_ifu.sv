@@ -11,6 +11,7 @@
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
 module rvj1_ifu(
@@ -47,11 +48,11 @@ module rvj1_ifu(
 
     logic boot, load, flow, fill, flush, unload, jmpi, jmpn;
     typedef enum logic [2:0] {
-        eWAIT,   // no address, wait for jmp (controller jumps to boot addr at boot)
-        eEMPTY,  // Output and buffer registers empty
-        eBUSY,   // Output register holds data
-        eFULL,   // Both output and buffer registers full,
-        eJMP     // load address
+        eIFU_WAIT,   // no address, wait for jmp (controller jumps to boot addr at boot)
+        eIFU_EMPTY,  // Output and buffer registers empty
+        eIFU_BUSY,   // Output register holds data
+        eIFU_FULL,   // Both output and buffer registers full,
+        eIFU_JMP     // load address
     } ifu_fsm_e;
     ifu_fsm_e state, state_next;
 
@@ -100,8 +101,8 @@ module rvj1_ifu(
             instr_rsp_ready_o <= 1'b0;
         end
         else begin
-            instr_req_valid_o <= (state_next != eFULL) && (state_next != eWAIT);
-            instr_rsp_ready_o <= (state_next != eFULL) && (state_next != eWAIT);
+            instr_req_valid_o <= (state_next != eIFU_FULL) && (state_next != eIFU_WAIT);
+            instr_rsp_ready_o <= (state_next != eIFU_FULL) && (state_next != eIFU_WAIT);
         end
     end
 
@@ -113,23 +114,23 @@ module rvj1_ifu(
         if (~rstn_i)
             dec_valid_o <= 1'b0;
         else
-            dec_valid_o <= ~((state_next == eEMPTY) ||
-                             (state_next == eJMP)   ||
-                             (state_next == eWAIT));
+            dec_valid_o <= ~((state_next == eIFU_EMPTY) ||
+                             (state_next == eIFU_JMP)   ||
+                             (state_next == eIFU_WAIT));
     end
 
     /*************************************
     * Finite State Machine (FSM)
     *************************************/
     always_comb begin
-        boot   = (state == eWAIT)  &&  jmp_addr_valid_i;
-        load   = (state == eEMPTY) &&  instr_rsp_fire;
-        flow   = (state == eBUSY)  &&  instr_rsp_fire  &&  dec_fire;
-        fill   = (state == eBUSY)  &&  instr_rsp_fire  && ~dec_fire;
-        unload = (state == eBUSY)  && ~instr_rsp_fire  &&  dec_fire;
-        flush  = (state == eFULL)  && ~instr_rsp_fire  &&  dec_fire;
-        jmpi   = (state != eWAIT)  &&  jmp_addr_valid_i;
-        jmpn   = (state == eJMP)   &&  instr_req_fire;
+        boot   = (state == eIFU_WAIT)  &&  jmp_addr_valid_i;
+        load   = (state == eIFU_EMPTY) &&  instr_rsp_fire;
+        flow   = (state == eIFU_BUSY)  &&  instr_rsp_fire  &&  dec_fire;
+        fill   = (state == eIFU_BUSY)  &&  instr_rsp_fire  && ~dec_fire;
+        unload = (state == eIFU_BUSY)  && ~instr_rsp_fire  &&  dec_fire;
+        flush  = (state == eIFU_FULL)  && ~instr_rsp_fire  &&  dec_fire;
+        jmpi   = (state != eIFU_WAIT)  &&  jmp_addr_valid_i;
+        jmpn   = (state == eIFU_JMP)   &&  instr_req_fire;
     end
 
     always_comb begin
@@ -139,18 +140,18 @@ module rvj1_ifu(
     end
 
     always_comb begin
-        state_next = boot   ? eEMPTY : state;
-        state_next = load   ? eBUSY  : state_next;
-        state_next = flow   ? eBUSY  : state_next;
-        state_next = fill   ? eFULL  : state_next;
-        state_next = flush  ? eBUSY  : state_next;
-        state_next = unload ? eEMPTY : state_next;
-        state_next = jmpi   ? eJMP   : state_next;
-        state_next = jmpn   ? eEMPTY  : state_next;
+        state_next = boot   ? eIFU_EMPTY : state;
+        state_next = load   ? eIFU_BUSY  : state_next;
+        state_next = flow   ? eIFU_BUSY  : state_next;
+        state_next = fill   ? eIFU_FULL  : state_next;
+        state_next = flush  ? eIFU_BUSY  : state_next;
+        state_next = unload ? eIFU_EMPTY : state_next;
+        state_next = jmpi   ? eIFU_JMP   : state_next;
+        state_next = jmpn   ? eIFU_EMPTY  : state_next;
     end
     always_ff @(posedge clk_i) begin
         if (~rstn_i)
-            state <= eWAIT;
+            state <= eIFU_WAIT;
         else
             state <= state_next;
     end

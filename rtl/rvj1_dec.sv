@@ -11,6 +11,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+/* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
 module rvj1_dec
@@ -80,7 +81,6 @@ logic ifu_fire;
 logic [XLEN-1:0] instr_buff;
 
 logic [XLEN-1:0] imm_i_type;
-logic [XLEN-1:0] imm_is_type;
 logic [XLEN-1:0] imm_s_type;
 logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
@@ -111,16 +111,16 @@ logic [11:0]  csr_addr;
 /*************************************
 * Helper functions
 *************************************/
-function automatic logic is_shift(input f3_imm_e funct3);
+function automatic logic is_shift(input f3_imm_e f3);
     begin
-        return (funct3 == F3_SRLI_SRAI) || (funct3 == F3_SRLI_SRAI);
+        return (f3 == F3_SRLI_SRAI) || (f3 == F3_SRLI_SRAI);
     end
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e funct3, input f7_shift_imm_e funct7);
+function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift_imm_e f7);
     begin
         alu_op_e op = ALU_OP_ADD;
-        unique case (funct3)
+        unique case (f3)
           F3_ADDI:  op = ALU_OP_ADD;
           F3_SLTI:  op = ALU_OP_SLT;
           F3_SLTIU: op = ALU_OP_SLTU;
@@ -128,12 +128,12 @@ function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e funct3, input f7_s
           F3_ORI:   op = ALU_OP_OR;
           F3_ANDI:  op = ALU_OP_AND;
           F3_SLLI: begin
-            case (funct7)
+            case (f7)
               F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
             endcase
           end
           F3_SRLI_SRAI: begin
-            case (funct7)
+            case (f7)
               F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
               F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
@@ -143,12 +143,12 @@ function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e funct3, input f7_s
     end
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e funct3, input f7_shift_imm_e funct7);
+function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_imm_e f7);
     begin
         alu_op_e op = ALU_OP_ADD;
-        unique case (funct3)
+        unique case (f3)
           F3_ADDI: begin
-            case (funct7)
+            case (f7)
                F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
                F7_SRAI_SUB:       op = ALU_OP_SUB;
             endcase
@@ -159,12 +159,12 @@ function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e funct3, input f7_sh
           F3_ORI:   op = ALU_OP_OR;
           F3_ANDI:  op = ALU_OP_AND;
           F3_SLLI: begin
-            case (funct7)
+            case (f7)
               F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
             endcase
           end
           F3_SRLI_SRAI: begin
-            case (funct7)
+            case (f7)
               F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
               F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
             endcase
@@ -174,16 +174,16 @@ function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e funct3, input f7_sh
     end
 endfunction
 
-function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] funct3, input logic is_write);
+function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] f3, input logic is_write);
 begin
-  return lsu_ctrl_e'({is_write, funct3});
+  return lsu_ctrl_e'({is_write, f3});
 end
 endfunction
 
-function automatic alu_op_e branch_type_to_alu_op(input branch_ctrl_e funct3);
+function automatic alu_op_e branch_type_to_alu_op(input branch_ctrl_e f3);
 begin
   alu_op_e op = ALU_OP_ADD;
-  unique case (funct3)
+  unique case (f3)
     BRANCH_EQ:   op = ALU_OP_XOR;
     BRANCH_NEQ:  op = ALU_OP_XOR;
     BRANCH_LT:   op = ALU_OP_SLT;
@@ -195,24 +195,24 @@ begin
 end
 endfunction
 
-function automatic logic is_csr_imm(input logic [2:0] funct3);
+function automatic logic is_csr_imm(input logic [2:0] f3);
 begin
-  return funct3[2];
+  return f3[2];
 end
 endfunction
 
 function automatic logic is_priv_non_csr_instr(
-  input logic [4:0]  regs1,
-  input logic [4:0]  regdest,
-  input logic [2:0]  funct3);
-  return ((regs1 == 5'b0) &&
-          (regdest == 5'b0) &&
-          (funct3 == 3'b0));
+  input logic [4:0]  rs1,
+  input logic [4:0]  rd,
+  input logic [2:0]  f3);
+  return ((rs1 == 5'b0) &&
+          (rd == 5'b0) &&
+          (f3 == 3'b0));
 endfunction
 
-function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] funct3);
+function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] f3);
 begin
-  logic [1:0] f3x = funct3[1:0];
+  logic [1:0] f3x = f3[1:0];
   csr_cmd_t res = CSRNO;
   unique case (f3x) // 2 bits of funct3
     2'b00: res = CSRNO;
