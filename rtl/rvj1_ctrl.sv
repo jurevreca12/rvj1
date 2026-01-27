@@ -60,6 +60,7 @@ module rvj1_ctrl
 
   input  logic             ecall_insn_i,
   input  logic             mret_insn_i,
+  input  logic             illegal_instr_i,
 
   `ifdef RVFI
   output logic [11:0]      rvfi_csr_waddr_o,
@@ -135,6 +136,7 @@ module rvj1_ctrl
   logic ecall_insn;
   logic mret_insn;
   logic ctrl_jump;
+  logic illegal_instr;
 
   /*************************************
   * Helper functions
@@ -170,6 +172,7 @@ module rvj1_ctrl
   assign stall_o = (rf_a_hazard  ||
                     rf_b_hazard  ||
                     lsu_b_hazard ||
+                    illegal_instr_i ||
                     (state == eLOAD0) ||
                     (state == eLOAD1) ||
                     (state == eJUMP0) ||
@@ -177,7 +180,7 @@ module rvj1_ctrl
                     (state == eTRAP) ||
                     lsu_trap ||
                     (state == eMRET));
-  assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET);
+  assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET) || illegal_instr_i;
 
   /*************************************
   * Jumping logic
@@ -241,7 +244,11 @@ module rvj1_ctrl
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
-  assign synhr_trap = ecall_insn || lsu_trap || addr_unaligned_trap || instr_addr_misaligned;
+  assign synhr_trap = (ecall_insn ||
+                       lsu_trap ||
+                       addr_unaligned_trap ||
+                       instr_addr_misaligned ||
+                       illegal_instr_i);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -249,12 +256,15 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr_i);
   `endif
 
   always_comb begin
     trap_cause = 6'b0;
     if (ecall_insn_i)
       trap_cause = MCAUSE_ECALL_FROM_M_MODE;
+    else if (illegal_instr_i)
+      trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
     else if (load_addr_misaligned_i)
       trap_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
     else if (store_addr_misaligned_i)

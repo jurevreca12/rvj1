@@ -150,6 +150,7 @@ module rvj1_top
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
   logic             stop_jmp_write;
+  logic             illegal_instr;
 
   `ifdef RVFI
   logic [11:0]      rvfi_csr_waddr;
@@ -211,6 +212,7 @@ module rvj1_top
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
     .control_o           (control),
+    .illegal_instr_o     (illegal_instr),
     `ifdef RVFI
     .instr_exec_o        (instr_exec),
     `endif
@@ -381,6 +383,7 @@ module rvj1_top
     .irq_nmi_i              (irq_nmi_i),
     .ecall_insn_i           (ecall_insn),
     .mret_insn_i            (mret_insn),
+    .illegal_instr_i        (illegal_instr),
     `ifdef RVFI
     .rvfi_csr_waddr_o       (rvfi_csr_waddr),
     .rvfi_csr_rval_o        (rvfi_csr_rval),

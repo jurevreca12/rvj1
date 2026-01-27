@@ -27,6 +27,7 @@ module rvj1_dec
   output logic            instr_issued_o,
   output logic            instr_will_retire_o,
   output logic            control_o, // signals that controls signals have been activated
+  output logic            illegal_instr_o,
 
   `ifdef RVFI
   output logic [XLEN-1:0] instr_exec_o, // the word of the instruction currently being executed
@@ -56,8 +57,11 @@ module rvj1_dec
 /*************************************
 * INTERNAL SIGNAL DEFINITION
 *************************************/
-logic update_output, reset_output;
-logic instr_issued, instr_will_retire;
+logic update_output;
+logic reset_output;
+logic instr_issued;
+logic instr_will_retire;
+logic illegal_instr;
 
 logic [RALEN-1:0] rf_addr_a;
 logic [RALEN-1:0] rf_addr_b;
@@ -292,6 +296,7 @@ always_ff @(posedge clk_i) begin
     csr_cmd_o           <= CSRNO;
     ecall_insn_o        <= 1'b0;
     mret_insn_o         <= 1'b0;
+    illegal_instr_o     <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o         <= rf_addr_a;
@@ -316,6 +321,7 @@ always_ff @(posedge clk_i) begin
     csr_cmd_o           <= csr_cmd;
     ecall_insn_o        <= ecall_insn;
     mret_insn_o         <= mret_insn;
+    illegal_instr_o     <= illegal_instr;
   end
 end
 
@@ -345,7 +351,8 @@ begin
   ecall_insn        = 1'b0;
   mret_insn         = 1'b0;
   regdest2          = 5'b0;
-  case (opcode)
+  illegal_instr     = 1'b0;
+  unique case (opcode)
     OPCODE_OPIMM: begin
       rf_addr_a    = regs1;
       alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
@@ -472,8 +479,9 @@ begin
         endcase
       end
     end
-    OPCODE_ALLZERO:; // EMPTY REGISTER
-    // TODO - default - unknown instr
+    default: begin
+      illegal_instr = 1'b1;
+    end
   endcase
 end
 
