@@ -351,7 +351,7 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i && !stall_o),
+    .ce   (csr_valid_r_i),
     .in   (csr_value),
     .out  (csr_value_o)
   );
@@ -359,7 +359,7 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i && ~stall_o),
+    .ce   (csr_valid_r_i),
     .in   (1'b1),
     .out  (csr_wb_o)
   );
@@ -367,7 +367,7 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(RALEN), .RESET_VALUE(0)) csr_regdest_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i && ~stall_o),
+    .ce   (csr_valid_r_i),
     .in   (regdest_i),
     .out  (csr_regdest_o)
   );
