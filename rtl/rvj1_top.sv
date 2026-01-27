@@ -107,6 +107,7 @@ module rvj1_top
   logic             instr_will_retire;
   logic             ecall_insn;
   logic             mret_insn;
+  logic             ebreak_insn;
   logic             csr_valid;
   logic [11:0]      csr_addr;
   csr_cmd_t         csr_cmd;
@@ -233,7 +234,8 @@ module rvj1_top
     .csr_addr_o          (csr_addr),
     .csr_cmd_o           (csr_cmd),
     .ecall_insn_o        (ecall_insn),
-    .mret_insn_o         (mret_insn)
+    .mret_insn_o         (mret_insn),
+    .ebreak_insn_o       (ebreak_insn)
   );
 
   /*********************************************
@@ -383,6 +385,7 @@ module rvj1_top
     .irq_nmi_i              (irq_nmi_i),
     .ecall_insn_i           (ecall_insn),
     .mret_insn_i            (mret_insn),
+    .ebreak_insn_i          (ebreak_insn),
     .illegal_instr_i        (illegal_instr),
     `ifdef RVFI
     .rvfi_csr_waddr_o       (rvfi_csr_waddr),

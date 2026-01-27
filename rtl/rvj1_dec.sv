@@ -51,7 +51,8 @@ module rvj1_dec
   output logic [11:0]      csr_addr_o,
   output csr_cmd_t         csr_cmd_o,
   output logic             ecall_insn_o,
-  output logic             mret_insn_o
+  output logic             mret_insn_o,
+  output logic             ebreak_insn_o
 );
 
 /*************************************
@@ -80,6 +81,7 @@ logic             csr_valid;
 csr_cmd_t         csr_cmd;
 logic             ecall_insn;
 logic             mret_insn;
+logic             ebreak_insn;
 
 logic ifu_fire;
 logic [XLEN-1:0] instr_buff;
@@ -297,6 +299,7 @@ always_ff @(posedge clk_i) begin
     ecall_insn_o        <= 1'b0;
     mret_insn_o         <= 1'b0;
     illegal_instr_o     <= 1'b0;
+    ebreak_insn_o       <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o         <= rf_addr_a;
@@ -322,6 +325,7 @@ always_ff @(posedge clk_i) begin
     ecall_insn_o        <= ecall_insn;
     mret_insn_o         <= mret_insn;
     illegal_instr_o     <= illegal_instr;
+    ebreak_insn_o       <= ebreak_insn;
   end
 end
 
@@ -350,6 +354,7 @@ begin
   csr_cmd           = CSRNO;
   ecall_insn        = 1'b0;
   mret_insn         = 1'b0;
+  ebreak_insn       = 1'b0;
   regdest2          = 5'b0;
   illegal_instr     = 1'b0;
   unique case (opcode)
@@ -449,8 +454,8 @@ begin
           ecall_insn = 1'b1;
         else if ((funct7 == 7'b0011000) && (regs2 == 5'b00010)) // MRET
           mret_insn = 1'b1;
-        /*else if (csr_addr == 12'b0000_0000_0001) begin // EBREAK
-        end*/
+        else if (csr_addr == 12'b0000_0000_0001) // EBREAK
+          ebreak_insn = 1'b1;
       end else begin
         regdest2 = regdest;
         unique case (state)

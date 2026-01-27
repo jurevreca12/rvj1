@@ -60,6 +60,7 @@ module rvj1_ctrl
 
   input  logic             ecall_insn_i,
   input  logic             mret_insn_i,
+  input  logic             ebreak_insn_i,
   input  logic             illegal_instr_i,
 
   `ifdef RVFI
@@ -135,6 +136,7 @@ module rvj1_ctrl
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic mret_insn;
+  logic ebreak_insn;
   logic ctrl_jump;
   logic illegal_instr;
 
@@ -240,12 +242,14 @@ module rvj1_ctrl
   assign mret_insn         = mret_insn_i         && ~stall_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
+  assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
   assign synhr_trap = (ecall_insn ||
                        lsu_trap ||
+                       ebreak_insn ||
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
                        illegal_instr_i);
@@ -257,6 +261,7 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr_i);
+    `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
   `endif
 
   always_comb begin
@@ -265,6 +270,8 @@ module rvj1_ctrl
       trap_cause = MCAUSE_ECALL_FROM_M_MODE;
     else if (illegal_instr_i)
       trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
+    else if (ebreak_insn_i)
+      trap_cause = MCAUSE_BREAKPOINT;
     else if (load_addr_misaligned_i)
       trap_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
     else if (store_addr_misaligned_i)
@@ -476,6 +483,8 @@ module rvj1_ctrl
         mtval_d = lsu_exc_addr_i;
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_r_i;
+      else if (ebreak_insn)
+        mtval_d = program_counter_o;
       mtval_ce = 1'b1;
     end else if (mret) begin
       mstatus_d.mie = mstatus_q.mpie;
