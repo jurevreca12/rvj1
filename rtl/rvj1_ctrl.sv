@@ -29,7 +29,7 @@ module rvj1_ctrl
   input  logic             lsu_ctrl_valid_i,
   input  logic             lsu_ready_i,
   input  logic             ctrl_jump_i,
-  input  logic [XLEN-1:0]  alu_res_i,
+  input  logic [XLEN-1:0]  alu_res_r_i,
   input  logic             ctrl_branch_i,
   input  branch_ctrl_e     ctrl_branch_type_i,
 
@@ -44,9 +44,9 @@ module rvj1_ctrl
   output logic             jmp_addr_valid_o,
   output logic [XLEN-1:0]  jmp_addr_o,
 
-  input  logic             csr_valid_i,
-  input  logic [11:0]      csr_addr_i,
-  input  csr_cmd_t         csr_cmd_i,
+  input  logic             csr_valid_r_i,
+  input  logic [11:0]      csr_addr_r_i,
+  input  csr_cmd_t         csr_cmd_r_i,
   output logic [XLEN-1:0]  csr_value_o,
   output logic [RALEN-1:0] csr_regdest_o,
   output logic             csr_wb_o,
@@ -187,7 +187,7 @@ module rvj1_ctrl
   always_comb begin
     jmp_addr_o = '0;
     if (state == eJUMP0)
-      jmp_addr_o = {alu_res_i[31:1], 1'b0};
+      jmp_addr_o = {alu_res_r_i[31:1], 1'b0};
     else if (state == eTRAP)
       jmp_addr_o = csr_mtvec_value;
     else if (state == eMRET)
@@ -207,7 +207,7 @@ module rvj1_ctrl
     else if (mret)
       program_counter_o <= csr_mepc_value;
     else if (state == eJUMP0)
-      program_counter_o <= alu_res_i;
+      program_counter_o <= alu_res_r_i;
     else if (instr_will_retire || (ctrl_jump_i && ~stall_o) || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
@@ -232,7 +232,7 @@ module rvj1_ctrl
   *************************************/
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
-  assign instr_addr_misaligned = alu_res_i[1] && (state == eJUMP0);
+  assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
   assign synhr_trap = ecall_insn_i || lsu_trap || addr_unaligned_trap || instr_addr_misaligned;
 
   always_comb begin
@@ -264,12 +264,12 @@ module rvj1_ctrl
   always_comb begin
     cond_met = 1'b0;
     unique case (ctrl_branch_type_reg)
-      BRANCH_EQ:  cond_met = (alu_res_i    == 0   );
-      BRANCH_NEQ: cond_met = (alu_res_i    != 0   );
-      BRANCH_LT:  cond_met = (alu_res_i[0] == 1'b1);
-      BRANCH_GE:  cond_met = (alu_res_i[0] == 1'b0);
-      BRANCH_LTU: cond_met = (alu_res_i[0] == 1'b1);
-      BRANCH_GEU: cond_met = (alu_res_i[0] == 1'b0);
+      BRANCH_EQ:  cond_met = (alu_res_r_i    == 0   );
+      BRANCH_NEQ: cond_met = (alu_res_r_i    != 0   );
+      BRANCH_LT:  cond_met = (alu_res_r_i[0] == 1'b1);
+      BRANCH_GE:  cond_met = (alu_res_r_i[0] == 1'b0);
+      BRANCH_LTU: cond_met = (alu_res_r_i[0] == 1'b1);
+      BRANCH_GEU: cond_met = (alu_res_r_i[0] == 1'b0);
     endcase
   end
 
@@ -320,7 +320,7 @@ module rvj1_ctrl
   always_comb begin
     csr_value = '0;
     // ONLY implemented registers, others default to zero
-    unique case (csr_addr_i)
+    unique case (csr_addr_r_i)
       // Machine Information Registers
       CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
       CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
@@ -351,7 +351,7 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_i && !stall_o),
+    .ce   (csr_valid_r_i && !stall_o),
     .in   (csr_value),
     .out  (csr_value_o)
   );
@@ -359,7 +359,7 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_i && ~stall_o),
+    .ce   (csr_valid_r_i && ~stall_o),
     .in   (1'b1),
     .out  (csr_wb_o)
   );
@@ -367,15 +367,15 @@ module rvj1_ctrl
   register #(.WORD_WIDTH(RALEN), .RESET_VALUE(0)) csr_regdest_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_i && ~stall_o),
+    .ce   (csr_valid_r_i && ~stall_o),
     .in   (regdest_i),
     .out  (csr_regdest_o)
   );
 
   `ifdef ASSERTIONS
   always_ff @(posedge clk_i) begin
-    if (csr_valid_i)
-      req_val_cmd: assert (csr_cmd_i != CSRNO);
+    if (csr_valid_r_i)
+      req_val_cmd: assert (csr_cmd_r_i != CSRNO);
   end
   `endif
 
@@ -398,37 +398,37 @@ module rvj1_ctrl
     mtval_d = mtval_q;
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
-    if (csr_valid_i) begin
-    case (csr_addr_i)
+    if (csr_valid_r_i) begin
+    case (csr_addr_r_i)
       CSR_MSTATUS_ADDR: begin
         // Will the synthesis tool optimize these two function calls into a single module?
-        csr_mstatus_masked = csr_mask_op(alu_res_i, csr_mstatus_value, csr_cmd_i);
+        csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
         mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
         mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
         mstatus_d.mpp = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
         mstatus_ce = 1'b1;
       end
       CSR_MSCRATCH_ADDR: begin
-        mscratch_d = csr_mask_op(alu_res_i, csr_mscratch_value, csr_cmd_i);
+        mscratch_d = csr_mask_op(alu_res_r_i, csr_mscratch_value, csr_cmd_r_i);
         mscratch_ce = 1'b1;
       end
       CSR_MTVEC_ADDR: begin
-        csr_mtvec_masked = csr_mask_op(alu_res_i, csr_mtvec_value, csr_cmd_i);
+        csr_mtvec_masked = csr_mask_op(alu_res_r_i, csr_mtvec_value, csr_cmd_r_i);
         mtvec_d = csr_mtvec_masked[31:2];
         mtvec_ce = 1'b1;
       end
       CSR_MEPC_ADDR: begin
-        csr_mepc_masked = csr_mask_op(alu_res_i, csr_mepc_value, csr_cmd_i);
+        csr_mepc_masked = csr_mask_op(alu_res_r_i, csr_mepc_value, csr_cmd_r_i);
         mepc_d = csr_mepc_masked[31:2];
         mepc_ce = 1'b1;
       end
       CSR_MCAUSE_ADDR: begin
-        csr_mcause_masked = csr_mask_op(alu_res_i, csr_mcause_value, csr_cmd_i);
+        csr_mcause_masked = csr_mask_op(alu_res_r_i, csr_mcause_value, csr_cmd_r_i);
         mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
         mcause_ce = 1'b1;
       end
       CSR_MTVAL_ADDR: begin
-        csr_mtval_masked = csr_mask_op(alu_res_i, csr_mtval_value, csr_cmd_i);
+        csr_mtval_masked = csr_mask_op(alu_res_r_i, csr_mtval_value, csr_cmd_r_i);
         mtval_d = csr_mtval_masked;
         mtval_ce = 1'b1;
       end
@@ -448,7 +448,7 @@ module rvj1_ctrl
       if (lsu_trap)
         mtval_d = lsu_exc_addr_i;
       else if (addr_unaligned_trap || instr_addr_misaligned)
-        mtval_d = alu_res_i;
+        mtval_d = alu_res_r_i;
       mtval_ce = 1'b1;
     end else if (mret) begin
       mstatus_d.mie = mstatus_q.mpie;
@@ -576,7 +576,7 @@ module rvj1_ctrl
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       rvfi_csr_rval_prev <= '0;
-    else if (csr_valid_i)
+    else if (csr_valid_r_i)
       rvfi_csr_rval_prev <= csr_value;
   end
 
@@ -586,8 +586,8 @@ module rvj1_ctrl
       rvfi_csr_written_o <= 1'b0;
       rvfi_csr_waddr_o   <= '0;
     end else begin
-      rvfi_csr_written_o <= csr_valid_i;
-      rvfi_csr_waddr_o   <= csr_addr_i;
+      rvfi_csr_written_o <= csr_valid_r_i;
+      rvfi_csr_waddr_o   <= csr_addr_r_i;
     end
   end
 
