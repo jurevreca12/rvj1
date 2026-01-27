@@ -212,4 +212,11 @@ package rvj1_defines;
         lsu_ctrl_e       lsu_cmd;
     } rvfi_stage_info_t;
     `endif
+
+    `define ASSERT_SINGLE_CYCLE_HOLD(signal, clock=clk_i) \
+        always_ff @(posedge clock) begin \
+            if (signal == 1'b1) begin \
+                single_cycle_``signal``_hold: assert($past(signal) == 1'b0);\
+            end\
+        end
 endpackage

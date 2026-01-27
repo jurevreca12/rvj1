@@ -132,6 +132,9 @@ module rvj1_ctrl
   logic pc_change;
   logic [XLEN-1:0]  program_counter_prev;
   logic instr_addr_misaligned;
+  logic ecall_insn;
+  logic mret_insn;
+  logic ctrl_jump;
 
   /*************************************
   * Helper functions
@@ -208,7 +211,7 @@ module rvj1_ctrl
       program_counter_o <= csr_mepc_value;
     else if (state == eJUMP0)
       program_counter_o <= alu_res_r_i;
-    else if (instr_will_retire || (ctrl_jump_i && ~stall_o) || loaded)
+    else if (instr_will_retire || ctrl_jump || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end
 
@@ -216,7 +219,7 @@ module rvj1_ctrl
   // This is here because we need mepc on write misalign trap
   assign pc_change = (state == eJUMP0) ||
                       synhr_trap ||
-                      mret_insn_i ||
+                      mret ||
                       instr_will_retire ||
                       (ctrl_jump_i && ~stall_o) ||
                       loaded;
@@ -230,10 +233,23 @@ module rvj1_ctrl
   /*************************************
   * Traps
   *************************************/
+  assign ecall_insn        = ecall_insn_i        && ~stall_o;
+  assign mret_insn         = mret_insn_i         && ~stall_o;
+  assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
+  assign instr_will_retire = instr_will_retire_i && ~stall_o;
+
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
-  assign synhr_trap = ecall_insn_i || lsu_trap || addr_unaligned_trap || instr_addr_misaligned;
+  assign synhr_trap = ecall_insn || lsu_trap || addr_unaligned_trap || instr_addr_misaligned;
+
+  `ifdef ASSERTIONS
+    `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
+    `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
+    `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
+    `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
+  `endif
 
   always_comb begin
     trap_cause = 6'b0;
@@ -276,12 +292,11 @@ module rvj1_ctrl
   /*************************************
   * Retiring
   *************************************/
-  assign instr_will_retire = (instr_will_retire_i & ~stall_o) || loaded;
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       instr_retiring_o <= 1'b0;
     else
-      instr_retiring_o <= instr_will_retire;
+      instr_retiring_o <= instr_will_retire || loaded;
   end
 
   /*************************************
@@ -348,6 +363,8 @@ module rvj1_ctrl
     endcase
   end
 
+  // csr_valid_r does not need stall control as stall is already applied at the
+  // pipeline register (_r)
   register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
     .clk  (clk_i),
     .rstn (rstn_i && !csr_wb_o),
@@ -456,6 +473,16 @@ module rvj1_ctrl
       mstatus_ce = 1'b1;
     end
   end
+
+  `ifdef ASSERTIONS
+    `ASSERT_SINGLE_CYCLE_HOLD(mstatus_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mie_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mip_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mtval_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mcause_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mepc_ce);
+    `ASSERT_SINGLE_CYCLE_HOLD(mscratch_ce);
+  `endif
 
   assign mip_d = '{
     msi:irq_sw_i,
