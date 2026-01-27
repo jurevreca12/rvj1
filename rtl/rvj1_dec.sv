@@ -479,6 +479,10 @@ begin
         endcase
       end
     end
+    OPCODE_MISCMEM: begin
+      if (funct3 != 3'b000)
+        illegal_instr = 1'b1;
+    end
     default: begin
       illegal_instr = 1'b1;
     end
