@@ -465,7 +465,7 @@ module rvj1_top
     if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring && ~store_addr_misaligned;
+      instr_retired <= instr_retiring && ~store_addr_misaligned && ~stop_jmp_write;
   end
   assign rvfi_valid = instr_retired;
   counter #(

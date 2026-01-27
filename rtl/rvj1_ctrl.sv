@@ -447,14 +447,11 @@ module rvj1_ctrl #(
       mstatus_d.mpie = mstatus_q.mie;
       mstatus_d.mpp = 1'b1;
       mstatus_ce = 1'b1;
-      if (lsu_trap) begin
+      if (lsu_trap)
         mtval_d = lsu_exc_addr_i;
-        mtval_ce = 1'b1;
-      end
-      else if (addr_unaligned_trap || instr_addr_misaligned) begin
+      else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_i;
-        mtval_ce = 1'b1;
-      end
+      mtval_ce = 1'b1;
     end else if (mret_insn_i) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
@@ -486,7 +483,7 @@ module rvj1_ctrl #(
   ) csr_mstatus_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mstatus_ce & ~stall_o),
+    .ce  (mstatus_ce),
     .in  (mstatus_d),
     .out (mstatus_q)
   );
