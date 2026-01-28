@@ -1,8 +1,10 @@
 name: Run RISC-V Arch Tests using RISCOF Framework and Publish HTML Results
 
 on:
-  push:
-  pull_request:
+  workflow_run:
+    workflows: [docker-build]
+    types:
+     - completed
 
 jobs:
   run-riscof-tests:
