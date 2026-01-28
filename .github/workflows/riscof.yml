@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: iic-osic-tools-plus
+          name: myimg
           path: ${{ runner.temp }}
 
       - name: Load Image
