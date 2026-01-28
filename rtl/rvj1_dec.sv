@@ -91,7 +91,6 @@ logic [XLEN-1:0] imm_s_type;
 logic [XLEN-1:0] imm_b_type;
 logic [XLEN-1:0] imm_u_type;
 logic [XLEN-1:0] imm_j_type;
-logic [XLEN-1:0] imm_c_type; // for CSRs
 
 typedef enum logic [1:0] {
   eDEC_FIRST_CYCLE,
@@ -118,76 +117,67 @@ logic [11:0]  csr_addr;
 * Helper functions
 *************************************/
 function automatic logic is_shift(input f3_imm_e f3);
-    begin
-        return (f3 == F3_SRLI_SRAI) || (f3 == F3_SRLI_SRAI);
-    end
+  return (f3 == F3_SRLI_SRAI) || (f3 == F3_SRLI_SRAI);
 endfunction
 
 function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift_imm_e f7);
-    begin
-        alu_op_e op = ALU_OP_ADD;
-        unique case (f3)
-          F3_ADDI:  op = ALU_OP_ADD;
-          F3_SLTI:  op = ALU_OP_SLT;
-          F3_SLTIU: op = ALU_OP_SLTU;
-          F3_XORI:  op = ALU_OP_XOR;
-          F3_ORI:   op = ALU_OP_OR;
-          F3_ANDI:  op = ALU_OP_AND;
-          F3_SLLI: begin
-            case (f7)
-              F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
-            endcase
-          end
-          F3_SRLI_SRAI: begin
-            case (f7)
-              F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-              F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
-            endcase
-          end
-        endcase
-        return op;
+  alu_op_e op = ALU_OP_ADD;
+  unique case (f3)
+    F3_ADDI:  op = ALU_OP_ADD;
+    F3_SLTI:  op = ALU_OP_SLT;
+    F3_SLTIU: op = ALU_OP_SLTU;
+    F3_XORI:  op = ALU_OP_XOR;
+    F3_ORI:   op = ALU_OP_OR;
+    F3_ANDI:  op = ALU_OP_AND;
+    F3_SLLI: begin
+      case (f7)
+        F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+      endcase
     end
+    F3_SRLI_SRAI: begin
+      case (f7)
+        F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
+        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+      endcase
+    end
+  endcase
+  return op;
 endfunction
 
 function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_imm_e f7);
-    begin
-        alu_op_e op = ALU_OP_ADD;
-        unique case (f3)
-          F3_ADDI: begin
-            case (f7)
-               F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
-               F7_SRAI_SUB:       op = ALU_OP_SUB;
-            endcase
-          end
-          F3_SLTI:  op = ALU_OP_SLT;
-          F3_SLTIU: op = ALU_OP_SLTU;
-          F3_XORI:  op = ALU_OP_XOR;
-          F3_ORI:   op = ALU_OP_OR;
-          F3_ANDI:  op = ALU_OP_AND;
-          F3_SLLI: begin
-            case (f7)
-              F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
-            endcase
-          end
-          F3_SRLI_SRAI: begin
-            case (f7)
-              F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-              F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
-            endcase
-          end
-        endcase
-        return op;
+  alu_op_e op = ALU_OP_ADD;
+  unique case (f3)
+    F3_ADDI: begin
+      case (f7)
+          F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
+          F7_SRAI_SUB:       op = ALU_OP_SUB;
+      endcase
     end
+    F3_SLTI:  op = ALU_OP_SLT;
+    F3_SLTIU: op = ALU_OP_SLTU;
+    F3_XORI:  op = ALU_OP_XOR;
+    F3_ORI:   op = ALU_OP_OR;
+    F3_ANDI:  op = ALU_OP_AND;
+    F3_SLLI: begin
+      case (f7)
+        F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+      endcase
+    end
+    F3_SRLI_SRAI: begin
+      case (f7)
+        F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
+        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+      endcase
+    end
+  endcase
+  return op;
 endfunction
 
 function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] f3, input logic is_write);
-begin
   return lsu_ctrl_e'({is_write, f3});
-end
 endfunction
 
 function automatic alu_op_e branch_type_to_alu_op(input branch_ctrl_e f3);
-begin
   alu_op_e op = ALU_OP_ADD;
   unique case (f3)
     BRANCH_EQ:   op = ALU_OP_XOR;
@@ -198,13 +188,10 @@ begin
     BRANCH_GEU:  op = ALU_OP_SLTU;
   endcase
   return op;
-end
 endfunction
 
 function automatic logic is_csr_imm(input logic [2:0] f3);
-begin
   return f3[2];
-end
 endfunction
 
 function automatic logic is_priv_non_csr_instr(
@@ -251,7 +238,6 @@ assign imm_s_type  = {{20{imm11_5[31]}}, imm11_5, imm4_0};
 assign imm_b_type  = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
 assign imm_u_type  = {imm31_12, 12'b0};
 assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
-assign imm_c_type  = {27'b0, regs1};
 
 /*************************************
 * Instruction issuing

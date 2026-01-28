@@ -71,24 +71,20 @@ typedef enum logic [1:0] {
 } lsu_state_e;
 
 function automatic logic is_write_cmd(input lsu_ctrl_e cmd);
-  begin
-      return cmd[3];
-  end
+  return cmd[3];
 endfunction
 
 function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
-  begin
-    logic [XLEN-1:0] ret;
-    case (cmd)
-      LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
-      LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
-      LSU_LOAD_WORD:        ret = data;
-      LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
-      LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
-      default:              ret = 32'h0000_0000;
-    endcase
-    return ret;
-  end
+  logic [XLEN-1:0] ret;
+  case (cmd)
+    LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
+    LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
+    LSU_LOAD_WORD:        ret = data;
+    LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
+    LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
+    default:              ret = 32'h0000_0000;
+  endcase
+  return ret;
 endfunction
 
 module rvj1_lsu (
@@ -313,14 +309,16 @@ module cmd_to_strobe(
 );
   logic [3:0] aligned_strobe;
   logic btye, half, word;
+  logic valid;
+  assign valid = (cmd != LSU_NO_CMD);
   assign btye = 1'b1;
   assign half = cmd[0];
   assign word = cmd[1];
-  assign aligned_strobe = {word,
-                           word,
-                           half | word,
-                           btye | half | word};
-  assign strobe = aligned_strobe << addr;
+  assign aligned_strobe = {word & valid,
+                           word & valid,
+                           (half | word) & valid,
+                           (btye | half | word) & valid};
+  assign strobe = (aligned_strobe << addr);
 endmodule
 
 /* verilator lint_off DECLFILENAME */

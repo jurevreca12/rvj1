@@ -135,10 +135,8 @@ module rvj1_ctrl
   logic [XLEN-1:0]  program_counter_prev;
   logic instr_addr_misaligned;
   logic ecall_insn;
-  logic mret_insn;
   logic ebreak_insn;
   logic ctrl_jump;
-  logic illegal_instr;
 
   /*************************************
   * Helper functions
@@ -239,7 +237,6 @@ module rvj1_ctrl
   * Traps
   *************************************/
   assign ecall_insn        = ecall_insn_i        && ~stall_o;
-  assign mret_insn         = mret_insn_i         && ~stall_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
