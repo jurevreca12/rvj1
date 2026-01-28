@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: [Build-Docker-Image]
     types: [completed]
+  pull_request:
 
 jobs:
   riscof:
