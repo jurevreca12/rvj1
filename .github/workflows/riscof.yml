@@ -1,13 +1,12 @@
-name: Run RISC-V Arch Tests
+name: Run-RISCV-Arch-Tests
 
 on:
   workflow_run:
     workflows: [Build-Docker-Image]
-    types:
-     - completed
+    types: [completed]
 
 jobs:
-  run-riscof-tests:
+  riscof:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
