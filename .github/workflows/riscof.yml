@@ -1,0 +1,21 @@
+name: Run RISC-V Arch Tests using RISCOF Framework and Publish HTML Results
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  run-riscof-tests:
+    runs-on: ubuntu-latest
+    needs: build-docker
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: iic-osic-tools-plus
+          path: ${{ runner.temp }}
+
+      - name: Load Image
+        run: |
+          docker load --input ${{ runner.temp }}/iic-osic-tools-plus.tar
+          docker image ls -a
+

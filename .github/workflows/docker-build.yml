@@ -8,10 +8,15 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
          context: .
+         tags: iic-osic-tools-plus:latest
+         outputs: type=docker,dest=${{ runner.temp }}/iic-osic-tools-plus.tar
          cache-from: type=gha
          cache-to: type=gha,moda=max
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iic-osic-tools-plus
+          path: ${{ runner.temp }}/iic-osic-tools-plus.tar
