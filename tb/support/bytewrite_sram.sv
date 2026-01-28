@@ -9,44 +9,66 @@
 //
 
 module bytewrite_sram #(
-    parameter string MEM_INIT_FILE="",
-    parameter int INIT_FILE_BIN=1,
-    parameter int MEM_SIZE_WORDS = 2**12,
-    localparam int ADDR_WIDTH = $clog2(MEM_SIZE_WORDS),
-    localparam int WORD_SIZE = 32,
-    localparam int NUM_BYTES = WORD_SIZE / 8
+    parameter int BASE_ADDR0,
+    parameter int BASE_ADDR1,
+    parameter string MEM_INIT_FILE0="",
+    parameter string MEM_INIT_FILE1="",
+    parameter int INIT_FILE_BIN0=1,
+    parameter int INIT_FILE_BIN1=1,
+    parameter int MEM_SIZE_WORDS0 = 2**12,
+    parameter int MEM_SIZE_WORDS1 = 2**12,
+    localparam int MemSizeBytes0 = MEM_SIZE_WORDS0 * 4,
+    localparam int MemSizeBytes1 = MEM_SIZE_WORDS1 * 4,
+    localparam int MemSizeWordsTotal = MEM_SIZE_WORDS0 + MEM_SIZE_WORDS1,
+    localparam int AddrWidth = $clog2(MemSizeWordsTotal),
+    localparam int WordSize = 32,
+    localparam int NumBytes = WordSize / 8
 )(
-    input                         clk,
-    input  logic [NUM_BYTES-1:0]  strobe,
-    input  logic                  write,
-    input  logic                  valid,
-    input  logic [ADDR_WIDTH-1:0] addr,
-    input  logic [WORD_SIZE-1:0]  din,
-    output logic [WORD_SIZE-1:0]  dout
+    input                        clk,
+    input  logic [NumBytes-1:0]  strobe0,
+    input  logic                 write0,
+    input  logic                 valid0,
+    input  logic [AddrWidth-1:0] addr0,
+    input  logic [WordSize-1:0]  din0,
+    output logic [WordSize-1:0]  dout0,
+
+    input  logic                 valid1,
+    input  logic [AddrWidth-1:0] addr1,
+    output logic [WordSize-1:0]  dout1
 );
 
-logic [WORD_SIZE-1:0] RAM [MEM_SIZE_WORDS];
+logic [WordSize-1:0] RAM [MemSizeWordsTotal];
 
 initial begin
-    if (MEM_INIT_FILE != "") begin
-        if   (INIT_FILE_BIN==1) $readmemb(MEM_INIT_FILE, RAM);
-        else                    $readmemh(MEM_INIT_FILE, RAM);
+    if (MEM_INIT_FILE0 != "") begin
+        if   (INIT_FILE_BIN0==1) $readmemb(MEM_INIT_FILE0, RAM, 0);
+        else                     $readmemh(MEM_INIT_FILE0, RAM, 0);
+    end
+    if (MEM_INIT_FILE1 != "") begin
+        if   (INIT_FILE_BIN1==1) $readmemb(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
+        else                     $readmemh(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
     end
 end
 
 always @(posedge clk)
 begin
-    if (valid)
-        dout <= RAM[addr];
+    if (valid0)
+        dout0 <= RAM[addr0];
+end
+
+always @(posedge clk)
+begin
+    if (valid1)
+        dout1 <= RAM[addr1];
 end
 
 generate genvar i;
-for (i = 0; i < NUM_BYTES; i = i+1)
+for (i = 0; i < NumBytes; i = i+1)
 begin: gen_per_byte_we
 always @(posedge clk)
 begin
-    if (strobe[i] & write & valid)
-        RAM[addr][8 * (i + 1) - 1 : i * 8] <= din[8 * (i + 1) - 1 : i * 8];
+    if (strobe0[i] & write0 & valid0)
+        RAM[addr0][8 * (i + 1) - 1 : i * 8] <= din0[8 * (i + 1) - 1 : i * 8];
     end
 end
 endgenerate

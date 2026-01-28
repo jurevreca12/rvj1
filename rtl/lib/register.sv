@@ -12,7 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 module register
 #(
-    parameter int WORD_WIDTH = 0,
+    parameter int WORD_WIDTH = 1,
     parameter logic [WORD_WIDTH-1:0] RESET_VALUE = 0
 )
 (
@@ -31,6 +31,7 @@ module register
     end
 endmodule
 
+/* verilator lint_off DECLFILENAME */
 module pipeline_register
 #(
     parameter int WORD_WIDTH = 0,

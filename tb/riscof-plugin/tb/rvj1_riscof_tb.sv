@@ -16,12 +16,12 @@ module rvj1_riscof_tb();
   localparam int DataMemSizeBytes  = DataMemSizeWords  * 4;
   localparam int InstrMemEndAddr   = InstrMemBaseAddr + InstrMemSizeBytes;
   localparam int DataMemEndAddr    = DataMemBaseAddr + DataMemSizeBytes;
-  localparam int SigStartCellNum   = MEM_SIZE_WORDS - 1;
-  localparam int SigEndCellNum     = MEM_SIZE_WORDS - 2;
-  localparam int HaltCondCellnum   = MEM_SIZE_WORDS - 3;
-  localparam int SigStartAddr      = DataMemBaseAddr + (SigStartCellNum * 4);
-  localparam int SigEndAddr        = DataMemBaseAddr + (SigEndCellNum * 4);
-  localparam int HaltCondAddr      = DataMemBaseAddr + (HaltCondCellnum * 4);
+  localparam int SigStartCellNum   = InstrMemSizeWords + DataMemSizeWords - 1;
+  localparam int SigEndCellNum     = InstrMemSizeWords + DataMemSizeWords - 2;
+  localparam int HaltCondCellnum   = InstrMemSizeWords + DataMemSizeWords - 3;
+  localparam int SigStartAddr      = InstrMemBaseAddr + (SigStartCellNum * 4);
+  localparam int SigEndAddr        = InstrMemBaseAddr + (SigEndCellNum * 4);
+  localparam int HaltCondAddr      = InstrMemBaseAddr + (HaltCondCellnum * 4);
 
   reg clk;
   reg rstn;
@@ -56,24 +56,37 @@ module rvj1_riscof_tb();
 
     // instruction memory
     bytewrite_sram_wrap #(
-      .BASE_ADDR(InstrMemBaseAddr),
-      .MEM_SIZE_WORDS(InstrMemSizeWords),
-      .INIT_FILE_BIN(0),
-      .MEM_INIT_FILE(INSTR_MEM_INIT_FILE)) rom_mem (
+      .BASE_ADDR0(InstrMemBaseAddr),
+      .BASE_ADDR1(DataMemBaseAddr),
+      .MEM_SIZE_WORDS0(MEM_SIZE_WORDS),
+      .MEM_SIZE_WORDS1(MEM_SIZE_WORDS),
+      .INIT_FILE_BIN0(0),
+      .INIT_FILE_BIN1(0),
+      .MEM_INIT_FILE0(INSTR_MEM_INIT_FILE),
+      .MEM_INIT_FILE1(DATA_MEM_INIT_FILE)
+    ) main_mem (
         .clk_i    (clk),
         .rstn_i   (rstn),
 
-        .req_addr_i   (instr_req_addr),
-        .req_data_i   (instr_req_data),
-        .req_strobe_i (instr_req_strobe),
-        .req_write_i  (instr_req_write),
-        .req_valid_i  (instr_req_valid),
-        .req_ready_o  (instr_req_ready),
+        .req_addr_i   (data_req_addr),
+        .req_data_i   (data_req_data),
+        .req_strobe_i (data_req_strobe),
+        .req_write_i  (data_req_write),
+        .req_valid_i  (data_req_valid),
+        .req_ready_o  (data_req_ready),
 
-        .rsp_data_o   (instr_rsp_data),
-        .rsp_error_o  (instr_rsp_error),
-        .rsp_valid_o  (instr_rsp_valid),
-        .rsp_ready_i  (instr_rsp_ready)
+        .rsp_data_o   (data_rsp_data),
+        .rsp_error_o  (data_rsp_error),
+        .rsp_valid_o  (data_rsp_valid),
+        .rsp_ready_i  (data_rsp_ready),
+
+        .req_addr1_i  (instr_req_addr),
+        .req_valid1_i (instr_req_valid),
+        .req_ready1_o (instr_req_ready),
+
+        .rsp_data1_o  (instr_rsp_data),
+        .rsp_valid1_o (instr_rsp_valid),
+        .rsp_ready1_i (instr_rsp_ready)
     );
 
     rvj1_top dut(
@@ -102,30 +115,42 @@ module rvj1_riscof_tb();
       .data_rsp_data_i   (data_rsp_data),
       .data_rsp_error_i  (data_rsp_error),
       .data_rsp_valid_i  (data_rsp_valid),
-      .data_rsp_ready_o  (data_rsp_ready)
+      .data_rsp_ready_o  (data_rsp_ready),
+
+      .irq_external_i    (1'b0),
+      .irq_timer_i       (1'b1), // at reset mtime == mtimecmp, meaning it is 1
+      .irq_sw_i          (1'b0),
+      .irq_lcofi_i       (1'b0),
+      .irq_platform_i    (16'b0),
+      .irq_nmi_i         (1'b0),
+
+      `ifdef RVFI
+      .rvfi_valid        (),
+      .rvfi_order        (),
+      .rvfi_insn         (),
+      .rvfi_trap         (),
+      .rvfi_halt         (),
+      .rvfi_intr         (),
+      .rvfi_mode         (),
+      .rvfi_ixl          (),
+      .rvfi_rs1_addr     (),
+      .rvfi_rs2_addr     (),
+      .rvfi_rs1_rdata    (),
+      .rvfi_rs2_rdata    (),
+      .rvfi_rd_addr      (),
+      .rvfi_rd_wdata     (),
+      .rvfi_pc_rdata     (),
+      .rvfi_pc_wdata     (),
+      .rvfi_mem_addr     (),
+      .rvfi_mem_rmask    (),
+      .rvfi_mem_wmask    (),
+      .rvfi_mem_rdata    (),
+      .rvfi_mem_wdata    (),
+      `endif
+
+      .fetch_enable_i    (1'b0)
   );
 
-  // data memory
-  bytewrite_sram_wrap #(
-    .BASE_ADDR(DataMemBaseAddr),
-    .MEM_SIZE_WORDS(DataMemSizeWords),
-    .INIT_FILE_BIN(0),
-    .MEM_INIT_FILE(DATA_MEM_INIT_FILE)) data_mem (
-      .clk_i  (clk),
-      .rstn_i (rstn),
-
-      .req_addr_i   (data_req_addr),
-      .req_data_i   (data_req_data),
-      .req_strobe_i (data_req_strobe),
-      .req_write_i  (data_req_write),
-      .req_valid_i  (data_req_valid),
-      .req_ready_o  (data_req_ready),
-
-      .rsp_data_o   (data_rsp_data),
-      .rsp_error_o  (data_rsp_error),
-      .rsp_valid_o  (data_rsp_valid),
-      .rsp_ready_i  (data_rsp_ready)
-  );
 
   // Handle the clock signal
   always #1 clk = ~clk;
@@ -150,7 +175,7 @@ module rvj1_riscof_tb();
   rstn = 1'b1;
 
   i=0;
-  while (i < TIMEOUT && data_mem.mem.RAM[HaltCondCellnum] !== 1) begin
+  while (i < TIMEOUT && main_mem.mem.RAM[HaltCondCellnum] !== 1) begin
     if (instr_rsp_data == 0 && instr_rsp_ready && instr_rsp_valid)
       break;
     @(posedge clk);
@@ -167,15 +192,15 @@ module rvj1_riscof_tb();
     $display("Simulation finnished after %0d cycles.", i);
 
   // get start and end address of the signature region
-  start_addr = data_mem.mem.RAM[SigStartCellNum];
-  end_addr   = data_mem.mem.RAM[SigEndCellNum];
+  start_addr = main_mem.mem.RAM[SigStartCellNum];
+  end_addr   = main_mem.mem.RAM[SigEndCellNum];
   $display("Writing results to %s from RAM: 0x%0h - 0x%0h", SIGNATURE_FILE, start_addr, end_addr);
   //assert(end_addr > start_addr);
 
   sig_file = $fopen(SIGNATURE_FILE, "w");
 
   for (j=start_addr; j < end_addr; j=j+4) begin
-    $fwrite(sig_file, "%h\n", data_mem.mem.RAM[j>>2]);
+    $fwrite(sig_file, "%h\n", main_mem.mem.RAM[j>>2]);
   end
   $fclose(sig_file);
   $finish;

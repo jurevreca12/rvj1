@@ -50,7 +50,7 @@ class rvj1(pluginTemplate):
         # We use riscv64 because it is compiled with multiarch. It emits 32 bit code
         self.compile_cmd = (
             "riscv64-unknown-elf-gcc -o0 -march={0} \
-         -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles -g\
+         -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles\
          -T "
             + self.pluginpath
             + "/env/link.ld\
@@ -135,6 +135,8 @@ class rvj1(pluginTemplate):
                 " --timescale 1ns/1ps "
                 + " --binary "
                 + " -I/rvj1/rtl/inc "
+                + " -DRVFI "
+                + r" ${VERILATOR_OPTS} "
                 + " -Wno-fatal "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
@@ -154,7 +156,7 @@ class rvj1(pluginTemplate):
             execute = (
                 f"{compile_cmd};\n"
                 + f"{elf2hex_cmd};\n"
-                + sim_cmd
+                + f"cd {testentry["work_dir"]}; {sim_cmd}"
                 + f"rm -rf {sim_dir};\n"
             )
             make.add_target(execute)

@@ -36,8 +36,18 @@ from riscvmodel.insn import (
     InstructionBGE,
     InstructionBLTU,
     InstructionBGEU,
+    InstructionCSRRW,
+    InstructionCSRRS,
+    InstructionCSRRC,
+    InstructionCSRRWI,
+    InstructionCSRRSI,
+    InstructionCSRRCI,
+    InstructionNOP,
+    InstructionECALL,
+    InstructionMRET
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x29, x30, x31
+from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval
 from riscvmodel.program import Program
 
 
@@ -518,6 +528,32 @@ class JALRTest(Program):
             9: 9,
         }
 
+class JALRTest2(Program):
+    """Test of JALR instruction bit clearning."""
+
+    def __init__(self):
+        insns = [
+            InstructionAUIPC(x1, 0x0),      # 0x8000_0000
+            InstructionADDI(x3, x0, 3),     # 0x8000_0004
+            InstructionJALR(x10, x1, 0x15), # 0x8000_0008 ->
+            InstructionADDI(x4, x0, 4),     # 0x8000_000c   |
+            InstructionADDI(x5, x0, 5),     # 0x8000_0010   |
+            InstructionADDI(x6, x0, 6),     # 0x8000_0014 <-|
+            InstructionADDI(x7, x0, 7),     # 0x8000_0018
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {
+            1: 0x80000000,
+            3: 3,
+            10: 0x8000000c,
+            4: 0,
+            5: 0,
+            6: 6,
+            7: 7,
+        }
+
 
 class BEQTest(Program):
     """Basic test of BEQ instruction."""
@@ -652,6 +688,267 @@ class BGEUTest(Program):
     def expects(self) -> dict:
         return {1: 0xFFFFF000, 2: 0, 3: 3, 4: 4, 5: 5, 6: 6}
 
+class MISATest(Program):
+    "Basic test of CSRRW instruction. Reading the MISA register."
+
+    def __init__(self):
+        self.MISA_VALUE= (1 << 8) + (1 << 30)
+        insns = [
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionCSRRW(x2, x0, misa), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {2:self.MISA_VALUE}
+
+class MSCRATCHTest(Program):
+    "Basic test of CSRRW instructions. Save value to mscratch and read it back."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x123),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 3: 0x80000123, 4: 0x80000123}
+
+class MSCRATCHTest2(Program):
+    "Basic test of CSRRS instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x1),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x2, x0, 2),
+            InstructionCSRRS(x0, x2, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 2:2, 3: 0x80000001, 4: 0x80000003}
+
+
+class MSCRATCHTest3(Program):
+    "Basic test of CSRRC instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x1),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x2, x0, 3),
+            InstructionCSRRC(x0, x2, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 2:3, 3: 0x80000001, 4: 0x80000000}
+
+class MSCRATCHTest4(Program):
+    "Basic test of CSRRSI instruction."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRSI(x0, 0x2, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 3: 0x80000000, 4: 0x80000002}
+
+class MSCRATCHTest5(Program):
+    "Basic test of CSRRWCI instructions."
+
+    def __init__(self):
+        insns = [
+            InstructionLUI (x3, 0x80000),
+            InstructionADDI(x3, x3, 0x7),
+            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
+            InstructionCSRRCI(x0, 1, mscratch),
+            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+            InstructionADDI(x0, 0x0),
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {0:0, 3: 0x80000007, 4: 0x80000006}
+
+
+class ECALLTest(Program):
+    "Basic test of an ECALL instruction."
+    def __init__(self):
+        insns = [
+            InstructionLUI  (x31, 0x80000),     # 0x8000_0000
+            InstructionADDI (x31, x31, 0x28),   # 0x8000_0004
+            InstructionCSRRW(x0, x31, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
+            InstructionECALL(),                 # 0x8000_000c
+            InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x40 - 0x14 = 0x2c
+            InstructionJAL  (x10, 0x2c),        # 0x8000_0014 ------------------->
+            InstructionADDI (x3, x0, 3),        # 0x8000_0018                    |
+            InstructionADDI (x4, x0, 4),        # 0x8000_001c                    |
+            InstructionADDI (x5, x0, 5),        # 0x8000_0020                    |
+            InstructionADDI (x6, x0, 6),        # 0x8000_0024                    |
+            InstructionADDI (x1, x0, 1),        # 0x8000_0028 - TRAP HANDLER |   |
+            InstructionCSRRS(x30, x0, mepc),    # 0x8000_002c                |   |
+            InstructionADDI (x30, x30, 4),      # 0x8000_0030                |   |
+            InstructionCSRRW(x0, x30, mepc),    # 0x8000_0034                |   |
+            InstructionCSRRS(x29, x0, mcause),  # 0x8000_0038                |   |
+            InstructionMRET (),                 # 0x8000_003c   <------------    |
+            InstructionNOP  (),                 # 0x8000_0040 <-------------------
+            InstructionNOP  (),                 # 0x8000_0044                
+            InstructionNOP  (),                 # 0x8000_0048   
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 11, x31: 0x80000028}
+
+
+class MSTATUSTest(Program):
+    "Test the behavior of MSTATUS register. Specificaly the MIE an MIEP bits usage in ecall and mret."
+    def __init__(self):
+        insns = [
+            InstructionCSRRS (x1, x0, mstatus),  # 0x8000_0000
+            InstructionLUI   (x31, 0x80000),     # 0x8000_0004
+            InstructionADDI  (x31, x31, 0x20),   # 0x8000_0008
+            InstructionCSRRW (x0, x31, mtvec),   # 0x8000_000c  rd, rs1, csr_addr
+            InstructionCSRRSI(x0, 0x8, mstatus), # 0x8000_0010 - set MIE
+            InstructionCSRRS (x2, x0, mstatus),  # 0x8000_0014
+            InstructionECALL (),                 # 0x8000_0018
+            InstructionJAL   (x10, 0x18),        # 0x8000_001c  0x34 - 0x1c = 0x18 
+            InstructionCSRRS (x3, x0, mstatus),  # 0x8000_0020 - TRAP HANDLER |
+            InstructionCSRRS (x30, x0, mepc),    # 0x8000_0024                |
+            InstructionADDI  (x30, x30, 4),      # 0x8000_0028                |
+            InstructionCSRRW (x0, x30, mepc),    # 0x8000_002c                |
+            InstructionMRET  (),                 # 0x8000_0030 ---------------
+            InstructionCSRRS (x4, x0, mstatus),  # 0x8000_0034
+            InstructionNOP   (),                 # 0x8000_0038
+            InstructionNOP   (),                 # 0x8000_003c
+            InstructionNOP   (),                 # 0x8000_0040
+        ]
+        super().__init__(insns)
+    
+    def expects(self) -> dict:
+        MPP = (1 << 11) + (1 << 12)
+        return {x1: (0 + MPP), x2: (8 + MPP), x3: ((1 << 7) + MPP), x4: (8 + (1 << 7) + MPP)}
+
+class MISALIGNEDLWTest(Program):
+        """
+            Test that an exception is triggered on an unaligned memory load.
+            x31 - trap address
+            x2  - store base address = 0x6000_0002
+            x1  - 0xDEADC0DE
+            x3  - unaligned load destination addr
+            x4  - mstatus value
+            x5  - mepc
+            x6  - mtval
+            x7  - loading
+
+            0x6000_0000 |
+            0x6000_0001 |
+            0x6000_0002 | 0xDE
+            0x6000_0003 | 0xAD
+            0x6000_0004 | 0xC0
+            0x6000_0005 | 0xDE
+            0x6000_0006 |
+
+        """
+        def __init__(self):
+            insns = [
+                InstructionLUI  (x31, 0x80000),    # 0x8000_0000
+                InstructionADDI (x31, x31, 0x40),  # 0x8000_0004
+                InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+                InstructionLUI  (x2, 0x60000),     # 0x8000_000c
+                InstructionADDI (x2, x2, 0x2),     # 0x8000_0010
+                InstructionLUI  (x1, 0xDEADC),     # 0x8000_0014
+                InstructionADDI (x1, x1, 0x0DE),   # 0x8000_0018
+                InstructionSB   (x2, x1, 3),       # 0x8000_001c
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0020
+                InstructionSB   (x2, x1, 2),       # 0x8000_0024
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0028
+                InstructionSB   (x2, x1, 1),       # 0x8000_002c
+                InstructionSRLI (x1, x1, 8),       # 0x8000_0030
+                InstructionSB   (x2, x1, 0),       # 0x8000_0034
+                InstructionLW   (x3, x2, 0),       # 0x8000_0038
+                InstructionJAL  (x0, 0x48),        # 0x8000_003c --------------------
+                InstructionCSRRS(x4, x0, mstatus), # 0x8000_0040 -- TRAP HANDLER |  |
+                InstructionCSRRS(x5, x0, mepc),    # 0x8000_0044                 |  |
+                InstructionADDI (x5, x5, 4),       # 0x8000_0048                 |  |
+                InstructionCSRRW(x0, x5, mepc),    # 0x8000_004c                 |  |
+                InstructionCSRRW(x6, x0, mtval),   # 0x8000_0050                 |  |
+                InstructionLBU  (x7, x6, 0),       # 0x8000_0054                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0058                 |  |
+                InstructionLBU  (x8, x6, 1),       # 0x8000_005c                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_0060                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0064                 |  |
+                InstructionLBU  (x8, x6, 2),       # 0x8000_0068                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_006c                 |  |
+                InstructionSLLI (x7, x7, 8),       # 0x8000_0070                 |  |
+                InstructionLBU  (x8, x6, 3),       # 0x8000_0074                 |  |
+                InstructionXOR  (x7, x7, x8),      # 0x8000_0078                 |  |
+                InstructionMRET (),                # 0x8000_007c  <---------------  |
+                InstructionADDI (x9, x0, 1),       # 0x8000_0080                    |
+                InstructionNOP  (),                # 0x8000_0084 <------------------|
+                InstructionNOP  (),                # 0x8000_0088
+                InstructionNOP  (),                # 0x8000_008c
+            ]
+            super().__init__(insns)
+        def expects(self) -> dict:
+            return {x0:0, x5: 0x8000003c, x6: 0x60000002, x7: 0xDEADC0DE, x9: 0}
+        
+
+class MISALIGNEDJALTest(Program):
+    """
+            Test that an exception is triggered on an unaligned jump.
+    """
+    def __init__(self):
+        insns = [
+            InstructionLUI  (x31, 0x80000),    # 0x8000_0000
+            InstructionADDI (x31, x31, 0x18),  # 0x8000_0004
+            InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+            InstructionJAL  (x3, 0xa),         # 0x8000_000c
+            InstructionADDI (x1, x0, 0x1),     # 0x8000_0010
+            InstructionJAL  (x0, 0x20),        # 0x8000_0014 --------------------
+            InstructionCSRRS(x4, x0, mstatus), # 0x8000_0018 -- TRAP HANDLER |  |
+            InstructionCSRRS(x5, x0, mepc),    # 0x8000_001c                 |  |
+            InstructionADDI (x5, x5, 4),       # 0x8000_0020                 |  |
+            InstructionCSRRW(x0, x5, mepc),    # 0x8000_0024                 |  |
+            InstructionCSRRW(x6, x0, mtval),   # 0x8000_0028                 |  |
+            InstructionMRET (),                # 0x8000_002c  <---------------  |
+            InstructionADDI (x2, x0, 1),       # 0x8000_0030                    |
+            InstructionADDI (x7, x0, 1),       # 0x8000_0034 <------------------|
+            InstructionNOP  (),                # 0x8000_0038
+            InstructionNOP  (),                # 0x8000_003c
+        ]
+        super().__init__(insns)
+    def expects(self) -> dict:
+        return {x0:0, x1: 1, x2:0, x3: 0, x5:0x80000010, x6:0x80000016, x7:1}
 
 RV32I_TESTS = {
     "lui": LUITest(),
@@ -681,10 +978,21 @@ RV32I_TESTS = {
     "shlhu": SHLHUTest(),
     "jal": JALTest(),
     "jalr": JALRTest(),
+    "jalr2": JALRTest2(),
     "beq": BEQTest(),
     "bne": BNETest(),
     "blt": BLTTest(),
     "bge": BGETest(),
     "bltu": BLTUTest(),
     "bgeu": BGEUTest(),
+    "misa": MISATest(),
+    "mscratch": MSCRATCHTest(),
+    "mscratch2": MSCRATCHTest2(),
+    "mscratch3": MSCRATCHTest3(),
+    "mscratch4": MSCRATCHTest4(),
+    "mscratch5": MSCRATCHTest5(),
+    "ecall": ECALLTest(),
+    "mstatus": MSTATUSTest(),
+    "misaligned-lw": MISALIGNEDLWTest(),
+    "misaligned-jal": MISALIGNEDJALTest(),
 }

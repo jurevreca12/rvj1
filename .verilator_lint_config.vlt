@@ -1,0 +1,10 @@
+`verilator_config
+lint_off -rule UNUSEDPARAM  -file "*/rvj1_defines.sv"
+lint_off -rule UNUSEDSIGNAL -file "*/rvfi_trace.sv"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_lsu.sv"  -match "*is_write_cmd"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_dec.sv"  -match "*is_csr_imm"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_dec.sv"  -match "*f3_to_csr_cmd"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_ctrl.sv" -match "*csr_mtvec_masked"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_ctrl.sv" -match "*csr_mepc_masked"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_ctrl.sv" -match "*csr_mcause_masked"
+lint_off -rule UNUSEDSIGNAL -file "*/rvj1_lsu.sv"  -match "*lsu_cmd_i"

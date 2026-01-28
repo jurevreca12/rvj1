@@ -11,7 +11,9 @@ RTL_DIRS = (
 )
 LANGUAGE = os.getenv("HDL_TOPLEVEL_LANG", "verilog").lower().strip()
 WAVES = os.getenv("WAVES", default=False)
-
+RVFI = os.getenv("RVFI", default=True)
+RVFI_TRACE = os.getenv("RVFI_TRACE", default=False)
+ASSERTIONS = os.getenv("ASSERTIONS", default=True)
 
 def get_rtl_files(lang):
     rtl_files = []
@@ -31,9 +33,15 @@ def get_rtl_files(lang):
 
 def get_test_runner(hdl_top):
     sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal"]
+    build_args = ["-Wno-fatal", "--no-stop-fail"]
     if WAVES:
         build_args += ["--trace-fst"]
+    if RVFI:
+        build_args += [f"-DRVFI"]
+    if RVFI_TRACE:
+        build_args += [f"-DRVFI_TRACE"]
+    if ASSERTIONS:
+        build_args += [f"-DASSERTIONS"]
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(LANGUAGE),

@@ -94,12 +94,12 @@ def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
 @InsnsTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
-    timeout=120,
+    timeout=500,
     shutdown_delay=1,
     shutdown_loops=1,
 )
 @InsnsTB.parameter("insn", Program, [*RV32I_TESTS])
-@InsnsTB.parameter("delay", int, [0, 1, 2, 3])
+@InsnsTB.parameter("delay", int, [0, 1, 2, 3, 8])
 async def test_insn(tb: InsnsTB, log, insn, delay):
     prog = RV32I_TESTS[insn]
     test_mem = prog_to_mem(prog)
