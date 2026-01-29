@@ -16,9 +16,9 @@ jobs:
          push: false
          tags: iic-osic-tools-plus:latest
       - name: Start Docker
-      - run: |
+        run: |
           make docker-run-it
       - name: Run RISCOF Tests
-      - run: |
+        run: |
          cd tb 
          make riscof
