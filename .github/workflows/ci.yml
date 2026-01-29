@@ -17,9 +17,7 @@ jobs:
          tags: iic-osic-tools-plus:latest
       - name: Run RISCOF Tests
         run: |
-         export CUID=id -u
-         export CGID=id -g
-         docker run --user ${CUID}:${CGID} \
+         docker run --user $UID:$UID \
                     -e "UID=$UID" \
                     -e "GID=$UID" \
                     -v /etc/group:/etc/group:ro \
