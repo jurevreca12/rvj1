@@ -55,7 +55,7 @@ module bytewrite_sram_wrap #(
         eWAIT
     } bw_sram_fsm_e;
     bw_sram_fsm_e state0, state0_next, state1, state1_next;
-    logic rspready0, transact0, rspready1, transact1, addr_valid0;
+    logic rspready0, transact0, rspready1, transact1, addr_valid0, addr_valid1;
 
     assign req_ready_o = (state0 == eREADY);
     assign addr_valid0 = req_addr_i >= BASE_ADDR0 && req_addr_i < EndAddr;

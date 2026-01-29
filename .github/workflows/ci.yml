@@ -7,18 +7,12 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    container: jurevreca12/iic-osic-tools-plus:latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Run RISCOF Tests
         run: |
-         docker run --user $UID:$UID \
-                    -e "UID=$UID" \
-                    -e "GID=$UID" \
-                    -v /etc/group:/etc/group:ro \
-                    -v /etc/passwd:/etc/passwd:ro \
-                    -v ~/.cache/:/headless/.cache:rw \
-                    -v $PWD:/foss/designs/rvj1 \
-                    jurevreca12/iic-osic-tools-plus:latest \
-                    -s make test
+          cd tb
+          make riscof
