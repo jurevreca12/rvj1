@@ -5,7 +5,7 @@ on:
     pull_request:
 
 jobs:
-  docker-build:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,10 +15,17 @@ jobs:
          context: .
          push: false
          tags: iic-osic-tools-plus:latest
-      - name: Start Docker
-        run: |
-          make docker-run-it
       - name: Run RISCOF Tests
         run: |
-         cd tb 
-         make riscof
+         CUID := $(shell id -u)
+         CGID := $(shell id -g)
+         CWD  := $(abspath $(dir $$PWD))
+         docker run --user ${CUID}:${CGID} \
+                    -e "UID=${CUID}" \
+                    -e "GID=${CGID}" \
+                    -v /etc/group:/etc/group:ro \
+                    -v /etc/passwd:/etc/passwd:ro \
+                    -v ~/.cache/:/headless/.cache:rw \
+                    -v $(CWD):/foss/designs/rvj1 \
+                    iic-osic-tools-plus:latest \
+                    -s make test
