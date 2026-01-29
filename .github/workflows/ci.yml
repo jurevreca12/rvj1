@@ -9,12 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-         context: .
-         push: false
-         tags: iic-osic-tools-plus:latest
       - name: Run RISCOF Tests
         run: |
          docker run --user $UID:$UID \
@@ -24,5 +18,5 @@ jobs:
                     -v /etc/passwd:/etc/passwd:ro \
                     -v ~/.cache/:/headless/.cache:rw \
                     -v $PWD:/foss/designs/rvj1 \
-                    iic-osic-tools-plus:latest \
+                    jurevreca12/iic-osic-tools-plus:latest \
                     -s make test
