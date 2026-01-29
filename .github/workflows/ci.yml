@@ -17,15 +17,14 @@ jobs:
          tags: iic-osic-tools-plus:latest
       - name: Run RISCOF Tests
         run: |
-         CUID := $(shell id -u)
-         CGID := $(shell id -g)
-         CWD  := $(abspath $(dir $$PWD))
+         export CUID=id -u
+         export CGID=id -g
          docker run --user ${CUID}:${CGID} \
                     -e "UID=${CUID}" \
                     -e "GID=${CGID}" \
                     -v /etc/group:/etc/group:ro \
                     -v /etc/passwd:/etc/passwd:ro \
                     -v ~/.cache/:/headless/.cache:rw \
-                    -v $(CWD):/foss/designs/rvj1 \
+                    -v $PWD:/foss/designs/rvj1 \
                     iic-osic-tools-plus:latest \
                     -s make test
