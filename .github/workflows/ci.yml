@@ -20,8 +20,8 @@ jobs:
          export CUID=id -u
          export CGID=id -g
          docker run --user ${CUID}:${CGID} \
-                    -e "UID=${CUID}" \
-                    -e "GID=${CGID}" \
+                    -e "UID=$UID" \
+                    -e "GID=$UID" \
                     -v /etc/group:/etc/group:ro \
                     -v /etc/passwd:/etc/passwd:ro \
                     -v ~/.cache/:/headless/.cache:rw \
