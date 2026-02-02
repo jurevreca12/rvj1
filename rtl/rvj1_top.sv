@@ -264,11 +264,12 @@ module rvj1_top
     .res_o  (alu_res)
   );
 
-  pipeline_register #(
+  register #(
     .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + XLEN + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
+    .rstn (rstn_i),
     .ce   (control && ~stall),
     .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   regs2_data,   jump,   csr_valid,   csr_addr,   csr_cmd}),
     .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, regs2_data_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
@@ -436,16 +437,18 @@ module rvj1_top
   end
 
   always_comb begin
-    exec_stage_comb.instr         = instr_exec;
-    exec_stage_comb.rs1_addr      = rf_addr_a;
-    exec_stage_comb.rs2_addr      = rf_addr_b;
-    exec_stage_comb.rs1_rdata     = regs1_data;
-    exec_stage_comb.rs2_rdata     = regs2_data;
-    exec_stage_comb.rd_addr       = regdest;
-    exec_stage_comb.alu_res       = alu_res;
-    exec_stage_comb.pc_rdata      = program_counter;
-    exec_stage_comb.lsu_cmd_valid = lsu_ctrl_valid;
-    exec_stage_comb.lsu_cmd       = lsu_ctrl;
+    exec_stage_comb.instr          = instr_exec;
+    exec_stage_comb.rs1_addr       = rf_addr_a;
+    exec_stage_comb.rs2_addr       = rf_addr_b;
+    exec_stage_comb.rs1_rdata      = regs1_data;
+    exec_stage_comb.rs2_rdata      = regs2_data;
+    exec_stage_comb.rd_addr        = regdest;
+    exec_stage_comb.alu_res        = alu_res;
+    exec_stage_comb.pc_rdata       = program_counter;
+    exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
+    exec_stage_comb.lsu_cmd        = lsu_ctrl;
+    exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
+    exec_stage_comb.jmp_addr       = jmp_addr;
   end
 
   always_ff @(posedge clk_i) begin
@@ -465,8 +468,10 @@ module rvj1_top
   always_ff @(posedge clk_i)
     retired_stage <= wb_stage;
 
-  always_ff @(posedge clk_i)
-    wb_collison: assert ($onehot0({simple_insn_issued, lsu_wb_valid, csr_wb}));
+  `ifdef ASSERTIONS
+    always_ff @(posedge clk_i)
+      wb_collison: assert ($onehot0({simple_insn_issued, lsu_wb_valid, csr_wb}));
+  `endif
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
@@ -499,16 +504,20 @@ module rvj1_top
   assign rvfi_rd_addr = retired_stage.rd_addr;
 
   logic [XLEN-1:0] wpc_data_r;
+  logic [XLEN-1:0] wpc_addr_r;
   always_ff @(posedge clk_i) begin
-    if (~rstn_i)
+    if (~rstn_i) begin
       wpc_data_r <= '0;
-    else if (jump_r || lsu_wb_valid || alu_write_rf_r || csr_wb)
+      wpc_addr_r <= '0;
+    end else if (wpc_we) begin
       wpc_data_r <= wpc_data;
+      wpc_addr_r <= wpc_addr;
+    end
   end
-  assign rvfi_rd_wdata = wpc_data_r;
+  assign rvfi_rd_wdata = (wpc_addr_r == '0) ? '0 : wpc_data_r;
 
   assign rvfi_pc_rdata = retired_stage.pc_rdata;
-  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (retired_stage.pc_rdata + 4);
+  assign rvfi_pc_wdata = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
 
   assign rvfi_mem_addr = retired_stage.alu_res;
   logic [3:0] strobe_sig;

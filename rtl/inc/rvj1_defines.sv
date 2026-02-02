@@ -210,6 +210,8 @@ package rvj1_defines;
         logic [XLEN-1:0] pc_rdata;
         logic            lsu_cmd_valid;
         lsu_ctrl_e       lsu_cmd;
+        logic            jmp_addr_valid;
+        logic [XLEN-1:0] jmp_addr;
     } rvfi_stage_info_t;
     `endif
 
