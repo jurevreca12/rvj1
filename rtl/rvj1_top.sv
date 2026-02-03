@@ -446,8 +446,8 @@ module rvj1_top
     exec_stage_comb.pc_rdata       = program_counter;
     exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
     exec_stage_comb.lsu_cmd        = lsu_ctrl;
-    exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
-    exec_stage_comb.jmp_addr       = jmp_addr;
+    exec_stage_comb.jmp_addr_valid = 1'b0;
+    exec_stage_comb.jmp_addr       = '0;
   end
 
   always_ff @(posedge clk_i) begin
@@ -464,8 +464,11 @@ module rvj1_top
     else if (lsu_wb_valid)
       wb_stage <= mem_stage;
   end
-  always_ff @(posedge clk_i)
+  always_ff @(posedge clk_i) begin
     retired_stage <= wb_stage;
+    retired_stage.jmp_addr_valid <= jmp_addr_valid;
+    retired_stage.jmp_addr <= jmp_addr;
+  end
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
