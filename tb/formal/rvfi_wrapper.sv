@@ -175,6 +175,28 @@ module rvfi_wrapper (
     end
   end
 
-  
+  // No responses without outstanding requests
+  logic imem_req_act;
+  logic dmem_req_act;
+  always_ff @(posedge clock) begin
+    if (~resetn || (instr_rsp_valid && instr_rsp_ready))
+      imem_req_act <= 1'b0;
+    else if (instr_req_valid && instr_req_ready)
+      imem_req_act <= 1'b1;
+  end
+  always_ff @(posedge clock) begin
+    if (~imem_req_act)
+      assume(~instr_rsp_valid);
+  end
+  always_ff @(posedge clock) begin
+    if (~resetn || (data_rsp_valid && data_rsp_ready))
+      dmem_req_act <= 1'b0;
+    else if (data_req_valid && data_req_ready)
+      dmem_req_act <= 1'b1;
+  end
+  always_ff @(posedge clock) begin
+    if (~dmem_req_act)
+      assume(~data_rsp_valid);
+  end
 
 endmodule
