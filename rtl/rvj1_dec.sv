@@ -177,6 +177,41 @@ function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] f3, input logic i
   return lsu_ctrl_e'({is_write, f3});
 endfunction
 
+function automatic logic f3_valid_load(input logic [2:0] f3);
+  return ((f3 == 3'b000) || (f3 == 3'b001) || (f3 == 3'b010) || (f3 == 3'b100) || (f3 == 3'b101));
+endfunction
+
+function automatic logic f3_valid_store(input logic [2:0] f3);
+  return ((f3 == 3'b000) || (f3 == 3'b001) || (f3 == 3'b010));
+endfunction
+
+function automatic logic f3_f7_valid_opimm(input logic [2:0] f3, input logic [6:0] f7);
+  logic valid = 1'b0;
+  if (f3 == 3'b001 || f3 == 3'b101)
+    valid = (f7 == 7'b000_0000 || f7  == 7'b010_0000);
+  else
+    valid = 1'b1;
+  return valid;
+endfunction
+
+function automatic logic f3_f7_valid_op(input logic [2:0] f3, input logic [6:0] f7);
+  logic valid = 1'b0;
+  if (f3 == 3'b000 || f3 == 3'b101)
+    valid = (f7 == 7'b000_0000 || f7  == 7'b010_0000);
+  else
+    valid = (f7 == 7'b000_0000);
+  return valid;
+endfunction
+
+function automatic logic f3_branch_valid(input logic [2:0] f3);
+  return ((f3 == 3'b000) ||
+          (f3 == 3'b001) ||
+          (f3 == 3'b100) ||
+          (f3 == 3'b101) ||
+          (f3 == 3'b110) ||
+          (f3 == 3'b111));
+endfunction
+
 function automatic alu_op_e branch_type_to_alu_op(input branch_ctrl_e f3);
   alu_op_e op = ALU_OP_ADD;
   unique case (f3)
@@ -197,10 +232,21 @@ endfunction
 function automatic logic is_priv_non_csr_instr(
   input logic [4:0]  rs1,
   input logic [4:0]  rd,
-  input logic [2:0]  f3);
+  input logic [2:0]  f3,
+  input logic [11:0] imm12);
   return ((rs1 == 5'b0) &&
           (rd == 5'b0) &&
-          (f3 == 3'b0));
+          (f3 == 3'b0) &&
+          ((imm12 == 12'b0) || (imm12 == 12'b0000_0000_0001) || (imm12 == 12'b001100000010)));
+endfunction
+
+function automatic logic f3_is_csr_instr(input logic [2:0] f3);
+  return ((f3 == 3'b001) ||
+          (f3 == 3'b010) ||
+          (f3 == 3'b011) ||
+          (f3 == 3'b101) ||
+          (f3 == 3'b110) ||
+          (f3 == 3'b111));
 endfunction
 
 function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] f3);
@@ -345,20 +391,28 @@ begin
   illegal_instr     = 1'b0;
   unique case (opcode)
     OPCODE_OPIMM: begin
-      rf_addr_a    = regs1;
-      alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-      rpb_or_imm   = 1'b1;
-      alu_write_rf = 1'b1;
-      immediate    = imm_i_type;
-      regdest2     = regdest;
+      if (f3_f7_valid_opimm(funct3, funct7)) begin
+        rf_addr_a     = regs1;
+        alu_sel       = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
+        rpb_or_imm    = 1'b1;
+        alu_write_rf  = 1'b1;
+        immediate     = imm_i_type;
+        regdest2      = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_OP: begin
-      rf_addr_a    = regs1;
-      rf_addr_b    = regs2;
-      alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-      alu_write_rf = 1'b1;
-      regdest2     = regdest;
+      if (f3_f7_valid_op(funct3, funct7)) begin
+        rf_addr_a    = regs1;
+        rf_addr_b    = regs2;
+        alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
+        alu_write_rf = 1'b1;
+        regdest2     = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_LUI: begin
@@ -377,22 +431,30 @@ begin
     end
 
     OPCODE_STORE: begin
-      rpb_or_imm     = 1'b1;
-      immediate      = imm_s_type;
-      rf_addr_a      = regs1;
-      rf_addr_b      = regs2;
-      lsu_ctrl_valid = 1'b1;
-      lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b1);
+      if (f3_valid_store(funct3)) begin
+        rpb_or_imm     = 1'b1;
+        immediate      = imm_s_type;
+        rf_addr_a      = regs1;
+        rf_addr_b      = regs2;
+        lsu_ctrl_valid = 1'b1;
+        lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b1);
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_LOAD: begin
-      rpb_or_imm        = 1'b1;
-      immediate         = imm_i_type;
-      rf_addr_a         = regs1;
-      lsu_ctrl_valid    = 1'b1;
-      lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
-      instr_will_retire = 1'b0;
-      regdest2          = regdest;
+      if (f3_valid_load(funct3)) begin
+        rpb_or_imm        = 1'b1;
+        immediate         = imm_i_type;
+        rf_addr_a         = regs1;
+        lsu_ctrl_valid    = 1'b1;
+        lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
+        instr_will_retire = 1'b0;
+        regdest2          = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_JAL: begin
@@ -404,45 +466,53 @@ begin
     end
 
     OPCODE_JALR: begin
-      rpb_or_imm = 1'b1;
-      immediate  = imm_i_type;
-      rf_addr_a  = regs1;
-      ctrl_jump  = 1'b1;
-      regdest2   = regdest;
+      if (funct3 == 3'b000) begin
+        rpb_or_imm = 1'b1;
+        immediate  = imm_i_type;
+        rf_addr_a  = regs1;
+        ctrl_jump  = 1'b1;
+        regdest2   = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_BRANCH: begin
-      unique case (state)
-        // First cycle calculates condition
-        eDEC_FIRST_CYCLE: begin
-          rf_addr_a         = regs1;
-          rf_addr_b         = regs2;
-          alu_sel           = branch_type_to_alu_op( branch_ctrl_e'(funct3));
-          ctrl_branch       = 1'b1;
-          ctrl_branch_type  = branch_ctrl_e'(funct3);
-          state_next        = eDEC_SECOND_CYCLE;
-          instr_will_retire = 1'b0;
-        end
-        // Jump if condition is met
-        eDEC_SECOND_CYCLE: begin
-          rpa_or_pc    = 1'b1;
-          rpb_or_imm   = 1'b1;
-          immediate    = imm_b_type;
-          instr_issued = 1'b0;
-        end
-        default:;
-      endcase
+      if (f3_branch_valid(funct3)) begin
+        unique case (state)
+          // First cycle calculates condition
+          eDEC_FIRST_CYCLE: begin
+            rf_addr_a         = regs1;
+            rf_addr_b         = regs2;
+            alu_sel           = branch_type_to_alu_op( branch_ctrl_e'(funct3));
+            ctrl_branch       = 1'b1;
+            ctrl_branch_type  = branch_ctrl_e'(funct3);
+            state_next        = eDEC_SECOND_CYCLE;
+            instr_will_retire = 1'b0;
+          end
+          // Jump if condition is met
+          eDEC_SECOND_CYCLE: begin
+            rpa_or_pc    = 1'b1;
+            rpb_or_imm   = 1'b1;
+            immediate    = imm_b_type;
+            instr_issued = 1'b0;
+          end
+          default:;
+        endcase
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_SYSTEM: begin
-      if (is_priv_non_csr_instr(regs1, regdest, funct3)) begin
+      if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
         if (csr_addr == '0) // ECALL
           ecall_insn = 1'b1;
         else if ((funct7 == 7'b0011000) && (regs2 == 5'b00010)) // MRET
           mret_insn = 1'b1;
         else if (csr_addr == 12'b0000_0000_0001) // EBREAK
           ebreak_insn = 1'b1;
-      end else begin
+      end else if (f3_is_csr_instr(funct3)) begin
         regdest2 = regdest;
         unique case (state)
           eDEC_FIRST_CYCLE: begin
@@ -468,6 +538,8 @@ begin
             instr_will_retire = 1'b0;
           end
         endcase
+      end else begin
+        illegal_instr = 1'b1;
       end
     end
     OPCODE_MISCMEM: begin

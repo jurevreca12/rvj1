@@ -1,7 +1,7 @@
 module rvfi_wrapper (
-	input         clock,
-	input         reset,
-	
+  input         clock,
+  input         reset,
+
   output logic                         rvfi_valid,
   output logic [63:0]                  rvfi_order,
   output logic [31:0]                  rvfi_insn,
@@ -57,10 +57,13 @@ module rvfi_wrapper (
   (* keep *) logic        irq_nmi;
 
   (* keep *) logic        fetch_enable;
+  
+  logic resetn;
+  assign resetn = ~reset;
 
   rvj1_top rvj1_inst (
     .clk_i             (clock),
-    .rstn_i            (~reset),
+    .rstn_i            (resetn),
 
     .instr_req_addr_o  (instr_req_addr),
     .instr_req_data_o  (instr_req_data),
@@ -93,7 +96,7 @@ module rvfi_wrapper (
     .irq_platform_i    (irq_platform),
     .irq_nmi_i         (irq_nmi),
 
-	  .rvfi_valid        (rvfi_valid),
+    .rvfi_valid        (rvfi_valid),
     .rvfi_order        (rvfi_order),
     .rvfi_insn         (rvfi_insn),
     .rvfi_trap         (rvfi_trap),
@@ -129,7 +132,7 @@ module rvfi_wrapper (
 
   // Assume that we start in reset.
   initial assume(resetn == 1'b0);
-  
+
   // Assume no interrupts for now - TODO
   always @(posedge clock) begin
     assume(!irq_external);
@@ -139,18 +142,39 @@ module rvfi_wrapper (
     assume(irq_platform == '0);
     assume(!irq_nmi);
   end
-  
-  // TODO: add posibility for delayed responses
+
+  // Get memory responses in MAX cycles
+  localparam int ImemMaxDelay = 5;
+  localparam int DmemMaxDelay = 5;
+  logic [7:0] imem_delay;
+  logic [7:0] dmem_delay;
+
+  always_ff @(posedge clock) begin
+    if (~resetn || (instr_req_valid && instr_req_ready))
+      imem_delay <= '0;
+    else if (instr_rsp_valid && ~instr_rsp_ready)
+      imem_delay <= imem_delay + 1;
+    assume(imem_delay < ImemMaxDelay);
+  end
+  always_ff @(posedge clock) begin
+    if (~resetn || (data_req_valid && data_req_ready))
+      dmem_delay <= '0;
+    else if (data_rsp_valid && ~data_rsp_ready)
+      dmem_delay <= dmem_delay + 1;
+    assume(dmem_delay < DmemMaxDelay);
+  end
+
+  // Assume no memory errors - TODO
   always @(posedge clock) begin
     if($past(instr_req_valid) && $past(instr_req_ready)) begin
       assume(!instr_rsp_error);
-      assume(instr_rsp_ready && instr_rsp_valid);
     end
-  
+
     if($past(data_req_valid) && $past(data_req_ready)) begin
       assume(!data_rsp_error);
-      assume(data_rsp_ready && data_rsp_valid);
     end
   end
+
+  
 
 endmodule

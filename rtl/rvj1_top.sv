@@ -264,13 +264,12 @@ module rvj1_top
     .res_o  (alu_res)
   );
 
-  register #(
+  pipeline_register #(
     .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + XLEN + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
   ) ex_mem_stage_reg (
     .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (control && ~stall),
+    .ce   ((control && ~stall) || (~rstn_i)),
     .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   regs2_data,   jump,   csr_valid,   csr_addr,   csr_cmd}),
     .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, regs2_data_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );
@@ -504,7 +503,7 @@ module rvj1_top
   assign rvfi_rd_addr = retired_stage.rd_addr;
 
   logic [XLEN-1:0] wpc_data_r;
-  logic [XLEN-1:0] wpc_addr_r;
+  logic [4:0] wpc_addr_r;
   always_ff @(posedge clk_i) begin
     if (~rstn_i) begin
       wpc_data_r <= '0;
