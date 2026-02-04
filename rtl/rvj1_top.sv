@@ -507,21 +507,24 @@ module rvj1_top
 
   logic [XLEN-1:0] wpc_data_r;
   logic [4:0] wpc_addr_r;
+  logic wpc_we_r;
   always_ff @(posedge clk_i) begin
     if (~rstn_i) begin
       wpc_data_r <= '0;
       wpc_addr_r <= '0;
-    end else if (wpc_we) begin
+      wpc_we_r <= 1'b0;
+    end else begin
       wpc_data_r <= wpc_data;
       wpc_addr_r <= wpc_addr;
+      wpc_we_r <= wpc_we;
     end
   end
-  assign rvfi_rd_wdata = (wpc_addr_r == '0) ? '0 : wpc_data_r;
+  assign rvfi_rd_wdata = ((wpc_addr_r == '0) || (wpc_we_r == 1'b0)) ? '0 : wpc_data_r;
 
   assign rvfi_pc_rdata = retired_stage.pc_rdata;
   assign rvfi_pc_wdata = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
 
-  assign rvfi_mem_addr = retired_stage.alu_res;
+  assign rvfi_mem_addr = {retired_stage.alu_res[31:2], 2'b00};
   logic [3:0] strobe_sig;
   // This module is used also in LSU! It was just easier to instatiate
   // another copy here.

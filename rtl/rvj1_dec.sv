@@ -187,7 +187,9 @@ endfunction
 
 function automatic logic f3_f7_valid_opimm(input logic [2:0] f3, input logic [6:0] f7);
   logic valid = 1'b0;
-  if (f3 == 3'b001 || f3 == 3'b101)
+  if (f3 == 3'b001)
+    valid = (f7 == 7'b000_0000);
+  else if (f3 == 3'b101)
     valid = (f7 == 7'b000_0000 || f7  == 7'b010_0000);
   else
     valid = 1'b1;
