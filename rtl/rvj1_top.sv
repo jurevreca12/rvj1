@@ -409,6 +409,7 @@ module rvj1_top
   logic simple_insn_issued;
   logic branch_insn_issued;
   logic load_insn_issued;
+  logic store_insn_issued;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
   logic [11:0]      rvfi_csr_waddr_r;
@@ -416,9 +417,10 @@ module rvj1_top
   logic             rvfi_csr_written_r;
   logic             rvfi_csr_mod_r;
 
-  assign simple_insn_issued = instr_issued && instr_will_retire && ~stall;
+  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall;
   assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
   assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
+  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall;
   assign csr_insn_issued = instr_issued && csr_valid && ~stall;
 
   always_ff @(posedge clk_i) begin
@@ -446,6 +448,10 @@ module rvj1_top
     exec_stage_comb.pc_rdata       = program_counter;
     exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
     exec_stage_comb.lsu_cmd        = lsu_ctrl;
+    exec_stage_comb.lsu_strobe     = 4'b0;
+    exec_stage_comb.lsu_addr       = 32'b0;
+    exec_stage_comb.lsu_rdata      = 32'b0;
+    exec_stage_comb.lsu_wdata      = 32'b0;
     exec_stage_comb.jmp_addr_valid = 1'b0;
     exec_stage_comb.jmp_addr       = '0;
   end
@@ -453,14 +459,26 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (load_insn_issued)
+    else if (load_insn_issued || store_insn_issued)
       mem_stage <= exec_stage_comb;
+    else if (data_req_valid_o && data_req_ready_i && ~data_req_write_o) begin // load
+      mem_stage.lsu_strobe <= data_req_strobe_o;
+      mem_stage.lsu_addr <= data_req_addr_o;
+    end
+    else if (data_rsp_ready_o && data_rsp_valid_i)
+      mem_stage.lsu_rdata <= data_rsp_data_i;
   end
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
     else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
       wb_stage <= exec_stage_comb;
+    else if (data_req_valid_o && data_req_ready_i && data_req_write_o) begin // write
+      wb_stage <= mem_stage;
+      wb_stage.lsu_strobe <= data_req_strobe_o;
+      wb_stage.lsu_addr <= data_req_addr_o;
+      wb_stage.lsu_wdata <= data_req_data_o;
+    end
     else if (lsu_wb_valid)
       wb_stage <= mem_stage;
   end
@@ -524,19 +542,12 @@ module rvj1_top
   assign rvfi_pc_rdata = retired_stage.pc_rdata;
   assign rvfi_pc_wdata = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
 
-  assign rvfi_mem_addr = {retired_stage.alu_res[31:2], 2'b00};
-  logic [3:0] strobe_sig;
-  // This module is used also in LSU! It was just easier to instatiate
-  // another copy here.
-  cmd_to_strobe cmd2strb_dummy (
-    .cmd(retired_stage.lsu_cmd),
-    .addr(retired_stage.alu_res[1:0]),
-    .strobe(strobe_sig)
-  );
-  assign rvfi_mem_rmask = strobe_sig;
-  assign rvfi_mem_wmask = strobe_sig;
-  assign rvfi_mem_rdata = lsu_wb_data;
-  assign rvfi_mem_wdata = retired_stage.rs2_rdata;
+  assign rvfi_mem_addr = retired_stage.lsu_addr;
+  assign rvfi_mem_rmask = retired_stage.lsu_strobe;
+  assign rvfi_mem_wmask = retired_stage.lsu_strobe;
+  assign rvfi_mem_rdata = retired_stage.lsu_rdata;
+  assign rvfi_mem_wdata = retired_stage.lsu_wdata;
+
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
       .clk              (clk_i),
