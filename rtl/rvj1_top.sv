@@ -410,6 +410,7 @@ module rvj1_top
   logic branch_insn_issued;
   logic load_insn_issued;
   logic store_insn_issued;
+  logic store_insn_issued_r;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
   logic [11:0]      rvfi_csr_waddr_r;
@@ -495,9 +496,21 @@ module rvj1_top
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
+      store_insn_issued_r <= 1'b0;
+    else
+      store_insn_issued_r <= store_insn_issued;
+  end
+  // The retiring works in such a wierd way, because as far as CPU state is concerned a store
+  // insn can retire immediately. However, for RVFI we need the write mask, etc. so, we disregard
+  // the instr retire on store insns and retire after the stores are written.
+  // For load insn this is already handled internally by the controller, because it has to be since,
+  // load insns mutate the CPU state.
+  always_ff @(posedge clk_i) begin
+    if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring && ~store_addr_misaligned && ~stop_jmp_write;
+      instr_retired <= ( (instr_retiring && ~stop_jmp_write && ~store_insn_issued_r) ||
+                         (data_req_valid_o && data_req_ready_i && data_req_write_o) );
   end
   assign rvfi_valid = instr_retired;
   counter #(
