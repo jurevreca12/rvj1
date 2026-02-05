@@ -142,6 +142,14 @@ module rvfi_wrapper (
     assume(irq_platform == '0);
     assume(!irq_nmi);
   end
+  
+  // MEMORIEs
+  logic instr_req_fire, instr_rsp_fire;
+  logic data_req_fire, data_rsp_fire;
+  assign instr_req_fire = (instr_req_valid && instr_req_ready);
+  assign instr_rsp_fire = (instr_rsp_valid && instr_rsp_ready);
+  assign data_req_fire = (data_req_valid && data_req_ready);
+  assign data_rsp_fire = (data_rsp_valid && data_rsp_ready);
 
   // Get memory responses in MAX cycles
   localparam int ImemMaxDelay = 5;
@@ -150,14 +158,14 @@ module rvfi_wrapper (
   logic [7:0] dmem_delay;
 
   always_ff @(posedge clock) begin
-    if (~resetn || (instr_req_valid && instr_req_ready))
+    if (reset || instr_req_fire)
       imem_delay <= '0;
     else if (instr_rsp_valid && ~instr_rsp_ready)
       imem_delay <= imem_delay + 1;
     assume(imem_delay < ImemMaxDelay);
   end
   always_ff @(posedge clock) begin
-    if (~resetn || (data_req_valid && data_req_ready))
+    if (reset || data_req_fire)
       dmem_delay <= '0;
     else if (data_rsp_valid && ~data_rsp_ready)
       dmem_delay <= dmem_delay + 1;
@@ -176,27 +184,32 @@ module rvfi_wrapper (
   end
 
   // No responses without outstanding requests
-  logic imem_req_act;
-  logic dmem_req_act;
+  // We use 8 as a "zero". HW does not support
+  // more than two outstanding simultaneous
+  // requests.
+  logic [3:0] imem_req_act;
+  logic [3:0] dmem_req_act;
   always_ff @(posedge clock) begin
-    if (~resetn || (instr_rsp_valid && instr_rsp_ready))
-      imem_req_act <= 1'b0;
-    else if (instr_req_valid && instr_req_ready)
-      imem_req_act <= 1'b1;
+    if (reset)
+      imem_req_act <= 8;
+    if (instr_req_fire)
+      imem_req_act <= imem_req_act + 1'b1;
+    if (instr_rsp_fire)
+      imem_req_act <= imem_req_act - 1'b1;
   end
   always_ff @(posedge clock) begin
-    if (~imem_req_act)
-      assume(~instr_rsp_valid);
+      assume(imem_req_act >= 8);
   end
   always_ff @(posedge clock) begin
-    if (~resetn || (data_rsp_valid && data_rsp_ready))
-      dmem_req_act <= 1'b0;
-    else if (data_req_valid && data_req_ready)
-      dmem_req_act <= 1'b1;
+    if (reset)
+      dmem_req_act <= 8;
+    if (data_req_fire)
+      dmem_req_act <= dmem_req_act + 1'b1;
+    if (data_rsp_fire)
+      dmem_req_act <= dmem_req_act - 1'b1;
   end
   always_ff @(posedge clock) begin
-    if (~dmem_req_act)
-      assume(~data_rsp_valid);
+      assume(dmem_req_act >= 8);
   end
 
 endmodule

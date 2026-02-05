@@ -410,13 +410,13 @@ module rvj1_top
   logic branch_insn_issued;
   logic load_insn_issued;
   logic store_insn_issued;
-  logic store_insn_issued_r;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
   logic [11:0]      rvfi_csr_waddr_r;
   logic [XLEN-1:0]  rvfi_csr_rval_r;
   logic             rvfi_csr_written_r;
   logic             rvfi_csr_mod_r;
+  logic [3:0]       strobe_sig;
 
   assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall;
   assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
@@ -460,7 +460,7 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (load_insn_issued || store_insn_issued)
+    else if (load_insn_issued)
       mem_stage <= exec_stage_comb;
     else if (data_req_valid_o && data_req_ready_i && ~data_req_write_o) begin // load
       mem_stage.lsu_strobe <= data_req_strobe_o;
@@ -469,16 +469,27 @@ module rvj1_top
     else if (data_rsp_ready_o && data_rsp_valid_i)
       mem_stage.lsu_rdata <= data_rsp_data_i;
   end
+
+   cmd_to_strobe cmd2strb_dummy (
+    .cmd(exec_stage_comb.lsu_cmd),
+    .addr(exec_stage_comb.alu_res[1:0]),
+    .strobe(strobe_sig)
+  );
+  // Store instructions use expected values in the RVFI. This is because they are
+  // retired (from the point of view of the core) immediately. Howver, RVFI if needs
+  // information on the mutated state outside of the CPU. To satisfy this requirement
+  // we duplicate the logic from the LSU. This allows write to finnish at any time (e.g,
+  // if the slave device is not ready), but the RVFI is still in order.
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
     else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
       wb_stage <= exec_stage_comb;
-    else if (data_req_valid_o && data_req_ready_i && data_req_write_o) begin // write
-      wb_stage <= mem_stage;
-      wb_stage.lsu_strobe <= data_req_strobe_o;
-      wb_stage.lsu_addr <= data_req_addr_o;
-      wb_stage.lsu_wdata <= data_req_data_o;
+    else if (store_insn_issued) begin
+      wb_stage <= exec_stage_comb;
+      wb_stage.lsu_strobe <= strobe_sig;
+      wb_stage.lsu_addr <= {alu_res[31:2], 2'b00};
+      wb_stage.lsu_wdata <= exec_stage_comb.rs2_rdata;
     end
     else if (lsu_wb_valid)
       wb_stage <= mem_stage;
@@ -496,21 +507,9 @@ module rvj1_top
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
-      store_insn_issued_r <= 1'b0;
-    else
-      store_insn_issued_r <= store_insn_issued;
-  end
-  // The retiring works in such a wierd way, because as far as CPU state is concerned a store
-  // insn can retire immediately. However, for RVFI we need the write mask, etc. so, we disregard
-  // the instr retire on store insns and retire after the stores are written.
-  // For load insn this is already handled internally by the controller, because it has to be since,
-  // load insns mutate the CPU state.
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= ( (instr_retiring && ~stop_jmp_write && ~store_insn_issued_r) ||
-                         (data_req_valid_o && data_req_ready_i && data_req_write_o) );
+      instr_retired <= instr_retiring && ~store_addr_misaligned && ~stop_jmp_write;
   end
   assign rvfi_valid = instr_retired;
   counter #(
