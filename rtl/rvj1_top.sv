@@ -418,11 +418,11 @@ module rvj1_top
   logic             rvfi_csr_mod_r;
   logic [3:0]       strobe_sig;
 
-  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall;
-  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
-  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
-  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall;
-  assign csr_insn_issued = instr_issued && csr_valid && ~stall;
+  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall && ~illegal_instr;
+  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall && ~illegal_instr;
+  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall && ~illegal_instr;
+  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall && ~illegal_instr;
+  assign csr_insn_issued = instr_issued && csr_valid && ~stall && ~illegal_instr;
 
   always_ff @(posedge clk_i) begin
     if (~rstn_i) begin
@@ -495,9 +495,13 @@ module rvj1_top
       wb_stage <= mem_stage;
   end
   always_ff @(posedge clk_i) begin
-    retired_stage <= wb_stage;
-    retired_stage.jmp_addr_valid <= jmp_addr_valid;
-    retired_stage.jmp_addr <= jmp_addr;
+    if (illegal_instr)
+      retired_stage <= exec_stage_comb;
+    else begin
+      retired_stage <= wb_stage;
+      retired_stage.jmp_addr_valid <= jmp_addr_valid;
+      retired_stage.jmp_addr <= jmp_addr;
+    end
   end
 
   `ifdef ASSERTIONS
@@ -509,7 +513,7 @@ module rvj1_top
     if (~rstn_i)
       instr_retired <= 1'b0;
     else
-      instr_retired <= instr_retiring && ~store_addr_misaligned && ~stop_jmp_write;
+      instr_retired <= (instr_retiring && ~store_addr_misaligned && ~stop_jmp_write) || illegal_instr;
   end
   assign rvfi_valid = instr_retired;
   counter #(

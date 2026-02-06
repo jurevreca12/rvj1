@@ -102,6 +102,7 @@ module rvj1_ctrl
   mstatus_reg_t    mstatus_d, mstatus_q;
   miep_reg_t       mie_d, mie_q;
   miep_reg_t       mip_d, mip_q;
+  assign mie_q = '0; // TODO
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
   logic [XLEN-3:0] mepc_d, mepc_q;
   logic [5:0]      mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24

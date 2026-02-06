@@ -30,11 +30,11 @@ module rvfi_wrapper (
   (* keep *) logic [3:0]  instr_req_strobe;
   (* keep *) logic        instr_req_write;
   (* keep *) logic        instr_req_valid;
-  (* keep *) logic        instr_req_ready;
+  (* keep *) `rvformal_rand_reg instr_req_ready;
 
-  (* keep *) logic [31:0] instr_rsp_data;
-  (* keep *) logic        instr_rsp_error;
-  (* keep *) logic        instr_rsp_valid;
+  (* keep *) `rvformal_rand_reg [31:0] instr_rsp_data;
+  (* keep *) `rvformal_rand_reg        instr_rsp_error;
+  (* keep *) `rvformal_rand_reg        instr_rsp_valid;
   (* keep *) logic        instr_rsp_ready;
 
   (* keep *) logic [31:0] data_req_addr;
@@ -42,11 +42,11 @@ module rvfi_wrapper (
   (* keep *) logic [3:0]  data_req_strobe;
   (* keep *) logic        data_req_write;
   (* keep *) logic        data_req_valid;
-  (* keep *) logic        data_req_ready;
+  (* keep *) `rvformal_rand_reg data_req_ready;
 
-  (* keep *) logic [31:0] data_rsp_data;
-  (* keep *) logic        data_rsp_error;
-  (* keep *) logic        data_rsp_valid;
+  (* keep *) `rvformal_rand_reg [31:0] data_rsp_data;
+  (* keep *) `rvformal_rand_reg        data_rsp_error;
+  (* keep *) `rvformal_rand_reg        data_rsp_valid;
   (* keep *) logic        data_rsp_ready;
 
   (* keep *) logic        irq_external;
@@ -57,13 +57,11 @@ module rvfi_wrapper (
   (* keep *) logic        irq_nmi;
 
   (* keep *) logic        fetch_enable;
-  
-  logic resetn;
-  assign resetn = ~reset;
+
 
   rvj1_top rvj1_inst (
     .clk_i             (clock),
-    .rstn_i            (resetn),
+    .rstn_i            (~reset),
 
     .instr_req_addr_o  (instr_req_addr),
     .instr_req_data_o  (instr_req_data),
@@ -131,7 +129,7 @@ module rvfi_wrapper (
   assign fetch_enable = 1'b1;
 
   // Assume that we start in reset.
-  initial assume(resetn == 1'b0);
+  initial assume(reset == 1'b1);
 
   // Assume no interrupts for now - TODO
   always @(posedge clock) begin
@@ -142,8 +140,9 @@ module rvfi_wrapper (
     assume(irq_platform == '0);
     assume(!irq_nmi);
   end
-  
-  // MEMORIEs
+
+`ifdef RVJ1_FAIRNESS
+  // MEMORIES
   logic instr_req_fire, instr_rsp_fire;
   logic data_req_fire, data_rsp_fire;
   assign instr_req_fire = (instr_req_valid && instr_req_ready);
@@ -174,42 +173,42 @@ module rvfi_wrapper (
 
   // Assume no memory errors - TODO
   always @(posedge clock) begin
-    if($past(instr_req_valid) && $past(instr_req_ready)) begin
+    if($past(instr_req_valid) && $past(instr_req_ready))
       assume(!instr_rsp_error);
-    end
 
-    if($past(data_req_valid) && $past(data_req_ready)) begin
+    if($past(data_req_valid) && $past(data_req_ready)) 
       assume(!data_rsp_error);
-    end
   end
 
   // No responses without outstanding requests
   // We use 8 as a "zero". HW does not support
   // more than two outstanding simultaneous
   // requests.
-  logic [3:0] imem_req_act;
-  logic [3:0] dmem_req_act;
+  logic [7:0] imem_req_act;
+  logic [7:0] dmem_req_act;
   always_ff @(posedge clock) begin
     if (reset)
-      imem_req_act <= 8;
-    if (instr_req_fire)
-      imem_req_act <= imem_req_act + 1'b1;
-    if (instr_rsp_fire)
-      imem_req_act <= imem_req_act - 1'b1;
+      imem_req_act <= 8'h8;
+    else if (instr_req_fire && ~instr_rsp_fire)
+      imem_req_act <= imem_req_act + 1;
+    else if (~instr_req_fire && instr_rsp_fire)
+      imem_req_act <= imem_req_act - 1;
   end
   always_ff @(posedge clock) begin
-      assume(imem_req_act >= 8);
+    if (~reset)
+      assume(imem_req_act >= 8'h8);
   end
   always_ff @(posedge clock) begin
     if (reset)
-      dmem_req_act <= 8;
-    if (data_req_fire)
-      dmem_req_act <= dmem_req_act + 1'b1;
-    if (data_rsp_fire)
-      dmem_req_act <= dmem_req_act - 1'b1;
+      dmem_req_act <= 8'h8;
+    else if (data_req_fire && ~data_rsp_fire)
+      dmem_req_act <= dmem_req_act + 1;
+    else if (~data_req_fire && data_rsp_fire)
+      dmem_req_act <= dmem_req_act - 1;
   end
   always_ff @(posedge clock) begin
-      assume(dmem_req_act >= 8);
+    if (~reset)
+      assume(dmem_req_act >= 8'h8);
   end
-
+`endif
 endmodule
