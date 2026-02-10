@@ -9,16 +9,12 @@
 //
 
 module bytewrite_sram #(
-    parameter int BASE_ADDR0,
-    parameter int BASE_ADDR1,
     parameter string MEM_INIT_FILE0="",
     parameter string MEM_INIT_FILE1="",
     parameter int INIT_FILE_BIN0=1,
     parameter int INIT_FILE_BIN1=1,
     parameter int MEM_SIZE_WORDS0 = 2**12,
     parameter int MEM_SIZE_WORDS1 = 2**12,
-    localparam int MemSizeBytes0 = MEM_SIZE_WORDS0 * 4,
-    localparam int MemSizeBytes1 = MEM_SIZE_WORDS1 * 4,
     localparam int MemSizeWordsTotal = MEM_SIZE_WORDS0 + MEM_SIZE_WORDS1,
     localparam int AddrWidth = $clog2(MemSizeWordsTotal),
     localparam int WordSize = 32,

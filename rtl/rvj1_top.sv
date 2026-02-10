@@ -27,6 +27,8 @@ module rvj1_top
   output logic              instr_req_valid_o,
   input  logic              instr_req_ready_i,
 
+  output logic              instr_req_cancel_o,
+
   input  logic [XLEN-1:0] instr_rsp_data_i,
   input  logic            instr_rsp_error_i,
   input  logic            instr_rsp_valid_i,
@@ -182,6 +184,8 @@ module rvj1_top
     .instr_req_write_o  (instr_req_write_o),
     .instr_req_valid_o  (instr_req_valid_o),
     .instr_req_ready_i  (instr_req_ready_i),
+
+    .instr_req_cancel_o (instr_req_cancel_o),
 
     .instr_rsp_data_i   (instr_rsp_data_i),
     .instr_rsp_error_i  (instr_rsp_error_i),

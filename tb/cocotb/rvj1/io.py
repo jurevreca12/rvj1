@@ -16,7 +16,7 @@ class IfuToDecoderIO(BaseIO):
             dut=dut,
             name=name,
             role=role,
-            init_sigs=["instr", "pc", "valid"],
+            init_sigs=["instr", "valid"],
             resp_sigs=["ready"],
             io_style=io_style,
         )

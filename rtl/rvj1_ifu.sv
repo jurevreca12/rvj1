@@ -25,6 +25,8 @@ module rvj1_ifu(
   output logic              instr_req_valid_o,
   input  logic              instr_req_ready_i,
 
+  output logic              instr_ctrl_cancel_o,
+
   input  logic [XLEN-1:0] instr_rsp_data_i,
   input  logic            instr_rsp_error_i,
   input  logic            instr_rsp_valid_i,
@@ -46,13 +48,14 @@ module rvj1_ifu(
     logic [XLEN-1:0] selected_data;
     logic input_buffer_clock_enable, output_buffer_clock_enable, use_buffered_data;
 
-    logic boot, load, flow, fill, flush, unload, jmpi, jmpn;
+    logic boot1, boot2, load, flow, fill, flush, unload, jmpi, jmpn;
     typedef enum logic [2:0] {
-        eIFU_WAIT,   // no address, wait for jmp (controller jumps to boot addr at boot)
-        eIFU_EMPTY,  // Output and buffer registers empty
-        eIFU_BUSY,   // Output register holds data
-        eIFU_FULL,   // Both output and buffer registers full,
-        eIFU_JMP     // load address
+        eIFU_RST,   // no address, wait for jmp (controller jumps to boot addr at boot)
+        eIFU_WAIT,  // wait one cycle after jmp (to cancel outstanding requests)
+        eIFU_EMPTY, // Output and buffer registers empty
+        eIFU_BUSY,  // Output register holds data
+        eIFU_FULL,  // Both output and buffer registers full
+        eIFU_JMP    // load address
     } ifu_fsm_e;
     ifu_fsm_e state, state_next;
 
@@ -64,20 +67,21 @@ module rvj1_ifu(
     /*************************************
     * Skid Buffer the incoming data
     *************************************/
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
-            input_buffer <= 0;
-        else if(input_buffer_clock_enable)
-            input_buffer <= instr_rsp_data_i;
-    end
-
+    register #(.WORD_WIDTH(XLEN)) input_register (
+        .clk  (clk_i),
+        .rstn (rstn_i && (~jmp_addr_valid_i)),
+        .ce   (input_buffer_clock_enable),
+        .in   (instr_rsp_data_i),
+        .out  (input_buffer)
+    );
     assign selected_data = use_buffered_data ? input_buffer : instr_rsp_data_i;
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
-            output_buffer <= 0;
-        else if(output_buffer_clock_enable)
-            output_buffer <= selected_data;
-    end
+    register #(.WORD_WIDTH(XLEN)) output_register (
+        .clk  (clk_i),
+        .rstn (rstn_i && (~jmp_addr_valid_i)),
+        .ce   (output_buffer_clock_enable),
+        .in   (selected_data),
+        .out  (output_buffer)
+    );
 
     /*************************************
     * Instruction Memory Interface
@@ -95,42 +99,29 @@ module rvj1_ifu(
                 instr_req_addr_o <= instr_req_addr_o + 4;
         end
     end
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i) begin
-            instr_req_valid_o <= 1'b0;
-            instr_rsp_ready_o <= 1'b0;
-        end
-        else begin
-            instr_req_valid_o <= (state_next != eIFU_FULL) && (state_next != eIFU_WAIT);
-            instr_rsp_ready_o <= (state_next != eIFU_FULL) && (state_next != eIFU_WAIT);
-        end
-    end
+    assign instr_req_valid_o = (state != eIFU_RST) && (state != eIFU_WAIT);
+    assign instr_rsp_ready_o = (state != eIFU_FULL) && (state != eIFU_RST) && (state != eIFU_WAIT);
+
+    // Cancels invalidated outstanding request (e.g., on a jump)
+    register cancel_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(jmp_addr_valid_i), .out(instr_ctrl_cancel_o));
 
     /*************************************
     * Decoder Interface
     *************************************/
     assign dec_instr_o = output_buffer;
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
-            dec_valid_o <= 1'b0;
-        else
-            dec_valid_o <= ~((state_next == eIFU_EMPTY) ||
-                             (state_next == eIFU_JMP)   ||
-                             (state_next == eIFU_WAIT));
-    end
+    assign dec_valid_o = (state == eIFU_BUSY) || (state == eIFU_FULL);
 
     /*************************************
     * Finite State Machine (FSM)
     *************************************/
     always_comb begin
-        boot   = (state == eIFU_WAIT)  &&  jmp_addr_valid_i;
+        boot1  = jmp_addr_valid_i;
+        boot2  = (state == eIFU_WAIT);
         load   = (state == eIFU_EMPTY) &&  instr_rsp_fire;
         flow   = (state == eIFU_BUSY)  &&  instr_rsp_fire  &&  dec_fire;
         fill   = (state == eIFU_BUSY)  &&  instr_rsp_fire  && ~dec_fire;
         unload = (state == eIFU_BUSY)  && ~instr_rsp_fire  &&  dec_fire;
         flush  = (state == eIFU_FULL)  && ~instr_rsp_fire  &&  dec_fire;
-        jmpi   = (state != eIFU_WAIT)  &&  jmp_addr_valid_i;
-        jmpn   = (state == eIFU_JMP)   &&  instr_req_fire;
     end
 
     always_comb begin
@@ -140,20 +131,20 @@ module rvj1_ifu(
     end
 
     always_comb begin
-        state_next = boot   ? eIFU_EMPTY : state;
-        state_next = load   ? eIFU_BUSY  : state_next;
+        state_next = load   ? eIFU_BUSY  : state;
         state_next = flow   ? eIFU_BUSY  : state_next;
         state_next = fill   ? eIFU_FULL  : state_next;
         state_next = flush  ? eIFU_BUSY  : state_next;
         state_next = unload ? eIFU_EMPTY : state_next;
-        state_next = jmpi   ? eIFU_JMP   : state_next;
-        state_next = jmpn   ? eIFU_EMPTY  : state_next;
+        state_next = boot1  ? eIFU_WAIT  : state_next;
+        state_next = boot2  ? eIFU_EMPTY : state_next;
     end
-    always_ff @(posedge clk_i) begin
-        if (~rstn_i)
-            state <= eIFU_WAIT;
-        else
-            state <= state_next;
-    end
+    register #(.WORD_WIDTH($bits(ifu_fsm_e)), .RESET_VALUE(eIFU_RST)) state_reg (
+        .clk  (clk_i),
+        .rstn (rstn_i),
+        .ce   (1'b1),
+        .in   (state_next),
+        .out  (state)
+    );
 
 endmodule

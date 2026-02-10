@@ -36,6 +36,8 @@ module rvj1_riscof_tb();
   logic              instr_req_valid;
   logic              instr_req_ready;
 
+  logic              instr_req_cancel;
+
   logic [XLEN-1:0] instr_rsp_data;
   logic            instr_rsp_error;
   logic            instr_rsp_valid;
@@ -56,37 +58,43 @@ module rvj1_riscof_tb();
 
     // instruction memory
     bytewrite_sram_wrap #(
-      .BASE_ADDR0(InstrMemBaseAddr),
-      .BASE_ADDR1(DataMemBaseAddr),
-      .MEM_SIZE_WORDS0(MEM_SIZE_WORDS),
-      .MEM_SIZE_WORDS1(MEM_SIZE_WORDS),
-      .INIT_FILE_BIN0(0),
-      .INIT_FILE_BIN1(0),
-      .MEM_INIT_FILE0(INSTR_MEM_INIT_FILE),
-      .MEM_INIT_FILE1(DATA_MEM_INIT_FILE)
+      .IMEM_BASE_ADDR(InstrMemBaseAddr),
+      .DMEM_BASE_ADDR(DataMemBaseAddr),
+      .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
+      .DMEM_SIZE_WORDS(MEM_SIZE_WORDS),
+      .IMEM_INIT_FILE_BIN(0),
+      .DMEM_INIT_FILE_BIN(0),
+      .IMEM_INIT_FILE(INSTR_MEM_INIT_FILE),
+      .DMEM_INIT_FILE(DATA_MEM_INIT_FILE)
     ) main_mem (
         .clk_i    (clk),
         .rstn_i   (rstn),
 
-        .req_addr_i   (data_req_addr),
-        .req_data_i   (data_req_data),
-        .req_strobe_i (data_req_strobe),
-        .req_write_i  (data_req_write),
-        .req_valid_i  (data_req_valid),
-        .req_ready_o  (data_req_ready),
+        .instr_req_addr_i  (instr_req_addr),
+        .instr_req_data_i  (instr_req_data),
+        .instr_req_strobe_i(instr_req_strobe),
+        .instr_req_write_i (instr_req_write),
+        .instr_req_valid_i (instr_req_valid),
+        .instr_req_ready_o (instr_req_ready),
 
-        .rsp_data_o   (data_rsp_data),
-        .rsp_error_o  (data_rsp_error),
-        .rsp_valid_o  (data_rsp_valid),
-        .rsp_ready_i  (data_rsp_ready),
+        .instr_req_cancel_i(instr_req_cancel),
 
-        .req_addr1_i  (instr_req_addr),
-        .req_valid1_i (instr_req_valid),
-        .req_ready1_o (instr_req_ready),
+        .instr_rsp_data_o  (instr_rsp_data),
+        .instr_rsp_error_o (instr_rsp_error),
+        .instr_rsp_valid_o (instr_rsp_valid),
+        .instr_rsp_ready_i (instr_rsp_ready),
 
-        .rsp_data1_o  (instr_rsp_data),
-        .rsp_valid1_o (instr_rsp_valid),
-        .rsp_ready1_i (instr_rsp_ready)
+        .data_req_addr_i   (data_req_addr),
+        .data_req_data_i   (data_req_data),
+        .data_req_strobe_i (data_req_strobe),
+        .data_req_write_i  (data_req_write),
+        .data_req_valid_i  (data_req_valid),
+        .data_req_ready_o  (data_req_ready),
+
+        .data_rsp_data_o   (data_rsp_data),
+        .data_rsp_error_o  (data_rsp_error),
+        .data_rsp_valid_o  (data_rsp_valid),
+        .data_rsp_ready_i  (data_rsp_ready)
     );
 
     rvj1_top dut(
@@ -99,6 +107,8 @@ module rvj1_riscof_tb();
       .instr_req_write_o  (instr_req_write),
       .instr_req_valid_o  (instr_req_valid),
       .instr_req_ready_i  (instr_req_ready),
+
+      .instr_req_cancel_o (instr_req_cancel),
 
       .instr_rsp_data_i   (instr_rsp_data),
       .instr_rsp_error_i  (instr_rsp_error),

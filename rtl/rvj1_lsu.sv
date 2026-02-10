@@ -134,6 +134,8 @@ lsu_act_req_t act_req_buff_out_data;
 logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
+logic         act_req_buff_empty;
+logic         resp_buff_ready;
 logic         exception;
 
 logic [XLEN-1:0] byte_select_read_data;
@@ -174,7 +176,9 @@ skidbuffer #(
 
   .output_valid (data_req_valid_o),
   .output_ready (data_req_ready_i),
-  .output_data  (req_buff_out_data)
+  .output_data  (req_buff_out_data),
+
+  .empty        ()
 );
 assign data_req_addr_o  = {req_buff_out_data.addr[31:2], 2'b00};
 byte_select_write bsw_inst(
@@ -215,7 +219,9 @@ skidbuffer #(
 
   .output_valid (act_req_buff_out_valid),
   .output_ready (retire_request),
-  .output_data  (act_req_buff_out_data)
+  .output_data  (act_req_buff_out_data),
+
+  .empty        (act_req_buff_empty)
 );
 skidbuffer #(
   .WORD_WIDTH ($bits(lsu_rsp_t))
@@ -224,13 +230,16 @@ skidbuffer #(
   .rstn (rstn_i),
 
   .input_valid  (data_rsp_valid_i),
-  .input_ready  (data_rsp_ready_o),
+  .input_ready  (resp_buff_ready),
   .input_data   ({data_rsp_data_i, data_rsp_error_i}),
 
   .output_valid (rsp_buff_out_valid),
   .output_ready (retire_request),
-  .output_data  (rsp_buff_out_data)
+  .output_data  (rsp_buff_out_data),
+
+  .empty        ()
 );
+assign data_rsp_ready_o =  resp_buff_ready; // && ~act_req_buff_empty;
 
 /*************************************
 * Reg File

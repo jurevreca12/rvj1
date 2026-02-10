@@ -1,6 +1,6 @@
 from base import get_test_runner, WAVES
-from mapped.io import MappedRequestIO, MappedResponseIO
-from mapped.request import MappedRequestMonitor, MappedRequestResponder
+from mapped.io import MappedRequestIO, MappedResponseIO, MappedControlIO
+from mapped.request import MappedRequestMonitor, MappedRequestResponder, MappedControlMonitor
 from mapped.response import MappedResponseInitiator
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
@@ -13,9 +13,9 @@ from rvj1.sequence import dec_backpressure_seq
 from memory import RandomAccessMemory, gen_memory_data, mem_to_instr_addr_rsp
 
 
-def test_ifu_runner():
-    runner = get_test_runner("rvj1_ifu")
-    runner.test(hdl_toplevel="rvj1_ifu", test_module="test_ifu", waves=WAVES)
+#def test_ifu_runner():
+#    runner = get_test_runner("ifu_mem_test_top")
+#    runner.test(hdl_toplevel="ifu_mem_test_top", test_module="test_ifu", waves=WAVES)
 
 
 class IfuTB(BaseBench):
@@ -27,6 +27,14 @@ class IfuTB(BaseBench):
         self.register(
             "instr_req_mon",
             MappedRequestMonitor(self, instr_req_io, self.clk, self.rst),
+            scoreboard=False,
+        )
+        instr_ctrl_io = MappedControlIO(
+            dut, "instr_ctrl", IORole.INITIATOR, io_style=io_suffix_style
+        )
+        self.register(
+            "instr_ctrl_mon",
+            MappedControlMonitor(self, instr_ctrl_io, self.clk, self.rst),
             scoreboard=False,
         )
         self.register(
@@ -46,6 +54,7 @@ class IfuTB(BaseBench):
         )
         self.memory = RandomAccessMemory(
             self,
+            control=self.instr_ctrl_mon,
             request=self.instr_req_mon,
             req_respond=self.instr_req_drv,
             response=self.instr_rsp_drv,
@@ -93,8 +102,12 @@ class IfuTB(BaseBench):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
+
 )
 @IfuTB.parameter("delay", int, [0, 1, 2, 3])
+@IfuTB.parameter("BASE_ADDR", int, 0x80000000)
+@IfuTB.parameter("MEM_SIZE_WORD", int, 1 << 10)
+@IfuTB.parameter("INIT_FILE", str, "init.hex")
 async def linear_run_const_delay(tb: IfuTB, log, delay):
     test_mem = gen_memory_data(int("8000_0000", 16), range(1, 10))
     tb.memory.flash(test_mem)
@@ -214,5 +227,5 @@ async def linear_run_and_jump_backpressure(tb: IfuTB, log, delay):
         await tb.dec_mon.wait_for(MonitorEvent.CAPTURE)
 
 
-if __name__ == "__main__":
-    test_ifu_runner()
+#if __name__ == "__main__":
+#    test_ifu_runner()

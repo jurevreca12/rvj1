@@ -1,26 +1,31 @@
-from mapped.request import MappedRequestMonitor, MappedRequestResponder
+from mapped.request import MappedRequestMonitor, MappedRequestResponder, MappedControlMonitor
 from mapped.response import MappedResponseInitiator
 from mapped.transaction import (
     MappedRequest,
     MappedResponse,
     MappedAccess,
     MappedBackpressure,
+    MappedControl,
 )
 from forastero import MonitorEvent, DriverEvent
 from collections.abc import Callable
 from rvj1.transaction import InstrAddrResponse
 
 
+
 class RandomAccessMemory:
     def __init__(
         self,
         tb,
+        control: MappedControlMonitor,
         request: MappedRequestMonitor,
         req_respond: MappedRequestResponder,
         response: MappedResponseInitiator,
         memory: dict[int, int] = {},
         delay: Callable[[], int] = lambda _: 0,
     ) -> None:
+        self._control = control
+        self._control.subscribe(MonitorEvent.CAPTURE, self._cancel_requests)
         self._request = request
         self._response = response
         self._memory = memory
@@ -38,6 +43,15 @@ class RandomAccessMemory:
 
     def reset(self) -> None:
         self._memory.clear()
+
+    def _cancel_requests(self, 
+                        component: MappedControlMonitor,
+                        event: MonitorEvent,
+                        transaction: MappedControl) -> None:
+        print(f"ASFASDFSAD")
+        import pdb; pdb.set_trace()
+        self._req_respond._queue._entries = []
+        self._response._queue._entries = []
 
     def set_delay(self, delay: Callable[[], int]) -> None:
         self._delay = delay
@@ -80,6 +94,9 @@ class RandomAccessMemory:
                 MappedResponse(valid=True, valid_delay=self._delay(self))
             )
         else:
+            print(hex(transaction.address))
+            if transaction.address == 0x8000002c:
+                import pdb; pdb.set_trace()
             self._response.enqueue(
                 MappedResponse(
                     data=self.read(transaction.address),
