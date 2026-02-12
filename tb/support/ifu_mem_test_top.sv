@@ -14,13 +14,9 @@
 /* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
-module ifu_mem_test_top #(
-    parameter int BASE_ADDR = 32'h8000_0000,
-    parameter int MEM_SIZE_WORD = 1 << 10,
-    parameter string INIT_FILE = "init.hex"
-)(
-    input  logic            clock,
-    input  logic            resetn,
+module ifu_mem_test_top (
+    input  logic            clk_i,
+    input  logic            rstn_i,
 
     output logic [XLEN-1:0] dec_instr_o,
     output logic            dec_valid_o,
@@ -32,6 +28,9 @@ module ifu_mem_test_top #(
     output logic            instr_fetch_err_o,
     output logic [XLEN-1:0] instr_fault_addr_o
 );
+    localparam int BaseAddr = 32'h8000_0000;
+    localparam int MemSizeWords = 1 << 10;
+
     logic [XLEN-1:0]   instr_req_addr;
     logic [XLEN-1:0]   instr_req_data;
     logic [NBYTES-1:0] instr_req_strobe;
@@ -47,8 +46,8 @@ module ifu_mem_test_top #(
     logic              instr_rsp_ready;
 
     rvj1_ifu ifu_instr(
-        .clk_i  (clock),
-        .rstn_i (resetn),
+        .clk_i  (clk_i),
+        .rstn_i (rstn_i),
 
         .instr_req_addr_o   (instr_req_addr),
         .instr_req_data_o   (instr_req_data),
@@ -77,13 +76,13 @@ module ifu_mem_test_top #(
     );
 
     bytewrite_sram_wrap #(
-      .IMEM_BASE_ADDR(BASE_ADDR),
-      .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
-      .IMEM_INIT_FILE_BIN(0),
-      .IMEM_INIT_FILE(INIT_FILE)
+      .IMEM_BASE_ADDR(BaseAddr),
+      .DMEM_BASE_ADDR(BaseAddr * 4),
+      .IMEM_SIZE_WORDS(MemSizeWords),
+      .DMEM_SIZE_WORDS(0)
     ) main_mem (
-        .clk_i    (clock),
-        .rstn_i   (resetn),
+        .clk_i    (clk_i),
+        .rstn_i   (rstn_i),
 
         .instr_req_addr_i  (instr_req_addr),
         .instr_req_data_i  (instr_req_data),

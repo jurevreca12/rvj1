@@ -2,8 +2,8 @@
 
 module bytewrite_sram_wrap #(
     parameter int XLEN=32,
-    parameter string IMEM_INIT_FILE="text.hex",
-    parameter string DMEM_INIT_FILE="data.hex",
+    parameter string IMEM_INIT_FILE="",
+    parameter string DMEM_INIT_FILE="",
     parameter int IMEM_INIT_FILE_BIN=0,
     parameter int DMEM_INIT_FILE_BIN=0,
     parameter int IMEM_BASE_ADDR,
@@ -29,7 +29,7 @@ module bytewrite_sram_wrap #(
     input  logic              instr_req_valid_i,
     output logic              instr_req_ready_o,
 
-    input  logic              instr_req_cancel_i,
+    input  logic              instr_ctrl_cancel_i,
 
     output logic [XLEN-1:0]   instr_rsp_data_o,
     output logic              instr_rsp_error_o,
@@ -108,7 +108,7 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_req_t))
     ) iram_req_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~instr_req_cancel_i),
+        .rstn (rstn_i && ~instr_ctrl_cancel_i),
 
         .input_valid  (instr_req_valid_i),
         .input_ready  (instr_req_ready_o),
@@ -143,8 +143,8 @@ module bytewrite_sram_wrap #(
     );
     register dram_req_fire_reg (.clk(clk_i), .rstn(rstn_i),                        .ce(1'b1),          .in(dram_req_fire),    .out(dram_req_fire_r));
     register dram_req_err_reg  (.clk(clk_i), .rstn(rstn_i),                        .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err));
-    register iram_req_fire_req (.clk(clk_i), .rstn(rstn_i && ~instr_req_cancel_i), .ce(1'b1),          .in(iram_req_fire),    .out(iram_req_fire_r));
-    register iram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~instr_req_cancel_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err));
+    register iram_req_fire_req (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(1'b1),          .in(iram_req_fire),    .out(iram_req_fire_r));
+    register iram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err));
     skidbuffer #(
         .WORD_WIDTH($bits(mem_rsp_t))
     ) dram_rsp_buff (
@@ -165,7 +165,7 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_rsp_t))
     ) iram_rsp_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~instr_req_cancel_i),
+        .rstn (rstn_i && ~instr_ctrl_cancel_i),
 
         .input_valid  (iram_req_fire_r),
         .input_ready  (),

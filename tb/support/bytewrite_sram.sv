@@ -36,13 +36,22 @@ module bytewrite_sram #(
 logic [WordSize-1:0] RAM [MemSizeWordsTotal];
 
 initial begin
+    string mem_init_file0, mem_init_file1;
     if (MEM_INIT_FILE0 != "") begin
         if   (INIT_FILE_BIN0==1) $readmemb(MEM_INIT_FILE0, RAM, 0);
         else                     $readmemh(MEM_INIT_FILE0, RAM, 0);
+    end else begin
+        $value$plusargs("MEM_INIT_FILE0=%s", mem_init_file0);
+        if   (INIT_FILE_BIN0==1) $readmemb(mem_init_file0, RAM, 0);
+        else                     $readmemh(mem_init_file0, RAM, 0);
     end
     if (MEM_INIT_FILE1 != "") begin
         if   (INIT_FILE_BIN1==1) $readmemb(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
         else                     $readmemh(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
+    end else begin
+        $value$plusargs("MEM_INIT_FILE1=%s", mem_init_file1);
+        if   (INIT_FILE_BIN1==1) $readmemb(mem_init_file1, RAM, MEM_SIZE_WORDS0);
+        else                     $readmemh(mem_init_file1, RAM, MEM_SIZE_WORDS0);
     end
 end
 
