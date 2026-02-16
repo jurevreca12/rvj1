@@ -1,6 +1,7 @@
 from cocotb.triggers import RisingEdge
 from forastero.driver import BaseDriver
 from .transaction import LsuRequest
+from .transaction import IfuJmpRequest
 
 
 class LsuInitiator(BaseDriver):
@@ -16,3 +17,11 @@ class LsuInitiator(BaseDriver):
             if self.io.get("ready"):
                 break
         self.io.set("valid", False)
+
+
+class IfuJmpInitiator(BaseDriver):
+    async def drive(self, transaction: IfuJmpRequest):
+        self.io.set("addr", transaction.addr)
+        self.io.set("addr_valid", True)
+        await RisingEdge(self.clk)
+        self.io.set("addr_valid", False)

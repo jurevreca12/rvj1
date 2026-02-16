@@ -1,9 +1,14 @@
 from base import get_rtl_files
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
+from forastero.monitor import MonitorEvent
+from forastero.driver import DriverEvent
 from cocotb.triggers import ClockCycles
-from rvj1.io import IfuToDecoderIO
+from rvj1.io import IfuToDecoderIO, IfuJmpIO
+from rvj1.request import IfuJmpInitiator
 from rvj1.response import IfuToDecMonitor, DecoderResponder
+from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
+from rvj1.transaction import InstrAddrResponse
 from pathlib  import Path
 import os
 
@@ -20,25 +25,38 @@ def ifu_test_fixture(hdl: HDL) -> HDL:
 
 
 def test_simple_runner(ifu_test_fixture):
-    sim = os.getenv("SIM", "verilator")
-    runner = get_runner(sim)
-    runner.build(
-        sources=ifu_test_fixture.sources,
-        hdl_toplevel=ifu_test_fixture.toplevel,
-        always=True,
+    ifu_test_fixture.test(
+        toplevel=ifu_test_fixture.toplevel, 
+        test_module="test_ifu",
+        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"]
     )
-    runner.test(hdl_toplevel=ifu_test_fixture.toplevel, test_module="test_ifu")
 
 
 class IfuTB(BaseBench):
     def __init__(self, dut):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
         dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
+        ifu_jmp_io = IfuJmpIO(dut, "jmp", IORole.RESPONDER, io_style=io_suffix_style)
         self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
         self.register(
             "dec_resp_drv",
             DecoderResponder(self, dec_io, self.clk, self.rst, blocking=False),
         )
+        self.register(
+            "ifu_jmp_drv",
+            IfuJmpInitiator(self, ifu_jmp_io, self.clk, self.rst)
+        )
+        self.dec_mon.subscribe(MonitorEvent.CAPTURE, self.push_reference)
+        self.ifu_jmp_drv.subscribe(DriverEvent.ENQUEUE, self.update_counter)
+        self.counter = 1
+
+    def push_reference(self, monitor, event, obj) -> None:
+        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
+        self.counter += 1
+
+    def update_counter(self, driver, event, obj) -> None:
+        self.counter = int(((obj.addr - 0x8000_0000) / 4) + 1)
+		
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -75,9 +93,59 @@ class IfuTB(BaseBench):
     reset_wait_after=0,
     timeout=100,
     shutdown_delay=1,
-    shutdown_loops=1,
+    shutdown_loops=2,
 
 )
-async def test_smoke(tb: IfuTB, log):
+async def smoke(tb: IfuTB, log):
     await ClockCycles(tb.clk, 10)
 
+
+@IfuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=1000,
+    shutdown_delay=1,
+    shutdown_loops=2,
+
+)
+async def linear_run(tb: IfuTB, log):
+    log.info("Scheduling random backpressure on the decoder interface.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
+    log.info("Using the jump interface to set the IFU (boot) address.")
+    tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
+    await ClockCycles(tb.clk, 100)
+
+@IfuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=1000,
+    shutdown_delay=1,
+    shutdown_loops=2,
+
+)
+async def run_and_jump(tb: IfuTB, log):
+    log.info("Scheduling random backpressure on the decoder interface.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
+    log.info("Using the jump interface to set the IFU (boot) address.")
+    tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
+    await ClockCycles(tb.clk, 50)
+    tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_006c))
+    await ClockCycles(tb.clk, 50)
+
+if __name__ == "__main__":
+    sim = os.getenv("SIM", default="verilator")
+    build_args = ["-Wno-fatal", "--no-stop-fail"]
+    runner = get_runner(sim)
+    runner.build(
+        sources=get_rtl_files("verilog"),
+        includes=["/rvj1/rtl/inc"],
+        build_args=build_args,
+        hdl_toplevel="ifu_mem_test_top",
+        always=True,
+    )
+    runner.test(
+        hdl_toplevel="ifu_mem_test_top", 
+        test_module="test_ifu",
+        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"]
+    )
+  

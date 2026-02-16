@@ -22,8 +22,8 @@ module ifu_mem_test_top (
     output logic            dec_valid_o,
     input  logic            dec_ready_i,
 
-    output logic            jmp_addr_valid_i,
-    output logic [XLEN-1:0] jmp_addr_i,
+    input  logic            jmp_addr_valid_i,
+    input  logic [XLEN-1:0] jmp_addr_i,
 
     output logic            instr_fetch_err_o,
     output logic [XLEN-1:0] instr_fault_addr_o

@@ -38,3 +38,8 @@ class LsuRequest(BaseTransaction):
 class LsuRfRequest(BaseTransaction):
     data: int = 0
     regdest: int = 0
+
+
+@dataclass(kw_only=True)
+class IfuJmpRequest(BaseTransaction):
+    addr: int = 0
