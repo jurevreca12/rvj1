@@ -132,6 +132,22 @@ async def run_and_jump(tb: IfuTB, log):
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_006c))
     await ClockCycles(tb.clk, 50)
 
+
+@IfuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=1000,
+    shutdown_delay=1,
+    shutdown_loops=2,
+
+)
+async def linear_run_over(tb: IfuTB, log):
+    log.info("Scheduling random backpressure on the decoder interface.")
+    tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
+    log.info("Using the jump interface to set the IFU (boot) address.")
+    tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
+    await ClockCycles(tb.clk, 1000)
+
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")
     build_args = ["-Wno-fatal", "--no-stop-fail"]

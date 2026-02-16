@@ -14,7 +14,10 @@
 /* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
 
-module ifu_mem_test_top (
+module ifu_mem_test_top #(
+    parameter int BASE_ADDR = 32'h8000_0000,
+    parameter int MEM_SIZE_WORDS = 1 << 10
+) (
     input  logic            clk_i,
     input  logic            rstn_i,
 
@@ -28,8 +31,6 @@ module ifu_mem_test_top (
     output logic            instr_fetch_err_o,
     output logic [XLEN-1:0] instr_fault_addr_o
 );
-    localparam int BaseAddr = 32'h8000_0000;
-    localparam int MemSizeWords = 1 << 10;
 
     logic [XLEN-1:0]   instr_req_addr;
     logic [XLEN-1:0]   instr_req_data;
@@ -76,9 +77,9 @@ module ifu_mem_test_top (
     );
 
     bytewrite_sram_wrap #(
-      .IMEM_BASE_ADDR(BaseAddr),
-      .DMEM_BASE_ADDR(BaseAddr * 4),
-      .IMEM_SIZE_WORDS(MemSizeWords),
+      .IMEM_BASE_ADDR(BASE_ADDR),
+      .DMEM_BASE_ADDR(BASE_ADDR + MEM_SIZE_WORDS),
+      .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
       .DMEM_SIZE_WORDS(0)
     ) main_mem (
         .clk_i    (clk_i),
