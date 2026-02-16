@@ -14,7 +14,7 @@ from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
 
 
-def test_insns_runner():
+def insns_runner():
     runner = get_test_runner("rvj1_top")
     runner.test(hdl_toplevel="rvj1_top", test_module="test_insns", waves=WAVES)
 
@@ -137,4 +137,4 @@ async def test_insn(tb: InsnsTB, log, insn, delay):
 
 
 if __name__ == "__main__":
-    test_insns_runner()
+    insns_runner()

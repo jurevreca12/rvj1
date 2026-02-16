@@ -15,7 +15,7 @@ from rvj1.transaction import LsuRequest, LsuCmd, LsuRfRequest
 from memory import RandomAccessMemory, gen_memory_data
 
 
-def test_lsu_runner():
+def lsu_runner():
     runner = get_test_runner("rvj1_lsu")
     runner.test(hdl_toplevel="rvj1_lsu", test_module="test_lsu", waves=WAVES)
 
@@ -194,4 +194,4 @@ async def read_seq(tb: LsuTB, log, delay):
 
 
 if __name__ == "__main__":
-    test_lsu_runner()
+    lsu_runner()

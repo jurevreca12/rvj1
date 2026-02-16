@@ -1,9 +1,33 @@
-from base import get_test_runner, WAVES
+from base import get_rtl_files
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from cocotb.triggers import ClockCycles
 from rvj1.io import IfuToDecoderIO
 from rvj1.response import IfuToDecMonitor, DecoderResponder
+from pathlib  import Path
+import os
+
+import pytest
+from cocotb_tools.pytest.hdl import HDL
+from cocotb_tools.runner import get_runner
+
+@pytest.fixture
+def ifu_test_fixture(hdl: HDL) -> HDL:
+    hdl.toplevel = "ifu_mem_test_top"
+    hdl.sources = get_rtl_files("verilog")
+    hdl.build()
+    return hdl
+
+
+def test_simple_runner(ifu_test_fixture):
+    sim = os.getenv("SIM", "verilator")
+    runner = get_runner(sim)
+    runner.build(
+        sources=ifu_test_fixture.sources,
+        hdl_toplevel=ifu_test_fixture.toplevel,
+        always=True,
+    )
+    runner.test(hdl_toplevel=ifu_test_fixture.toplevel, test_module="test_ifu")
 
 
 class IfuTB(BaseBench):
@@ -54,14 +78,6 @@ class IfuTB(BaseBench):
     shutdown_loops=1,
 
 )
-async def smoke(tb: IfuTB, log):
+async def test_smoke(tb: IfuTB, log):
     await ClockCycles(tb.clk, 10)
 
-
-
-def test_ifu_runner():
-    runner = get_test_runner("ifu_mem_test_top")
-    runner.test(hdl_toplevel="ifu_mem_test_top", test_module="test_ifu", waves=WAVES)
-
-if __name__ == "__main__":
-    test_ifu_runner()
