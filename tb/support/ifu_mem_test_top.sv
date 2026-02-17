@@ -69,7 +69,7 @@ module ifu_mem_test_top #(
         .dec_ready_i       (dec_ready_i),
 
         .jmp_addr_valid_i  (jmp_addr_valid_i),
-        .jmp_addr_i        (jmp_addr_i),
+        .jmp_addr_i        (jmp_addr_i[31:2]),
 
         .instr_fetch_err_o (instr_fetch_err_o),
 

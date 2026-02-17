@@ -42,7 +42,7 @@ module rvj1_ctrl
   output logic             stop_jmp_write_o,
 
   output logic             jmp_addr_valid_o,
-  output logic [XLEN-1:0]  jmp_addr_o,
+  output logic [XLEN-3:0]  jmp_addr_o,
 
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
@@ -194,13 +194,13 @@ module rvj1_ctrl
   always_comb begin
     jmp_addr_o = '0;
     if (state == eJUMP0)
-      jmp_addr_o = {alu_res_r_i[31:1], 1'b0};
+      jmp_addr_o = alu_res_r_i[31:2];
     else if (state == eTRAP)
-      jmp_addr_o = csr_mtvec_value;
+      jmp_addr_o = csr_mtvec_value[31:2];
     else if (state == eMRET)
-      jmp_addr_o = csr_mepc_value;
+      jmp_addr_o = csr_mepc_value[31:2];
     else
-      jmp_addr_o = BOOT_ADDR;
+      jmp_addr_o = BOOT_ADDR[31:2];
   end
 
   /*************************************

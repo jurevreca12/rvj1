@@ -38,7 +38,7 @@ module rvj1_ifu(
   input  logic            dec_ready_i,  // Decoder ready to accept new instruction (stall)
 
   input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
-  input logic [XLEN-1:0]  jmp_addr_i,       // The jump address
+  input logic [XLEN-3:0]  jmp_addr_i,       // The jump address
 
   output logic            instr_fetch_err_o, // Signal isntr fetch exception
   output logic [XLEN-1:0] instr_fault_addr_o // the address that caused the misaligned exception
@@ -94,7 +94,7 @@ module rvj1_ifu(
             instr_req_addr_o <= 32'h0000_0000;
         else begin
             if (jmp_addr_valid_i)
-                instr_req_addr_o <= jmp_addr_i;
+                instr_req_addr_o <= {jmp_addr_i, 2'b00};
             else if (instr_req_fire)
                 instr_req_addr_o <= instr_req_addr_o + 4;
         end

@@ -146,7 +146,7 @@ module rvj1_top
   // CONTROL SIGNALS
   logic             instr_retiring;
   logic             jmp_addr_valid;
-  logic [XLEN-1:0]  jmp_addr;
+  logic [XLEN-3:0]  jmp_addr;
   logic             lsu_ready;
   logic             flush;
   logic             csr_wb;
@@ -504,7 +504,7 @@ module rvj1_top
     else begin
       retired_stage <= wb_stage;
       retired_stage.jmp_addr_valid <= jmp_addr_valid;
-      retired_stage.jmp_addr <= jmp_addr;
+      retired_stage.jmp_addr <= {jmp_addr, 2'b00};
     end
   end
 
