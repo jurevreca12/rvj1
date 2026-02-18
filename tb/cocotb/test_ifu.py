@@ -12,27 +12,7 @@ from rvj1.transaction import InstrAddrResponse, IfuErrorResponse
 import os
 
 from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
-
-import pytest
-from cocotb_tools.pytest.hdl import HDL
 from cocotb_tools.runner import get_runner
-
-@pytest.fixture
-def ifu_test_fixture(hdl: HDL) -> HDL:
-    hdl.toplevel = "ifu_mem_test_top"
-    hdl.sources = get_rtl_files("verilog")
-    hdl.build()
-    return hdl
-
-
-def test_simple_runner(ifu_test_fixture):
-    ifu_test_fixture.test(
-        toplevel=ifu_test_fixture.toplevel, 
-        test_module="test_ifu",
-        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"]
-    )
-
 
 class IfuTB(BaseBench):
     def __init__(self, dut):
