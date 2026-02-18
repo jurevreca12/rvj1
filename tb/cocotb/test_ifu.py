@@ -4,11 +4,11 @@ from forastero import BaseBench
 from forastero.monitor import MonitorEvent
 from forastero.driver import DriverEvent
 from cocotb.triggers import ClockCycles
-from rvj1.io import IfuToDecoderIO, IfuJmpIO
+from rvj1.io import IfuToDecoderIO, IfuJmpIO, IfuErrorIO
 from rvj1.request import IfuJmpInitiator
-from rvj1.response import IfuToDecMonitor, DecoderResponder
+from rvj1.response import IfuToDecMonitor, DecoderResponder, IfuErrorMonitor
 from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
-from rvj1.transaction import InstrAddrResponse
+from rvj1.transaction import InstrAddrResponse, IfuErrorResponse
 import os
 
 from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
@@ -39,6 +39,7 @@ class IfuTB(BaseBench):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
         dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
         ifu_jmp_io = IfuJmpIO(dut, "jmp", IORole.RESPONDER, io_style=io_suffix_style)
+        ifu_err_io = IfuErrorIO(dut, "error", IORole.INITIATOR, io_style=io_suffix_style)
         self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
         self.register(
             "dec_resp_drv",
@@ -48,16 +49,23 @@ class IfuTB(BaseBench):
             "ifu_jmp_drv",
             IfuJmpInitiator(self, ifu_jmp_io, self.clk, self.rst)
         )
+        self.register("err_mon", IfuErrorMonitor(self, ifu_err_io, self.clk, self.rst))
         self.dec_mon.subscribe(MonitorEvent.CAPTURE, self.push_reference)
-        self.ifu_jmp_drv.subscribe(DriverEvent.ENQUEUE, self.update_counter)
         self.counter = 1
 
-    def push_reference(self, monitor, event, obj) -> None:
-        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
-        self.counter += 1
 
-    def update_counter(self, driver, event, obj) -> None:
-        self.counter = int(((obj.addr - 0x8000_0000) / 4) + 1)
+    def push_reference(self, monitor, event, obj) -> None:
+        if self.counter <= 64:
+            self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
+        else:
+            addr = 0x8000_0000 + (obj.instr * 4)
+            self.scoreboard.channels["err_mon"].push_reference(IfuErrorResponse(addr=addr))
+        self.counter += 1
+        if self.dut.jmp_addr_valid_i.value == 1:
+            addr = int(self.dut.jmp_addr_i.value)
+            self.counter = int(((addr - 0x8000_0000) / 4) + 1)
+
+        
 		
 
     async def initialise(self) -> None:

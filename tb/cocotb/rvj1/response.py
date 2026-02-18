@@ -2,7 +2,7 @@ from cocotb.triggers import ClockCycles, RisingEdge
 from forastero.driver import BaseDriver
 from forastero.monitor import BaseMonitor
 
-from rvj1.transaction import InstrAddrResponse, DecoderBackpressure, LsuRfRequest
+from rvj1.transaction import InstrAddrResponse, DecoderBackpressure, LsuRfRequest, IfuErrorResponse
 
 
 class IfuToDecMonitor(BaseMonitor):
@@ -18,6 +18,17 @@ class IfuToDecMonitor(BaseMonitor):
                 )
                 capture(tran)
 
+
+class IfuErrorMonitor(BaseMonitor):
+    async def monitor(self, capture):
+        while True:
+            await RisingEdge(self.clk)
+            if self.rst.value == 0:
+                await RisingEdge(self.clk)
+                continue
+            if self.io.get("valid"):
+                tran = IfuErrorResponse(addr="addr")
+                capture(tran)
 
 class DecoderResponder(BaseDriver):
     async def drive(self, obj: DecoderBackpressure) -> None:

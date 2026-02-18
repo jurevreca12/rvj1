@@ -42,8 +42,8 @@ module rvj1_ifu(
   input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
   input logic [XLEN-3:0]  jmp_addr_i,       // The jump address
 
-  output logic            instr_fetch_err_o, // Signal isntr fetch exception
-  output logic [XLEN-1:0] instr_fault_addr_o // the address that caused the exception
+  output logic            error_valid_o, // Signal isntr fetch exception
+  output logic [XLEN-1:0] error_addr_o   // the address that caused the exception
 );
     typedef enum logic [1:0] {
         eIFU_RST,   // no address, wait for jmp (controller jumps to boot addr at boot)
@@ -143,10 +143,15 @@ module rvj1_ifu(
 
     .empty        ()
     );
-    assign dec_valid_o = bus_error ? 1'b0 : response_valid;
     assign response_ready = dec_ready_i;
-    assign instr_fetch_err_o  = bus_error && response_valid && response_ready;
-    assign instr_fault_addr_o = {bus_fault_addr, 2'b00};
+    assign error_valid_o  = bus_error && response_valid && response_ready;
+    assign error_addr_o = {bus_fault_addr, 2'b00};
+    always_comb begin
+        if (state == eIFU_BUSY)
+            dec_valid_o = bus_error ? 1'b0 : response_valid;
+        else
+            dec_valid_o = 1'b0;
+    end
     `ifdef ASSERTIONS
     always_ff @(posedge clk_i) begin
         if (instr_req_fire)

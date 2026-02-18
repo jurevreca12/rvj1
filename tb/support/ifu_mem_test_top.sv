@@ -28,8 +28,8 @@ module ifu_mem_test_top #(
     input  logic            jmp_addr_valid_i,
     input  logic [XLEN-1:0] jmp_addr_i,
 
-    output logic            instr_fetch_err_o,
-    output logic [XLEN-1:0] instr_fault_addr_o
+    output logic            error_valid_o,
+    output logic [XLEN-1:0] error_addr_o
 );
 
     logic [XLEN-1:0]   instr_req_addr;
@@ -71,9 +71,8 @@ module ifu_mem_test_top #(
         .jmp_addr_valid_i  (jmp_addr_valid_i),
         .jmp_addr_i        (jmp_addr_i[31:2]),
 
-        .instr_fetch_err_o (instr_fetch_err_o),
-
-        .instr_fault_addr_o(instr_fault_addr_o)
+        .error_valid_o     (error_valid_o),
+        .error_addr_o      (error_addr_o)
     );
 
     bytewrite_sram_wrap #(
