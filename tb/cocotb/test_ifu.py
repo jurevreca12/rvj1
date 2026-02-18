@@ -143,9 +143,8 @@ async def run_and_jump(tb: IfuTB, log):
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=1000,
-    shutdown_delay=1,
-    shutdown_loops=2,
-
+    shutdown_delay=0,
+    shutdown_loops=0
 )
 async def response_error(tb: IfuTB, log):
     log.info("Scheduling random backpressure on the decoder interface.")
