@@ -61,21 +61,19 @@ module rvj1_ifu(
 
     logic [XLEN-1:0] instr_req_addr_next;
     logic            act_req_buff_inp_ready;
-    logic            instr_rsp_fire;
     logic            instr_req_fire;
     logic            dec_fire;
 
     logic            bus_error;
-    logic [XLEN-3:0] bus_fault_addr;
+    logic act_req_valid;
+    logic [XLEN-3:0] act_instr_addr;
+    logic response_valid;
+    logic response_ready;
 
     logic boot;
     logic jmpi;
     logic jmpe; // error condition
 
-    logic response_valid;
-    logic response_ready;
-
-    assign instr_rsp_fire = instr_rsp_ready_o && instr_rsp_valid_i;
     assign instr_req_fire = instr_req_ready_i && instr_req_valid_o;
     assign dec_fire = dec_ready_i && dec_valid_o;
 
@@ -121,9 +119,9 @@ module rvj1_ifu(
     .input_ready  (act_req_buff_inp_ready),
     .input_data   (instr_req_addr_o[31:2]),
 
-    .output_valid (),
-    .output_ready (dec_ready_i),
-    .output_data  (bus_fault_addr),
+    .output_valid (act_req_valid),
+    .output_ready (response_ready && response_valid),
+    .output_data  (act_instr_addr),
 
     .empty        ()
     );
@@ -143,19 +141,18 @@ module rvj1_ifu(
 
     .empty        ()
     );
+    // We wait for the previous instruction to finish even if we just want to raise
+    // an exception. This is because exceptions must be precise
     assign response_ready = dec_ready_i;
-    assign error_valid_o  = bus_error && response_valid && response_ready;
-    assign error_addr_o = {bus_fault_addr, 2'b00};
-    always_comb begin
-        if (state == eIFU_BUSY)
-            dec_valid_o = bus_error ? 1'b0 : response_valid;
-        else
-            dec_valid_o = 1'b0;
-    end
+    assign dec_valid_o = ~bus_error && response_valid && (state == eIFU_BUSY);
+    assign error_valid_o = bus_error && response_valid && response_ready;
+    assign error_addr_o  = {act_instr_addr, 2'b00};
     `ifdef ASSERTIONS
     always_ff @(posedge clk_i) begin
         if (instr_req_fire)
             assert(act_req_buff_inp_ready);
+        if (response_valid)
+            assert(act_req_valid);
     end
     `endif
 
