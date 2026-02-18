@@ -9,8 +9,9 @@ from rvj1.request import IfuJmpInitiator
 from rvj1.response import IfuToDecMonitor, DecoderResponder
 from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
 from rvj1.transaction import InstrAddrResponse
-from pathlib  import Path
 import os
+
+from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 
 import pytest
 from cocotb_tools.pytest.hdl import HDL
@@ -28,6 +29,7 @@ def test_simple_runner(ifu_test_fixture):
     ifu_test_fixture.test(
         toplevel=ifu_test_fixture.toplevel, 
         test_module="test_ifu",
+        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
         plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"]
     )
 
@@ -141,23 +143,33 @@ async def run_and_jump(tb: IfuTB, log):
     shutdown_loops=2,
 
 )
-async def linear_run_over(tb: IfuTB, log):
+async def response_error(tb: IfuTB, log):
     log.info("Scheduling random backpressure on the decoder interface.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
-    await ClockCycles(tb.clk, 1000)
+    await ClockCycles(tb.clk, 200)
 
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")
     build_args = ["-Wno-fatal", "--no-stop-fail"]
+    if WAVES:
+        build_args += ["--trace-fst"]
+    if RVFI:
+        build_args += [f"-DRVFI"]
+    if RVFI_TRACE:
+        build_args += [f"-DRVFI_TRACE"]
+    if ASSERTIONS:
+        build_args += [f"-DASSERTIONS"]
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files("verilog"),
         includes=["/rvj1/rtl/inc"],
         build_args=build_args,
         hdl_toplevel="ifu_mem_test_top",
+        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
         always=True,
+        waves=False,
     )
     runner.test(
         hdl_toplevel="ifu_mem_test_top", 
