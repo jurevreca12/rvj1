@@ -41,19 +41,6 @@ module lsu_mem_test_top #(
     output logic             exc_store_access_fault_o,
     output logic [XLEN-1:0]  exc_addr_o
 );
-    logic [XLEN-1:0]   instr_req_addr;
-    logic [XLEN-1:0]   instr_req_data;
-    logic [NBYTES-1:0] instr_req_strobe;
-    logic              instr_req_write;
-    logic              instr_req_valid;
-    logic              instr_req_ready;
-
-    logic              instr_ctrl_cancel;
-
-    logic [XLEN-1:0]   instr_rsp_data;
-    logic              instr_rsp_error;
-    logic              instr_rsp_valid;
-    logic              instr_rsp_ready;
 
     logic [XLEN-1:0]   data_req_addr;
     logic [XLEN-1:0]   data_req_data;
@@ -107,26 +94,26 @@ module lsu_mem_test_top #(
 
     bytewrite_sram_wrap #(
       .IMEM_BASE_ADDR(BASE_ADDR),
-      .DMEM_BASE_ADDR(BASE_ADDR + MEM_SIZE_WORDS),
+      .DMEM_BASE_ADDR(BASE_ADDR),
       .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
-      .DMEM_SIZE_WORDS(0)
+      .DMEM_SIZE_WORDS(MEM_SIZE_WORDS)
     ) main_mem (
         .clk_i    (clk_i),
         .rstn_i   (rstn_i),
 
-        .instr_req_addr_i  (instr_req_addr),
-        .instr_req_data_i  (instr_req_data),
-        .instr_req_strobe_i(instr_req_strobe),
-        .instr_req_write_i (instr_req_write),
-        .instr_req_valid_i (instr_req_valid),
-        .instr_req_ready_o (instr_req_ready),
+        .instr_req_addr_i  ('0),
+        .instr_req_data_i  ('0),
+        .instr_req_strobe_i('0),
+        .instr_req_write_i (1'b0),
+        .instr_req_valid_i (1'b0),
+        .instr_req_ready_o (),
 
-        .instr_ctrl_cancel_i(instr_ctrl_cancel),
+        .instr_ctrl_cancel_i(1'b0),
 
-        .instr_rsp_data_o  (instr_rsp_data),
-        .instr_rsp_error_o (instr_rsp_error),
-        .instr_rsp_valid_o (instr_rsp_valid),
-        .instr_rsp_ready_i (instr_rsp_ready),
+        .instr_rsp_data_o  (),
+        .instr_rsp_error_o (),
+        .instr_rsp_valid_o (),
+        .instr_rsp_ready_i (1'b0),
 
         .data_req_addr_i   (data_req_addr),
         .data_req_data_i   (data_req_data),

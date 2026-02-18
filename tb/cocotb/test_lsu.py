@@ -8,6 +8,7 @@ from rvj1.io import LsuIO, LsuRfIO, LsuExcIO
 from rvj1.request import LsuInitiator
 from rvj1.response import LsuRfMonitor, LsuExcMonitor
 from rvj1.sequence import lsu_drive_seq
+from rvj1.transaction import LsuRequest, LsuCmd, LsuRfResponse
 
 
 class LsuTB(BaseBench):
@@ -60,6 +61,35 @@ class LsuTB(BaseBench):
 async def smoke(tb: LsuTB, log):
     await ClockCycles(tb.clk, 10)
 
+
+@LsuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=100,
+    shutdown_delay=1,
+    shutdown_loops=1,
+)
+async def basic_write_read_word(tb: LsuTB, log):
+    tb.schedule(
+        lsu_drive_seq(
+            lsu_drv=tb.lsu_drv, 
+            requests=[
+            LsuRequest(
+                cmd = LsuCmd.STORE_WORD,
+                addr = 0x8000_0000,
+                data = 0xDEAD_BEEF,
+            ),
+            LsuRequest(
+                cmd = LsuCmd.LOAD_WORD,
+                addr = 0x8000_0000,
+                regdest = 1,
+            )]
+        )
+    )
+    tb.scoreboard.channels['lsu_rf_mon'].push_reference(
+        LsuRfResponse(data=0xDEAD_BEEF, regdest=1)
+    )
+    await tb.lsu_rf_mon.wait_for(MonitorEvent.CAPTURE)
 
 
 
