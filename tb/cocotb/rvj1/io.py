@@ -87,7 +87,31 @@ class LsuRfIO(BaseIO):
             dut=dut,
             name=name,
             role=role,
-            init_sigs=["data", "wb", "dest"],
-            resp_sigs=[],
+            init_sigs=[],
+            resp_sigs=["data", "wb", "dest"],
             io_style=io_style,
         )
+
+class LsuExcIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=[],
+            resp_sigs=[
+                "load_addr_misaligned", 
+                "load_access_fault", 
+                "store_addr_misaligned", 
+                "store_access_fault",
+                "addr"
+            ],
+            io_style=io_style,
+        )
+    

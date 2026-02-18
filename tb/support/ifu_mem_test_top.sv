@@ -46,7 +46,7 @@ module ifu_mem_test_top #(
     logic              instr_rsp_valid;
     logic              instr_rsp_ready;
 
-    rvj1_ifu ifu_instr(
+    rvj1_ifu ifu_inst(
         .clk_i  (clk_i),
         .rstn_i (rstn_i),
 
@@ -104,6 +104,8 @@ module ifu_mem_test_top #(
         .data_req_write_i  (1'b0),
         .data_req_valid_i  (1'b0),
         .data_req_ready_o  (),
+
+        .data_ctrl_cancel_i(),
 
         .data_rsp_data_o   (),
         .data_rsp_error_o  (),

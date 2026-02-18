@@ -2,7 +2,6 @@ from base import get_rtl_files
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
-from forastero.driver import DriverEvent
 from cocotb.triggers import ClockCycles
 from rvj1.io import IfuToDecoderIO, IfuJmpIO, IfuErrorIO
 from rvj1.request import IfuJmpInitiator

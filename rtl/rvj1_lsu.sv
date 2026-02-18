@@ -105,11 +105,11 @@ module rvj1_lsu (
     output logic [RALEN-1:0] rf_dest_o,
 
     // Interface to the core controller
-    output logic            load_addr_misaligned_o,
-    output logic            load_access_fault_o,
-    output logic            store_addr_misaligned_o,
-    output logic            store_access_fault_o,
-    output logic [XLEN-1:0] lsu_exc_addr_o,
+    output logic            exc_load_addr_misaligned_o,
+    output logic            exc_load_access_fault_o,
+    output logic            exc_store_addr_misaligned_o,
+    output logic            exc_store_access_fault_o,
+    output logic [XLEN-1:0] exc_addr_o,
 
     // Interface to data RAM
     output logic [XLEN-1:0]   data_req_addr_o,
@@ -160,8 +160,8 @@ logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
   .read_error_o  (load_addr_misaligned)
 );
 assign addr_misaligned = store_addr_misaligned || load_addr_misaligned;
-assign load_addr_misaligned_o = load_addr_misaligned  && lsu_valid_i && lsu_ready_o;
-assign store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu_ready_o;
+assign exc_load_addr_misaligned_o = load_addr_misaligned  && lsu_valid_i && lsu_ready_o;
+assign exc_store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu_ready_o;
 
 /*************************************
 * Data Path
@@ -202,14 +202,14 @@ assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 assign data_ctrl_cancel_o = 1'b0;
 
 // TODO
-assign store_access_fault_o = 1'b0;
-assign load_access_fault_o  = 1'b0;
+assign exc_store_access_fault_o = 1'b0;
+assign exc_load_access_fault_o  = 1'b0;
 
-assign exception = store_access_fault_o || load_access_fault_o;
+assign exception = exc_store_access_fault_o || exc_load_access_fault_o;
 always_comb begin
-  lsu_exc_addr_o = 32'b0;
+  exc_addr_o = 32'b0;
   if (exception)
-    lsu_exc_addr_o = req_buff_out_data.addr;
+    exc_addr_o = req_buff_out_data.addr;
 end
 
 skidbuffer #(
