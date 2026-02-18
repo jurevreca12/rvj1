@@ -55,11 +55,7 @@ class IfuTB(BaseBench):
 
 
     def push_reference(self, monitor, event, obj) -> None:
-        if self.counter <= 64:
-            self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
-        else:
-            addr = 0x8000_0000 + (obj.instr * 4)
-            self.scoreboard.channels["err_mon"].push_reference(IfuErrorResponse(addr=addr))
+        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
         self.counter += 1
         if self.dut.jmp_addr_valid_i.value == 1:
             addr = int(self.dut.jmp_addr_i.value)
@@ -156,7 +152,8 @@ async def response_error(tb: IfuTB, log):
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
-    await ClockCycles(tb.clk, 200)
+    tb.scoreboard.channels['err_mon'].push_reference(IfuErrorResponse(addr=0x8000_0100))
+    await tb.err_mon.wait_for(MonitorEvent.CAPTURE)
 
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")

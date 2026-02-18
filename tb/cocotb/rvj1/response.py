@@ -27,7 +27,7 @@ class IfuErrorMonitor(BaseMonitor):
                 await RisingEdge(self.clk)
                 continue
             if self.io.get("valid"):
-                tran = IfuErrorResponse(addr="addr")
+                tran = IfuErrorResponse(addr=self.io.get("addr"))
                 capture(tran)
 
 class DecoderResponder(BaseDriver):
