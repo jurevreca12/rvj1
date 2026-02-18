@@ -48,7 +48,6 @@ module rvj1_ifu(
     typedef enum logic [1:0] {
         eIFU_RST,   // no address, wait for jmp (controller jumps to boot addr at boot)
         eIFU_JMP,   // any jump after the first jump
-        eIFU_JMP2,  // wait state
         eIFU_BUSY   // normal operation
     } ifu_fsm_e;
 
@@ -162,13 +161,12 @@ module rvj1_ifu(
     always_comb begin
         boot = (state == eIFU_RST)  && jmp_addr_valid_i;
         jmpi = (state == eIFU_BUSY) && jmp_addr_valid_i;
-        jmpe = ((state == eIFU_JMP) || (state == eIFU_JMP2))  && jmp_addr_valid_i;
+        jmpe = (state == eIFU_JMP)  && jmp_addr_valid_i;
     end
     always_comb begin
         state_next = boot                 ? eIFU_JMP  : state;
         state_next = jmpi                 ? eIFU_JMP  : state_next;
-        state_next = (state == eIFU_JMP)  ? eIFU_JMP2 : state_next;
-        state_next = (state == eIFU_JMP2) ? eIFU_BUSY : state_next;
+        state_next = (state == eIFU_JMP)  ? eIFU_BUSY : state_next;
     end
     register #(
         .WORD_WIDTH($bits(ifu_fsm_e)),
