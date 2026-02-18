@@ -42,6 +42,8 @@ module rvj1_top
   output logic              data_req_valid_o,
   input  logic              data_req_ready_i,
 
+  output logic              data_ctrl_cancel_o,
+
   input  logic [XLEN-1:0] data_rsp_data_i,
   input  logic            data_rsp_error_i,
   input  logic            data_rsp_valid_i,
@@ -199,8 +201,8 @@ module rvj1_top
     .jmp_addr_valid_i   (jmp_addr_valid),
     .jmp_addr_i         (jmp_addr),
 
-    .instr_fetch_err_o  (),
-    .instr_fault_addr_o ()
+    .error_valid_o      (),
+    .error_addr_o       ()
   );
 
 
@@ -304,6 +306,7 @@ module rvj1_top
     .data_req_write_o        (data_req_write_o),
     .data_req_valid_o        (data_req_valid_o),
     .data_req_ready_i        (data_req_ready_i),
+    .data_ctrl_cancel_o      (data_ctrl_cancel_o),
     .data_rsp_data_i         (data_rsp_data_i),
     .data_rsp_error_i        (data_rsp_error_i),
     .data_rsp_valid_i        (data_rsp_valid_i),

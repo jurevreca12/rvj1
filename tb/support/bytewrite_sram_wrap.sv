@@ -44,6 +44,8 @@ module bytewrite_sram_wrap #(
     input  logic              data_req_valid_i,
     output logic              data_req_ready_o,
 
+    input  logic              data_ctrl_cancel_i,
+
     output logic [XLEN-1:0] data_rsp_data_o,
     output logic            data_rsp_error_o,
     output logic            data_rsp_valid_o,
@@ -91,7 +93,7 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_req_t))
     ) dram_req_buff (
         .clk  (clk_i),
-        .rstn (rstn_i),
+        .rstn (rstn_i && ~data_ctrl_cancel_i),
 
         .input_valid  (data_req_valid_i),
         .input_ready  (data_req_ready_o),
@@ -141,15 +143,15 @@ module bytewrite_sram_wrap #(
         .addr1   (iram_req.addr[$clog2(MemSizeBytesTotal)-1:2]),
         .dout1   (iram_rsp_data)
     );
-    register dram_req_fire_reg (.clk(clk_i), .rstn(rstn_i),                        .ce(1'b1),          .in(dram_req_fire),    .out(dram_req_fire_r));
-    register dram_req_err_reg  (.clk(clk_i), .rstn(rstn_i),                        .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err));
+    register dram_req_fire_reg (.clk(clk_i), .rstn(rstn_i && ~data_ctrl_cancel_i),  .ce(1'b1),          .in(dram_req_fire),    .out(dram_req_fire_r));
+    register dram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~data_ctrl_cancel_i),  .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err));
     register iram_req_fire_req (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(1'b1),          .in(iram_req_fire),    .out(iram_req_fire_r));
     register iram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err));
     skidbuffer #(
         .WORD_WIDTH($bits(mem_rsp_t))
     ) dram_rsp_buff (
         .clk  (clk_i),
-        .rstn (rstn_i),
+        .rstn (rstn_i && ~data_ctrl_cancel_i),
 
         .input_valid  (dram_req_fire_r),
         .input_ready  (),

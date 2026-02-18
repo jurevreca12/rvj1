@@ -51,6 +51,8 @@ module rvj1_riscof_tb();
   logic              data_req_valid;
   logic              data_req_ready;
 
+  logic              data_ctrl_cancel;
+
   logic [XLEN-1:0] data_rsp_data;
   logic            data_rsp_error;
   logic            data_rsp_valid;
@@ -91,6 +93,8 @@ module rvj1_riscof_tb();
         .data_req_valid_i  (data_req_valid),
         .data_req_ready_o  (data_req_ready),
 
+        .data_ctrl_cancel_i(data_ctrl_cancel),
+
         .data_rsp_data_o   (data_rsp_data),
         .data_rsp_error_o  (data_rsp_error),
         .data_rsp_valid_o  (data_rsp_valid),
@@ -121,6 +125,8 @@ module rvj1_riscof_tb();
       .data_req_write_o  (data_req_write),
       .data_req_valid_o  (data_req_valid),
       .data_req_ready_i  (data_req_ready),
+
+      .data_ctrl_cancel_o(data_ctrl_cancel),
 
       .data_rsp_data_i   (data_rsp_data),
       .data_rsp_error_i  (data_rsp_error),

@@ -119,6 +119,8 @@ module rvj1_lsu (
     output logic              data_req_valid_o,
     input  logic              data_req_ready_i,
 
+    output logic              data_ctrl_cancel_o,
+
     input  logic [XLEN-1:0] data_rsp_data_i,
     input  logic            data_rsp_error_i,
     input  logic            data_rsp_valid_i,
@@ -195,6 +197,9 @@ cmd_to_strobe cmd_to_strobe_inst (
 assign data_req_write_o  = is_write_cmd(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
 assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
+
+// There is no speculative data writing/reading, thus no need to invalidate any requests
+assign data_ctrl_cancel_o = 1'b0;
 
 // TODO
 assign store_access_fault_o = 1'b0;
