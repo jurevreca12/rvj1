@@ -115,7 +115,8 @@ async def bus_error(tb: LsuTB, log, cmd):
     )
     tb.scoreboard.channels['lsu_exc_mon'].push_reference(
         LsuExcResponse(
-            load_access_fault = True,
+            load_access_fault = (cmd == LsuCmd.LOAD_WORD),
+            store_access_fault = (cmd == LsuCmd.STORE_WORD),
             exc_addr = 0x8000_0100
         )
     )
