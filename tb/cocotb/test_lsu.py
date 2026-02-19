@@ -99,6 +99,42 @@ async def basic_write_read_word(tb: LsuTB, log):
     shutdown_delay=1,
     shutdown_loops=1,
 )
+@LsuTB.parameter("burst_len", bool, [4, 6, 9])
+async def burst_write_read_word(tb: LsuTB, log, burst_len):
+    def gen_wr_req(i: int) -> LsuRequest:
+        return LsuRequest(
+            cmd = LsuCmd.STORE_WORD,
+            addr = 0x8000_0000 + 4 * i,
+            data = i + 1,
+        )
+    def gen_rd_req(i: int) -> LsuRequest:
+        return LsuRequest(
+            cmd = LsuCmd.LOAD_WORD,
+            addr = 0x8000_0000 + 4 * i,
+            regdest = i + 1
+        )
+    wr_reqs = [gen_wr_req(i) for i in range(burst_len)]
+    rd_reqs = [gen_rd_req(i) for i in range(burst_len)]
+    tb.schedule(
+        lsu_drive_seq(
+            lsu_drv=tb.lsu_drv, 
+            requests=(wr_reqs + rd_reqs)
+        )
+    )
+    tb.scoreboard.channels['lsu_rf_mon'].push_reference(
+        *[LsuRfResponse(data=(i + 1), regdest=(i+1)) for i in range(burst_len)]
+    )
+    for _ in range(burst_len):
+        await tb.lsu_rf_mon.wait_for(MonitorEvent.CAPTURE)
+
+
+@LsuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=100,
+    shutdown_delay=1,
+    shutdown_loops=1,
+)
 @LsuTB.parameter("cmd", bool, [LsuCmd.STORE_WORD, LsuCmd.LOAD_WORD])
 async def bus_error(tb: LsuTB, log, cmd):
     tb.schedule(

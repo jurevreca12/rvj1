@@ -306,7 +306,7 @@ end
   end
 
   always_ff @(posedge clk_i) begin
-    if (lsu_valid_i) begin
+    if (lsu_valid_i && lsu_ready_o) begin
       // There should be no request if either req or act_req buffers are full.
       bad_req: assert(req_buff_inp_ready);
       bad_act: assert(act_req_buff_inp_ready);
