@@ -95,7 +95,7 @@ module lsu_mem_test_top #(
     bytewrite_sram_wrap #(
       .IMEM_BASE_ADDR(BASE_ADDR),
       .DMEM_BASE_ADDR(BASE_ADDR),
-      .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
+      .IMEM_SIZE_WORDS(0),
       .DMEM_SIZE_WORDS(MEM_SIZE_WORDS)
     ) main_mem (
         .clk_i    (clk_i),

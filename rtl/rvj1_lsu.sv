@@ -55,7 +55,7 @@ typedef struct packed {
 
 typedef struct packed {
   lsu_ctrl_e        cmd;
-  logic [1:0]       byteaddr;
+  logic [XLEN-1:0]  addr;
   logic [RALEN-1:0] regdest;
 } lsu_act_req_t;
 
@@ -201,17 +201,6 @@ assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 // There is no speculative data writing/reading, thus no need to invalidate any requests
 assign data_ctrl_cancel_o = 1'b0;
 
-// TODO
-assign exc_store_access_fault_o = 1'b0;
-assign exc_load_access_fault_o  = 1'b0;
-
-assign exception = exc_store_access_fault_o || exc_load_access_fault_o;
-always_comb begin
-  exc_addr_o = 32'b0;
-  if (exception)
-    exc_addr_o = req_buff_out_data.addr;
-end
-
 skidbuffer #(
   .WORD_WIDTH ($bits(lsu_act_req_t))
 ) act_req_buffer (
@@ -220,7 +209,7 @@ skidbuffer #(
 
   .input_valid  (data_req_fire),
   .input_ready  (act_req_buff_inp_ready),
-  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr[1:0], req_buff_out_data.regdest}),
+  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr, req_buff_out_data.regdest}),
 
   .output_valid (act_req_buff_out_valid),
   .output_ready (retire_request),
@@ -251,7 +240,7 @@ assign data_rsp_ready_o =  resp_buff_ready; // && ~act_req_buff_empty;
 *************************************/
 byte_select_read bsr_inst (
   .data(rsp_buff_out_data.data),
-  .byteaddr(act_req_buff_out_data.byteaddr),
+  .byteaddr(act_req_buff_out_data.addr[1:0]),
   .data_out(byte_select_read_data)
 );
 assign rf_data_o = sign_extend(byte_select_read_data, act_req_buff_out_data.cmd);
@@ -259,7 +248,17 @@ assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
                     retire_request &&
-                    ~is_write_cmd(act_req_buff_out_data.cmd));
+                    ~is_write_cmd(act_req_buff_out_data.cmd) &&
+                    ~rsp_buff_out_data.error);
+
+/*************************************
+* Bus Errors
+*************************************/
+assign exc_store_access_fault_o = rsp_buff_out_data.error && is_write_cmd(act_req_buff_out_data.cmd);
+assign exc_load_access_fault_o  = rsp_buff_out_data.error && ~is_write_cmd(act_req_buff_out_data.cmd);
+assign exception = exc_store_access_fault_o || exc_load_access_fault_o;
+assign exc_addr_o = exception ? act_req_buff_out_data.addr : '0;
+
 
 /*************************************
 * Control

@@ -8,7 +8,7 @@ from rvj1.io import LsuIO, LsuRfIO, LsuExcIO
 from rvj1.request import LsuInitiator
 from rvj1.response import LsuRfMonitor, LsuExcMonitor
 from rvj1.sequence import lsu_drive_seq
-from rvj1.transaction import LsuRequest, LsuCmd, LsuRfResponse
+from rvj1.transaction import LsuRequest, LsuCmd, LsuRfResponse, LsuExcResponse
 
 
 class LsuTB(BaseBench):
@@ -74,22 +74,53 @@ async def basic_write_read_word(tb: LsuTB, log):
         lsu_drive_seq(
             lsu_drv=tb.lsu_drv, 
             requests=[
-            LsuRequest(
-                cmd = LsuCmd.STORE_WORD,
-                addr = 0x8000_0000,
-                data = 0xDEAD_BEEF,
-            ),
-            LsuRequest(
-                cmd = LsuCmd.LOAD_WORD,
-                addr = 0x8000_0000,
-                regdest = 1,
-            )]
+                LsuRequest(
+                    cmd = LsuCmd.STORE_WORD,
+                    addr = 0x8000_0000,
+                    data = 0xDEAD_BEEF,
+                ),
+                LsuRequest(
+                    cmd = LsuCmd.LOAD_WORD,
+                    addr = 0x8000_0000,
+                    regdest = 1,
+                )]
         )
     )
     tb.scoreboard.channels['lsu_rf_mon'].push_reference(
         LsuRfResponse(data=0xDEAD_BEEF, regdest=1)
     )
     await tb.lsu_rf_mon.wait_for(MonitorEvent.CAPTURE)
+
+
+@LsuTB.testcase(
+    reset_wait_during=2,
+    reset_wait_after=0,
+    timeout=100,
+    shutdown_delay=1,
+    shutdown_loops=1,
+)
+@LsuTB.parameter("cmd", bool, [LsuCmd.STORE_WORD, LsuCmd.LOAD_WORD])
+async def bus_error(tb: LsuTB, log, cmd):
+    tb.schedule(
+        lsu_drive_seq(
+            lsu_drv=tb.lsu_drv,
+            requests=[
+                LsuRequest(
+                    cmd = cmd,
+                    addr = 0x8000_0100,
+                    regdest = 1
+                )
+            ]
+        )
+    )
+    tb.scoreboard.channels['lsu_exc_mon'].push_reference(
+        LsuExcResponse(
+            load_access_fault = True,
+            exc_addr = 0x8000_0100
+        )
+    )
+    await tb.lsu_exc_mon.wait_for(MonitorEvent.CAPTURE)
+
 
 
 

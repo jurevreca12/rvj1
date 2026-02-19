@@ -61,7 +61,7 @@ class LsuExcMonitor(BaseMonitor):
                 self.io.get("store_addr_misaligned") or
                 self.io.get("store_access_fault")):
                 trans = LsuExcResponse(
-                    load_addr_misalinged=self.io.get("load_addr_misaligned"),
+                    load_addr_misaligned=self.io.get("load_addr_misaligned"),
                     load_access_fault=self.io.get("load_access_fault"),
                     store_addr_misaligned=self.io.get("store_addr_misaligned"),
                     store_access_fault=self.io.get("store_access_fault"),
