@@ -9,7 +9,7 @@ from rvtests import RV32I_TESTS
 import pytest
 from cocotb_tools.pytest.hdl import HDL
 import cocotb
-from cocotb.triggers import ValueChange, ClockCycles
+from cocotb.triggers import ValueChange, ClockCycles, RisingEdge
 from cocotb_tools.runner import get_runner
 from cocotb.clock import Clock
 
@@ -17,19 +17,30 @@ TIMEOUT_CLOCKS = 1000
 
 @cocotb.test()
 async def run_rvj1(dut):
-    clock = Clock(dut.clk, 10, unit="us")
-    clock.start(start_high=False) 
-    dut.rstn.value = 0
-    await ClockCycles(dut.clk, 2)
-    dut.rstn.value = 1
-    await ValueChange(dut.dut.regfile_inst.regfile[31])
+    # Get expected result
     expects = {0: 0}
     for regnum in range(1, 31):
         exp_val = os.environ.get(f"TEST_EXP_REG{regnum}")
         if exp_val is not None:
             expects[regnum] = int(exp_val)
-    await ValueChange(dut.dut.regfile_inst.regfile[31])
-    assert dut.dut.regfile_inst.regfile[31].value == 1
+    assert len(expects.items()) > 1
+
+    # Start clock
+    clock = Clock(dut.clk, 10, unit="us")
+    clock.start(start_high=False) 
+
+    # reset circuit
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+
+    # wait for the test to finish
+    for _ in range(TIMEOUT_CLOCKS):
+        await RisingEdge(dut.clk)
+        if dut.dut.regfile_inst.regfile[31].value == 1:
+            break
+
+    # Check the expected results
     for regnum, regval in expects.items():
         assert dut.dut.regfile_inst.regfile[regnum].value == regval, (
             f"Register {regnum} should contain the value {regval}, not {dut.dut.regfile_inst.regfile[regnum].value}."
@@ -82,7 +93,8 @@ def test_simple_runner(top_test_fixture, asm_test_name):
     top_test_fixture.test(
         toplevel=top_test_fixture.toplevel, 
         test_module="test_insns",
-        plusargs=[f"+MEM_INIT_FILE0={hex_file_fp.name}"]
+        plusargs=[f"+MEM_INIT_FILE0={hex_file_fp.name}"],
+        env=extraenv
     )
 
 

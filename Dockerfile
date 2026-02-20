@@ -10,7 +10,8 @@ RUN pip install --upgrade pip && \
     pip install git+https://github.com/riscv-software-src/riscv-config@54171f2 && \
     pip install git+https://github.com/riscv-software-src/riscof@aa146d4 && \
     pip uninstall -y riscv-isac && \
-    pip install git+https://github.com/riscv-software-src/riscv-isac@777d2b4
+    pip install git+https://github.com/riscv-software-src/riscv-isac@777d2b4 && \
+    pip install pytest-xdist
 
 USER 0:0
 RUN curl -L https://github.com/sifive/elf2hex/archive/refs/tags/v20.08.00.00.tar.gz -o elf2hex.tar.gz && \
