@@ -46,7 +46,7 @@ from riscvmodel.insn import (
     InstructionECALL,
     InstructionMRET
 )
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x29, x30, x31
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x28, x29, x30, x31
 from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval
 from riscvmodel.program import Program
 
@@ -61,6 +61,7 @@ class LUITest(Program):
             InstructionLUI(x3, 0x80000),
             InstructionLUI(x4, 0xFFFFF),
             InstructionLUI(x0, 0xFFFFF),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -75,6 +76,7 @@ class AUIPCTest(Program):
             InstructionAUIPC(x3, 0x80000),
             InstructionAUIPC(x4, 0xFFFFF),
             InstructionAUIPC(x0, 0xFFFFF),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -87,6 +89,7 @@ class ADDITest(Program):
             InstructionADDI(x1, x0, x0),
             InstructionADDI(x1, x1, 1),
             InstructionADDI(x2, x1, -2),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -102,6 +105,7 @@ class SLTITest(Program):
             InstructionSLTI(x4, x3, 1),  # x4=0
             InstructionLUI(x5, 0x80000),
             InstructionSLTI(x6, x5, 0),  # x6=1
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -117,6 +121,7 @@ class SLTIUTest(Program):
             InstructionSLTIU(x4, x3, 1),
             InstructionLUI(x5, 0x80000),
             InstructionSLTIU(x6, x5, 0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -129,6 +134,7 @@ class XORITest(Program):
             InstructionXORI(x1, x0, 0x7FF),
             InstructionXORI(x2, x1, 0x001),
             InstructionXORI(x3, x0, -0x800),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -141,6 +147,7 @@ class ORITest(Program):
             InstructionORI(x1, x0, 0x7FF),
             InstructionORI(x2, x1, 0x001),
             InstructionORI(x3, x0, -0x800),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -153,6 +160,7 @@ class ANDITest(Program):
             InstructionANDI(x1, x0, 0x7FF),
             InstructionANDI(x2, x1, 0x001),
             InstructionANDI(x3, x0, -0x800),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -166,6 +174,7 @@ class SLLITest(Program):
             InstructionSLLI(x2, x1, 12),
             InstructionSLLI(x3, x1, 2),
             InstructionSLLI(x4, x3, 10),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -179,6 +188,7 @@ class SRLITest(Program):
             InstructionSRLI(x2, x1, 12),
             InstructionSRLI(x3, x1, 2),
             InstructionSRLI(x4, x3, 10),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -192,6 +202,7 @@ class SRAITest(Program):
             InstructionSRAI(x2, x1, 12),
             InstructionSRAI(x3, x1, 2),
             InstructionSRAI(x4, x3, 10),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -204,6 +215,7 @@ class ADDTest(Program):
             InstructionLUI(x1, 0xFEBED),
             InstructionADD(x2, x0, x1),
             InstructionADD(x3, x1, x1),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -216,6 +228,7 @@ class SUBTest(Program):
             InstructionLUI(x1, 0xFEBED),
             InstructionSUB(x2, x0, x1),
             InstructionSUB(x3, x1, x1),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -229,6 +242,7 @@ class SLLTest(Program):
             InstructionSLL(x2, x1, x1),
             InstructionORI(x3, x0, 7),
             InstructionSLL(x4, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -246,6 +260,7 @@ class SLTTest(Program):
             InstructionSLT(x6, x1, x2),
             InstructionSLT(x7, x2, x3),
             InstructionSLT(x8, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -263,6 +278,7 @@ class SLTUTest(Program):
             InstructionSLTU(x6, x1, x2),
             InstructionSLTU(x7, x2, x3),
             InstructionSLTU(x8, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -283,6 +299,7 @@ class XORTest(Program):
             InstructionXOR(x7, x2, x3),
             InstructionXOR(x8, x2, x1),
             InstructionXOR(x9, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -303,6 +320,7 @@ class SRLTest(Program):
             InstructionSRL(x7, x2, x3),
             InstructionSRL(x8, x2, x1),
             InstructionSRL(x9, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -323,6 +341,7 @@ class SRATest(Program):
             InstructionSRA(x7, x2, x3),
             InstructionSRA(x8, x2, x1),
             InstructionSRA(x9, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -343,6 +362,7 @@ class ORTest(Program):
             InstructionOR(x7, x2, x3),
             InstructionOR(x8, x2, x1),
             InstructionOR(x9, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -363,6 +383,7 @@ class ANDTest(Program):
             InstructionAND(x7, x2, x3),
             InstructionAND(x8, x2, x1),
             InstructionAND(x9, x1, x3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -386,6 +407,7 @@ class SBLBTest(Program):
             InstructionLB(x4, x1, 1),
             InstructionLB(x5, x1, 2),
             InstructionLB(x6, x1, 3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -401,6 +423,7 @@ class SWLWTest(Program):
             InstructionSW(x1, x2, 0),
             InstructionLW(x3, x1, 0),
             InstructionLW(x4, x1, 0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -418,6 +441,7 @@ class SHLHTest(Program):
             InstructionSH(x1, x2, 2),
             InstructionLH(x3, x1, 0),
             InstructionLH(x4, x1, 2),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -441,6 +465,7 @@ class SBLBUTest(Program):
             InstructionLBU(x4, x1, 1),
             InstructionLBU(x5, x1, 2),
             InstructionLBU(x6, x1, 3),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -458,6 +483,7 @@ class SHLHUTest(Program):
             InstructionSH(x1, x2, 2),
             InstructionLHU(x3, x1, 0),
             InstructionLHU(x4, x1, 2),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -477,6 +503,7 @@ class JALTest(Program):
             InstructionADDI(x7, x0, 7),
             InstructionADDI(x8, x0, 8),
             InstructionADDI(x9, x0, 9),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -511,6 +538,7 @@ class JALRTest(Program):
             InstructionADDI(x7, x0, 7),
             InstructionADDI(x8, x0, 8),
             InstructionADDI(x9, x0, 9),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -540,6 +568,7 @@ class JALRTest2(Program):
             InstructionADDI(x5, x0, 5),     # 0x8000_0010   |
             InstructionADDI(x6, x0, 6),     # 0x8000_0014 <-|
             InstructionADDI(x7, x0, 7),     # 0x8000_0018
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -575,6 +604,7 @@ class BEQTest(Program):
             InstructionADDI(x7, x0, 7),
             InstructionADDI(x8, x0, 8),
             InstructionADDI(x9, x0, 9),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -602,6 +632,7 @@ class BNETest(Program):
             InstructionADDI(x7, x0, 7),
             InstructionADDI(x8, x0, 8),
             InstructionADDI(x9, x0, 9),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -622,6 +653,7 @@ class BLTTest(Program):
             InstructionADDI(x4, x0, 4),  # 0x80000014   |
             InstructionADDI(x5, x0, 5),  # 0x80000018 <-|
             InstructionADDI(x6, x0, 6),  # 0x8000001c
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -642,6 +674,7 @@ class BGETest(Program):
             InstructionADDI(x4, x0, 4),  # 0x80000014
             InstructionADDI(x5, x0, 5),  # 0x80000018
             InstructionADDI(x6, x0, 6),  # 0x8000001c
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -662,6 +695,7 @@ class BLTUTest(Program):
             InstructionADDI(x4, x0, 4),  # 0x80000014
             InstructionADDI(x5, x0, 5),  # 0x80000018
             InstructionADDI(x6, x0, 6),  # 0x8000001c
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -682,6 +716,7 @@ class BGEUTest(Program):
             InstructionADDI(x4, x0, 4),
             InstructionADDI(x5, x0, 5),
             InstructionADDI(x6, x0, 6),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
@@ -701,6 +736,7 @@ class MISATest(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -720,6 +756,7 @@ class MSCRATCHTest(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -739,6 +776,7 @@ class MSCRATCHTest2(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -759,6 +797,7 @@ class MSCRATCHTest3(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -776,6 +815,7 @@ class MSCRATCHTest4(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -794,6 +834,7 @@ class MSCRATCHTest5(Program):
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
             InstructionADDI(x0, 0x0),
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:
@@ -804,9 +845,9 @@ class ECALLTest(Program):
     "Basic test of an ECALL instruction."
     def __init__(self):
         insns = [
-            InstructionLUI  (x31, 0x80000),     # 0x8000_0000
-            InstructionADDI (x31, x31, 0x28),   # 0x8000_0004
-            InstructionCSRRW(x0, x31, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
+            InstructionLUI  (x28, 0x80000),     # 0x8000_0000
+            InstructionADDI (x28, x28, 0x28),   # 0x8000_0004
+            InstructionCSRRW(x0, x28, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
             InstructionECALL(),                 # 0x8000_000c
             InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x40 - 0x14 = 0x2c
             InstructionJAL  (x10, 0x2c),        # 0x8000_0014 ------------------->
@@ -823,11 +864,12 @@ class ECALLTest(Program):
             InstructionNOP  (),                 # 0x8000_0040 <-------------------
             InstructionNOP  (),                 # 0x8000_0044                
             InstructionNOP  (),                 # 0x8000_0048   
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
 
     def expects(self) -> dict:
-        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x29: 11, x31: 0x80000028}
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x28: 0x80000028, x29: 11}
 
 
 class MSTATUSTest(Program):
@@ -835,9 +877,9 @@ class MSTATUSTest(Program):
     def __init__(self):
         insns = [
             InstructionCSRRS (x1, x0, mstatus),  # 0x8000_0000
-            InstructionLUI   (x31, 0x80000),     # 0x8000_0004
-            InstructionADDI  (x31, x31, 0x20),   # 0x8000_0008
-            InstructionCSRRW (x0, x31, mtvec),   # 0x8000_000c  rd, rs1, csr_addr
+            InstructionLUI   (x28, 0x80000),     # 0x8000_0004
+            InstructionADDI  (x28, x28, 0x20),   # 0x8000_0008
+            InstructionCSRRW (x0, x28, mtvec),   # 0x8000_000c  rd, rs1, csr_addr
             InstructionCSRRSI(x0, 0x8, mstatus), # 0x8000_0010 - set MIE
             InstructionCSRRS (x2, x0, mstatus),  # 0x8000_0014
             InstructionECALL (),                 # 0x8000_0018
@@ -851,6 +893,7 @@ class MSTATUSTest(Program):
             InstructionNOP   (),                 # 0x8000_0038
             InstructionNOP   (),                 # 0x8000_003c
             InstructionNOP   (),                 # 0x8000_0040
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     
@@ -881,9 +924,9 @@ class MISALIGNEDLWTest(Program):
         """
         def __init__(self):
             insns = [
-                InstructionLUI  (x31, 0x80000),    # 0x8000_0000
-                InstructionADDI (x31, x31, 0x40),  # 0x8000_0004
-                InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+                InstructionLUI  (x28, 0x80000),    # 0x8000_0000
+                InstructionADDI (x28, x28, 0x40),  # 0x8000_0004
+                InstructionCSRRW(x0, x28, mtvec),  # 0x8000_0008
                 InstructionLUI  (x2, 0x60000),     # 0x8000_000c
                 InstructionADDI (x2, x2, 0x2),     # 0x8000_0010
                 InstructionLUI  (x1, 0xDEADC),     # 0x8000_0014
@@ -917,6 +960,7 @@ class MISALIGNEDLWTest(Program):
                 InstructionNOP  (),                # 0x8000_0084 <------------------|
                 InstructionNOP  (),                # 0x8000_0088
                 InstructionNOP  (),                # 0x8000_008c
+                InstructionADDI(x31, x0, 1)
             ]
             super().__init__(insns)
         def expects(self) -> dict:
@@ -929,9 +973,9 @@ class MISALIGNEDJALTest(Program):
     """
     def __init__(self):
         insns = [
-            InstructionLUI  (x31, 0x80000),    # 0x8000_0000
-            InstructionADDI (x31, x31, 0x18),  # 0x8000_0004
-            InstructionCSRRW(x0, x31, mtvec),  # 0x8000_0008
+            InstructionLUI  (x28, 0x80000),    # 0x8000_0000
+            InstructionADDI (x28, x28, 0x18),  # 0x8000_0004
+            InstructionCSRRW(x0, x28, mtvec),  # 0x8000_0008
             InstructionJAL  (x3, 0xa),         # 0x8000_000c
             InstructionADDI (x1, x0, 0x1),     # 0x8000_0010
             InstructionJAL  (x0, 0x20),        # 0x8000_0014 --------------------
@@ -945,6 +989,7 @@ class MISALIGNEDJALTest(Program):
             InstructionADDI (x7, x0, 1),       # 0x8000_0034 <------------------|
             InstructionNOP  (),                # 0x8000_0038
             InstructionNOP  (),                # 0x8000_003c
+            InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
     def expects(self) -> dict:

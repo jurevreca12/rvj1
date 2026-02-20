@@ -138,6 +138,7 @@ module rvj1_ctrl
   logic ecall_insn;
   logic ebreak_insn;
   logic ctrl_jump;
+  logic illegal_csr_insn;
 
   /*************************************
   * Helper functions
@@ -181,7 +182,10 @@ module rvj1_ctrl
                     (state == eTRAP) ||
                     lsu_trap ||
                     (state == eMRET));
-  assign flush_o = (state == eJUMP0) || (state == eTRAP) || (state == eMRET) || illegal_instr_i;
+  assign flush_o = ((state == eJUMP0) ||
+                    (state == eTRAP) ||
+                    (state == eMRET) ||
+                    illegal_instr_i);
 
   /*************************************
   * Jumping logic
@@ -430,8 +434,9 @@ module rvj1_ctrl
     mtval_d = mtval_q;
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
+    illegal_csr_insn = 1'b0;
     if (csr_valid_r_i) begin
-    case (csr_addr_r_i)
+    unique case (csr_addr_r_i)
       CSR_MSTATUS_ADDR: begin
         // Will the synthesis tool optimize these two function calls into a single module?
         csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
@@ -464,6 +469,7 @@ module rvj1_ctrl
         mtval_d = csr_mtval_masked;
         mtval_ce = 1'b1;
       end
+      default: illegal_csr_insn = 1'b1; // TODO
     endcase
     end else if (synhr_trap) begin
       mcause_d = trap_cause;

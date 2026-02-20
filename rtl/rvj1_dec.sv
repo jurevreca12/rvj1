@@ -120,8 +120,11 @@ function automatic logic is_shift(input f3_imm_e f3);
   return (f3 == F3_SRLI_SRAI) || (f3 == F3_SRLI_SRAI);
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift_imm_e f7);
+function automatic alu_op_e f3_7_to_alu_imm_op(
+  input f3_imm_e f3, input f7_shift_imm_e f7, output logic error
+);
   alu_op_e op = ALU_OP_ADD;
+  error = 1'b0;
   unique case (f3)
     F3_ADDI:  op = ALU_OP_ADD;
     F3_SLTI:  op = ALU_OP_SLT;
@@ -130,27 +133,33 @@ function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift
     F3_ORI:   op = ALU_OP_OR;
     F3_ANDI:  op = ALU_OP_AND;
     F3_SLLI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+        default: error = 1'b1;
       endcase
     end
     F3_SRLI_SRAI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+        F7_SRAI_SUB:       op = ALU_OP_SRA;
+        default: error = 1'b1;
       endcase
     end
   endcase
   return op;
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_imm_e f7);
+function automatic alu_op_e f3_7_to_alu_rr_op(
+  input f3_imm_e f3, input f7_shift_imm_e f7, output logic error
+);
   alu_op_e op = ALU_OP_ADD;
+  error = 1'b0;
   unique case (f3)
     F3_ADDI: begin
-      case (f7)
+      unique case (f7)
           F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
           F7_SRAI_SUB:       op = ALU_OP_SUB;
+          default: error = 1'b1;
       endcase
     end
     F3_SLTI:  op = ALU_OP_SLT;
@@ -159,14 +168,16 @@ function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_
     F3_ORI:   op = ALU_OP_OR;
     F3_ANDI:  op = ALU_OP_AND;
     F3_SLLI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+        default: error = 1'b1;
       endcase
     end
     F3_SRLI_SRAI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+        F7_SRAI_SUB:       op = ALU_OP_SRA;
+        default: error = 1'b1;
       endcase
     end
   endcase
@@ -394,12 +405,12 @@ begin
   unique case (opcode)
     OPCODE_OPIMM: begin
       if (f3_f7_valid_opimm(funct3, funct7)) begin
-        rf_addr_a     = regs1;
-        alu_sel       = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-        rpb_or_imm    = 1'b1;
-        alu_write_rf  = 1'b1;
-        immediate     = imm_i_type;
-        regdest2      = regdest;
+        rf_addr_a    = regs1;
+        alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7), illegal_instr);
+        rpb_or_imm   = 1'b1;
+        alu_write_rf = 1'b1;
+        immediate    = imm_i_type;
+        regdest2     = regdest;
       end else begin
         illegal_instr = 1'b1;
       end
@@ -409,7 +420,7 @@ begin
       if (f3_f7_valid_op(funct3, funct7)) begin
         rf_addr_a    = regs1;
         rf_addr_b    = regs2;
-        alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
+        alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7), illegal_instr);
         alu_write_rf = 1'b1;
         regdest2     = regdest;
       end else begin
