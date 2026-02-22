@@ -929,7 +929,7 @@ class MISALIGNEDLWTest(Program):
         """
             Test that an exception is triggered on an unaligned memory load.
             x31 - trap address
-            x2  - store base address = 0x6000_0002
+            x2  - store base address = 0x8000_0402
             x1  - 0xDEADC0DE
             x3  - unaligned load destination addr
             x4  - mstatus value
@@ -951,8 +951,8 @@ class MISALIGNEDLWTest(Program):
                 InstructionLUI  (x28, 0x80000),    # 0x8000_0000
                 InstructionADDI (x28, x28, 0x40),  # 0x8000_0004
                 InstructionCSRRW(x0, x28, mtvec),  # 0x8000_0008
-                InstructionLUI  (x2, 0x60000),     # 0x8000_000c
-                InstructionADDI (x2, x2, 0x2),     # 0x8000_0010
+                InstructionLUI  (x2, 0x80000),     # 0x8000_000c
+                InstructionADDI (x2, x2, 0x402),   # 0x8000_0010
                 InstructionLUI  (x1, 0xDEADC),     # 0x8000_0014
                 InstructionADDI (x1, x1, 0x0DE),   # 0x8000_0018
                 InstructionSB   (x2, x1, 3),       # 0x8000_001c
@@ -988,7 +988,7 @@ class MISALIGNEDLWTest(Program):
             ]
             super().__init__(insns)
         def expects(self) -> dict:
-            return {x0:0, x5: 0x8000003c, x6: 0x60000002, x7: 0xDEADC0DE, x9: 0}
+            return {x0:0, x5: 0x8000003c, x6: 0x80000402, x7: 0xDEADC0DE, x9: 0}
         
 
 class MISALIGNEDJALTest(Program):
