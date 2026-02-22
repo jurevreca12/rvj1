@@ -50,6 +50,30 @@ from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x28
 from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval
 from riscvmodel.program import Program
 
+from collections.abc import Iterable
+
+
+BOOT_ADDR = 0x8000_0000
+DATA_ADDR = 0x8000_0400
+
+def load_addr(addr: int, reg: int) -> list:
+    upper_addr = addr & 0xFFFFF_000
+    lower_addr = addr & 0x00000_FFF
+    ret = [
+        InstructionLUI(reg, (upper_addr >> 12)),
+    ]
+    if lower_addr != 0:
+        ret.append(
+            InstructionADDI(reg, reg, lower_addr)
+        )
+    return ret
+
+def flatten_list(items, ignore_types=(bytes, str)):
+    for x in items:
+        if isinstance(x, Iterable) and not isinstance(x, ignore_types):
+            yield from flatten_list(x)
+        else:
+            yield x
 
 class LUITest(Program):
     """Basic test of LUI instruction"""
@@ -395,7 +419,7 @@ class SBLBTest(Program):
         insns = [
             InstructionLUI(x2, 0xDEADC),
             InstructionADDI(x2, x2, 0x0DE),
-            InstructionLUI(x1, 0x60000),
+            load_addr(DATA_ADDR, x1),
             InstructionSB(x1, x2, 0),
             InstructionSRLI(x2, x2, 8),
             InstructionSB(x1, x2, 1),
@@ -409,7 +433,7 @@ class SBLBTest(Program):
             InstructionLB(x6, x1, 3),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(insns)
+        super().__init__(flatten_list(insns))
 
 
 class SWLWTest(Program):
@@ -419,13 +443,13 @@ class SWLWTest(Program):
         insns = [
             InstructionLUI(x2, 0xDEADC),
             InstructionADDI(x2, x2, 0x0DE),
-            InstructionLUI(x1, 0x60000),
+            load_addr(DATA_ADDR, x1),
             InstructionSW(x1, x2, 0),
             InstructionLW(x3, x1, 0),
             InstructionLW(x4, x1, 0),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(insns)
+        super().__init__(flatten_list(insns))
 
 
 class SHLHTest(Program):
@@ -435,7 +459,7 @@ class SHLHTest(Program):
         insns = [
             InstructionLUI(x2, 0xDEADC),
             InstructionADDI(x2, x2, 0x0DE),
-            InstructionLUI(x1, 0x60000),
+            load_addr(DATA_ADDR, x1),
             InstructionSH(x1, x2, 0),
             InstructionSRLI(x2, x2, 16),
             InstructionSH(x1, x2, 2),
@@ -443,7 +467,7 @@ class SHLHTest(Program):
             InstructionLH(x4, x1, 2),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(insns)
+        super().__init__(flatten_list(insns))
 
 
 class SBLBUTest(Program):
@@ -453,7 +477,7 @@ class SBLBUTest(Program):
         insns = [
             InstructionLUI(x2, 0xDEADC),
             InstructionADDI(x2, x2, 0x0DE),
-            InstructionLUI(x1, 0x60000),
+            load_addr(DATA_ADDR, x1),
             InstructionSB(x1, x2, 0),
             InstructionSRLI(x2, x2, 8),
             InstructionSB(x1, x2, 1),
@@ -467,7 +491,7 @@ class SBLBUTest(Program):
             InstructionLBU(x6, x1, 3),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(insns)
+        super().__init__(flatten_list(insns))
 
 
 class SHLHUTest(Program):
@@ -477,7 +501,7 @@ class SHLHUTest(Program):
         insns = [
             InstructionLUI(x2, 0xDEADC),
             InstructionADDI(x2, x2, 0x0DE),
-            InstructionLUI(x1, 0x60000),
+            load_addr(DATA_ADDR, x1),
             InstructionSH(x1, x2, 0),
             InstructionSRLI(x2, x2, 16),
             InstructionSH(x1, x2, 2),
@@ -485,7 +509,7 @@ class SHLHUTest(Program):
             InstructionLHU(x4, x1, 2),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(insns)
+        super().__init__(flatten_list(insns))
 
 
 class JALTest(Program):

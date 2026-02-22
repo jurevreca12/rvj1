@@ -59,18 +59,19 @@ def top_test_fixture(hdl: HDL) -> HDL:
         build_args += [f"-DRVFI_TRACE"]
     if ASSERTIONS:
         build_args += [f"-DASSERTIONS"]
-    hdl.sources = get_rtl_files("verilog")
-    hdl.includes = ["/rvj1/rtl/inc"]
     hdl.toplevel = "rvj1_test_top"
-    hdl.buildargs = build_args
-    hdl.parameters = {
+    hdl.build(
+        sources = get_rtl_files("verilog"),
+        includes = ["/rvj1/rtl/inc"],
+        build_args = build_args,
+        parameters = {
             "IRAM_BASE_ADDR": 0x8000_0000, 
             "IRAM_WORD_SIZE": (1 << 8),
             "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
             "DRAM_WORD_SIZE": (1 << 8)
-    }
-    hdl.waves = False
-    hdl.build()
+        },
+        waves = False,
+    )
     return hdl
 
 
