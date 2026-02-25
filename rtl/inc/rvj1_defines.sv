@@ -216,6 +216,7 @@ package rvj1_defines;
         logic [31:0]     lsu_wdata;
         logic            jmp_addr_valid;
         logic [XLEN-1:0] jmp_addr;
+        logic [XLEN-1:0] rd_wdata;
     } rvfi_stage_info_t;
     `endif
 

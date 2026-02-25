@@ -134,7 +134,7 @@ module rvj1_ctrl
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
-  logic instr_will_retire;
+  logic instr_will_retire, instr_will_retire_r;
   logic pc_change;
   logic [XLEN-1:0]  program_counter_prev;
   logic instr_addr_misaligned;
@@ -318,12 +318,10 @@ module rvj1_ctrl
   /*************************************
   * Retiring
   *************************************/
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      instr_retiring_o <= 1'b0;
-    else
-      instr_retiring_o <= instr_will_retire || loaded;
-  end
+  register insn_retire_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(instr_will_retire), .out(instr_will_retire_r)
+  );
+  assign instr_retiring_o = instr_will_retire_r || loaded;
 
   /*************************************
   * Control and Status Registers
@@ -655,7 +653,7 @@ module rvj1_ctrl
   *************************************/
   always_comb begin
     load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_o;
-    loaded = (state == eLOAD1)   &&  lsu_wb_i;
+    loaded  = (state == eLOAD1)  &&  lsu_wb_i;
     jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_o;
     branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
     takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_o;
