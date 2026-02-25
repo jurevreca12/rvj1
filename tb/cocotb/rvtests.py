@@ -451,6 +451,34 @@ class SWLWTest(Program):
         ]
         super().__init__(flatten_list(insns))
 
+class SWLWTest2(Program):
+    """A tougher test of SW and LW instructions. This test has many consecutive store and load instructions.
+       The goal of this test is to try to congest the load store buffers and see if the control logic correctly
+       stalls the pipeline.
+    """
+
+    def __init__(self):
+        insns = [
+            InstructionLUI(x2, 0xDEADC),
+            InstructionADDI(x2, x2, 0x0DE),
+            load_addr(DATA_ADDR, x1),
+            InstructionSW(x1, x2, 0),
+            InstructionSW(x1, x2, 4),
+            InstructionSW(x1, x2, 8),
+            InstructionSW(x1, x2, 12),
+            InstructionSW(x1, x2, 16),
+            InstructionSW(x1, x2, 20),
+            InstructionADDI(x31, x0, 1),
+            InstructionLW(x3, x1, 0),
+            InstructionLW(x4, x1, 4),
+            InstructionLW(x5, x1, 8),
+            InstructionLW(x6, x1, 12),
+            InstructionLW(x7, x1, 16),
+            InstructionLW(x8, x1, 20),
+            InstructionADDI(x31, x0, 1)
+        ]
+        super().__init__(flatten_list(insns))
+
 
 class SHLHTest(Program):
     """Basic test of SH and LH instructions."""
@@ -1042,6 +1070,7 @@ RV32I_TESTS = {
     "and": ANDTest(),
     "sblb": SBLBTest(),
     "swlw": SWLWTest(),
+    "swlw2": SWLWTest2(),
     "shlh": SHLHTest(),
     "sblbu": SBLBUTest(),
     "shlhu": SHLHUTest(),

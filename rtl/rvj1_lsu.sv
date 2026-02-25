@@ -177,7 +177,7 @@ skidbuffer #(
   .input_data   ({lsu_cmd_i, lsu_addr_i, lsu_data_i, lsu_regdest_i}),
 
   .output_valid (data_req_valid_o),
-  .output_ready (data_req_ready_i),
+  .output_ready (data_req_ready_i && act_req_buff_inp_ready),
   .output_data  (req_buff_out_data),
 
   .empty        ()
@@ -212,7 +212,7 @@ skidbuffer #(
   .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr, req_buff_out_data.regdest}),
 
   .output_valid (act_req_buff_out_valid),
-  .output_ready (retire_request),
+  .output_ready (rsp_buff_out_valid),
   .output_data  (act_req_buff_out_data),
 
   .empty        (act_req_buff_empty)
@@ -228,12 +228,12 @@ skidbuffer #(
   .input_data   ({data_rsp_data_i, data_rsp_error_i}),
 
   .output_valid (rsp_buff_out_valid),
-  .output_ready (retire_request),
+  .output_ready (act_req_buff_out_valid),
   .output_data  (rsp_buff_out_data),
 
   .empty        ()
 );
-assign data_rsp_ready_o =  resp_buff_ready; // && ~act_req_buff_empty;
+assign data_rsp_ready_o =  resp_buff_ready && ~act_req_buff_empty;
 
 /*************************************
 * Reg File
@@ -247,7 +247,6 @@ assign rf_data_o = sign_extend(byte_select_read_data, act_req_buff_out_data.cmd)
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
-                    retire_request &&
                     ~is_write_cmd(act_req_buff_out_data.cmd) &&
                     ~rsp_buff_out_data.error);
 
@@ -263,26 +262,16 @@ assign exc_addr_o = exception ? act_req_buff_out_data.addr : '0;
 /*************************************
 * Control
 *************************************/
-register #(
-  .WORD_WIDTH  (1),
-  .RESET_VALUE (0)
-) data_rsp_delay(
-  .clk  (clk_i),
-  .rstn (rstn_i),
-  .ce   (1'b1),
-  .in   (data_rsp_fire),
-  .out  (retire_request)
-);
-assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && act_req_buff_inp_ready;
+assign retire_request = rsp_buff_out_valid && act_req_buff_out_valid;
+assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && ~exception;
 
 /*************************************
 * FSM
 *************************************/
 always_comb begin
-  read_req  = (state == eLSU_RUN)   && lsu_valid_i    && ~is_write_cmd(lsu_cmd_i) && ~load_addr_misaligned;
+  read_req  = (state == eLSU_RUN)   && lsu_valid_i    && lsu_ready_o  && ~is_write_cmd(lsu_cmd_i) && ~load_addr_misaligned;
   read_rsp  = (state == eLSU_READ)  && retire_request && ~is_write_cmd(act_req_buff_out_data.cmd);
   req_full  = (state == eLSU_RUN)   && ~req_buff_inp_ready;
-  //rsp_full  = (state == eLSU_RUN)   && ~act_req_buff_inp_ready;
   req_ready = (state == eLSU_STALL) && req_buff_inp_ready;
 end
 always_comb begin
@@ -307,9 +296,8 @@ end
 
   always_ff @(posedge clk_i) begin
     if (lsu_valid_i && lsu_ready_o) begin
-      // There should be no request if either req or act_req buffers are full.
+      // There should be no request if  req buffers is full.
       bad_req: assert(req_buff_inp_ready);
-      bad_act: assert(act_req_buff_inp_ready);
       // Requests can only be issued when in running state (no stall).
       state_r: assert(state == eLSU_RUN);
     end

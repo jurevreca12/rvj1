@@ -27,7 +27,9 @@ module rvj1_ctrl
   input  logic [RALEN-1:0] regdest_r_i,
   input  lsu_ctrl_e        lsu_cmd_i,
   input  logic             lsu_ctrl_valid_i,
+  input  logic             lsu_ctrl_valid_r_i,
   input  logic             lsu_ready_i,
+  input  logic             lsu_wb_i,
   input  logic             ctrl_jump_i,
   input  logic [XLEN-1:0]  alu_res_r_i,
   input  logic             ctrl_branch_i,
@@ -127,6 +129,7 @@ module rvj1_ctrl
   logic rf_a_hazard;
   logic rf_b_hazard;
   logic lsu_b_hazard;
+  logic lsu_busy_hazard;
   logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
@@ -137,6 +140,7 @@ module rvj1_ctrl
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic ebreak_insn;
+  logic illegal_instr;
   logic ctrl_jump;
   logic illegal_csr_insn;
 
@@ -171,9 +175,11 @@ module rvj1_ctrl
                           lsu_ctrl_valid_i &&
                           lsu_cmd_i[3] && // is_write
                           rf_addr_b_i != 5'b00000);
+  assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
   assign stall_o = (rf_a_hazard  ||
                     rf_b_hazard  ||
                     lsu_b_hazard ||
+                    lsu_busy_hazard ||
                     illegal_instr_i ||
                     (state == eLOAD0) ||
                     (state == eLOAD1) ||
@@ -245,6 +251,7 @@ module rvj1_ctrl
   assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
+  assign illegal_instr     = illegal_instr_i     && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -254,7 +261,7 @@ module rvj1_ctrl
                        ebreak_insn ||
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
-                       illegal_instr_i);
+                       illegal_instr);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -647,13 +654,13 @@ module rvj1_ctrl
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load   = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_o;
-    loaded = (state == eLOAD1)  &&  lsu_ready_i;
-    jump   = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_o;
-    branch = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
-    takebr = (state == eBRANCH) &&  cond_met                          && ~stall_o;
-    nobr   = (state == eBRANCH) && ~cond_met                          && ~stall_o;
-    mret   = (state == eRUN)    &&  mret_insn_i                       && ~stall_o;
+    load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_o;
+    loaded = (state == eLOAD1)   &&  lsu_wb_i;
+    jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_o;
+    branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
+    takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_o;
+    nobr    = (state == eBRANCH) && ~cond_met                          && ~stall_o;
+    mret    = (state == eRUN)    &&  mret_insn_i                       && ~stall_o;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0  : state;

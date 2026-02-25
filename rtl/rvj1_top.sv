@@ -95,6 +95,7 @@ module rvj1_top
 
   // DEC/EX
   logic             control;
+  logic             control_valid;
   logic [RALEN-1:0] rf_addr_a;
   logic [RALEN-1:0] rf_addr_b;
   alu_op_e          alu_op_sel;
@@ -244,10 +245,11 @@ module rvj1_top
     .ebreak_insn_o       (ebreak_insn)
   );
 
+  assign control_valid = control & ~stall;
+
   /*********************************************
   * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
   *********************************************/
-
   rvj1_regfile regfile_inst(
     .clk_i      (clk_i),
     .rstn_i     (rstn_i),
@@ -271,13 +273,26 @@ module rvj1_top
   );
 
   pipeline_register #(
-    .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + XLEN + 1 + 1 + 12 + $bits(csr_cmd_t)),
+    .WORD_WIDTH  (1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
-  ) ex_mem_stage_reg (
+  ) ex_wb_stage_reg (
     .clk  (clk_i),
-    .ce   ((control && ~stall) && rstn_i),
-    .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   regs2_data,   jump,   csr_valid,   csr_addr,   csr_cmd}),
-    .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, regs2_data_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
+    .ce   (control_valid && rstn_i),
+    .in   ({alu_write_rf,   jump,   csr_valid,   csr_addr,   csr_cmd}),
+    .out  ({alu_write_rf_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
+  );
+  logic reset_stage, lsu_fire;
+  assign lsu_fire = lsu_ready && lsu_ctrl_valid_r;
+  assign reset_stage = ((instr_retiring || lsu_fire) && ~control_valid);
+  register #(
+    .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e)),
+    .RESET_VALUE (0)
+  ) ex_mem_stage_reg(
+    .clk  (clk_i),
+    .rstn (rstn_i && ~reset_stage && ~flush),
+    .ce   (control_valid),
+    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid,   lsu_ctrl}),
+    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r})
   );
 
   /*********************************************
@@ -364,7 +379,9 @@ module rvj1_top
     .regdest_r_i            (regdest_r),
     .lsu_cmd_i              (lsu_ctrl),
     .lsu_ctrl_valid_i       (lsu_ctrl_valid),
+    .lsu_ctrl_valid_r_i     (lsu_ctrl_valid_r),
     .lsu_ready_i            (lsu_ready),
+    .lsu_wb_i               (lsu_wb_valid),
     .ctrl_jump_i            (jump),
     .alu_res_r_i            (alu_res_r),
     .ctrl_branch_i          (ctrl_branch),
