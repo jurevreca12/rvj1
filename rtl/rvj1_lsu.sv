@@ -144,7 +144,7 @@ logic [XLEN-1:0] byte_select_read_data;
 
 logic retire_request;
 
-logic data_req_fire, data_rsp_fire;
+logic data_req_fire;
 logic read_req, read_rsp, req_full, req_ready;
 logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
 
@@ -196,7 +196,6 @@ cmd_to_strobe cmd_to_strobe_inst (
 );
 assign data_req_write_o  = is_write_cmd(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
-assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 
 // There is no speculative data writing/reading, thus no need to invalidate any requests
 assign data_ctrl_cancel_o = 1'b0;

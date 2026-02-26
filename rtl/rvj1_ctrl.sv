@@ -138,7 +138,7 @@ module rvj1_ctrl
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_change;
-  logic [XLEN-1:0]  program_counter_prev;
+  logic [XLEN-3:0]  program_counter_prev;
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic ebreak_insn;
@@ -241,7 +241,7 @@ module rvj1_ctrl
     if (~rstn_i)
       program_counter_prev <= BOOT_ADDR;
     else if (pc_change)
-      program_counter_prev <= program_counter_o;
+      program_counter_prev <= program_counter_o[31:2];
   end
 
   /*************************************
@@ -482,7 +482,7 @@ module rvj1_ctrl
       mcause_d = trap_cause;
       mcause_ce = 1'b1;
       if (store_addr_misaligned_i || instr_addr_misaligned)
-        mepc_d = program_counter_prev[31:2];
+        mepc_d = program_counter_prev;
       else
         mepc_d = program_counter_o[31:2];
       mepc_ce = 1'b1;

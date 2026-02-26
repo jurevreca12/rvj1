@@ -61,7 +61,6 @@ module rvj1_ifu(
     logic [XLEN-1:0] instr_req_addr_next;
     logic            act_req_buff_inp_ready;
     logic            instr_req_fire;
-    logic            dec_fire;
 
     logic            bus_error;
     logic act_req_valid;
@@ -74,7 +73,6 @@ module rvj1_ifu(
     logic jmpe; // error condition
 
     assign instr_req_fire = instr_req_ready_i && instr_req_valid_o;
-    assign dec_fire = dec_ready_i && dec_valid_o;
 
     /*************************************
     * Instruction Memory Interface
