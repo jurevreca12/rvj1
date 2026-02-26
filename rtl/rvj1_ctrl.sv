@@ -187,12 +187,11 @@ module rvj1_ctrl
                     (state == eJUMP0) ||
                     (state == eJUMP1) ||
                     (state == eTRAP) ||
-                    lsu_trap ||
                     (state == eMRET));
+
   assign flush_o = ((state == eJUMP0) ||
                     (state == eTRAP) ||
-                    (state == eMRET) ||
-                    illegal_instr);
+                    (state == eMRET));
 
   /*************************************
   * Jumping logic
