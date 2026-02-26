@@ -144,6 +144,7 @@ module rvj1_ctrl
   logic ebreak_insn;
   logic ctrl_jump;
   logic illegal_csr_insn;
+  logic illegal_instr;
 
   /*************************************
   * Helper functions
@@ -181,7 +182,6 @@ module rvj1_ctrl
                     rf_b_hazard  ||
                     lsu_b_hazard ||
                     lsu_busy_hazard ||
-                    illegal_instr_i ||
                     (state == eLOAD0) ||
                     (state == eLOAD1) ||
                     (state == eJUMP0) ||
@@ -192,7 +192,7 @@ module rvj1_ctrl
   assign flush_o = ((state == eJUMP0) ||
                     (state == eTRAP) ||
                     (state == eMRET) ||
-                    illegal_instr_i);
+                    illegal_instr);
 
   /*************************************
   * Jumping logic
@@ -254,6 +254,7 @@ module rvj1_ctrl
   assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
+  assign illegal_instr     = illegal_instr_i     && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -263,7 +264,7 @@ module rvj1_ctrl
                        ebreak_insn ||
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
-                       illegal_instr_i);
+                       illegal_instr);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -271,7 +272,7 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
-    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr_i);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
   `endif
 
