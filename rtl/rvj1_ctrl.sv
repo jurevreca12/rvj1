@@ -46,6 +46,8 @@ module rvj1_ctrl
   output logic             jmp_addr_valid_o,
   output logic [XLEN-3:0]  jmp_addr_o,
 
+  output logic             synhr_trap_o,
+
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
   input  csr_cmd_t         csr_cmd_r_i,
@@ -140,7 +142,6 @@ module rvj1_ctrl
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic ebreak_insn;
-  logic illegal_instr;
   logic ctrl_jump;
   logic illegal_csr_insn;
 
@@ -247,11 +248,12 @@ module rvj1_ctrl
   /*************************************
   * Traps
   *************************************/
+  assign synhr_trap_o = (state == eTRAP);
+
   assign ecall_insn        = ecall_insn_i        && ~stall_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
-  assign illegal_instr     = illegal_instr_i     && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -261,7 +263,7 @@ module rvj1_ctrl
                        ebreak_insn ||
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
-                       illegal_instr);
+                       illegal_instr_i);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);

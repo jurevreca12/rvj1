@@ -60,7 +60,7 @@ module rvfi_trace #(
     end
 
     always_ff @(posedge clk) begin
-        if (rvfi_valid)
+        if (rvfi_valid && ~rvfi_trap)
             log_insn_commit();
     end
 

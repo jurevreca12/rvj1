@@ -119,6 +119,7 @@ module rvj1_top
   logic             ctrl_branch;
   branch_ctrl_e     ctrl_branch_type;
   logic             jump;
+  logic             synhr_trap;
 
   // EXECUTE
   logic [XLEN-1:0]  alu_op_a_data;
@@ -395,6 +396,7 @@ module rvj1_top
     .stop_jmp_write_o       (stop_jmp_write),
     .jmp_addr_valid_o       (jmp_addr_valid),
     .jmp_addr_o             (jmp_addr),
+    .synhr_trap_o           (synhr_trap),
     .csr_valid_r_i          (csr_valid_r),
     .csr_addr_r_i           (csr_addr_r),
     .csr_cmd_r_i            (csr_cmd_r),
@@ -474,6 +476,7 @@ module rvj1_top
     exec_stage_comb.jmp_addr_valid = 1'b0;
     exec_stage_comb.jmp_addr       = '0;
     exec_stage_comb.rd_wdata       = '0;
+    exec_stage_comb.trap           = 1'b0;
   end
 
   always_ff @(posedge clk_i) begin
@@ -510,9 +513,7 @@ module rvj1_top
     end
   end
   always_ff @(posedge clk_i) begin
-    if (illegal_instr)
-      retired_stage <= exec_stage_comb;
-    else if (retiring && lsu_wb_valid) begin
+    if (retiring && lsu_wb_valid) begin
       retired_stage <= mem_stage;
       retired_stage.lsu_rdata <= wpc_data;
       retired_stage.rd_wdata <= ((wpc_addr == '0) || (wpc_we == 1'b0)) ? '0 : wpc_data;
@@ -522,10 +523,11 @@ module rvj1_top
       retired_stage.jmp_addr_valid <= jmp_addr_valid;
       retired_stage.jmp_addr <= {jmp_addr, 2'b00};
       retired_stage.rd_wdata <= ((wpc_addr == '0) || (wpc_we == 1'b0)) ? '0 : wpc_data;
+      retired_stage.trap <= synhr_trap;
     end
   end
 
-  assign retiring = (instr_retiring && ~store_addr_misaligned && ~stop_jmp_write) || illegal_instr;
+  assign retiring = (instr_retiring && ~store_addr_misaligned && ~stop_jmp_write) && ~illegal_instr;
   register insn_retired_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -543,7 +545,7 @@ module rvj1_top
     .count(rvfi_order)
   );
   assign rvfi_insn = retired_stage.instr;
-  assign rvfi_trap = 1'b0; // TODO
+  assign rvfi_trap = retired_stage.trap;
   assign rvfi_halt = 1'b0; // TODO
   assign rvfi_intr = 1'b0; // TODO
   assign rvfi_mode = 2'b11; // M-mode only
