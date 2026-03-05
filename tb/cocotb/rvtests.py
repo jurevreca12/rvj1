@@ -1077,6 +1077,28 @@ class CSRWriteFaultTest(Program):
     def expects(self) -> dict:
         return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x28: 0x80000028, x29: 2}
 
+
+class InsnAccFaultPreciseTest(Program):
+    "Assumes! a 256 word long memory (256*4 = 0x400)."
+    def __init__(self):
+        insns = [
+            InstructionLUI(x28, 0x80000),    # 0x8000_0000
+            InstructionADDI(x28, x28, 0xc),  # 0x8000_0004
+            InstructionCSRRW(x0, x8, mtvec), # 0x8000_0008
+            InstructionJAL(x0, (249 * 4)),   # 0x8000_000c ---------------------->
+            InstructionADDI(x4, x0 , 5),     # 0x8000_0010 <- TRAP               |
+            InstructionADDI(x31, x0, 1),     # 0x8000_0014 (finish test)         |
+            (246 * [InstructionNOP()]),      # 0x8000_0014                       |
+            InstructionADDI(x1, x0, 1),      # 0x8000_03f0 <----------------------
+            InstructionADDI(x2, x0, 2),      # 0x8000_03f4
+            InstructionADDI(x3, x0, 3),      # 0x8000_03f8
+            InstructionADDI(x4, x0, 4)       # 0x8000_03fc
+        ]
+        super().__init__(list(flatten_list(insns)))
+
+    def expects(self) -> dict:
+        return {x1: 1, x2: 2, x3: 3, x4: 5}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -1123,5 +1145,6 @@ RV32I_TESTS = {
     "mstatus": MSTATUSTest(),
     "misaligned-lw": MISALIGNEDLWTest(),
     "misaligned-jal": MISALIGNEDJALTest(),
-    "csr-write-fault": CSRWriteFaultTest(), 
+    "csr-write-fault": CSRWriteFaultTest(),
+    "precise-insn-acc-fault": InsnAccFaultPreciseTest(),
 }
