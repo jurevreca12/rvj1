@@ -1047,6 +1047,36 @@ class MISALIGNEDJALTest(Program):
     def expects(self) -> dict:
         return {x0:0, x1: 1, x2:0, x3: 0, x5:0x80000010, x6:0x80000016, x7:1}
 
+class CSRWriteFaultTest(Program):
+    "Test behavior on write to a non-existant CSR register."
+    def __init__(self):
+        insns = [
+            InstructionLUI  (x28, 0x80000),     # 0x8000_0000
+            InstructionADDI (x28, x28, 0x28),   # 0x8000_0004
+            InstructionCSRRW(x0, x28, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
+            InstructionCSRRW(x0, x0,  0x000),   # 0x8000_000c  # illegal write 
+            InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x40 - 0x14 = 0x2c
+            InstructionJAL  (x10, 0x2c),        # 0x8000_0014 ------------------->
+            InstructionADDI (x3, x0, 3),        # 0x8000_0018                    |
+            InstructionADDI (x4, x0, 4),        # 0x8000_001c                    |
+            InstructionADDI (x5, x0, 5),        # 0x8000_0020                    |
+            InstructionADDI (x6, x0, 6),        # 0x8000_0024                    |
+            InstructionADDI (x1, x0, 1),        # 0x8000_0028 - TRAP HANDLER |   |
+            InstructionCSRRS(x30, x0, mepc),    # 0x8000_002c                |   |
+            InstructionADDI (x30, x30, 4),      # 0x8000_0030                |   |
+            InstructionCSRRW(x0, x30, mepc),    # 0x8000_0034                |   |
+            InstructionCSRRS(x29, x0, mcause),  # 0x8000_0038                |   |
+            InstructionMRET (),                 # 0x8000_003c   <------------    |
+            InstructionNOP  (),                 # 0x8000_0040 <-------------------
+            InstructionNOP  (),                 # 0x8000_0044                
+            InstructionNOP  (),                 # 0x8000_0048   
+            InstructionADDI(x31, x0, 1)
+        ]
+        super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {0:0, x1:1, x2: 2, x3: 0, x4: 0, x5:0, x6: 0, x28: 0x80000028, x29: 2}
+
 RV32I_TESTS = {
     "lui": LUITest(),
     "auipc": AUIPCTest(),
@@ -1093,4 +1123,5 @@ RV32I_TESTS = {
     "mstatus": MSTATUSTest(),
     "misaligned-lw": MISALIGNEDLWTest(),
     "misaligned-jal": MISALIGNEDJALTest(),
+    "csr-write-fault": CSRWriteFaultTest(), 
 }

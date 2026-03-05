@@ -143,7 +143,7 @@ module rvj1_ctrl
   logic ecall_insn;
   logic ebreak_insn;
   logic ctrl_jump;
-  logic illegal_csr_insn;
+  logic illegal_csr_insn, illegal_csr_addr;
   logic illegal_instr;
 
   /*************************************
@@ -254,6 +254,7 @@ module rvj1_ctrl
   assign instr_will_retire = instr_will_retire_i && ~stall_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
   assign illegal_instr     = illegal_instr_i     && ~stall_o;
+  assign illegal_csr_insn  = illegal_csr_addr    && csr_valid_r_i && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -263,7 +264,8 @@ module rvj1_ctrl
                        ebreak_insn ||
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
-                       illegal_instr);
+                       illegal_instr ||
+                       illegal_csr_insn);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -273,13 +275,14 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
   `endif
 
   always_comb begin
     trap_cause = 6'b0;
     if (ecall_insn_i)
       trap_cause = MCAUSE_ECALL_FROM_M_MODE;
-    else if (illegal_instr_i)
+    else if (illegal_instr_i || illegal_csr_insn)
       trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
     else if (ebreak_insn_i)
       trap_cause = MCAUSE_BREAKPOINT;
@@ -357,38 +360,6 @@ module rvj1_ctrl
   assign csr_mtval_value    = mtval_q;
   assign csr_mscratch_value = mscratch_q;
 
-  // Read logic
-  always_comb begin
-    csr_value = '0;
-    // ONLY implemented registers, others default to zero
-    unique case (csr_addr_r_i)
-      // Machine Information Registers
-      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
-      CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
-      CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
-      CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
-
-      // Machine Trap Setup
-      CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
-      CSR_MSTATUSH_ADDR:   csr_value = CSR_MSTATUSH_VALUE;
-      CSR_MISA_ADDR:       csr_value = CSR_MISA_VALUE;
-      CSR_MEDELEG_ADDR:    csr_value = CSR_MEDELEG_VALUE;
-      CSR_MEDELEGH_ADDR:   csr_value = CSR_MEDELEGH_VALUE;
-      CSR_MIDELEG_ADDR:    csr_value = CSR_MIDELEG_VALUE;
-      CSR_MIE_ADDR:        csr_value = csr_mie_value;
-      CSR_MTVEC_ADDR:      csr_value = csr_mtvec_value;
-      CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
-
-      // Machine Trap Handling
-      CSR_MSCRATCH_ADDR:   csr_value = csr_mscratch_value;
-      CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
-      CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
-      CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
-      CSR_MIP_ADDR:        csr_value = csr_mip_value;
-      default:             csr_value = '0;
-    endcase
-  end
-
   // csr_valid_r does not need stall control as stall is already applied at the
   // pipeline register (_r)
   register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
@@ -422,6 +393,39 @@ module rvj1_ctrl
   end
   `endif
 
+   // Read logic
+  always_comb begin
+    csr_value = '0;
+    illegal_csr_addr = 1'b0;
+    // ONLY implemented registers, others default to zero
+    unique case (csr_addr_r_i)
+      // Machine Information Registers
+      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
+      CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
+      CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
+      CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
+
+      // Machine Trap Setup
+      CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
+      CSR_MSTATUSH_ADDR:   csr_value = CSR_MSTATUSH_VALUE;
+      CSR_MISA_ADDR:       csr_value = CSR_MISA_VALUE;
+      CSR_MEDELEG_ADDR:    csr_value = CSR_MEDELEG_VALUE;
+      CSR_MEDELEGH_ADDR:   csr_value = CSR_MEDELEGH_VALUE;
+      CSR_MIDELEG_ADDR:    csr_value = CSR_MIDELEG_VALUE;
+      CSR_MIE_ADDR:        csr_value = csr_mie_value;
+      CSR_MTVEC_ADDR:      csr_value = csr_mtvec_value;
+      CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
+
+      // Machine Trap Handling
+      CSR_MSCRATCH_ADDR:   csr_value = csr_mscratch_value;
+      CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
+      CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
+      CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
+      CSR_MIP_ADDR:        csr_value = csr_mip_value;
+      default:             illegal_csr_addr = 1'b1;
+    endcase
+  end
+
   // Write logic
   always_comb begin
     mscratch_d = mscratch_q;
@@ -441,44 +445,7 @@ module rvj1_ctrl
     mtval_d = mtval_q;
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
-    illegal_csr_insn = 1'b0;
-    if (csr_valid_r_i) begin
-    unique case (csr_addr_r_i)
-      CSR_MSTATUS_ADDR: begin
-        // Will the synthesis tool optimize these two function calls into a single module?
-        csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
-        mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
-        mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
-        mstatus_d.mpp = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
-        mstatus_ce = 1'b1;
-      end
-      CSR_MSCRATCH_ADDR: begin
-        mscratch_d = csr_mask_op(alu_res_r_i, csr_mscratch_value, csr_cmd_r_i);
-        mscratch_ce = 1'b1;
-      end
-      CSR_MTVEC_ADDR: begin
-        csr_mtvec_masked = csr_mask_op(alu_res_r_i, csr_mtvec_value, csr_cmd_r_i);
-        mtvec_d = csr_mtvec_masked[31:2];
-        mtvec_ce = 1'b1;
-      end
-      CSR_MEPC_ADDR: begin
-        csr_mepc_masked = csr_mask_op(alu_res_r_i, csr_mepc_value, csr_cmd_r_i);
-        mepc_d = csr_mepc_masked[31:2];
-        mepc_ce = 1'b1;
-      end
-      CSR_MCAUSE_ADDR: begin
-        csr_mcause_masked = csr_mask_op(alu_res_r_i, csr_mcause_value, csr_cmd_r_i);
-        mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
-        mcause_ce = 1'b1;
-      end
-      CSR_MTVAL_ADDR: begin
-        csr_mtval_masked = csr_mask_op(alu_res_r_i, csr_mtval_value, csr_cmd_r_i);
-        mtval_d = csr_mtval_masked;
-        mtval_ce = 1'b1;
-      end
-      default: illegal_csr_insn = 1'b1; // TODO
-    endcase
-    end else if (synhr_trap) begin
+    if (synhr_trap) begin
       mcause_d = trap_cause;
       mcause_ce = 1'b1;
       if (store_addr_misaligned_i || instr_addr_misaligned)
@@ -497,10 +464,48 @@ module rvj1_ctrl
       else if (ebreak_insn)
         mtval_d = program_counter_o;
       mtval_ce = 1'b1;
-    end else if (mret) begin
+    end
+    else if (mret) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
+    end
+    else if (csr_valid_r_i) begin
+      unique case (csr_addr_r_i)
+        CSR_MSTATUS_ADDR: begin
+          // Will the synthesis tool optimize these two function calls into a single module?
+          csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
+          mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
+          mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
+          mstatus_d.mpp = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
+          mstatus_ce = 1'b1;
+        end
+        CSR_MSCRATCH_ADDR: begin
+          mscratch_d = csr_mask_op(alu_res_r_i, csr_mscratch_value, csr_cmd_r_i);
+          mscratch_ce = 1'b1;
+        end
+        CSR_MTVEC_ADDR: begin
+          csr_mtvec_masked = csr_mask_op(alu_res_r_i, csr_mtvec_value, csr_cmd_r_i);
+          mtvec_d = csr_mtvec_masked[31:2];
+          mtvec_ce = 1'b1;
+        end
+        CSR_MEPC_ADDR: begin
+          csr_mepc_masked = csr_mask_op(alu_res_r_i, csr_mepc_value, csr_cmd_r_i);
+          mepc_d = csr_mepc_masked[31:2];
+          mepc_ce = 1'b1;
+        end
+        CSR_MCAUSE_ADDR: begin
+          csr_mcause_masked = csr_mask_op(alu_res_r_i, csr_mcause_value, csr_cmd_r_i);
+          mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
+          mcause_ce = 1'b1;
+        end
+        CSR_MTVAL_ADDR: begin
+          csr_mtval_masked = csr_mask_op(alu_res_r_i, csr_mtval_value, csr_cmd_r_i);
+          mtval_d = csr_mtval_masked;
+          mtval_ce = 1'b1;
+        end
+        default:;
+      endcase
     end
   end
 
