@@ -19,15 +19,17 @@ module rvj1_dec
   input logic clk_i,
   input logic rstn_i,
 
-  input  logic [XLEN-1:0] ifu_instr_i,        // Instructions coming in from memory/cache
+  input  logic [XLEN-1:0] ifu_instr_i,       // Instructions coming in from memory/cache
   input  logic            ifu_valid_i,
   output logic            ifu_ready_o,       // Ready for instructions.
+  input  logic            ifu_error_i,       // Fetch error
 
   input  logic            stall_i,
   output logic            instr_issued_o,
   output logic            instr_will_retire_o,
   output logic            control_o, // signals that controls signals have been activated
   output logic            illegal_instr_o,
+  output logic            fetch_error_o,
 
   `ifdef RVFI
   output logic [XLEN-1:0] instr_exec_o, // the word of the instruction currently being executed
@@ -344,6 +346,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= 1'b0;
     illegal_instr_o     <= 1'b0;
     ebreak_insn_o       <= 1'b0;
+    fetch_error_o       <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o         <= rf_addr_a;
@@ -362,7 +365,7 @@ always_ff @(posedge clk_i) begin
     state               <= state_next;
     instr_issued_o      <= instr_issued;
     instr_will_retire_o <= instr_will_retire;
-    control_o           <= 1'b1;
+    control_o           <= ~ifu_error_i;
     csr_valid_o         <= csr_valid;
     csr_addr_o          <= csr_addr;
     csr_cmd_o           <= csr_cmd;
@@ -370,6 +373,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= mret_insn;
     illegal_instr_o     <= illegal_instr;
     ebreak_insn_o       <= ebreak_insn;
+    fetch_error_o       <= ifu_error_i;
   end
 end
 

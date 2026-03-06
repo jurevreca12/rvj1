@@ -38,12 +38,10 @@ module rvj1_ifu(
   output logic [XLEN-1:0] dec_instr_o,  // The current instruction (to be decoded)
   output logic            dec_valid_o,
   input  logic            dec_ready_i,  // Decoder ready to accept new instruction (stall)
+  output logic            dec_error_o,  // signal a instruction fetch error on next insn
 
   input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
-  input logic [XLEN-3:0]  jmp_addr_i,       // The jump address
-
-  output logic            error_valid_o, // Signal isntr fetch exception
-  output logic [XLEN-1:0] error_addr_o   // the address that caused the exception
+  input logic [XLEN-3:0]  jmp_addr_i        // The jump address
 );
     typedef enum logic [1:0] {
         eIFU_RST,   // no address, wait for jmp (controller jumps to boot addr at boot)
@@ -59,12 +57,8 @@ module rvj1_ifu(
     ifu_fsm_e state, state_next;
 
     logic [XLEN-1:0] instr_req_addr_next;
-    logic            act_req_buff_inp_ready;
     logic            instr_req_fire;
 
-    logic            bus_error;
-    logic act_req_valid;
-    logic [XLEN-3:0] act_instr_addr;
     logic response_valid;
     logic response_ready;
 
@@ -91,7 +85,7 @@ module rvj1_ifu(
         .in   (instr_req_addr_next),
         .out  (instr_req_addr_o)
     );
-    assign instr_req_valid_o = (state == eIFU_BUSY) && act_req_buff_inp_ready;
+    assign instr_req_valid_o = (state == eIFU_BUSY);
 
     // Cancels invalidated outstanding request (e.g., on a jump)
     register cancel_reg (
@@ -105,23 +99,6 @@ module rvj1_ifu(
     /*************************************
     * Response buffering
     *************************************/
-    // Buffers active addreses (to report fault if necessary)
-    skidbuffer #(
-        .WORD_WIDTH (XLEN-2)
-    ) active_request_buffer (
-    .clk  (clk_i),
-    .rstn (rstn_i && ~(state == eIFU_JMP)),
-
-    .input_valid  (instr_req_fire),
-    .input_ready  (act_req_buff_inp_ready),
-    .input_data   (instr_req_addr_o[31:2]),
-
-    .output_valid (act_req_valid),
-    .output_ready (response_ready && response_valid),
-    .output_data  (act_instr_addr),
-
-    .empty        ()
-    );
     skidbuffer #(
         .WORD_WIDTH ($bits(ifu_rsp_t))
     ) response_buffer (
@@ -134,24 +111,14 @@ module rvj1_ifu(
 
     .output_valid (response_valid),
     .output_ready (response_ready),
-    .output_data  ({dec_instr_o, bus_error}),
+    .output_data  ({dec_instr_o, dec_error_o}),
 
     .empty        ()
     );
     // We wait for the previous instruction to finish even if we just want to raise
     // an exception. This is because exceptions must be precise
     assign response_ready = dec_ready_i;
-    assign dec_valid_o = ~bus_error && response_valid && (state == eIFU_BUSY);
-    assign error_valid_o = bus_error && response_valid && response_ready;
-    assign error_addr_o  = {act_instr_addr, 2'b00};
-    `ifdef ASSERTIONS
-    always_ff @(posedge clk_i) begin
-        if (instr_req_fire)
-            assert(act_req_buff_inp_ready);
-        if (response_valid)
-            assert(act_req_valid);
-    end
-    `endif
+    assign dec_valid_o = response_valid && (state == eIFU_BUSY);
 
     /*************************************
     * Finite State Machine (FSM)

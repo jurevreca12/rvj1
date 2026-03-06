@@ -24,12 +24,10 @@ module ifu_mem_test_top #(
     output logic [XLEN-1:0] dec_instr_o,
     output logic            dec_valid_o,
     input  logic            dec_ready_i,
+    output logic            dec_error_o,
 
     input  logic            jmp_addr_valid_i,
-    input  logic [XLEN-1:0] jmp_addr_i,
-
-    output logic            error_valid_o,
-    output logic [XLEN-1:0] error_addr_o
+    input  logic [XLEN-1:0] jmp_addr_i
 );
 
     logic [XLEN-1:0]   instr_req_addr;
@@ -67,12 +65,10 @@ module ifu_mem_test_top #(
         .dec_instr_o       (dec_instr_o),
         .dec_valid_o       (dec_valid_o),
         .dec_ready_i       (dec_ready_i),
+        .dec_error_o       (dec_error_o),
 
         .jmp_addr_valid_i  (jmp_addr_valid_i),
-        .jmp_addr_i        (jmp_addr_i[31:2]),
-
-        .error_valid_o     (error_valid_o),
-        .error_addr_o      (error_addr_o)
+        .jmp_addr_i        (jmp_addr_i[31:2])
     );
 
     bytewrite_sram_wrap #(

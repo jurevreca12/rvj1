@@ -92,6 +92,7 @@ module rvj1_top
   logic             fetched_instr_valid;
   logic [XLEN-1:0]  fetched_instr;
   logic             fetched_instr_ready;
+  logic             fetched_instr_error;
 
   // DEC/EX
   logic             control;
@@ -120,6 +121,7 @@ module rvj1_top
   branch_ctrl_e     ctrl_branch_type;
   logic             jump;
   logic             synhr_trap;
+  logic             fetch_error;
 
   // EXECUTE
   logic [XLEN-1:0]  alu_op_a_data;
@@ -199,12 +201,10 @@ module rvj1_top
     .dec_instr_o        (fetched_instr),
     .dec_valid_o        (fetched_instr_valid),
     .dec_ready_i        (fetched_instr_ready),
+    .dec_error_o        (fetched_instr_error),
 
     .jmp_addr_valid_i   (jmp_addr_valid),
-    .jmp_addr_i         (jmp_addr),
-
-    .error_valid_o      (),
-    .error_addr_o       ()
+    .jmp_addr_i         (jmp_addr)
   );
 
 
@@ -217,11 +217,13 @@ module rvj1_top
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
+    .ifu_error_i         (fetched_instr_error),
     .stall_i             (stall),
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
     .control_o           (control),
     .illegal_instr_o     (illegal_instr),
+    .fetch_error_o       (fetch_error),
     `ifdef RVFI
     .instr_exec_o        (instr_exec),
     `endif
@@ -388,6 +390,7 @@ module rvj1_top
     .ctrl_branch_i          (ctrl_branch),
     .ctrl_branch_type_i     (ctrl_branch_type),
     .instr_issued_i         (instr_issued),
+    .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .instr_retiring_o       (instr_retiring),
     .stall_o                (stall),

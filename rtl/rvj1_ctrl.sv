@@ -36,6 +36,7 @@ module rvj1_ctrl
   input  branch_ctrl_e     ctrl_branch_type_i,
 
   input  logic             instr_issued_i,
+  input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
   output logic             instr_retiring_o,
   output logic             stall_o,
@@ -145,6 +146,7 @@ module rvj1_ctrl
   logic ctrl_jump;
   logic illegal_csr_insn, illegal_csr_addr;
   logic illegal_instr;
+  logic instr_fetch_error;
 
   /*************************************
   * Helper functions
@@ -239,7 +241,7 @@ module rvj1_ctrl
                       loaded;
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
-      program_counter_prev <= BOOT_ADDR;
+      program_counter_prev <= BOOT_ADDR[31:2];
     else if (pc_change)
       program_counter_prev <= program_counter_o[31:2];
   end
@@ -255,6 +257,7 @@ module rvj1_ctrl
   assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
   assign illegal_instr     = illegal_instr_i     && ~stall_o;
   assign illegal_csr_insn  = illegal_csr_addr    && csr_valid_r_i && ~stall_o;
+  assign instr_fetch_error = instr_fetch_error_i && ~stall_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -265,7 +268,8 @@ module rvj1_ctrl
                        addr_unaligned_trap ||
                        instr_addr_misaligned ||
                        illegal_instr ||
-                       illegal_csr_insn);
+                       illegal_csr_insn ||
+                       instr_fetch_error);
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -276,12 +280,15 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
   `endif
 
   always_comb begin
     trap_cause = 6'b0;
     if (ecall_insn_i)
       trap_cause = MCAUSE_ECALL_FROM_M_MODE;
+    else if (instr_fetch_error_i)
+      trap_cause = MCAUSE_INSTR_ACCESS_FAULT;
     else if (illegal_instr_i || illegal_csr_insn)
       trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
     else if (ebreak_insn_i)

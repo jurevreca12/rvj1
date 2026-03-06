@@ -1082,22 +1082,24 @@ class InsnAccFaultPreciseTest(Program):
     "Assumes! a 256 word long memory (256*4 = 0x400)."
     def __init__(self):
         insns = [
-            InstructionLUI(x28, 0x80000),    # 0x8000_0000
-            InstructionADDI(x28, x28, 0xc),  # 0x8000_0004
-            InstructionCSRRW(x0, x8, mtvec), # 0x8000_0008
-            InstructionJAL(x0, (249 * 4)),   # 0x8000_000c ---------------------->
-            InstructionADDI(x4, x0 , 5),     # 0x8000_0010 <- TRAP               |
-            InstructionADDI(x31, x0, 1),     # 0x8000_0014 (finish test)         |
-            (246 * [InstructionNOP()]),      # 0x8000_0014                       |
-            InstructionADDI(x1, x0, 1),      # 0x8000_03f0 <----------------------
-            InstructionADDI(x2, x0, 2),      # 0x8000_03f4
-            InstructionADDI(x3, x0, 3),      # 0x8000_03f8
-            InstructionADDI(x4, x0, 4)       # 0x8000_03fc
+            InstructionLUI(x28, 0x80000),     # 0x8000_0000
+            InstructionADDI(x28, x28, 0x10),  # 0x8000_0004
+            InstructionCSRRW(x0, x28, mtvec), # 0x8000_0008
+            InstructionJAL(x0, (249 * 4)),    # 0x8000_000c ---------------------->
+            InstructionADDI(x4, x0 , 5),      # 0x8000_0010 <- TRAP               |
+            InstructionCSRRW(x5, x0, mcause), # 0x8000_0014
+            InstructionADDI(x31, x0, 1),      # 0x8000_0018 (finish test)         |
+            (245 * [InstructionNOP()]),       # 0x8000_001c                       |
+            InstructionADDI(x1, x0, 1),       # 0x8000_03f0 <----------------------
+            InstructionADDI(x2, x0, 2),       # 0x8000_03f4
+            InstructionADDI(x3, x0, 3),       # 0x8000_03f8
+            InstructionADDI(x4, x0, 4)        # 0x8000_03fc
         ]
         super().__init__(list(flatten_list(insns)))
 
     def expects(self) -> dict:
-        return {x1: 1, x2: 2, x3: 3, x4: 5}
+        return {x1: 1, x2: 2, x3: 3, x4: 5, x5: 1}
+
 
 RV32I_TESTS = {
     "lui": LUITest(),
