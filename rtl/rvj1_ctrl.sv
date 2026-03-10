@@ -147,6 +147,7 @@ module rvj1_ctrl
   logic illegal_csr_insn, illegal_csr_addr;
   logic illegal_instr;
   logic instr_fetch_error;
+  logic stall_ex_o_r;
 
   /*************************************
   * Helper functions
@@ -339,7 +340,7 @@ module rvj1_ctrl
   * Retiring
   *************************************/
   register insn_retire_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(~stall_wb_o), .in(instr_will_retire), .out(instr_will_retire_r)
+    .clk(clk_i), .rstn(rstn_i), .ce(~stall_mem_wb_o), .in(instr_will_retire), .out(instr_will_retire_r)
   );
   assign instr_retiring_o = instr_will_retire_r || loaded;
 
