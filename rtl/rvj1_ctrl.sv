@@ -234,7 +234,7 @@ module rvj1_ctrl
     else if (mret)
       program_counter_o <= csr_mepc_value;
     else if (state == eJUMP0)
-      program_counter_o <= alu_res_r_i;
+      program_counter_o <= {alu_res_r_i[31:1], 1'b0};
     else if (instr_will_retire || ctrl_jump || loaded)
       program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
   end

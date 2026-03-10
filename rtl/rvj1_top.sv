@@ -353,10 +353,10 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we = (lsu_wb_valid ||
-                   alu_write_rf_r ||
+  assign wpc_we = ((lsu_wb_valid && ~stall_mem_wb) ||
+                   (alu_write_rf_r  && ~stall_mem_wb) ||
                    (jump_r && ~stop_jmp_write) ||
-                   csr_wb) && ~stall_mem_wb;
+                   csr_wb);
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
