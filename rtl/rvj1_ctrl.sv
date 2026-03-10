@@ -48,7 +48,9 @@ module rvj1_ctrl
   output logic             jmp_addr_valid_o,
   output logic [XLEN-3:0]  jmp_addr_o,
 
+  `ifdef RVFI
   output logic             synhr_trap_o,
+  `endif
 
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
@@ -70,6 +72,7 @@ module rvj1_ctrl
   input  logic             illegal_instr_i,
 
   `ifdef RVFI
+  output logic [XLEN-1:0]  rvfi_csr_trap_address,
   output logic [11:0]      rvfi_csr_waddr_o,
   output logic [XLEN-1:0]  rvfi_csr_rval_o,
   output logic             rvfi_csr_written_o,
@@ -187,7 +190,6 @@ module rvj1_ctrl
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
   assign stall_mem_wb_o = (lsu_busy_hazard ||
-                          (state == eJUMP0) ||
                           (state == eJUMP1) ||
                           (state == eTRAP) ||
                           (state == eMRET));
@@ -294,13 +296,13 @@ module rvj1_ctrl
 
   always_comb begin
     trap_cause = 6'b0;
-    if (ecall_insn_i)
+    if (ecall_insn)
       trap_cause = MCAUSE_ECALL_FROM_M_MODE;
-    else if (instr_fetch_error_i)
+    else if (instr_fetch_error)
       trap_cause = MCAUSE_INSTR_ACCESS_FAULT;
-    else if (illegal_instr_i || illegal_csr_insn)
+    else if (illegal_instr || illegal_csr_insn)
       trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
-    else if (ebreak_insn_i)
+    else if (ebreak_insn)
       trap_cause = MCAUSE_BREAKPOINT;
     else if (load_addr_misaligned_i)
       trap_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
@@ -340,7 +342,11 @@ module rvj1_ctrl
   * Retiring
   *************************************/
   register insn_retire_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(~stall_mem_wb_o), .in(instr_will_retire), .out(instr_will_retire_r)
+    .clk(clk_i),
+    .rstn(rstn_i),
+    .ce(~stall_mem_wb_o),
+    .in(instr_will_retire),
+    .out(instr_will_retire_r)
   );
   assign instr_retiring_o = instr_will_retire_r || loaded;
 
@@ -479,6 +485,8 @@ module rvj1_ctrl
         mtval_d = alu_res_r_i;
       else if (ebreak_insn)
         mtval_d = program_counter_o;
+      else
+        mtval_d = '0;
       mtval_ce = 1'b1;
     end
     else if (mret) begin
@@ -668,7 +676,7 @@ module rvj1_ctrl
       rvfi_csr_waddr_o   <= csr_addr_r_i;
     end
   end
-
+  assign rvfi_csr_trap_address = csr_mtvec_value;
  `endif
 
   /*************************************
