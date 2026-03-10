@@ -89,8 +89,7 @@ module rvj1_ctrl
       eJUMP0,
       eJUMP1,
       eRUN,
-      eLOAD0,   // loading a value from data mem to a register.
-      eLOAD1,
+      eLOAD,   // loading a value from data mem to a register.
       eBRANCH,
       eTRAP,
       eMRET
@@ -187,8 +186,6 @@ module rvj1_ctrl
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
   assign stall_mem_wb_o = (lsu_busy_hazard ||
-                          (state == eLOAD0) ||
-                          (state == eLOAD1) ||
                           (state == eJUMP0) ||
                           (state == eJUMP1) ||
                           (state == eTRAP) ||
@@ -197,8 +194,7 @@ module rvj1_ctrl
                        rf_b_hazard  ||
                        lsu_b_hazard ||
                        stall_mem_wb_o ||
-                       (state == eLOAD0) ||
-                       (state == eLOAD1) ||
+                       (state == eLOAD) ||
                        (state == eJUMP0) ||
                        (state == eJUMP1) ||
                        (state == eTRAP) ||
@@ -679,7 +675,7 @@ module rvj1_ctrl
   *************************************/
   always_comb begin
     load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_ex_o;
-    loaded  = (state == eLOAD1)  &&  lsu_wb_i;
+    loaded  = (state == eLOAD)   &&  lsu_wb_i;
     jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_ex_o;
     branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_ex_o;
     takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_ex_o;
@@ -690,8 +686,7 @@ module rvj1_ctrl
     state_next = (state == eRESET) ? eBOOT0  : state;
     state_next = (state == eBOOT0) ? eBOOT1  : state_next;
     state_next = (state == eBOOT1) ? eRUN    : state_next;
-    state_next = load              ? eLOAD0  : state_next;
-    state_next = (state == eLOAD0) ? eLOAD1  : state_next;
+    state_next = load              ? eLOAD  : state_next;
     state_next = loaded            ? eRUN    : state_next;
     state_next = jump              ? eJUMP0  : state_next;
     state_next = (state == eJUMP0) ? eJUMP1  : state_next;
