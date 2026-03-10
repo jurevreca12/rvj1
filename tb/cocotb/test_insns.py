@@ -41,6 +41,8 @@ async def run_rvj1(dut):
             break
 
     # Check the expected results
+    assert len(expects) > 0, "At least one register should be set."
+    assert sum(expects.values()) != 0, "A test resulting in all zero registers is invalid."
     for regnum, regval in expects.items():
         assert dut.dut.regfile_inst.regfile[regnum].value == regval, (
             f"Register {regnum} should contain the value {regval}, not {dut.dut.regfile_inst.regfile[regnum].value}."

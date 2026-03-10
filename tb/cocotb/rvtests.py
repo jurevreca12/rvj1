@@ -88,6 +88,9 @@ class LUITest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {x1: 0, x2: 0x00001000, x3: 0x80000000, x4: 0xfffff000}
 
 
 class AUIPCTest(Program):
@@ -103,6 +106,14 @@ class AUIPCTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1:  0x8000_0000, 
+            x2:  0x8000_0000 + 4   + (1 << 12), 
+            x3: (0x8000_0000 + 8   + 0x8000_0000) & 0xFFFF_FFFF, 
+            x4: (0x8000_0000 + 0xC + 0xffff_f000) & 0xFFFF_FFFF
+        }
 
 
 class ADDITest(Program):
@@ -111,11 +122,14 @@ class ADDITest(Program):
     def __init__(self):
         insns = [
             InstructionADDI(x1, x0, x0),
-            InstructionADDI(x1, x1, 1),
-            InstructionADDI(x2, x1, -2),
+            InstructionADDI(x1, x1, 2),
+            InstructionADDI(x2, x1, -1),
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {x1: 2, x2: 1}
 
 
 class SLTITest(Program):
@@ -132,6 +146,9 @@ class SLTITest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+        def expects(self) -> dict:
+            return {x1: 0, x2: 0, x3: 1, x4: 0, x5: 0x8000_0000, x6: 1}
 
 
 class SLTIUTest(Program):
@@ -148,6 +165,9 @@ class SLTIUTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+        
+    def expects(self) -> dict:
+        return {x1: 0, x2: 0, x3: 1, x4: 0, x5: 0x8000_0000, x6: 0}
 
 
 class XORITest(Program):
@@ -162,6 +182,9 @@ class XORITest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {x1: 0x7FF, x2: 0x7FE, x3: 0xfffff800}
+
 
 class ORITest(Program):
     """Basic test of ORI instruction"""
@@ -175,18 +198,25 @@ class ORITest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {x1: 0x7FF, x2: 0x7FF, x3: 0xfffff800}
+
 
 class ANDITest(Program):
     """Basic test of ANDI instruction"""
 
     def __init__(self):
         insns = [
-            InstructionANDI(x1, x0, 0x7FF),
-            InstructionANDI(x2, x1, 0x001),
-            InstructionANDI(x3, x0, -0x800),
+            InstructionADDI(x1, x0, 0x7FF),
+            InstructionANDI(x2, x1, 0x7FF),
+            InstructionANDI(x3, x1, 0x001),
+            InstructionANDI(x4, x1, -0x800),
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {x1: 0x7FF, x2: 0x7FF, x3: 1, x4: 0x0}
 
 
 class SLLITest(Program):
@@ -201,6 +231,14 @@ class SLLITest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed000, 
+            x2: 0xed000000, 
+            x3: 0xfafb4000, 
+            x4: 0xed000000
+        }
 
 
 class SRLITest(Program):
@@ -215,6 +253,14 @@ class SRLITest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed000, 
+            x2: 0x000febed, 
+            x3: 0x3fafb400, 
+            x4: 0x000febed
+        }
 
 
 class SRAITest(Program):
@@ -229,6 +275,14 @@ class SRAITest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed000, 
+            x2: 0xffffebed,
+            x3: 0xffafb400,
+            x4: 0xffffebed
+        }
 
 
 class ADDTest(Program):
@@ -243,6 +297,9 @@ class ADDTest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {x1: 0xfebed000, x2: 0xfebed000, x3: 0xfd7da000}
+
 
 class SUBTest(Program):
     """Basic test of SUB instruction"""
@@ -255,6 +312,9 @@ class SUBTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {x1: 0xfebed000, x2: 0x01413000, x3: 0x0}
 
 
 class SLLTest(Program):
@@ -269,6 +329,14 @@ class SLLTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed000, 
+            x2: 0xfebed000, 
+            x3: 0x00000007, 
+            x4: 0x5f680000
+        }
 
 
 class SLTTest(Program):
@@ -288,6 +356,18 @@ class SLTTest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {
+            x1: 1,
+            x2: 0xffffffff,
+            x3: 0x00000037,
+            x4: 0,
+            x5: 0,
+            x6: 0,
+            x7: 1,
+            x8: 1
+        }
+
 
 class SLTUTest(Program):
     """Basic test of SLTU instruction"""
@@ -305,6 +385,18 @@ class SLTUTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 1,
+            x2: 0xffffffff,
+            x3: 0x00000037,
+            x4: 1,
+            x5: 0,
+            x6: 1,
+            x7: 0,
+            x8: 1
+        }
 
 
 class XORTest(Program):
@@ -327,6 +419,19 @@ class XORTest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {
+          x1: 0xfebed123,
+          x2: 0xdeadb234,
+          x3: 0x000004d2,
+          x4: 0x20136317,
+          x5: 0x20136317,
+          x6: 0xfebed123,
+          x7: 0xdeadb6e6,
+          x8: 0x20136317,
+          x9: 0xfebed5f1
+        }
+
 
 class SRLTest(Program):
     """Basic test of SRL instruction"""
@@ -347,6 +452,19 @@ class SRLTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed123,
+            x2: 0xdeadb234,
+            x3: 0x000004d2,
+            x4: 0x00000feb,
+            x5: 0x1bd5b646,
+            x6: 0xfebed123,
+            x7: 0x000037ab,
+            x8: 0x1bd5b646,
+            x9: 0x00003faf
+        }
 
 
 class SRATest(Program):
@@ -368,6 +486,19 @@ class SRATest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed123,
+            x2: 0xdeadb234,
+            x3: 0x000004d2,
+            x4: 0xffffffeb,
+            x5: 0xfbd5b646,
+            x6: 0xfebed123,
+            x7: 0xfffff7ab,
+            x8: 0xfbd5b646,
+            x9: 0xffffffaf
+        }
 
 
 class ORTest(Program):
@@ -390,6 +521,19 @@ class ORTest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed123,
+            x2: 0xdeadb234,
+            x3: 0x000004d2,
+            x4: 0xfebff337, 
+            x5: 0xfebff337,
+            x6: 0xfebed123,
+            x7: 0xdeadb6f6,
+            x8: 0xfebff337,
+            x9: 0xfebed5f3
+        }
+
 
 class ANDTest(Program):
     """Basic test of AND instruction"""
@@ -411,6 +555,18 @@ class ANDTest(Program):
         ]
         super().__init__(insns)
 
+    def expects(self) -> dict:
+        return {
+            x1: 0xfebed123,
+            x2: 0xdeadb234,
+            x3: 0x000004d2,
+            x4: 0xdeac9020,
+            x5: 0xdeac9020,
+            x6: 0x0,
+            x7: 0x00000010,
+            x8: 0xdeac9020,
+            x9: 0x2
+        }
 
 class SBLBTest(Program):
     """Basic test of SB and LB instructions."""
@@ -433,7 +589,18 @@ class SBLBTest(Program):
             InstructionLB(x6, x1, 3),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0x000000de,
+            x3: 0xffffffde,
+            x4: 0xffffffc0,
+            x5: 0xffffffad,
+            x6: 0xffffffde,
+            x31: 0x1
+        }
 
 
 class SWLWTest(Program):
@@ -449,7 +616,17 @@ class SWLWTest(Program):
             InstructionLW(x4, x1, 0),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
+
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0xdeadc0de,
+            x3: 0xdeadc0de,
+            x4: 0xdeadc0de,
+            x31: 0x1
+        }
+
 
 class SWLWTest2(Program):
     """A tougher test of SW and LW instructions. This test has many consecutive store and load instructions.
@@ -468,7 +645,7 @@ class SWLWTest2(Program):
             InstructionSW(x1, x2, 12),
             InstructionSW(x1, x2, 16),
             InstructionSW(x1, x2, 20),
-            InstructionADDI(x31, x0, 1),
+            InstructionADDI(x0, x0, 1),
             InstructionLW(x3, x1, 0),
             InstructionLW(x4, x1, 4),
             InstructionLW(x5, x1, 8),
@@ -477,7 +654,20 @@ class SWLWTest2(Program):
             InstructionLW(x8, x1, 20),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
+
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0xdeadc0de,
+            x3: 0xdeadc0de,
+            x4: 0xdeadc0de,
+            x5: 0xdeadc0de,
+            x6: 0xdeadc0de,
+            x7: 0xdeadc0de,
+            x8: 0xdeadc0de,
+            x31: 0x1
+        }
 
 
 class SHLHTest(Program):
@@ -495,8 +685,15 @@ class SHLHTest(Program):
             InstructionLH(x4, x1, 2),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
 
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0x0000dead,
+            x3: 0xffffc0de,
+            x4: 0xffffdead,
+        }
 
 class SBLBUTest(Program):
     """Basic test of SB and LBU instruction."""
@@ -519,7 +716,18 @@ class SBLBUTest(Program):
             InstructionLBU(x6, x1, 3),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
+    
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0x000000de,
+            x3: 0xde,
+            x4: 0xc0,
+            x5: 0xad,
+            x6: 0xde,
+            x31: 0x1
+        }
 
 
 class SHLHUTest(Program):
@@ -537,7 +745,16 @@ class SHLHUTest(Program):
             InstructionLHU(x4, x1, 2),
             InstructionADDI(x31, x0, 1)
         ]
-        super().__init__(flatten_list(insns))
+        super().__init__(list(flatten_list(insns)))
+
+    def expects(self) -> dict:
+        return {
+            x1: 0x80000400,
+            x2: 0x0000dead,
+            x3: 0x0000c0de,
+            x4: 0x0000dead,
+            x31: 0x1
+        }
 
 
 class JALTest(Program):
@@ -811,8 +1028,10 @@ class MSCRATCHTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, 3: 0x80000123, 4: 0x80000123}
+
 
 class MSCRATCHTest2(Program):
     "Basic test of CSRRS instruction."
@@ -831,6 +1050,7 @@ class MSCRATCHTest2(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, 2:2, 3: 0x80000001, 4: 0x80000003}
 
@@ -852,8 +1072,10 @@ class MSCRATCHTest3(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, 2:3, 3: 0x80000001, 4: 0x80000000}
+
 
 class MSCRATCHTest4(Program):
     "Basic test of CSRRSI instruction."
@@ -870,8 +1092,10 @@ class MSCRATCHTest4(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, 3: 0x80000000, 4: 0x80000002}
+
 
 class MSCRATCHTest5(Program):
     "Basic test of CSRRWCI instructions."
@@ -889,6 +1113,7 @@ class MSCRATCHTest5(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {0:0, 3: 0x80000007, 4: 0x80000006}
 
@@ -953,6 +1178,7 @@ class MSTATUSTest(Program):
         MPP = (1 << 11) + (1 << 12)
         return {x1: (0 + MPP), x2: (8 + MPP), x3: ((1 << 7) + MPP), x4: (8 + (1 << 7) + MPP)}
 
+
 class MISALIGNEDLWTest(Program):
         """
             Test that an exception is triggered on an unaligned memory load.
@@ -1015,6 +1241,7 @@ class MISALIGNEDLWTest(Program):
                 InstructionADDI(x31, x0, 1)
             ]
             super().__init__(insns)
+
         def expects(self) -> dict:
             return {x0:0, x5: 0x8000003c, x6: 0x80000402, x7: 0xDEADC0DE, x9: 0}
         
@@ -1044,8 +1271,10 @@ class MISALIGNEDJALTest(Program):
             InstructionADDI(x31, x0, 1)
         ]
         super().__init__(insns)
+
     def expects(self) -> dict:
         return {x0:0, x1: 1, x2:0, x3: 0, x5:0x80000010, x6:0x80000016, x7:1}
+
 
 class CSRWriteFaultTest(Program):
     "Test behavior on write to a non-existant CSR register."
@@ -1110,6 +1339,7 @@ RV32I_TESTS = {
     "xori": XORITest(),
     "ori": ORITest(),
     "andi": ANDITest(),
+    "slli": SLLITest(),
     "srli": SRLITest(),
     "srai": SRAITest(),
     "add": ADDTest(),
@@ -1120,8 +1350,8 @@ RV32I_TESTS = {
     "xor": XORTest(),
     "srl": SRLTest(),
     "sra": SRATest(),
-    "or": ORTest(),
-    "and": ANDTest(),
+    "ort": ORTest(),
+    "andt": ANDTest(),
     "sblb": SBLBTest(),
     "swlw": SWLWTest(),
     "swlw2": SWLWTest2(),

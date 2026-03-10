@@ -39,7 +39,8 @@ module rvj1_ctrl
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
   output logic             instr_retiring_o,
-  output logic             stall_o,
+  output logic             stall_ex_o,
+  output logic             stall_mem_wb_o,
   output logic [XLEN-1:0]  program_counter_o,
   output logic             flush_o,
   output logic             stop_jmp_write_o,
@@ -167,30 +168,41 @@ module rvj1_ctrl
   /*************************************
   * Stalling logic
   *************************************/
+  register stall_ex_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
   assign rf_a_hazard = ((regdest_r_i == rf_addr_a_i) &&
                          ~rpa_or_pc_i  &&
-                         rf_addr_a_i != 5'b00000);
+                        (rf_addr_a_i != 5'b00000) &&
+                        ~stall_ex_o_r
+                        );
   assign rf_b_hazard = ((regdest_r_i == rf_addr_b_i) &&
                          ~rpb_or_imm_i &&
-                         rf_addr_b_i != 5'b00000);
+                         rf_addr_b_i != 5'b00000 &&
+                         ~stall_ex_o_r);
   // LSU uses rpb port, even though an immediate is used.
   // Because of this rf_b_hazard does not trigger.
   assign lsu_b_hazard = ((regdest_r_i == rf_addr_b_i) &&
                           lsu_ctrl_valid_i &&
                           lsu_cmd_i[3] && // is_write
-                          rf_addr_b_i != 5'b00000);
+                         (rf_addr_b_i != 5'b00000) &&
+                          ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
-  assign stall_o = (rf_a_hazard  ||
-                    rf_b_hazard  ||
-                    lsu_b_hazard ||
-                    lsu_busy_hazard ||
-                    (state == eLOAD0) ||
-                    (state == eLOAD1) ||
-                    (state == eJUMP0) ||
-                    (state == eJUMP1) ||
-                    (state == eTRAP) ||
-                    (state == eMRET));
-
+  assign stall_mem_wb_o = (lsu_busy_hazard ||
+                          (state == eLOAD0) ||
+                          (state == eLOAD1) ||
+                          (state == eJUMP0) ||
+                          (state == eJUMP1) ||
+                          (state == eTRAP) ||
+                          (state == eMRET));
+  assign stall_ex_o = (rf_a_hazard  ||
+                       rf_b_hazard  ||
+                       lsu_b_hazard ||
+                       stall_mem_wb_o ||
+                       (state == eLOAD0) ||
+                       (state == eLOAD1) ||
+                       (state == eJUMP0) ||
+                       (state == eJUMP1) ||
+                       (state == eTRAP) ||
+                       (state == eMRET));
   assign flush_o = ((state == eJUMP0) ||
                     (state == eTRAP) ||
                     (state == eMRET));
@@ -237,7 +249,7 @@ module rvj1_ctrl
                       synhr_trap ||
                       mret ||
                       instr_will_retire ||
-                      (ctrl_jump_i && ~stall_o) ||
+                      (ctrl_jump_i && ~stall_ex_o) ||
                       loaded;
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
@@ -251,13 +263,13 @@ module rvj1_ctrl
   *************************************/
   assign synhr_trap_o = (state == eTRAP);
 
-  assign ecall_insn        = ecall_insn_i        && ~stall_o;
-  assign ctrl_jump         = ctrl_jump_i         && ~stall_o;
-  assign instr_will_retire = instr_will_retire_i && ~stall_o;
-  assign ebreak_insn       = ebreak_insn_i       && ~stall_o;
-  assign illegal_instr     = illegal_instr_i     && ~stall_o;
-  assign illegal_csr_insn  = illegal_csr_addr    && csr_valid_r_i && ~stall_o;
-  assign instr_fetch_error = instr_fetch_error_i && ~stall_o;
+  assign ecall_insn        = ecall_insn_i        && ~stall_ex_o;
+  assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
+  assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
+  assign ebreak_insn       = ebreak_insn_i       && ~stall_ex_o;
+  assign illegal_instr     = illegal_instr_i     && ~stall_ex_o;
+  assign illegal_csr_insn  = illegal_csr_addr    && csr_valid_r_i && ~stall_ex_o;
+  assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -331,7 +343,7 @@ module rvj1_ctrl
   * Retiring
   *************************************/
   register insn_retire_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(instr_will_retire), .out(instr_will_retire_r)
+    .clk(clk_i), .rstn(rstn_i), .ce(~stall_wb_o), .in(instr_will_retire), .out(instr_will_retire_r)
   );
   assign instr_retiring_o = instr_will_retire_r || loaded;
 
@@ -561,7 +573,7 @@ module rvj1_ctrl
   ) csr_mscratch_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mscratch_ce & ~stall_o),
+    .ce  (mscratch_ce & ~stall_ex_o),
     .in  (mscratch_d),
     .out (mscratch_q)
   );
@@ -572,7 +584,7 @@ module rvj1_ctrl
   ) csr_mtvec_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mtvec_ce & ~stall_o),
+    .ce  (mtvec_ce & ~stall_ex_o),
     .in  (mtvec_d),
     .out (mtvec_q)
   );
@@ -666,13 +678,13 @@ module rvj1_ctrl
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_o;
+    load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_ex_o;
     loaded  = (state == eLOAD1)  &&  lsu_wb_i;
-    jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_o;
-    branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_o;
-    takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_o;
-    nobr    = (state == eBRANCH) && ~cond_met                          && ~stall_o;
-    mret    = (state == eRUN)    &&  mret_insn_i                       && ~stall_o;
+    jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_ex_o;
+    branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_ex_o;
+    takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_ex_o;
+    nobr    = (state == eBRANCH) && ~cond_met                          && ~stall_ex_o;
+    mret    = (state == eRUN)    &&  mret_insn_i                       && ~stall_ex_o;
   end
   always_comb begin
     state_next = (state == eRESET) ? eBOOT0  : state;

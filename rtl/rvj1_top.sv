@@ -96,7 +96,6 @@ module rvj1_top
 
   // DEC/EX
   logic             control;
-  logic             control_valid;
   logic [RALEN-1:0] rf_addr_a;
   logic [RALEN-1:0] rf_addr_b;
   alu_op_e          alu_op_sel;
@@ -128,7 +127,8 @@ module rvj1_top
   logic [XLEN-1:0]  alu_op_b_data;
   logic [XLEN-1:0]  alu_res;
   logic [XLEN-1:0]  program_counter;
-  logic             stall;
+  logic             stall_ex;
+  logic             stall_mem_wb;
 
   // MEM - WB
   logic             alu_write_rf_r;
@@ -160,6 +160,8 @@ module rvj1_top
   logic [RALEN-1:0] csr_regdest;
   logic             stop_jmp_write;
   logic             illegal_instr;
+  logic             reset_stage;
+  logic             lsu_fire;
 
   `ifdef RVFI
   logic [11:0]      rvfi_csr_waddr;
@@ -218,7 +220,7 @@ module rvj1_top
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
     .ifu_error_i         (fetched_instr_error),
-    .stall_i             (stall),
+    .stall_i             (stall_ex),
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
     .control_o           (control),
@@ -248,8 +250,6 @@ module rvj1_top
     .ebreak_insn_o       (ebreak_insn)
   );
 
-  assign control_valid = control & ~stall;
-
   /*********************************************
   * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
   *********************************************/
@@ -275,27 +275,19 @@ module rvj1_top
     .res_o  (alu_res)
   );
 
-  pipeline_register #(
-    .WORD_WIDTH  (1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
-    .RESET_VALUE (0)
-  ) ex_wb_stage_reg (
-    .clk  (clk_i),
-    .ce   (control_valid && rstn_i),
-    .in   ({alu_write_rf,   jump,   csr_valid,   csr_addr,   csr_cmd}),
-    .out  ({alu_write_rf_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
-  );
-  logic reset_stage, lsu_fire;
   assign lsu_fire = lsu_ready && lsu_ctrl_valid_r;
-  assign reset_stage = ((instr_retiring || lsu_fire) && ~control_valid);
+  assign reset_stage = (instr_retiring || lsu_fire) && ~control;
   register #(
-    .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e)),
+    .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
-  ) ex_mem_stage_reg(
+  ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
-    .rstn (rstn_i && ~reset_stage && ~flush),
-    .ce   (control_valid),
-    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid,   lsu_ctrl}),
-    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r})
+    .rstn (rstn_i && ~flush),
+    .ce   (control && ~stall_mem_wb),
+    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid && ~stall_ex,   lsu_ctrl,
+            alu_write_rf && ~stall_ex,   jump && ~stall_ex,   csr_valid && ~stall_ex,   csr_addr,   csr_cmd}),
+    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r,
+            alu_write_rf_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );
 
   /*********************************************
@@ -361,7 +353,10 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we   = lsu_wb_valid || alu_write_rf_r || (jump_r && ~stop_jmp_write) || csr_wb;
+  assign wpc_we = (lsu_wb_valid ||
+                   alu_write_rf_r ||
+                   (jump_r && ~stop_jmp_write) ||
+                   csr_wb) && ~stall_mem_wb;
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
@@ -393,7 +388,8 @@ module rvj1_top
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .instr_retiring_o       (instr_retiring),
-    .stall_o                (stall),
+    .stall_ex_o             (stall_ex),
+    .stall_mem_wb_o         (stall_mem_wb),
     .program_counter_o      (program_counter),
     .flush_o                (flush),
     .stop_jmp_write_o       (stop_jmp_write),
@@ -447,11 +443,11 @@ module rvj1_top
   logic [3:0]       strobe_sig;
   logic             retiring;
 
-  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall && ~illegal_instr;
-  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall && ~illegal_instr;
-  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall && ~illegal_instr;
-  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall && ~illegal_instr;
-  assign csr_insn_issued = instr_issued && csr_valid && ~stall && ~illegal_instr;
+  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall_ex && ~illegal_instr;
+  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall_ex && ~illegal_instr;
+  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
+  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
+  assign csr_insn_issued = instr_issued && csr_valid && ~stall_ex && ~illegal_instr;
 
   register #(.WORD_WIDTH(12 + XLEN + 1 + 1)) rvfi_csr_reg (
     .clk  (clk_i),

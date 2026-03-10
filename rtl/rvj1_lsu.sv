@@ -129,6 +129,7 @@ module rvj1_lsu (
 
 lsu_state_e state, state_next;
 
+logic         data_req_valid;
 logic         req_buff_inp_ready;
 lsu_req_t     req_buff_out_data;
 logic         act_req_buff_out_valid;
@@ -176,12 +177,13 @@ skidbuffer #(
   .input_ready  (req_buff_inp_ready),
   .input_data   ({lsu_cmd_i, lsu_addr_i, lsu_data_i, lsu_regdest_i}),
 
-  .output_valid (data_req_valid_o),
+  .output_valid (data_req_valid),
   .output_ready (data_req_ready_i && act_req_buff_inp_ready),
   .output_data  (req_buff_out_data),
 
   .empty        ()
 );
+assign data_req_valid_o = data_req_valid && act_req_buff_inp_ready;
 assign data_req_addr_o  = {req_buff_out_data.addr[31:2], 2'b00};
 byte_select_write bsw_inst(
   .data(req_buff_out_data.data),
@@ -262,7 +264,7 @@ assign exc_addr_o = exception ? act_req_buff_out_data.addr : '0;
 * Control
 *************************************/
 assign retire_request = rsp_buff_out_valid && act_req_buff_out_valid;
-assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && ~exception;
+assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && act_req_buff_inp_ready && ~exception;
 
 /*************************************
 * FSM
