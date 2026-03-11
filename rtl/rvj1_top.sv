@@ -160,8 +160,6 @@ module rvj1_top
   logic [RALEN-1:0] csr_regdest;
   logic             stop_jmp_write;
   logic             illegal_instr;
-  logic             reset_stage;
-  logic             lsu_fire;
 
   `ifdef RVFI
   logic [31:0]      csr_trap_address;
@@ -276,8 +274,6 @@ module rvj1_top
     .res_o  (alu_res)
   );
 
-  assign lsu_fire = lsu_ready && lsu_ctrl_valid_r;
-  assign reset_stage = (instr_retiring || lsu_fire) && ~control;
   register #(
     .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
