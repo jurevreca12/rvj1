@@ -19,41 +19,55 @@ module rvj1_ctrl
   input logic clk_i,
   input logic rstn_i,
 
+  // EX - Stage
   input  logic [RALEN-1:0] rf_addr_a_i,
   input  logic [RALEN-1:0] rf_addr_b_i,
   input  logic             rpa_or_pc_i,
   input  logic             rpb_or_imm_i,
   input  logic [RALEN-1:0] regdest_i,
-  input  logic [RALEN-1:0] regdest_r_i,
   input  lsu_ctrl_e        lsu_cmd_i,
   input  logic             lsu_ctrl_valid_i,
-  input  logic             lsu_ctrl_valid_r_i,
   input  logic             lsu_ready_i,
   input  logic             lsu_wb_i,
   input  logic             ctrl_jump_i,
-  input  logic [XLEN-1:0]  alu_res_r_i,
   input  logic             ctrl_branch_i,
   input  branch_ctrl_e     ctrl_branch_type_i,
+  input  logic             ecall_insn_i,
+  input  logic             mret_insn_i,
+  input  logic             ebreak_insn_i,
+  input  logic             illegal_instr_i,
 
   input  logic             instr_issued_i,
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
-  output logic             instr_retiring_o,
-  output logic             stall_ex_o,
-  output logic             stall_mem_wb_o,
-  output logic [XLEN-1:0]  program_counter_o,
-  output logic             flush_o,
-  output logic             stop_jmp_write_o,
 
-  output logic             jmp_addr_valid_o,
-  output logic [XLEN-3:0]  jmp_addr_o,
-
+  // MEM/WB - Stage
+  input  logic [RALEN-1:0] regdest_r_i,
+  input  logic             lsu_ctrl_valid_r_i,
+  input  logic [XLEN-1:0]  alu_res_r_i,
+  input  logic             load_addr_misaligned_i,
+  input  logic             load_access_fault_i,
+  input  logic             store_addr_misaligned_i,
+  input  logic             store_access_fault_i,
+  input  logic [XLEN-1:0]  lsu_exc_addr_i,
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
   input  csr_cmd_t         csr_cmd_r_i,
+
   output logic [XLEN-1:0]  csr_value_o,
   output logic [RALEN-1:0] csr_regdest_o,
   output logic             csr_wb_o,
+
+  output logic             instr_retiring_o,
+  output logic             stall_ex_o,
+  output logic             stall_mem_wb_o,
+  output logic             flush_o,
+  output logic             stop_jmp_write_o,
+
+  output logic [XLEN-1:0]  program_counter_o,
+
+  output logic             jmp_addr_valid_o,
+  output logic [XLEN-3:0]  jmp_addr_o,
 
   input  logic             irq_external_i,
   input  logic             irq_timer_i,
@@ -62,25 +76,16 @@ module rvj1_ctrl
   input  logic [15:0]      irq_platform_i,
   input  logic             irq_nmi_i,
 
-  input  logic             ecall_insn_i,
-  input  logic             mret_insn_i,
-  input  logic             ebreak_insn_i,
-  input  logic             illegal_instr_i,
-
-  input  logic             load_addr_misaligned_i,
-  input  logic             load_access_fault_i,
-  input  logic             store_addr_misaligned_i,
-  input  logic             store_access_fault_i,
-  input  logic [XLEN-1:0]  lsu_exc_addr_i,
-
   `ifdef RVFI
   output rvfi_csr_t rvfi_csr_rdata,
   output rvfi_csr_t rvfi_csr_rmask,
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
 
-  output logic synhr_trap_ex_o,
-  output logic synhr_trap_mem_wb_o
+  //output logic synhr_trap_ex_o,
+  //output logic synhr_trap_mem_wb_o
+  output logic synhr_trap_o
+
  `endif
 );
   typedef enum logic [3:0] {
@@ -142,7 +147,7 @@ module rvj1_ctrl
   logic synhr_trap_mem_wb;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_change;
-  logic [XLEN-3:0]  program_counter_prev;
+  logic [XLEN-3:0] program_counter, program_counter_prev, program_counter_next;
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic ebreak_insn;
@@ -229,33 +234,47 @@ module rvj1_ctrl
   /*************************************
   * Program Counter
   *************************************/
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      program_counter_o <= BOOT_ADDR;
-    else if (synhr_trap)
-      program_counter_o <= csr_mtvec_value;
-    else if (mret)
-      program_counter_o <= csr_mepc_value;
-    else if (state == eJUMP0)
-      program_counter_o <= {alu_res_r_i[31:1], 1'b0};
-    else if (instr_will_retire || ctrl_jump || loaded)
-      program_counter_o <= program_counter_o + 4;  // ctrl_jump_i - gives us pc + 4 on JAL & JALR
-  end
-
-  // TODO: Is there anyway to get rid of this extra state?
-  // This is here because we need mepc on write misalign trap
   assign pc_change = (state == eJUMP0) ||
                       synhr_trap ||
                       mret ||
                       instr_will_retire ||
-                      (ctrl_jump_i && ~stall_ex_o) ||
+                      ctrl_jump ||
                       loaded;
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      program_counter_prev <= BOOT_ADDR[31:2];
-    else if (pc_change)
-      program_counter_prev <= program_counter_o[31:2];
+  always_comb begin
+    program_counter_next = program_counter;
+    if (synhr_trap)
+      program_counter_next = csr_mtvec_value[31:2];
+    else if (mret)
+      program_counter_next = csr_mepc_value[31:2];
+    else if (state == eJUMP0)
+      program_counter_next = alu_res_r_i[31:2];
+    else if (instr_will_retire || ctrl_jump || loaded)
+      program_counter_next = program_counter + 1;  // ctrl_jump - gives us pc + 4 on JAL & JALR
   end
+  register #(
+    .WORD_WIDTH(XLEN-2),
+    .RESET_VALUE(BOOT_ADDR[31:2])
+  ) program_counter_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (pc_change),
+    .in   (program_counter_next),
+    .out  (program_counter)
+  );
+  assign program_counter_o = {program_counter, 2'b00};
+  // TODO: Is there anyway to get rid of this extra state?
+  // This is here because we need mepc on write misalign trap
+  // Tega se znebimo tak da vse izjeme obravnavamo v istem delu cevovoda
+  register #(
+    .WORD_WIDTH(XLEN-2),
+    .RESET_VALUE(BOOT_ADDR)
+  ) program_counter_prev_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (pc_change),
+    .in   (program_counter),
+    .out  (program_counter_prev)
+  );
 
   /*************************************
   * Traps
@@ -283,8 +302,9 @@ module rvj1_ctrl
                               addr_unaligned_trap);
   assign synhr_trap = synhr_trap_ex || synhr_trap_mem_wb;
   `ifdef RVFI
-  assign synhr_trap_ex_o = synhr_trap_ex;
-  assign synhr_trap_mem_wb_o = synhr_trap_mem_wb;
+  assign synhr_trap_o = synhr_trap;
+  //assign synhr_trap_ex_o = synhr_trap_ex;
+  //assign synhr_trap_mem_wb_o = synhr_trap_mem_wb;
   `endif
 
   `ifdef ASSERTIONS
