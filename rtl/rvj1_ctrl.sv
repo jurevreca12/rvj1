@@ -74,24 +74,13 @@ module rvj1_ctrl
   input  logic [XLEN-1:0]  lsu_exc_addr_i,
 
   `ifdef RVFI
-  `rvformal_mem_fault_outputs
-  `rvformal_csr_mvendorid_outputs
-  `rvformal_csr_marchid_outputs
-  `rvformal_csr_mimpid_outputs
-  `rvformal_csr_mhartid_outputs
-  `rvformal_csr_mstatus_outputs
-  `rvformal_csr_mstatush_outputs
-  `rvformal_csr_misa_outputs
-  `rvformal_csr_mie_outputs
-  `rvformal_csr_mtvec_outputs
-  `rvformal_csr_mscratch_outputs
-  `rvformal_csr_mepc_outputs
-  `rvformal_csr_mcause_outputs
-  `rvformal_csr_mtval_outputs
-  `rvformal_csr_mip_outputs
-  `rvformal_custom_csr_outputs
+  output rvfi_csr_t rvfi_csr_rdata,
+  output rvfi_csr_t rvfi_csr_rmask,
+  output rvfi_csr_t rvfi_csr_wdata,
+  output rvfi_csr_t rvfi_csr_wmask,
 
-  output logic synhr_trap_o
+  output logic synhr_trap_ex_o,
+  output logic synhr_trap_mem_wb_o
  `endif
 );
   typedef enum logic [3:0] {
@@ -149,6 +138,8 @@ module rvj1_ctrl
   branch_ctrl_e ctrl_branch_type_reg;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
+  logic synhr_trap_ex;
+  logic synhr_trap_mem_wb;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_change;
   logic [XLEN-3:0]  program_counter_prev;
@@ -269,8 +260,6 @@ module rvj1_ctrl
   /*************************************
   * Traps
   *************************************/
-  assign synhr_trap_o = (state == eTRAP);
-
   assign ecall_insn        = ecall_insn_i        && ~stall_ex_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
@@ -280,16 +269,23 @@ module rvj1_ctrl
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
 
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
+  // TODO: store_acess_fault should be routed to an IRQ
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
-  assign synhr_trap = (ecall_insn ||
-                       lsu_trap ||
-                       ebreak_insn ||
-                       addr_unaligned_trap ||
-                       instr_addr_misaligned ||
-                       illegal_instr ||
-                       illegal_csr_insn ||
-                       instr_fetch_error);
+
+  assign synhr_trap_ex = (ecall_insn ||
+                          ebreak_insn ||
+                          illegal_instr ||
+                          instr_fetch_error);
+  assign synhr_trap_mem_wb = (lsu_trap ||
+                              instr_addr_misaligned ||
+                              illegal_csr_insn ||
+                              addr_unaligned_trap);
+  assign synhr_trap = synhr_trap_ex || synhr_trap_mem_wb;
+  `ifdef RVFI
+  assign synhr_trap_ex_o = synhr_trap_ex;
+  assign synhr_trap_mem_wb_o = synhr_trap_mem_wb;
+  `endif
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
@@ -671,4 +667,60 @@ module rvj1_ctrl
     else
         state <= state_next;
   end
+
+  `ifdef RVFI
+  assign rvfi_csr_rmask.mstatus = '1;
+  assign rvfi_csr_rdata.mstatus = csr_mstatus_value;
+  assign rvfi_csr_wmask.mstatus = mstatus_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mstatus = ({31'b0, mstatus_d.mie}  << CSR_MSTATUS_MIE_BIT)
+                                | ({31'b0, mstatus_d.mpie} << CSR_MSTATUS_MPIE_BIT)
+                                | ({31'b0, mstatus_d.mpp}  << CSR_MSTATUS_MPP_BIT_0)
+                                | ({31'b0, mstatus_d.mpp}  << CSR_MSTATUS_MPP_BIT_1)
+                                | 32'b0;
+
+  assign rvfi_csr_rmask.mie = '1;
+  assign rvfi_csr_rdata.mie = csr_mie_value;
+  assign rvfi_csr_wmask.mie = mie_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mie = ({31'b0, mie_d.msi}   << CSR_MIEP_MSI_BIT)
+                            | ({31'b0, mie_d.mti}   << CSR_MIEP_MTI_BIT)
+                            | ({31'b0, mie_d.mei}   << CSR_MIEP_MEI_BIT)
+                            | ({31'b0, mie_d.lcofi} << CSR_MIEP_LCOFI_BIT)
+                            | ({16'b0, mie_d.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
+                            | 32'b0;
+
+  assign rvfi_csr_rmask.mip = '1;
+  assign rvfi_csr_rdata.mip = csr_mip_value;
+  assign rvfi_csr_wmask.mip = mip_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mip = ({31'b0, mie_d.msi}   << CSR_MIEP_MSI_BIT)
+                            | ({31'b0, mie_d.mti}   << CSR_MIEP_MTI_BIT)
+                            | ({31'b0, mie_d.mei}   << CSR_MIEP_MEI_BIT)
+                            | ({31'b0, mie_d.lcofi} << CSR_MIEP_LCOFI_BIT)
+                            | ({16'b0, mie_d.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
+                            | 32'b0;
+
+  assign rvfi_csr_rmask.mtvec = '1;
+  assign rvfi_csr_rdata.mtvec = csr_mtvec_value;
+  assign rvfi_csr_wmask.mtvec = mtvec_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mtvec = {mtvec_d, 2'b00};
+
+  assign rvfi_csr_rmask.mepc = '1;
+  assign rvfi_csr_rdata.mepc = csr_mepc_value;
+  assign rvfi_csr_wmask.mepc = mepc_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mepc = {mepc_d, 2'b00};
+
+  assign rvfi_csr_rmask.mcause = '1;
+  assign rvfi_csr_rdata.mcause = csr_mcause_value;
+  assign rvfi_csr_wmask.mcause = mcause_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mcause = {mcause_d[5], 26'b0, mcause_d[4:0]};
+
+  assign rvfi_csr_rmask.mtval = '1;
+  assign rvfi_csr_rdata.mtval = csr_mtval_value;
+  assign rvfi_csr_wmask.mtval = mtval_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mtval = mtval_d;
+
+  assign rvfi_csr_rmask.mscratch = '1;
+  assign rvfi_csr_rdata.mscratch = csr_mscratch_value;
+  assign rvfi_csr_wmask.mscratch = mscratch_ce ? '1 : '0;
+  assign rvfi_csr_wdata.mscratch = mscratch_d;
+  `endif
 endmodule

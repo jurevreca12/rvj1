@@ -142,11 +142,10 @@ module rvj1_top
   logic             illegal_instr;
 
   `ifdef RVFI
-  logic [31:0]      csr_trap_address;
-  logic [11:0]      rvfi_csr_waddr;
-  logic [XLEN-1:0]  rvfi_csr_rval;
-  logic             rvfi_csr_written;
-  logic             rvfi_csr_mod;
+  rvfi_csr_t        rvfi_csr_rdata;
+  rvfi_csr_t        rvfi_csr_rmask;
+  rvfi_csr_t        rvfi_csr_wdata;
+  rvfi_csr_t        rvfi_csr_wmask;
  `endif
 
   logic             load_addr_misaligned;
@@ -394,23 +393,11 @@ module rvj1_top
     .store_access_fault_i   (store_access_fault),
     .lsu_exc_addr_i         (lsu_exc_addr),
     `ifdef RVFI
-    `rvformal_mem_fault_conn
-    `rvformal_csr_mvendorid_conn
-    `rvformal_csr_marchid_conn
-    `rvformal_csr_mimpid_conn
-    `rvformal_csr_mhartid_conn
-    `rvformal_csr_mstatus_conn
-    `rvformal_csr_mstatush_conn
-    `rvformal_csr_misa_conn
-    `rvformal_csr_mie_conn
-    `rvformal_csr_mtvec_conn
-    `rvformal_csr_mscratch_conn
-    `rvformal_csr_mepc_conn
-    `rvformal_csr_mcause_conn
-    `rvformal_csr_mtval_conn
-    `rvformal_csr_mip_conn
-    `rvformal_custom_csr_conn
-    .synhr_trap_o (synhr_trap)
+    .rvfi_csr_rdata         (rvfi_csr_rdata),
+    .rvfi_csr_rmask         (rvfi_csr_rmask),
+    .rvfi_csr_wdata         (rvfi_csr_wdata),
+    .rvfi_csr_wmask         (rvfi_csr_wmask),
+    .synhr_trap_o           (synhr_trap)
     `endif
   );
 
@@ -425,8 +412,9 @@ module rvj1_top
   logic store_insn_issued;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
-  logic [3:0]       strobe_sig;
-  logic             retiring;
+  logic [3:0] strobe_sig;
+  logic retiring;
+  logic first_insn_of_trap;
 
   assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall_ex && ~illegal_instr;
   assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall_ex && ~illegal_instr;
@@ -516,10 +504,17 @@ module rvj1_top
     .ce   (rvfi_valid),
     .count(rvfi_order)
   );
+  register next_insn_is_trap_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (rvfi_valid),
+    .in   (retired_stage.trap),
+    .out  (first_insn_of_trap)
+  );
   assign rvfi_insn = retired_stage.instr;
   assign rvfi_trap = retired_stage.trap;
   assign rvfi_halt = 1'b0;
-  assign rvfi_intr = (retired_stage.pc_rdata == csr_trap_address);
+  assign rvfi_intr = first_insn_of_trap;
   assign rvfi_mode = 2'b11; // M-mode only
   assign rvfi_ixl  = 2'b01; // MXL = 32
   assign rvfi_rs1_addr = retired_stage.rs1_addr;
