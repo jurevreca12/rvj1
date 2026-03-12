@@ -198,6 +198,13 @@ package rvj1_defines;
     parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
     parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
 
+    // RISCV-FORMAL Configuration
+    `define RISCV_FORMAL
+    `define RISCV_FORMAL_NRET 1
+    `define RISCV_FORMAL_XLEN 32
+    `define RISCV_FORMAL_ILEN 32
+    `define RISCV_FORMAL_ALIGNED_MEM
+
     `ifdef RVFI
     typedef struct {
         logic [XLEN-1:0] instr;

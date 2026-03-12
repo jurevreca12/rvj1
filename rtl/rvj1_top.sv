@@ -57,32 +57,12 @@ module rvj1_top
   input logic [15:0] irq_platform_i,
   input logic        irq_nmi_i,
 
-  // RISC-V Formal Interface
-`ifdef RVFI
-  output logic                         rvfi_valid,
-  output logic [63:0]                  rvfi_order,
-  output logic [31:0]                  rvfi_insn,
-  output logic                         rvfi_trap,
-  output logic                         rvfi_halt,
-  output logic                         rvfi_intr,
-  output logic [ 1:0]                  rvfi_mode,
-  output logic [ 1:0]                  rvfi_ixl,
-  output logic [ 4:0]                  rvfi_rs1_addr,
-  output logic [ 4:0]                  rvfi_rs2_addr,
-  output logic [31:0]                  rvfi_rs1_rdata,
-  output logic [31:0]                  rvfi_rs2_rdata,
-  output logic [ 4:0]                  rvfi_rd_addr,
-  output logic [31:0]                  rvfi_rd_wdata,
-  output logic [31:0]                  rvfi_pc_rdata,
-  output logic [31:0]                  rvfi_pc_wdata,
-  output logic [31:0]                  rvfi_mem_addr,
-  output logic [ 3:0]                  rvfi_mem_rmask,
-  output logic [ 3:0]                  rvfi_mem_wmask,
-  output logic [31:0]                  rvfi_mem_rdata,
-  output logic [31:0]                  rvfi_mem_wdata,
-`endif
+  input logic fetch_enable_i,
 
-  input logic fetch_enable_i
+  // RISC-V Formal Interface
+  `ifdef RVFI
+  `RVFI_OUTPUTS
+  `endif
 );
 
   /****************************************
@@ -392,9 +372,6 @@ module rvj1_top
     .stop_jmp_write_o       (stop_jmp_write),
     .jmp_addr_valid_o       (jmp_addr_valid),
     .jmp_addr_o             (jmp_addr),
-    `ifdef RVFI
-    .synhr_trap_o           (synhr_trap),
-    `endif
     .csr_valid_r_i          (csr_valid_r),
     .csr_addr_r_i           (csr_addr_r),
     .csr_cmd_r_i            (csr_cmd_r),
@@ -411,18 +388,30 @@ module rvj1_top
     .mret_insn_i            (mret_insn),
     .ebreak_insn_i          (ebreak_insn),
     .illegal_instr_i        (illegal_instr),
-    `ifdef RVFI
-    .rvfi_csr_trap_address  (csr_trap_address),
-    .rvfi_csr_waddr_o       (rvfi_csr_waddr),
-    .rvfi_csr_rval_o        (rvfi_csr_rval),
-    .rvfi_csr_written_o     (rvfi_csr_written),
-    .rvfi_csr_mod_o         (rvfi_csr_mod),
-    `endif
     .load_addr_misaligned_i (load_addr_misaligned),
     .load_access_fault_i    (load_access_fault),
     .store_addr_misaligned_i(store_addr_misaligned),
     .store_access_fault_i   (store_access_fault),
-    .lsu_exc_addr_i         (lsu_exc_addr)
+    .lsu_exc_addr_i         (lsu_exc_addr),
+    `ifdef RVFI
+    `rvformal_mem_fault_conn
+    `rvformal_csr_mvendorid_conn
+    `rvformal_csr_marchid_conn
+    `rvformal_csr_mimpid_conn
+    `rvformal_csr_mhartid_conn
+    `rvformal_csr_mstatus_conn
+    `rvformal_csr_mstatush_conn
+    `rvformal_csr_misa_conn
+    `rvformal_csr_mie_conn
+    `rvformal_csr_mtvec_conn
+    `rvformal_csr_mscratch_conn
+    `rvformal_csr_mepc_conn
+    `rvformal_csr_mcause_conn
+    `rvformal_csr_mtval_conn
+    `rvformal_csr_mip_conn
+    `rvformal_custom_csr_conn
+    .synhr_trap_o (synhr_trap)
+    `endif
   );
 
   /*********************************************
@@ -436,10 +425,6 @@ module rvj1_top
   logic store_insn_issued;
   logic csr_insn_issued;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
-  logic [11:0]      rvfi_csr_waddr_r;
-  logic [XLEN-1:0]  rvfi_csr_rval_r;
-  logic             rvfi_csr_written_r;
-  logic             rvfi_csr_mod_r;
   logic [3:0]       strobe_sig;
   logic             retiring;
 
@@ -449,21 +434,13 @@ module rvj1_top
   assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
   assign csr_insn_issued = instr_issued && csr_valid && ~stall_ex && ~illegal_instr;
 
-  register #(.WORD_WIDTH(12 + XLEN + 1 + 1)) rvfi_csr_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (1'b1),
-    .in   ({rvfi_csr_waddr,   rvfi_csr_rval,   rvfi_csr_written,   rvfi_csr_mod}),
-    .out  ({rvfi_csr_waddr_r, rvfi_csr_rval_r, rvfi_csr_written_r, rvfi_csr_mod_r})
-  );
-
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
-    exec_stage_comb.rs1_addr       = rf_addr_a;
-    exec_stage_comb.rs2_addr       = rf_addr_b;
-    exec_stage_comb.rs1_rdata      = regs1_data;
-    exec_stage_comb.rs2_rdata      = regs2_data;
-    exec_stage_comb.rd_addr        = regdest;
+    exec_stage_comb.rs1_addr       = rpa_or_pc  ? rf_addr_a : '0;
+    exec_stage_comb.rs2_addr       = rpb_or_imm ? rf_addr_b : '0;
+    exec_stage_comb.rs1_rdata      = rpa_or_pc  ? regs1_data : '0;
+    exec_stage_comb.rs2_rdata      = rpb_or_imm ? regs2_data : '0;
+    exec_stage_comb.rd_addr        = '0; // written in WB
     exec_stage_comb.alu_res        = alu_res;
     exec_stage_comb.pc_rdata       = program_counter;
     exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
@@ -507,15 +484,14 @@ module rvj1_top
     end
   end
   always_ff @(posedge clk_i) begin
-    if (retiring && lsu_wb_valid) begin
+    if (retiring) begin
       retired_stage <= mem_wb_stage;
-      retired_stage.lsu_rdata <= wpc_data;
-      retired_stage.rd_wdata <= ((wpc_addr == '0) || (wpc_we == 1'b0)) ? '0 : wpc_data;
-    end
-    else if (retiring && ~lsu_wb_valid) begin
-      retired_stage <= mem_wb_stage;
-      retired_stage.jmp_addr <= {jmp_addr, 2'b00};
-      retired_stage.rd_wdata <= ((wpc_addr == '0) || (wpc_we == 1'b0)) ? '0 : wpc_data;
+      retired_stage.rd_addr  <= (wpc_we) ? wpc_addr : '0;
+      retired_stage.rd_wdata <= (wpc_we) ? wpc_data : '0;
+      if (lsu_wb_valid)
+        retired_stage.lsu_rdata <= wpc_data;
+      else
+        retired_stage.jmp_addr <= {jmp_addr, 2'b00};
     end
   end
 
@@ -542,7 +518,7 @@ module rvj1_top
   );
   assign rvfi_insn = retired_stage.instr;
   assign rvfi_trap = retired_stage.trap;
-  assign rvfi_halt = 1'b0; // TODO
+  assign rvfi_halt = 1'b0;
   assign rvfi_intr = (retired_stage.pc_rdata == csr_trap_address);
   assign rvfi_mode = 2'b11; // M-mode only
   assign rvfi_ixl  = 2'b01; // MXL = 32
@@ -562,34 +538,10 @@ module rvj1_top
 
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
-      .clk              (clk_i),
-      .rvfi_valid       (rvfi_valid),
-      .rvfi_order       (rvfi_order),
-      .rvfi_insn        (rvfi_insn),
-      .rvfi_trap        (rvfi_trap),
-      .rvfi_halt        (rvfi_halt),
-      .rvfi_intr        (rvfi_intr),
-      .rvfi_mode        (rvfi_mode),
-      .rvfi_ixl         (rvfi_ixl),
-      .rvfi_rs1_addr    (rvfi_rs1_addr),
-      .rvfi_rs2_addr    (rvfi_rs2_addr),
-      .rvfi_rs1_rdata   (rvfi_rs1_rdata),
-      .rvfi_rs2_rdata   (rvfi_rs2_rdata),
-      .rvfi_rd_addr     (rvfi_rd_addr),
-      .rvfi_rd_wdata    (rvfi_rd_wdata),
-      .rvfi_pc_rdata    (rvfi_pc_rdata),
-      .rvfi_pc_wdata    (rvfi_pc_wdata),
-      .rvfi_mem_addr    (rvfi_mem_addr),
-      .rvfi_mem_rmask   (rvfi_mem_rmask),
-      .rvfi_mem_wmask   (rvfi_mem_wmask),
-      .rvfi_mem_rdata   (rvfi_mem_rdata),
-      .rvfi_mem_wdata   (rvfi_mem_wdata),
-      .rvfi_csr_waddr   (rvfi_csr_waddr_r),
-      .rvfi_csr_rval    (rvfi_csr_rval_r),
-      .rvfi_csr_written (rvfi_csr_written_r),
-      .rvfi_csr_mod     (rvfi_csr_mod_r)
+      .clk (clk_i),
+      `RVFI_CONN
     );
-  `endif
-  `endif
+  `endif // RVFI_TRACE
+  `endif // RVFI
 
 endmodule
