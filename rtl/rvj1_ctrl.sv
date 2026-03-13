@@ -116,7 +116,7 @@ module rvj1_ctrl
   assign mie_q = '0; // TODO
   logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
   logic [XLEN-3:0] mepc_d, mepc_q;
-  logic [5:0]      mcause_d, mcause_q, trap_cause; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
+  logic [5:0]      mcause_d, mcause_q, trap_cause, trap_cause_r; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
   logic [XLEN-1:0] mtval_d, mtval_q;
   logic [XLEN-1:0] mscratch_d, mscratch_q;
 
@@ -140,17 +140,17 @@ module rvj1_ctrl
   logic lsu_b_hazard;
   logic lsu_busy_hazard;
   logic load, loaded, jump, branch, takebr, nobr, mret;
-  branch_ctrl_e ctrl_branch_type_reg;
+  branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
-  logic synhr_trap_ex;
-  logic synhr_trap_mem_wb;
+  logic synhr_trap_ex, synhr_trap_ex_r;
+  logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_change;
   logic [XLEN-3:0] program_counter, program_counter_prev, program_counter_next;
   logic instr_addr_misaligned;
   logic ecall_insn;
-  logic ebreak_insn;
+  logic ebreak_insn, ebreak_insn_r;
   logic ctrl_jump;
   logic illegal_csr_insn, illegal_csr_addr;
   logic illegal_instr;
@@ -292,15 +292,25 @@ module rvj1_ctrl
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
 
+  register ebreak_insn_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_insn), .out(ebreak_insn_r)
+  );
+
   assign synhr_trap_ex = (ecall_insn ||
                           ebreak_insn ||
                           illegal_instr ||
                           instr_fetch_error);
+  register synhr_trap_ex_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(synhr_trap_ex), .out(synhr_trap_ex_r)
+  );
   assign synhr_trap_mem_wb = (lsu_trap ||
                               instr_addr_misaligned ||
                               illegal_csr_insn ||
                               addr_unaligned_trap);
-  assign synhr_trap = synhr_trap_ex || synhr_trap_mem_wb;
+  assign synhr_trap_mem_wb2 = (lsu_trap ||
+                              illegal_csr_insn ||
+                              addr_unaligned_trap);
+  assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
   //assign synhr_trap_ex_o = synhr_trap_ex;
@@ -340,20 +350,20 @@ module rvj1_ctrl
     else if (instr_addr_misaligned)
       trap_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
   end
+  register #(.WORD_WIDTH(6)) trap_cause_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (trap_cause),
+    .out  (trap_cause_r)
+  );
 
   /*************************************
   * Branching conditions - TODO: Move this to ALU?
   *************************************/
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      ctrl_branch_type_reg <= BRANCH_EQ;
-    if (ctrl_branch_i)
-      ctrl_branch_type_reg <= ctrl_branch_type_i;
-  end
-
   always_comb begin
     cond_met = 1'b0;
-    unique case (ctrl_branch_type_reg)
+    unique case (ctrl_branch_type_r)
       BRANCH_EQ:  cond_met = (alu_res_r_i    == 0   );
       BRANCH_NEQ: cond_met = (alu_res_r_i    != 0   );
       BRANCH_LT:  cond_met = (alu_res_r_i[0] == 1'b1);
@@ -362,6 +372,16 @@ module rvj1_ctrl
       BRANCH_GEU: cond_met = (alu_res_r_i[0] == 1'b0);
     endcase
   end
+  register #(
+    .WORD_WIDTH($bits(branch_ctrl_e)),
+    .RESET_VALUE(BRANCH_EQ)
+  ) ctrl_branch_type_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (ctrl_branch_i),
+    .in   (ctrl_branch_type_i),
+    .out  (ctrl_branch_type_r)
+  );
 
   /*************************************
   * Retiring
@@ -493,12 +513,9 @@ module rvj1_ctrl
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
     if (synhr_trap) begin
-      mcause_d = trap_cause;
+      mcause_d = synhr_trap_ex_r ? trap_cause_r : trap_cause;
       mcause_ce = 1'b1;
-      if (store_addr_misaligned_i || instr_addr_misaligned)
-        mepc_d = program_counter_prev;
-      else
-        mepc_d = program_counter_o[31:2];
+      mepc_d = synhr_trap_mem_wb2 ? program_counter : program_counter_prev;
       mepc_ce = 1'b1;
       mstatus_d.mie = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
@@ -508,7 +525,7 @@ module rvj1_ctrl
         mtval_d = lsu_exc_addr_i;
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_r_i;
-      else if (ebreak_insn)
+      else if (ebreak_insn_r)
         mtval_d = program_counter_o;
       else
         mtval_d = '0;
@@ -681,12 +698,16 @@ module rvj1_ctrl
     state_next = mret              ? eMRET   : state_next;
     state_next = (state == eMRET)  ? eRUN    : state_next;
   end
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-        state <= eRESET;
-    else
-        state <= state_next;
-  end
+  register #(
+    .WORD_WIDTH($bits(rvj1_fsm_e)),
+    .RESET_VALUE(eRESET)
+  ) state_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (state_next),
+    .out  (state)
+  );
 
   `ifdef RVFI
   assign rvfi_csr_rmask.mstatus = '1;
