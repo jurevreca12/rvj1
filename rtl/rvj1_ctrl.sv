@@ -267,7 +267,7 @@ module rvj1_ctrl
   // Tega se znebimo tak da vse izjeme obravnavamo v istem delu cevovoda
   register #(
     .WORD_WIDTH(XLEN-2),
-    .RESET_VALUE(BOOT_ADDR)
+    .RESET_VALUE(BOOT_ADDR[31:2])
   ) program_counter_prev_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -323,7 +323,10 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
-    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
+    // If there are two consecutive illegal instructions
+    // then a trap can hold for more than a single cylcle
+    // since traps are taken on MEM/WB stage.
+    //`ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
