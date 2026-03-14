@@ -41,3 +41,20 @@ class MappedResponseIO(BaseIO):
             resp_sigs=["ready"],
             io_style=io_style,
         )
+
+class MappedControlIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=["cancel"],
+            resp_sigs=[],
+            io_style=io_style,
+        )

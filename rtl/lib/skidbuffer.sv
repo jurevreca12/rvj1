@@ -27,7 +27,9 @@ module skidbuffer
 
     output logic                  output_valid,
     input  logic                  output_ready,
-    output logic [WORD_WIDTH-1:0] output_data
+    output logic [WORD_WIDTH-1:0] output_data,
+
+    output logic                  empty
 );
     logic [WORD_WIDTH-1:0] selected_data;
     logic [WORD_WIDTH-1:0] input_buffer_out;
@@ -41,6 +43,8 @@ module skidbuffer
         eFULL   // Both output and buffer registers full
     } sb_fsm_e;
     sb_fsm_e state, state_next;
+
+    assign empty = (state == eEMPTY);
 
     /*************************************
     * Data Path

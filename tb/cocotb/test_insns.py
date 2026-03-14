@@ -1,140 +1,121 @@
-from base import get_test_runner, WAVES
-from mapped.io import MappedRequestIO, MappedResponseIO
-from mapped.request import MappedRequestMonitor, MappedRequestResponder
-from mapped.response import MappedResponseInitiator
-from forastero.io import IORole, io_suffix_style
-from forastero import BaseBench
-from forastero.monitor import MonitorEvent
-from cocotb.triggers import ClockCycles
-from memory import RandomAccessMemory
-
-from rvtests import RV32I_TESTS
+import os
+import tempfile
+import datetime
 from riscvmodel.program import Program
 from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
+from base import get_rtl_files, WAVES, RVFI, RVFI_TRACE, ASSERTIONS
+from rvtests import RV32I_TESTS
+import pytest
+from cocotb_tools.pytest.hdl import HDL
+import cocotb
+from cocotb.triggers import ValueChange, ClockCycles, RisingEdge
+from cocotb_tools.runner import get_runner
+from cocotb.clock import Clock
 
+TIMEOUT_CLOCKS = 1000
 
-def test_insns_runner():
-    runner = get_test_runner("rvj1_top")
-    runner.test(hdl_toplevel="rvj1_top", test_module="test_insns", waves=WAVES)
+@cocotb.test()
+async def run_rvj1(dut):
+    # Get expected result
+    expects = {0: 0}
+    for regnum in range(1, 31):
+        exp_val = os.environ.get(f"TEST_EXP_REG{regnum}")
+        if exp_val is not None:
+            expects[regnum] = int(exp_val)
+    assert len(expects.items()) > 1
 
+    # Start clock
+    clock = Clock(dut.clk, 10, unit="us")
+    clock.start(start_high=False) 
 
-class InsnsTB(BaseBench):
-    def __init__(self, dut):
-        super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
-        instr_req_io = MappedRequestIO(
-            dut, "instr_req", IORole.INITIATOR, io_style=io_suffix_style
-        )
-        self.register(
-            "instr_req_mon",
-            MappedRequestMonitor(self, instr_req_io, self.clk, self.rst),
-            scoreboard=False,
-        )
-        self.register(
-            "instr_req_drv",
-            MappedRequestResponder(
-                self, instr_req_io, self.clk, self.rst, blocking=False
-            ),
-            scoreboard=False,
-        )
-        instr_rsp_io = MappedResponseIO(
-            dut, "instr_rsp", IORole.RESPONDER, io_style=io_suffix_style
-        )
-        self.register(
-            "instr_rsp_drv",
-            MappedResponseInitiator(self, instr_rsp_io, self.clk, self.rst),
-            scoreboard=False,
-        )
-        self.instr_memory = RandomAccessMemory(
-            self,
-            request=self.instr_req_mon,
-            req_respond=self.instr_req_drv,
-            response=self.instr_rsp_drv,
-        )
-        data_req_io = MappedRequestIO(
-            dut, "data_req", IORole.INITIATOR, io_style=io_suffix_style
-        )
-        self.register(
-            "data_req_mon",
-            MappedRequestMonitor(self, data_req_io, self.clk, self.rst),
-            scoreboard=False,
-        )
-        self.register(
-            "data_req_drv",
-            MappedRequestResponder(
-                self, data_req_io, self.clk, self.rst, blocking=False
-            ),
-            scoreboard=False,
-        )
-        data_rsp_io = MappedResponseIO(
-            dut, "data_rsp", IORole.RESPONDER, io_style=io_suffix_style
-        )
-        self.register(
-            "data_rsp_drv",
-            MappedResponseInitiator(self, data_rsp_io, self.clk, self.rst),
-            scoreboard=False,
-        )
-        self.data_memory = RandomAccessMemory(
-            self,
-            request=self.data_req_mon,
-            req_respond=self.data_req_drv,
-            response=self.data_rsp_drv,
+    # reset circuit
+    dut.rstn.value = 0
+    await ClockCycles(dut.clk, 2)
+    dut.rstn.value = 1
+
+    # wait for the test to finish
+    for _ in range(TIMEOUT_CLOCKS):
+        await RisingEdge(dut.clk)
+        if dut.dut.regfile_inst.regfile[31].value == 1:
+            break
+
+    # Check the expected results
+    assert len(expects) > 0, "At least one register should be set."
+    assert sum(expects.values()) != 0, "A test resulting in all zero registers is invalid."
+    for regnum, regval in expects.items():
+        assert dut.dut.regfile_inst.regfile[regnum].value == regval, (
+            f"Register {regnum} should contain the value {regval}, not {dut.dut.regfile_inst.regfile[regnum].value}."
         )
 
 
-def prog_to_mem(prog: Program, base_addr=int("8000_0000", 16)) -> dict:
-    mem = {}
-    addr = base_addr
-    for insn in prog.insns:
-        mem[addr] = insn.encode()
-        addr += 4
-    return mem
 
-
-@InsnsTB.testcase(
-    reset_wait_during=2,
-    reset_wait_after=0,
-    timeout=500,
-    shutdown_delay=1,
-    shutdown_loops=1,
-)
-@InsnsTB.parameter("insn", Program, [*RV32I_TESTS])
-@InsnsTB.parameter("delay", int, [0, 1, 2, 3, 8])
-async def test_insn(tb: InsnsTB, log, insn, delay):
-    prog = RV32I_TESTS[insn]
-    test_mem = prog_to_mem(prog)
-    tb.instr_memory.flash(test_mem)
-    tb.instr_memory.set_delay(lambda _: delay)
-    tb.data_memory.set_delay(lambda _: delay)
-    log.info(
-        f"Testing instruction {insn} with instr memory content:\n{str(tb.instr_memory)}."
+@pytest.fixture
+def top_test_fixture(hdl: HDL) -> HDL:
+    build_args = ["-Wno-fatal", "--no-stop-fail"]
+    if WAVES:
+        build_args += ["--trace-fst"]
+    if RVFI:
+        build_args += [f"-DRVFI"]
+    if RVFI_TRACE:
+        build_args += [f"-DRVFI_TRACE"]
+    if ASSERTIONS:
+        build_args += [f"-DASSERTIONS"]
+    hdl.toplevel = "rvj1_test_top"
+    hdl.build(
+        sources = get_rtl_files("verilog"),
+        includes = ["/rvj1/rtl/inc"],
+        build_args = build_args,
+        parameters = {
+            "IRAM_BASE_ADDR": 0x8000_0000, 
+            "IRAM_WORD_SIZE": (1 << 8),
+            "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
+            "DRAM_WORD_SIZE": (1 << 8)
+        },
+        waves = False,
     )
-    for _ in prog.insns:
-        await tb.instr_req_mon.wait_for(MonitorEvent.CAPTURE)
-    await ClockCycles(tb.clk, num_cycles=50)  # make sure everything is coputed
-    state = State(RV32I, bootaddr=0x80000000)
-    m = Model(state=state)
-    m.execute(prog)
-    # The model does not work properly for some instructions, this is a workaround.
-    if prog.expects() is not None:
-        for regnum, regval in prog.expects().items():
-            modval = format(regval, "032b")
-            dutint = int(tb.dut.regfile_inst.regfile[regnum].value)
-            dutval = format(dutint, "032b")
-            assert (
-                dutval == modval
-            ), f"Expected value of {modval}=0x{regval:08x} in register {regnum}. Instead got {dutval}=0x{dutint:08x}."
-    else:
-        for regnum in range(0, 32):
+    return hdl
+
+
+@pytest.mark.parametrize("asm_test_name", RV32I_TESTS.keys())
+def test_simple_runner(top_test_fixture, asm_test_name):
+    asm_test = RV32I_TESTS[asm_test_name]
+    print(f"Running test {asm_test_name} with the following instructions:")
+    for insn in asm_test.insns:
+        print(insn)
+    hex_str = gen_hex(asm_test)
+    now = datetime.datetime.now()
+    now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
+    with tempfile.NamedTemporaryFile(prefix=f"{asm_test_name}_{now}_", delete=False) as hex_file_fp:
+        print(f"Generating HEX file for the test to location: {hex_file_fp.name}.")
+        hex_file_fp.write(hex_str)
+    expects = get_expected_results(asm_test)
+    extraenv = {}
+    for regnum, regval in expects.items():
+        extraenv[f"TEST_EXP_REG{regnum}"] = str(regval)
+    top_test_fixture.test(
+        toplevel=top_test_fixture.toplevel, 
+        test_module="test_insns",
+        plusargs=[f"+MEM_INIT_FILE0={hex_file_fp.name}"],
+        env=extraenv
+    )
+
+
+def gen_hex(program: Program) -> str:
+    hex_str = ""
+    for insn in program.insns:
+        hex_str += format(insn.encode(), '08X') + "\n"
+    return bytes(hex_str, 'utf-8')
+
+def get_expected_results(program: Program) -> dict:
+    expects = program.expects()
+    if expects is None:
+        expects = {}
+        state = State(RV32I, bootaddr=0x80000000)
+        m = Model(state=state)
+        m.execute(program)
+        for regnum in range(1, 32):
             regval = m.state.intreg.regs[regnum].value
-            modval = str(m.state.intreg.regs[regnum])  # hex string
-            modval = format(int(modval, 16), "032b")  # binary string
-            dutint = int(tb.dut.regfile_inst.regfile[regnum].value)
-            dutval = format(dutint, "032b")
-            assert (
-                dutval == modval
-            ), f"Expected value of {modval}=0x{regval:08x} in register {regnum}. Instead got {dutval}=0x{dutint:08x}."
+            expects[regnum] = regval
+    return expects
 
-
-if __name__ == "__main__":
-    test_insns_runner()

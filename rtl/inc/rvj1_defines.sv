@@ -198,6 +198,31 @@ package rvj1_defines;
     parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
     parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
 
+    // RISCV-FORMAL Configuration
+    `define RISCV_FORMAL
+    `define RISCV_FORMAL_NRET 1
+    `define RISCV_FORMAL_XLEN 32
+    `define RISCV_FORMAL_ILEN 32
+    `define RISCV_FORMAL_ALIGNED_MEM
+    `define RISCV_FORMAL_CSR_MSTATUS
+    `define RISCV_FORMAL_CSR_MIE
+    `define RISCV_FORMAL_CSR_MIP
+    `define RISCV_FORMAL_CSR_MTVEC
+    `define RISCV_FORMAL_CSR_MEPC
+    `define RISCV_FORMAL_CSR_MCAUSE
+    `define RISCV_FORMAL_CSR_MTVAL
+    `define RISCV_FORMAL_CSR_MSCRATCH
+    //`define RISCV_FORMAL_CSR_MVENDORID
+    //`define RISCV_FORMAL_CSR_MARCHID
+    //`define RISCV_FORMAL_CSR_MIMPID
+    //`define RISCV_FORMAL_CSR_MHARTID
+    //`define RISCV_FORMAL_CSR_MSTATUSH
+    //`define RISCV_FORMAL_CSR_MISA
+    //`define RISCV_FORMAL_CSR_MEDELEG
+    //`define RISCV_FORMAL_CSR_MEDELEGH
+    //`define RISCV_FORMAL_CSR_MIDELEG
+    //`define RISCV_FORMAL_CSR_MCOUNTEREN
+
     `ifdef RVFI
     typedef struct {
         logic [XLEN-1:0] instr;
@@ -210,7 +235,26 @@ package rvj1_defines;
         logic [XLEN-1:0] pc_rdata;
         logic            lsu_cmd_valid;
         lsu_ctrl_e       lsu_cmd;
+        logic [3:0]      lsu_strobe;
+        logic [31:0]     lsu_addr;
+        logic [31:0]     lsu_rdata;
+        logic [31:0]     lsu_wdata;
+        logic            jmp_addr_valid;
+        logic [XLEN-1:0] jmp_addr;
+        logic [XLEN-1:0] rd_wdata;
+        logic            trap;
     } rvfi_stage_info_t;
+
+    typedef struct packed {
+        logic [XLEN-1:0] mstatus;
+        logic [XLEN-1:0] mie;
+        logic [XLEN-1:0] mip;
+        logic [XLEN-1:0] mtvec;
+        logic [XLEN-1:0] mepc;
+        logic [XLEN-1:0] mcause;
+        logic [XLEN-1:0] mtval;
+        logic [XLEN-1:0] mscratch;
+    } rvfi_csr_t;
     `endif
 
     `define ASSERT_SINGLE_CYCLE_HOLD(signal, clock=clk_i) \

@@ -33,3 +33,8 @@ class MappedResponse(BaseTransaction):
 class MappedBackpressure(BaseTransaction):
     ready: bool = True
     cycles: int = 0
+
+
+@dataclass(kw_only=True)
+class MappedControl(BaseTransaction):
+    cancel: bool = True

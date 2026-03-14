@@ -3,14 +3,46 @@
 
 
 from cocotb.triggers import ClockCycles, RisingEdge
-from forastero.driver import BaseDriver
+from forastero.driver import BaseDriver, DriverStatistics
 from forastero.monitor import BaseMonitor
+from forastero.io import BaseIO
+from typing import Any
+from cocotb.handle import SimHandleBase
+from random import Random
+from forastero.queue import Queue
+from forastero.transaction import BaseTransaction
+import cocotb
+from mapped.request import MappedControlMonitor
 
 from .transaction import MappedBackpressure, MappedResponse
-
+from forastero import MonitorEvent
 
 class MappedResponseInitiator(BaseDriver):
+    def __init__(
+        self,
+        tb: Any,
+        io: BaseIO,
+        clk: SimHandleBase,
+        rst: SimHandleBase,
+        random: Random | None = None,
+        name: str | None = None,
+        blocking: bool = True,
+        control: MappedControlMonitor = None
+    ) -> None:
+        super().__init__(tb, io, clk, rst, random, name, blocking)
+        self.stats = DriverStatistics()
+        self._queue: Queue[BaseTransaction] = Queue()
+        self._control = control
+        if self._control is not None:
+            self._control.subscribe(MonitorEvent.CAPTURE, self._cancel_requests)
+        self._cancel_event = False
+        cocotb.start_soon(self._driver_loop())
+
+    def _cancel_requests(self):
+        self._cancel_event = True
+
     async def drive(self, transaction: MappedResponse):
+        print(f"drive: {transaction.data}.")
         # Setup the transaction
         self.io.set("data", transaction.data)
         self.io.set("error", transaction.error)
@@ -21,8 +53,9 @@ class MappedResponseInitiator(BaseDriver):
         # Wait for value to be accepted
         while True:
             await RisingEdge(self.clk)
-            if self.io.get("ready"):
+            if self.io.get("ready") or self.cancel_event:
                 break
+        self._cancel_event = False
         self.io.set("valid", 0)
 
 

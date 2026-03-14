@@ -16,36 +16,12 @@
 import rvj1_defines::*;
 
 module rvfi_trace #(
-    parameter int CORE_NUM = 0,
+    parameter int CORE_ID = 0,
     parameter string LOG_FILE = "rvfi_trace.log"
 )
 (
     input logic        clk,
-    input logic        rvfi_valid,
-    input logic [63:0] rvfi_order,
-    input logic [31:0] rvfi_insn,
-    input logic        rvfi_trap,
-    input logic        rvfi_halt,
-    input logic        rvfi_intr,
-    input logic [ 1:0] rvfi_mode,
-    input logic [ 1:0] rvfi_ixl,
-    input logic [ 4:0] rvfi_rs1_addr,
-    input logic [ 4:0] rvfi_rs2_addr,
-    input logic [31:0] rvfi_rs1_rdata,
-    input logic [31:0] rvfi_rs2_rdata,
-    input logic [ 4:0] rvfi_rd_addr,
-    input logic [31:0] rvfi_rd_wdata,
-    input logic [31:0] rvfi_pc_rdata,
-    input logic [31:0] rvfi_pc_wdata,
-    input logic [31:0] rvfi_mem_addr,
-    input logic [ 3:0] rvfi_mem_rmask,
-    input logic [ 3:0] rvfi_mem_wmask,
-    input logic [31:0] rvfi_mem_rdata,
-    input logic [31:0] rvfi_mem_wdata,
-    input logic [11:0] rvfi_csr_waddr,
-    input logic [31:0] rvfi_csr_rval,
-    input logic        rvfi_csr_written,
-    input logic        rvfi_csr_mod
+    `RVFI_INPUTS
 );
     int file_handle;
     logic reg_write;
@@ -60,7 +36,7 @@ module rvfi_trace #(
     end
 
     always_ff @(posedge clk) begin
-        if (rvfi_valid)
+        if (rvfi_valid && ~rvfi_trap)
             log_insn_commit();
     end
 
@@ -70,9 +46,10 @@ module rvfi_trace #(
     end
 
     function automatic void log_insn_commit();
+        // Based on spikes "commit_log_print_insn" in execute.cc
         string commit_str;
         $fwrite(file_handle, "core%4d:%2d 0x%8h (0x%8h)",
-            CORE_NUM,
+            CORE_ID,
             rvfi_mode,
             rvfi_pc_rdata,
             rvfi_insn
@@ -83,13 +60,14 @@ module rvfi_trace #(
             $fwrite(file_handle, " mem 0x%8h", rvfi_mem_addr);
         if (mem_write)
             $fwrite(file_handle, " mem 0x%8h 0x%8h", rvfi_mem_addr, rvfi_mem_wdata); // mask?
-        if (rvfi_csr_written && rvfi_csr_mod)
-            $fwrite(file_handle, " c%3d_%s 0x%8h",
-                rvfi_csr_waddr,
-                csr_addr_to_name(rvfi_csr_waddr),
-                rvfi_csr_rval
-            );
         // TODO: CSR
+        // CSR registers should be written by addres (lower to higher)
+        //if (rvfi_csr_written && rvfi_csr_mod)
+        //    $fwrite(file_handle, " c%3d_%s 0x%8h",
+        //        rvfi_csr_waddr,
+        //        csr_addr_to_name(rvfi_csr_waddr),
+        //        rvfi_csr_rval
+        //    );
         $fwrite(file_handle, "\n");
     endfunction
 

@@ -9,16 +9,12 @@
 //
 
 module bytewrite_sram #(
-    parameter int BASE_ADDR0,
-    parameter int BASE_ADDR1,
     parameter string MEM_INIT_FILE0="",
     parameter string MEM_INIT_FILE1="",
     parameter int INIT_FILE_BIN0=1,
     parameter int INIT_FILE_BIN1=1,
     parameter int MEM_SIZE_WORDS0 = 2**12,
     parameter int MEM_SIZE_WORDS1 = 2**12,
-    localparam int MemSizeBytes0 = MEM_SIZE_WORDS0 * 4,
-    localparam int MemSizeBytes1 = MEM_SIZE_WORDS1 * 4,
     localparam int MemSizeWordsTotal = MEM_SIZE_WORDS0 + MEM_SIZE_WORDS1,
     localparam int AddrWidth = $clog2(MemSizeWordsTotal),
     localparam int WordSize = 32,
@@ -40,13 +36,28 @@ module bytewrite_sram #(
 logic [WordSize-1:0] RAM [MemSizeWordsTotal];
 
 initial begin
+    string mem_init_file0, mem_init_file1;
     if (MEM_INIT_FILE0 != "") begin
         if   (INIT_FILE_BIN0==1) $readmemb(MEM_INIT_FILE0, RAM, 0);
         else                     $readmemh(MEM_INIT_FILE0, RAM, 0);
+    end else begin
+        $value$plusargs("MEM_INIT_FILE0=%s", mem_init_file0);
+        if (mem_init_file0 != "") begin
+            $display("Initializing memory with: %s", mem_init_file0);
+            if   (INIT_FILE_BIN0==1) $readmemb(mem_init_file0, RAM, 0);
+            else                     $readmemh(mem_init_file0, RAM, 0);
+        end
     end
     if (MEM_INIT_FILE1 != "") begin
         if   (INIT_FILE_BIN1==1) $readmemb(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
         else                     $readmemh(MEM_INIT_FILE1, RAM, MEM_SIZE_WORDS0);
+    end else begin
+        $value$plusargs("MEM_INIT_FILE1=%s", mem_init_file1);
+        if (mem_init_file1 != "") begin
+            $display("Initializing memory with: %s", mem_init_file1);
+            if   (INIT_FILE_BIN1==1) $readmemb(mem_init_file1, RAM, MEM_SIZE_WORDS0);
+            else                     $readmemh(mem_init_file1, RAM, MEM_SIZE_WORDS0);
+        end
     end
 end
 

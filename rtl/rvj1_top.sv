@@ -27,6 +27,8 @@ module rvj1_top
   output logic              instr_req_valid_o,
   input  logic              instr_req_ready_i,
 
+  output logic              instr_ctrl_cancel_o,
+
   input  logic [XLEN-1:0] instr_rsp_data_i,
   input  logic            instr_rsp_error_i,
   input  logic            instr_rsp_valid_i,
@@ -39,6 +41,8 @@ module rvj1_top
   output logic              data_req_write_o,
   output logic              data_req_valid_o,
   input  logic              data_req_ready_i,
+
+  output logic              data_ctrl_cancel_o,
 
   input  logic [XLEN-1:0] data_rsp_data_i,
   input  logic            data_rsp_error_i,
@@ -54,31 +58,9 @@ module rvj1_top
   input logic        irq_nmi_i,
 
   // RISC-V Formal Interface
-`ifdef RVFI
-  output logic                         rvfi_valid,
-  output logic [63:0]                  rvfi_order,
-  output logic [31:0]                  rvfi_insn,
-  output logic                         rvfi_trap,
-  output logic                         rvfi_halt,
-  output logic                         rvfi_intr,
-  output logic [ 1:0]                  rvfi_mode,
-  output logic [ 1:0]                  rvfi_ixl,
-  output logic [ 4:0]                  rvfi_rs1_addr,
-  output logic [ 4:0]                  rvfi_rs2_addr,
-  output logic [31:0]                  rvfi_rs1_rdata,
-  output logic [31:0]                  rvfi_rs2_rdata,
-  output logic [ 4:0]                  rvfi_rd_addr,
-  output logic [31:0]                  rvfi_rd_wdata,
-  output logic [31:0]                  rvfi_pc_rdata,
-  output logic [31:0]                  rvfi_pc_wdata,
-  output logic [31:0]                  rvfi_mem_addr,
-  output logic [ 3:0]                  rvfi_mem_rmask,
-  output logic [ 3:0]                  rvfi_mem_wmask,
-  output logic [31:0]                  rvfi_mem_rdata,
-  output logic [31:0]                  rvfi_mem_wdata,
-`endif
-
-  input logic fetch_enable_i
+  `ifdef RVFI
+  `RVFI_OUTPUTS
+  `endif
 );
 
   /****************************************
@@ -88,6 +70,7 @@ module rvj1_top
   logic             fetched_instr_valid;
   logic [XLEN-1:0]  fetched_instr;
   logic             fetched_instr_ready;
+  logic             fetched_instr_error;
 
   // DEC/EX
   logic             control;
@@ -114,13 +97,16 @@ module rvj1_top
   logic             ctrl_branch;
   branch_ctrl_e     ctrl_branch_type;
   logic             jump;
+  logic             synhr_trap;
+  logic             fetch_error;
 
   // EXECUTE
   logic [XLEN-1:0]  alu_op_a_data;
   logic [XLEN-1:0]  alu_op_b_data;
   logic [XLEN-1:0]  alu_res;
   logic [XLEN-1:0]  program_counter;
-  logic             stall;
+  logic             stall_ex;
+  logic             stall_mem_wb;
 
   // MEM - WB
   logic             alu_write_rf_r;
@@ -144,7 +130,7 @@ module rvj1_top
   // CONTROL SIGNALS
   logic             instr_retiring;
   logic             jmp_addr_valid;
-  logic [XLEN-1:0]  jmp_addr;
+  logic [XLEN-3:0]  jmp_addr;
   logic             lsu_ready;
   logic             flush;
   logic             csr_wb;
@@ -154,10 +140,10 @@ module rvj1_top
   logic             illegal_instr;
 
   `ifdef RVFI
-  logic [11:0]      rvfi_csr_waddr;
-  logic [XLEN-1:0]  rvfi_csr_rval;
-  logic             rvfi_csr_written;
-  logic             rvfi_csr_mod;
+  rvfi_csr_t        rvfi_csr_rdata;
+  rvfi_csr_t        rvfi_csr_rmask;
+  rvfi_csr_t        rvfi_csr_wdata;
+  rvfi_csr_t        rvfi_csr_wmask;
  `endif
 
   logic             load_addr_misaligned;
@@ -183,6 +169,8 @@ module rvj1_top
     .instr_req_valid_o  (instr_req_valid_o),
     .instr_req_ready_i  (instr_req_ready_i),
 
+    .instr_ctrl_cancel_o(instr_ctrl_cancel_o),
+
     .instr_rsp_data_i   (instr_rsp_data_i),
     .instr_rsp_error_i  (instr_rsp_error_i),
     .instr_rsp_valid_i  (instr_rsp_valid_i),
@@ -191,12 +179,10 @@ module rvj1_top
     .dec_instr_o        (fetched_instr),
     .dec_valid_o        (fetched_instr_valid),
     .dec_ready_i        (fetched_instr_ready),
+    .dec_error_o        (fetched_instr_error),
 
     .jmp_addr_valid_i   (jmp_addr_valid),
-    .jmp_addr_i         (jmp_addr),
-
-    .instr_fetch_err_o  (),
-    .instr_fault_addr_o ()
+    .jmp_addr_i         (jmp_addr)
   );
 
 
@@ -209,11 +195,13 @@ module rvj1_top
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
-    .stall_i             (stall),
+    .ifu_error_i         (fetched_instr_error),
+    .stall_i             (stall_ex),
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
     .control_o           (control),
     .illegal_instr_o     (illegal_instr),
+    .fetch_error_o       (fetch_error),
     `ifdef RVFI
     .instr_exec_o        (instr_exec),
     `endif
@@ -241,7 +229,6 @@ module rvj1_top
   /*********************************************
   * INSTRUCTION EXECUTE STAGE - ALU/REGFILE/MUX
   *********************************************/
-
   rvj1_regfile regfile_inst(
     .clk_i      (clk_i),
     .rstn_i     (rstn_i),
@@ -264,46 +251,50 @@ module rvj1_top
     .res_o  (alu_res)
   );
 
-  pipeline_register #(
-    .WORD_WIDTH  (1 + RALEN + XLEN + 1 + $bits(lsu_ctrl_e) + XLEN + 1 + 1 + 12 + $bits(csr_cmd_t)),
+  register #(
+    .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
     .RESET_VALUE (0)
-  ) ex_mem_stage_reg (
+  ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
-    .ce   (control && ~stall),
-    .in   ({alu_write_rf,   regdest,   alu_res,   lsu_ctrl_valid,   lsu_ctrl,   regs2_data,   jump,   csr_valid,   csr_addr,   csr_cmd}),
-    .out  ({alu_write_rf_r, regdest_r, alu_res_r, lsu_ctrl_valid_r, lsu_ctrl_r, regs2_data_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
+    .rstn (rstn_i && ~flush),
+    .ce   (control && ~stall_mem_wb),
+    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid && ~stall_ex,   lsu_ctrl,
+            alu_write_rf && ~stall_ex,   jump && ~stall_ex,   csr_valid && ~stall_ex,   csr_addr,   csr_cmd}),
+    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r,
+            alu_write_rf_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );
 
   /*********************************************
   * MEMORY ACCESS STAGE
   *********************************************/
   rvj1_lsu lsu_inst(
-    .clk_i                   (clk_i),
-    .rstn_i                  (rstn_i),
-    .lsu_valid_i             (lsu_ctrl_valid_r),
-    .lsu_ready_o             (lsu_ready),
-    .lsu_cmd_i               (lsu_ctrl_r),
-    .lsu_addr_i              (alu_res_r),
-    .lsu_data_i              (regs2_data_r),
-    .lsu_regdest_i           (regdest_r),
-    .rf_data_o               (lsu_wb_data),
-    .rf_wb_o                 (lsu_wb_valid),
-    .rf_dest_o               (lsu_wb_regdest),
-    .load_addr_misaligned_o  (load_addr_misaligned),
-    .load_access_fault_o     (load_access_fault),
-    .store_addr_misaligned_o (store_addr_misaligned),
-    .store_access_fault_o    (store_access_fault),
-    .lsu_exc_addr_o          (lsu_exc_addr),
-    .data_req_addr_o         (data_req_addr_o),
-    .data_req_data_o         (data_req_data_o),
-    .data_req_strobe_o       (data_req_strobe_o),
-    .data_req_write_o        (data_req_write_o),
-    .data_req_valid_o        (data_req_valid_o),
-    .data_req_ready_i        (data_req_ready_i),
-    .data_rsp_data_i         (data_rsp_data_i),
-    .data_rsp_error_i        (data_rsp_error_i),
-    .data_rsp_valid_i        (data_rsp_valid_i),
-    .data_rsp_ready_o        (data_rsp_ready_o)
+    .clk_i                      (clk_i),
+    .rstn_i                     (rstn_i),
+    .lsu_valid_i                (lsu_ctrl_valid_r),
+    .lsu_ready_o                (lsu_ready),
+    .lsu_cmd_i                  (lsu_ctrl_r),
+    .lsu_addr_i                 (alu_res_r),
+    .lsu_data_i                 (regs2_data_r),
+    .lsu_regdest_i              (regdest_r),
+    .rf_data_o                  (lsu_wb_data),
+    .rf_wb_o                    (lsu_wb_valid),
+    .rf_dest_o                  (lsu_wb_regdest),
+    .exc_load_addr_misaligned_o (load_addr_misaligned),
+    .exc_load_access_fault_o    (load_access_fault),
+    .exc_store_addr_misaligned_o(store_addr_misaligned),
+    .exc_store_access_fault_o   (store_access_fault),
+    .exc_addr_o                 (lsu_exc_addr),
+    .data_req_addr_o            (data_req_addr_o),
+    .data_req_data_o            (data_req_data_o),
+    .data_req_strobe_o          (data_req_strobe_o),
+    .data_req_write_o           (data_req_write_o),
+    .data_req_valid_o           (data_req_valid_o),
+    .data_req_ready_i           (data_req_ready_i),
+    .data_ctrl_cancel_o         (data_ctrl_cancel_o),
+    .data_rsp_data_i            (data_rsp_data_i),
+    .data_rsp_error_i           (data_rsp_error_i),
+    .data_rsp_valid_i           (data_rsp_valid_i),
+    .data_rsp_ready_o           (data_rsp_ready_o)
   );
 
 
@@ -336,7 +327,10 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we   = lsu_wb_valid || alu_write_rf_r || (jump_r && ~stop_jmp_write) || csr_wb;
+  assign wpc_we = ((lsu_wb_valid && ~stall_mem_wb) ||
+                   (alu_write_rf_r  && ~stall_mem_wb) ||
+                   (jump_r && ~stop_jmp_write) ||
+                   csr_wb);
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
@@ -357,15 +351,18 @@ module rvj1_top
     .regdest_r_i            (regdest_r),
     .lsu_cmd_i              (lsu_ctrl),
     .lsu_ctrl_valid_i       (lsu_ctrl_valid),
+    .lsu_ctrl_valid_r_i     (lsu_ctrl_valid_r),
     .lsu_ready_i            (lsu_ready),
+    .lsu_wb_i               (lsu_wb_valid),
     .ctrl_jump_i            (jump),
     .alu_res_r_i            (alu_res_r),
     .ctrl_branch_i          (ctrl_branch),
     .ctrl_branch_type_i     (ctrl_branch_type),
-    .instr_issued_i         (instr_issued),
+    .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .instr_retiring_o       (instr_retiring),
-    .stall_o                (stall),
+    .stall_ex_o             (stall_ex),
+    .stall_mem_wb_o         (stall_mem_wb),
     .program_counter_o      (program_counter),
     .flush_o                (flush),
     .stop_jmp_write_o       (stop_jmp_write),
@@ -387,17 +384,18 @@ module rvj1_top
     .mret_insn_i            (mret_insn),
     .ebreak_insn_i          (ebreak_insn),
     .illegal_instr_i        (illegal_instr),
-    `ifdef RVFI
-    .rvfi_csr_waddr_o       (rvfi_csr_waddr),
-    .rvfi_csr_rval_o        (rvfi_csr_rval),
-    .rvfi_csr_written_o     (rvfi_csr_written),
-    .rvfi_csr_mod_o         (rvfi_csr_mod),
-  `endif
     .load_addr_misaligned_i (load_addr_misaligned),
     .load_access_fault_i    (load_access_fault),
     .store_addr_misaligned_i(store_addr_misaligned),
     .store_access_fault_i   (store_access_fault),
-    .lsu_exc_addr_i         (lsu_exc_addr)
+    .lsu_exc_addr_i         (lsu_exc_addr),
+    `ifdef RVFI
+    .rvfi_csr_rdata         (rvfi_csr_rdata),
+    .rvfi_csr_rmask         (rvfi_csr_rmask),
+    .rvfi_csr_wdata         (rvfi_csr_wdata),
+    .rvfi_csr_wmask         (rvfi_csr_wmask),
+    .synhr_trap_o           (synhr_trap)
+    `endif
   );
 
   /*********************************************
@@ -405,76 +403,95 @@ module rvj1_top
   * https://yosyshq.readthedocs.io/projects/riscv-formal/en/latest/rvfi.html
   *********************************************/
   `ifdef RVFI
-  logic instr_retired;
   logic simple_insn_issued;
   logic branch_insn_issued;
   logic load_insn_issued;
+  logic store_insn_issued;
   logic csr_insn_issued;
-  rvfi_stage_info_t exec_stage_comb, mem_stage, wb_stage, retired_stage;
-  logic [11:0]      rvfi_csr_waddr_r;
-  logic [XLEN-1:0]  rvfi_csr_rval_r;
-  logic             rvfi_csr_written_r;
-  logic             rvfi_csr_mod_r;
+  rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
+  logic [3:0] strobe_sig;
+  logic retiring;
+  logic first_insn_of_trap;
 
-  assign simple_insn_issued = instr_issued && instr_will_retire && ~stall;
-  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall;
-  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall;
-  assign csr_insn_issued = instr_issued && csr_valid && ~stall;
+  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall_ex && ~illegal_instr;
+  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall_ex && ~illegal_instr;
+  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
+  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
+  assign csr_insn_issued = instr_issued && csr_valid && ~stall_ex && ~illegal_instr;
 
+  always_comb begin
+    exec_stage_comb.instr          = instr_exec;
+    exec_stage_comb.rs1_addr       = rpa_or_pc  ? rf_addr_a : '0;
+    exec_stage_comb.rs2_addr       = rpb_or_imm ? rf_addr_b : '0;
+    exec_stage_comb.rs1_rdata      = rpa_or_pc  ? regs1_data : '0;
+    exec_stage_comb.rs2_rdata      = rpb_or_imm ? regs2_data : '0;
+    exec_stage_comb.rd_addr        = '0; // written in WB
+    exec_stage_comb.alu_res        = alu_res;
+    exec_stage_comb.pc_rdata       = program_counter;
+    exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
+    exec_stage_comb.lsu_cmd        = lsu_ctrl;
+    exec_stage_comb.lsu_strobe     = 4'b0;
+    exec_stage_comb.lsu_addr       =  {alu_res[31:2], 2'b00};
+    exec_stage_comb.lsu_rdata      = 32'b0;
+    exec_stage_comb.lsu_wdata      = 32'b0;
+    exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
+    exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
+    exec_stage_comb.rd_wdata       = alu_res;
+    exec_stage_comb.trap           = synhr_trap;
+  end
+
+   cmd_to_strobe cmd2strb_dummy (
+    .cmd(exec_stage_comb.lsu_cmd),
+    .addr(exec_stage_comb.alu_res[1:0]),
+    .strobe(strobe_sig)
+  );
+  // Store instructions use expected values in the RVFI. This is because they are
+  // retired (from the point of view of the core) immediately. Howver, RVFI if needs
+  // information on the mutated state outside of the CPU. To satisfy this requirement
+  // we duplicate the logic from the LSU. This allows write to finnish at any time (e.g,
+  // if the slave device is not ready), but the RVFI is still in order.
   always_ff @(posedge clk_i) begin
-    if (~rstn_i) begin
-      rvfi_csr_waddr_r   <= '0;
-      rvfi_csr_rval_r    <= '0;
-      rvfi_csr_written_r <= '0;
-      rvfi_csr_mod_r     <= '0;
-    end else begin
-      rvfi_csr_waddr_r   <= rvfi_csr_waddr;
-      rvfi_csr_rval_r    <= rvfi_csr_rval;
-      rvfi_csr_written_r <= rvfi_csr_written;
-      rvfi_csr_mod_r     <= rvfi_csr_mod;
+    if (~rstn_i)
+      mem_wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
+    else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
+      mem_wb_stage <= exec_stage_comb;
+    else if (store_insn_issued) begin
+      mem_wb_stage <= exec_stage_comb;
+      mem_wb_stage.lsu_strobe <= strobe_sig;
+      mem_wb_stage.lsu_addr <= {alu_res[31:2], 2'b00};
+      mem_wb_stage.lsu_wdata <= exec_stage_comb.rs2_rdata;
+    end
+    else if (load_insn_issued)
+      mem_wb_stage <= exec_stage_comb;
+    else if (data_req_valid_o && data_req_ready_i && ~data_req_write_o) begin // load
+      mem_wb_stage.lsu_strobe <= data_req_strobe_o;
+      mem_wb_stage.lsu_addr <= data_req_addr_o;
+    end
+  end
+  always_ff @(posedge clk_i) begin
+    if (retiring) begin
+      retired_stage <= mem_wb_stage;
+      retired_stage.rd_addr  <= (wpc_we) ? wpc_addr : '0;
+      retired_stage.rd_wdata <= (wpc_we) ? wpc_data : '0;
+      if (lsu_wb_valid)
+        retired_stage.lsu_rdata <= wpc_data;
+      else
+        retired_stage.jmp_addr <= {jmp_addr, 2'b00};
     end
   end
 
-  always_comb begin
-    exec_stage_comb.instr         = instr_exec;
-    exec_stage_comb.rs1_addr      = rf_addr_a;
-    exec_stage_comb.rs2_addr      = rf_addr_b;
-    exec_stage_comb.rs1_rdata     = regs1_data;
-    exec_stage_comb.rs2_rdata     = regs2_data;
-    exec_stage_comb.rd_addr       = regdest;
-    exec_stage_comb.alu_res       = alu_res;
-    exec_stage_comb.pc_rdata      = program_counter;
-    exec_stage_comb.lsu_cmd_valid = lsu_ctrl_valid;
-    exec_stage_comb.lsu_cmd       = lsu_ctrl;
-  end
-
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      mem_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (load_insn_issued)
-      mem_stage <= exec_stage_comb;
-  end
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
-      wb_stage <= exec_stage_comb;
-    else if (lsu_wb_valid)
-      wb_stage <= mem_stage;
-  end
-  always_ff @(posedge clk_i)
-    retired_stage <= wb_stage;
-
-  always_ff @(posedge clk_i)
-    wb_collison: assert ($onehot0({simple_insn_issued, lsu_wb_valid, csr_wb}));
-
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      instr_retired <= 1'b0;
-    else
-      instr_retired <= instr_retiring && ~store_addr_misaligned && ~stop_jmp_write;
-  end
-  assign rvfi_valid = instr_retired;
+  assign retiring = (instr_retiring &&
+                     ~store_addr_misaligned &&
+                     ~stop_jmp_write &&
+                     ~illegal_instr &&
+                     ~stall_mem_wb);
+  register insn_retired_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (retiring),
+    .out  (rvfi_valid)
+  );
   counter #(
     .WORD_WIDTH (64),
     .RESET_VALUE(0)
@@ -484,75 +501,39 @@ module rvj1_top
     .ce   (rvfi_valid),
     .count(rvfi_order)
   );
+  register next_insn_is_trap_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (rvfi_valid),
+    .in   (retired_stage.trap),
+    .out  (first_insn_of_trap)
+  );
   assign rvfi_insn = retired_stage.instr;
-  assign rvfi_trap = 1'b0; // TODO
-  assign rvfi_halt = 1'b0; // TODO
-  assign rvfi_intr = 1'b0; // TODO
+  assign rvfi_trap = retired_stage.trap;
+  assign rvfi_halt = 1'b0;
+  assign rvfi_intr = first_insn_of_trap;
   assign rvfi_mode = 2'b11; // M-mode only
   assign rvfi_ixl  = 2'b01; // MXL = 32
-
   assign rvfi_rs1_addr = retired_stage.rs1_addr;
   assign rvfi_rs2_addr = retired_stage.rs2_addr;
   assign rvfi_rs1_rdata = retired_stage.rs1_rdata;
   assign rvfi_rs2_rdata = retired_stage.rs2_rdata;
-
   assign rvfi_rd_addr = retired_stage.rd_addr;
-
-  logic [XLEN-1:0] wpc_data_r;
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      wpc_data_r <= '0;
-    else if (jump_r || lsu_wb_valid || alu_write_rf_r || csr_wb)
-      wpc_data_r <= wpc_data;
-  end
-  assign rvfi_rd_wdata = wpc_data_r;
-
+  assign rvfi_rd_wdata = retired_stage.rd_wdata;
   assign rvfi_pc_rdata = retired_stage.pc_rdata;
-  assign rvfi_pc_wdata = jmp_addr_valid ? jmp_addr : (retired_stage.pc_rdata + 4);
+  assign rvfi_pc_wdata = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
+  assign rvfi_mem_addr = retired_stage.lsu_addr;
+  assign rvfi_mem_rmask = retired_stage.lsu_strobe;
+  assign rvfi_mem_wmask = retired_stage.lsu_strobe;
+  assign rvfi_mem_rdata = retired_stage.lsu_rdata;
+  assign rvfi_mem_wdata = retired_stage.lsu_wdata;
 
-  assign rvfi_mem_addr = retired_stage.alu_res;
-  logic [3:0] strobe_sig;
-  // This module is used also in LSU! It was just easier to instatiate
-  // another copy here.
-  cmd_to_strobe cmd2strb_dummy (
-    .cmd(retired_stage.lsu_cmd),
-    .addr(retired_stage.alu_res[1:0]),
-    .strobe(strobe_sig)
-  );
-  assign rvfi_mem_rmask = strobe_sig;
-  assign rvfi_mem_wmask = strobe_sig;
-  assign rvfi_mem_rdata = lsu_wb_data;
-  assign rvfi_mem_wdata = retired_stage.rs2_rdata;
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
-      .clk              (clk_i),
-      .rvfi_valid       (rvfi_valid),
-      .rvfi_order       (rvfi_order),
-      .rvfi_insn        (rvfi_insn),
-      .rvfi_trap        (rvfi_trap),
-      .rvfi_halt        (rvfi_halt),
-      .rvfi_intr        (rvfi_intr),
-      .rvfi_mode        (rvfi_mode),
-      .rvfi_ixl         (rvfi_ixl),
-      .rvfi_rs1_addr    (rvfi_rs1_addr),
-      .rvfi_rs2_addr    (rvfi_rs2_addr),
-      .rvfi_rs1_rdata   (rvfi_rs1_rdata),
-      .rvfi_rs2_rdata   (rvfi_rs2_rdata),
-      .rvfi_rd_addr     (rvfi_rd_addr),
-      .rvfi_rd_wdata    (rvfi_rd_wdata),
-      .rvfi_pc_rdata    (rvfi_pc_rdata),
-      .rvfi_pc_wdata    (rvfi_pc_wdata),
-      .rvfi_mem_addr    (rvfi_mem_addr),
-      .rvfi_mem_rmask   (rvfi_mem_rmask),
-      .rvfi_mem_wmask   (rvfi_mem_wmask),
-      .rvfi_mem_rdata   (rvfi_mem_rdata),
-      .rvfi_mem_wdata   (rvfi_mem_wdata),
-      .rvfi_csr_waddr   (rvfi_csr_waddr_r),
-      .rvfi_csr_rval    (rvfi_csr_rval_r),
-      .rvfi_csr_written (rvfi_csr_written_r),
-      .rvfi_csr_mod     (rvfi_csr_mod_r)
+      .clk (clk_i),
+      `RVFI_CONN
     );
-  `endif
-  `endif
+  `endif // RVFI_TRACE
+  `endif // RVFI
 
 endmodule

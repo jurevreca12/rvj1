@@ -35,6 +35,23 @@ class LsuRequest(BaseTransaction):
 
 
 @dataclass(kw_only=True)
-class LsuRfRequest(BaseTransaction):
+class LsuRfResponse(BaseTransaction):
     data: int = 0
     regdest: int = 0
+
+@dataclass(kw_only=True)
+class LsuExcResponse(BaseTransaction):
+    load_addr_misaligned: bool = False
+    load_access_fault: bool = False
+    store_addr_misaligned: bool = False
+    store_access_fault: bool = False
+    exc_addr: int
+
+
+@dataclass(kw_only=True)
+class IfuJmpRequest(BaseTransaction):
+    addr: int = 0
+
+@dataclass(kw_only=True)
+class IfuErrorResponse(BaseTransaction):
+    addr: int = 0

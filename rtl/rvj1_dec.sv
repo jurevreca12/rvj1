@@ -19,15 +19,17 @@ module rvj1_dec
   input logic clk_i,
   input logic rstn_i,
 
-  input  logic [XLEN-1:0] ifu_instr_i,        // Instructions coming in from memory/cache
+  input  logic [XLEN-1:0] ifu_instr_i,       // Instructions coming in from memory/cache
   input  logic            ifu_valid_i,
   output logic            ifu_ready_o,       // Ready for instructions.
+  input  logic            ifu_error_i,       // Fetch error
 
   input  logic            stall_i,
   output logic            instr_issued_o,
   output logic            instr_will_retire_o,
   output logic            control_o, // signals that controls signals have been activated
   output logic            illegal_instr_o,
+  output logic            fetch_error_o,
 
   `ifdef RVFI
   output logic [XLEN-1:0] instr_exec_o, // the word of the instruction currently being executed
@@ -94,8 +96,7 @@ logic [XLEN-1:0] imm_j_type;
 
 typedef enum logic [1:0] {
   eDEC_FIRST_CYCLE,
-  eDEC_SECOND_CYCLE,
-  eDEC_THIRD_CYCLE
+  eDEC_SECOND_CYCLE
 } dec_fsm_e;
 dec_fsm_e state, state_next;
 
@@ -120,8 +121,11 @@ function automatic logic is_shift(input f3_imm_e f3);
   return (f3 == F3_SRLI_SRAI) || (f3 == F3_SRLI_SRAI);
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift_imm_e f7);
+function automatic alu_op_e f3_7_to_alu_imm_op(
+  input f3_imm_e f3, input f7_shift_imm_e f7, output logic error
+);
   alu_op_e op = ALU_OP_ADD;
+  error = 1'b0;
   unique case (f3)
     F3_ADDI:  op = ALU_OP_ADD;
     F3_SLTI:  op = ALU_OP_SLT;
@@ -130,27 +134,33 @@ function automatic alu_op_e f3_7_to_alu_imm_op(input f3_imm_e f3, input f7_shift
     F3_ORI:   op = ALU_OP_OR;
     F3_ANDI:  op = ALU_OP_AND;
     F3_SLLI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+        default: error = 1'b1;
       endcase
     end
     F3_SRLI_SRAI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+        F7_SRAI_SUB:       op = ALU_OP_SRA;
+        default: error = 1'b1;
       endcase
     end
   endcase
   return op;
 endfunction
 
-function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_imm_e f7);
+function automatic alu_op_e f3_7_to_alu_rr_op(
+  input f3_imm_e f3, input f7_shift_imm_e f7, output logic error
+);
   alu_op_e op = ALU_OP_ADD;
+  error = 1'b0;
   unique case (f3)
     F3_ADDI: begin
-      case (f7)
+      unique case (f7)
           F7_SLLI_SRLI_ADDI: op = ALU_OP_ADD;
           F7_SRAI_SUB:       op = ALU_OP_SUB;
+          default: error = 1'b1;
       endcase
     end
     F3_SLTI:  op = ALU_OP_SLT;
@@ -159,14 +169,16 @@ function automatic alu_op_e f3_7_to_alu_rr_op(input f3_imm_e f3, input f7_shift_
     F3_ORI:   op = ALU_OP_OR;
     F3_ANDI:  op = ALU_OP_AND;
     F3_SLLI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SLL;
+        default: error = 1'b1;
       endcase
     end
     F3_SRLI_SRAI: begin
-      case (f7)
+      unique case (f7)
         F7_SLLI_SRLI_ADDI: op = ALU_OP_SRL;
-        F7_SRAI_SUB:       op = ALU_OP_SRA; // TODO add error for invalid encodings
+        F7_SRAI_SUB:       op = ALU_OP_SRA;
+        default: error = 1'b1;
       endcase
     end
   endcase
@@ -175,6 +187,43 @@ endfunction
 
 function automatic lsu_ctrl_e f3_to_lsu_ctrl(input logic [2:0] f3, input logic is_write);
   return lsu_ctrl_e'({is_write, f3});
+endfunction
+
+function automatic logic f3_valid_load(input logic [2:0] f3);
+  return ((f3 == 3'b000) || (f3 == 3'b001) || (f3 == 3'b010) || (f3 == 3'b100) || (f3 == 3'b101));
+endfunction
+
+function automatic logic f3_valid_store(input logic [2:0] f3);
+  return ((f3 == 3'b000) || (f3 == 3'b001) || (f3 == 3'b010));
+endfunction
+
+function automatic logic f3_f7_valid_opimm(input logic [2:0] f3, input logic [6:0] f7);
+  logic valid = 1'b0;
+  if (f3 == 3'b001)
+    valid = (f7 == 7'b000_0000);
+  else if (f3 == 3'b101)
+    valid = (f7 == 7'b000_0000 || f7  == 7'b010_0000);
+  else
+    valid = 1'b1;
+  return valid;
+endfunction
+
+function automatic logic f3_f7_valid_op(input logic [2:0] f3, input logic [6:0] f7);
+  logic valid = 1'b0;
+  if (f3 == 3'b000 || f3 == 3'b101)
+    valid = (f7 == 7'b000_0000 || f7  == 7'b010_0000);
+  else
+    valid = (f7 == 7'b000_0000);
+  return valid;
+endfunction
+
+function automatic logic f3_branch_valid(input logic [2:0] f3);
+  return ((f3 == 3'b000) ||
+          (f3 == 3'b001) ||
+          (f3 == 3'b100) ||
+          (f3 == 3'b101) ||
+          (f3 == 3'b110) ||
+          (f3 == 3'b111));
 endfunction
 
 function automatic alu_op_e branch_type_to_alu_op(input branch_ctrl_e f3);
@@ -197,10 +246,21 @@ endfunction
 function automatic logic is_priv_non_csr_instr(
   input logic [4:0]  rs1,
   input logic [4:0]  rd,
-  input logic [2:0]  f3);
+  input logic [2:0]  f3,
+  input logic [11:0] imm12);
   return ((rs1 == 5'b0) &&
           (rd == 5'b0) &&
-          (f3 == 3'b0));
+          (f3 == 3'b0) &&
+          ((imm12 == 12'b0) || (imm12 == 12'b0000_0000_0001) || (imm12 == 12'b001100000010)));
+endfunction
+
+function automatic logic f3_is_csr_instr(input logic [2:0] f3);
+  return ((f3 == 3'b001) ||
+          (f3 == 3'b010) ||
+          (f3 == 3'b011) ||
+          (f3 == 3'b101) ||
+          (f3 == 3'b110) ||
+          (f3 == 3'b111));
 endfunction
 
 function automatic csr_cmd_t f3_to_csr_cmd(input logic [2:0] f3);
@@ -243,7 +303,7 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 * Instruction issuing
 *************************************/
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
-assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE);
+assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE) && ~illegal_instr_o;
 assign update_output = ifu_fire ||  (state != eDEC_FIRST_CYCLE && ~stall_i);
 assign reset_output  = ~rstn_i  || (~update_output && ~stall_i);
 always_ff @(posedge clk_i) begin
@@ -286,6 +346,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= 1'b0;
     illegal_instr_o     <= 1'b0;
     ebreak_insn_o       <= 1'b0;
+    fetch_error_o       <= 1'b0;
   end
   else if (update_output) begin
     rf_addr_a_o         <= rf_addr_a;
@@ -304,7 +365,7 @@ always_ff @(posedge clk_i) begin
     state               <= state_next;
     instr_issued_o      <= instr_issued;
     instr_will_retire_o <= instr_will_retire;
-    control_o           <= 1'b1;
+    control_o           <= ~ifu_error_i;
     csr_valid_o         <= csr_valid;
     csr_addr_o          <= csr_addr;
     csr_cmd_o           <= csr_cmd;
@@ -312,6 +373,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= mret_insn;
     illegal_instr_o     <= illegal_instr;
     ebreak_insn_o       <= ebreak_insn;
+    fetch_error_o       <= ifu_error_i;
   end
 end
 
@@ -345,20 +407,28 @@ begin
   illegal_instr     = 1'b0;
   unique case (opcode)
     OPCODE_OPIMM: begin
-      rf_addr_a    = regs1;
-      alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-      rpb_or_imm   = 1'b1;
-      alu_write_rf = 1'b1;
-      immediate    = imm_i_type;
-      regdest2     = regdest;
+      if (f3_f7_valid_opimm(funct3, funct7)) begin
+        rf_addr_a    = regs1;
+        alu_sel      = f3_7_to_alu_imm_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7), illegal_instr);
+        rpb_or_imm   = 1'b1;
+        alu_write_rf = 1'b1;
+        immediate    = imm_i_type;
+        regdest2     = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_OP: begin
-      rf_addr_a    = regs1;
-      rf_addr_b    = regs2;
-      alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7));
-      alu_write_rf = 1'b1;
-      regdest2     = regdest;
+      if (f3_f7_valid_op(funct3, funct7)) begin
+        rf_addr_a    = regs1;
+        rf_addr_b    = regs2;
+        alu_sel      = f3_7_to_alu_rr_op(f3_imm_e'(funct3), f7_shift_imm_e'(funct7), illegal_instr);
+        alu_write_rf = 1'b1;
+        regdest2     = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_LUI: begin
@@ -377,22 +447,30 @@ begin
     end
 
     OPCODE_STORE: begin
-      rpb_or_imm     = 1'b1;
-      immediate      = imm_s_type;
-      rf_addr_a      = regs1;
-      rf_addr_b      = regs2;
-      lsu_ctrl_valid = 1'b1;
-      lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b1);
+      if (f3_valid_store(funct3)) begin
+        rpb_or_imm     = 1'b1;
+        immediate      = imm_s_type;
+        rf_addr_a      = regs1;
+        rf_addr_b      = regs2;
+        lsu_ctrl_valid = 1'b1;
+        lsu_ctrl       = f3_to_lsu_ctrl(funct3, 1'b1);
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_LOAD: begin
-      rpb_or_imm        = 1'b1;
-      immediate         = imm_i_type;
-      rf_addr_a         = regs1;
-      lsu_ctrl_valid    = 1'b1;
-      lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
-      instr_will_retire = 1'b0;
-      regdest2          = regdest;
+      if (f3_valid_load(funct3)) begin
+        rpb_or_imm        = 1'b1;
+        immediate         = imm_i_type;
+        rf_addr_a         = regs1;
+        lsu_ctrl_valid    = 1'b1;
+        lsu_ctrl          = f3_to_lsu_ctrl(funct3, 1'b0);
+        instr_will_retire = 1'b0;
+        regdest2          = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_JAL: begin
@@ -404,45 +482,53 @@ begin
     end
 
     OPCODE_JALR: begin
-      rpb_or_imm = 1'b1;
-      immediate  = imm_i_type;
-      rf_addr_a  = regs1;
-      ctrl_jump  = 1'b1;
-      regdest2   = regdest;
+      if (funct3 == 3'b000) begin
+        rpb_or_imm = 1'b1;
+        immediate  = imm_i_type;
+        rf_addr_a  = regs1;
+        ctrl_jump  = 1'b1;
+        regdest2   = regdest;
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_BRANCH: begin
-      unique case (state)
-        // First cycle calculates condition
-        eDEC_FIRST_CYCLE: begin
-          rf_addr_a         = regs1;
-          rf_addr_b         = regs2;
-          alu_sel           = branch_type_to_alu_op( branch_ctrl_e'(funct3));
-          ctrl_branch       = 1'b1;
-          ctrl_branch_type  = branch_ctrl_e'(funct3);
-          state_next        = eDEC_SECOND_CYCLE;
-          instr_will_retire = 1'b0;
-        end
-        // Jump if condition is met
-        eDEC_SECOND_CYCLE: begin
-          rpa_or_pc    = 1'b1;
-          rpb_or_imm   = 1'b1;
-          immediate    = imm_b_type;
-          instr_issued = 1'b0;
-        end
-        default:;
-      endcase
+      if (f3_branch_valid(funct3)) begin
+        unique case (state)
+          // First cycle calculates condition
+          eDEC_FIRST_CYCLE: begin
+            rf_addr_a         = regs1;
+            rf_addr_b         = regs2;
+            alu_sel           = branch_type_to_alu_op( branch_ctrl_e'(funct3));
+            ctrl_branch       = 1'b1;
+            ctrl_branch_type  = branch_ctrl_e'(funct3);
+            state_next        = eDEC_SECOND_CYCLE;
+            instr_will_retire = 1'b0;
+          end
+          // Jump if condition is met
+          eDEC_SECOND_CYCLE: begin
+            rpa_or_pc    = 1'b1;
+            rpb_or_imm   = 1'b1;
+            immediate    = imm_b_type;
+            instr_issued = 1'b0;
+          end
+          default:;
+        endcase
+      end else begin
+        illegal_instr = 1'b1;
+      end
     end
 
     OPCODE_SYSTEM: begin
-      if (is_priv_non_csr_instr(regs1, regdest, funct3)) begin
+      if (is_priv_non_csr_instr(regs1, regdest, funct3, csr_addr)) begin
         if (csr_addr == '0) // ECALL
           ecall_insn = 1'b1;
         else if ((funct7 == 7'b0011000) && (regs2 == 5'b00010)) // MRET
           mret_insn = 1'b1;
         else if (csr_addr == 12'b0000_0000_0001) // EBREAK
           ebreak_insn = 1'b1;
-      end else begin
+      end else if (f3_is_csr_instr(funct3)) begin
         regdest2 = regdest;
         unique case (state)
           eDEC_FIRST_CYCLE: begin
@@ -460,14 +546,11 @@ begin
           end
           eDEC_SECOND_CYCLE: begin;
             instr_issued = 1'b0;
-            state_next   = eDEC_THIRD_CYCLE;
             instr_will_retire = 1'b1;
           end
-          eDEC_THIRD_CYCLE: begin;  // wait a cycle
-            instr_issued = 1'b0;
-            instr_will_retire = 1'b0;
-          end
         endcase
+      end else begin
+        illegal_instr = 1'b1;
       end
     end
     OPCODE_MISCMEM: begin

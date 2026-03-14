@@ -55,7 +55,7 @@ typedef struct packed {
 
 typedef struct packed {
   lsu_ctrl_e        cmd;
-  logic [1:0]       byteaddr;
+  logic [XLEN-1:0]  addr;
   logic [RALEN-1:0] regdest;
 } lsu_act_req_t;
 
@@ -105,11 +105,11 @@ module rvj1_lsu (
     output logic [RALEN-1:0] rf_dest_o,
 
     // Interface to the core controller
-    output logic            load_addr_misaligned_o,
-    output logic            load_access_fault_o,
-    output logic            store_addr_misaligned_o,
-    output logic            store_access_fault_o,
-    output logic [XLEN-1:0] lsu_exc_addr_o,
+    output logic            exc_load_addr_misaligned_o,
+    output logic            exc_load_access_fault_o,
+    output logic            exc_store_addr_misaligned_o,
+    output logic            exc_store_access_fault_o,
+    output logic [XLEN-1:0] exc_addr_o,
 
     // Interface to data RAM
     output logic [XLEN-1:0]   data_req_addr_o,
@@ -119,6 +119,8 @@ module rvj1_lsu (
     output logic              data_req_valid_o,
     input  logic              data_req_ready_i,
 
+    output logic              data_ctrl_cancel_o,
+
     input  logic [XLEN-1:0] data_rsp_data_i,
     input  logic            data_rsp_error_i,
     input  logic            data_rsp_valid_i,
@@ -127,6 +129,7 @@ module rvj1_lsu (
 
 lsu_state_e state, state_next;
 
+logic         data_req_valid;
 logic         req_buff_inp_ready;
 lsu_req_t     req_buff_out_data;
 logic         act_req_buff_out_valid;
@@ -134,13 +137,15 @@ lsu_act_req_t act_req_buff_out_data;
 logic         act_req_buff_inp_ready;
 logic         rsp_buff_out_valid;
 lsu_rsp_t     rsp_buff_out_data;
+logic         act_req_buff_empty;
+logic         resp_buff_ready;
 logic         exception;
 
 logic [XLEN-1:0] byte_select_read_data;
 
 logic retire_request;
 
-logic data_req_fire, data_rsp_fire;
+logic data_req_fire;
 logic read_req, read_rsp, req_full, req_ready;
 logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
 
@@ -156,8 +161,8 @@ logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
   .read_error_o  (load_addr_misaligned)
 );
 assign addr_misaligned = store_addr_misaligned || load_addr_misaligned;
-assign load_addr_misaligned_o = load_addr_misaligned  && lsu_valid_i && lsu_ready_o;
-assign store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu_ready_o;
+assign exc_load_addr_misaligned_o = load_addr_misaligned  && lsu_valid_i && lsu_ready_o;
+assign exc_store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu_ready_o;
 
 /*************************************
 * Data Path
@@ -172,10 +177,14 @@ skidbuffer #(
   .input_ready  (req_buff_inp_ready),
   .input_data   ({lsu_cmd_i, lsu_addr_i, lsu_data_i, lsu_regdest_i}),
 
-  .output_valid (data_req_valid_o),
-  .output_ready (data_req_ready_i),
-  .output_data  (req_buff_out_data)
+  .output_valid (data_req_valid),
+  .output_ready (data_req_ready_i && act_req_buff_inp_ready),
+  .output_data  (req_buff_out_data),
+  // verilator lint_off PINCONNECTEMPTY
+  .empty        ()
+  // verilator lint_on PINCONNECTEMPTY
 );
+assign data_req_valid_o = data_req_valid && act_req_buff_inp_ready;
 assign data_req_addr_o  = {req_buff_out_data.addr[31:2], 2'b00};
 byte_select_write bsw_inst(
   .data(req_buff_out_data.data),
@@ -190,14 +199,9 @@ cmd_to_strobe cmd_to_strobe_inst (
 );
 assign data_req_write_o  = is_write_cmd(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
-assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 
-assign exception = store_access_fault_o || load_access_fault_o;
-always_comb begin
-  lsu_exc_addr_o = 32'b0;
-  if (exception)
-    lsu_exc_addr_o = req_buff_out_data.addr;
-end
+// There is no speculative data writing/reading, thus no need to invalidate any requests
+assign data_ctrl_cancel_o = 1'b0;
 
 skidbuffer #(
   .WORD_WIDTH ($bits(lsu_act_req_t))
@@ -207,11 +211,13 @@ skidbuffer #(
 
   .input_valid  (data_req_fire),
   .input_ready  (act_req_buff_inp_ready),
-  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr[1:0], req_buff_out_data.regdest}),
+  .input_data   ({req_buff_out_data.cmd, req_buff_out_data.addr, req_buff_out_data.regdest}),
 
   .output_valid (act_req_buff_out_valid),
-  .output_ready (retire_request),
-  .output_data  (act_req_buff_out_data)
+  .output_ready (rsp_buff_out_valid),
+  .output_data  (act_req_buff_out_data),
+
+  .empty        (act_req_buff_empty)
 );
 skidbuffer #(
   .WORD_WIDTH ($bits(lsu_rsp_t))
@@ -220,52 +226,56 @@ skidbuffer #(
   .rstn (rstn_i),
 
   .input_valid  (data_rsp_valid_i),
-  .input_ready  (data_rsp_ready_o),
+  .input_ready  (resp_buff_ready),
   .input_data   ({data_rsp_data_i, data_rsp_error_i}),
 
   .output_valid (rsp_buff_out_valid),
-  .output_ready (retire_request),
-  .output_data  (rsp_buff_out_data)
+  .output_ready (act_req_buff_out_valid),
+  .output_data  (rsp_buff_out_data),
+
+  // verilator lint_off PINCONNECTEMPTY
+  .empty        ()
+  // verilator lint_on PINCONNECTEMPTY
 );
+assign data_rsp_ready_o =  resp_buff_ready && ~act_req_buff_empty;
 
 /*************************************
 * Reg File
 *************************************/
 byte_select_read bsr_inst (
   .data(rsp_buff_out_data.data),
-  .byteaddr(act_req_buff_out_data.byteaddr),
+  .byteaddr(act_req_buff_out_data.addr[1:0]),
   .data_out(byte_select_read_data)
 );
 assign rf_data_o = sign_extend(byte_select_read_data, act_req_buff_out_data.cmd);
 assign rf_dest_o = act_req_buff_out_data.regdest;
 assign rf_wb_o   = (rsp_buff_out_valid &&
                     act_req_buff_out_valid &&
-                    retire_request &&
-                    ~is_write_cmd(act_req_buff_out_data.cmd));
+                    ~is_write_cmd(act_req_buff_out_data.cmd) &&
+                    ~rsp_buff_out_data.error);
+
+/*************************************
+* Bus Errors
+*************************************/
+assign exc_store_access_fault_o = rsp_buff_out_data.error && is_write_cmd(act_req_buff_out_data.cmd);
+assign exc_load_access_fault_o  = rsp_buff_out_data.error && ~is_write_cmd(act_req_buff_out_data.cmd);
+assign exception = exc_store_access_fault_o || exc_load_access_fault_o;
+assign exc_addr_o = exception ? act_req_buff_out_data.addr : '0;
+
 
 /*************************************
 * Control
 *************************************/
-register #(
-  .WORD_WIDTH  (1),
-  .RESET_VALUE (0)
-) data_rsp_delay(
-  .clk  (clk_i),
-  .rstn (rstn_i),
-  .ce   (1'b1),
-  .in   (data_rsp_fire),
-  .out  (retire_request)
-);
-assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && act_req_buff_inp_ready;
+assign retire_request = rsp_buff_out_valid && act_req_buff_out_valid;
+assign lsu_ready_o = (state == eLSU_RUN) && req_buff_inp_ready && act_req_buff_inp_ready && ~exception;
 
 /*************************************
 * FSM
 *************************************/
 always_comb begin
-  read_req  = (state == eLSU_RUN)   && lsu_valid_i    && ~is_write_cmd(lsu_cmd_i) && ~load_addr_misaligned;
+  read_req  = (state == eLSU_RUN)   && lsu_valid_i    && lsu_ready_o  && ~is_write_cmd(lsu_cmd_i) && ~load_addr_misaligned;
   read_rsp  = (state == eLSU_READ)  && retire_request && ~is_write_cmd(act_req_buff_out_data.cmd);
   req_full  = (state == eLSU_RUN)   && ~req_buff_inp_ready;
-  //rsp_full  = (state == eLSU_RUN)   && ~act_req_buff_inp_ready;
   req_ready = (state == eLSU_STALL) && req_buff_inp_ready;
 end
 always_comb begin
@@ -289,10 +299,9 @@ end
   end
 
   always_ff @(posedge clk_i) begin
-    if (lsu_valid_i) begin
-      // There should be no request if either req or act_req buffers are full.
+    if (lsu_valid_i && lsu_ready_o) begin
+      // There should be no request if  req buffers is full.
       bad_req: assert(req_buff_inp_ready);
-      bad_act: assert(act_req_buff_inp_ready);
       // Requests can only be issued when in running state (no stall).
       state_r: assert(state == eLSU_RUN);
     end

@@ -1,8 +1,8 @@
 import forastero
 from forastero import DriverEvent, SeqContext
-from .transaction import DecoderBackpressure, LsuRequest
+from .transaction import DecoderBackpressure, LsuRequest, IfuJmpRequest
 from .response import DecoderResponder
-from .request import LsuInitiator
+from .request import LsuInitiator, IfuJmpInitiator
 
 
 @forastero.sequence()
@@ -36,7 +36,18 @@ async def dec_backpressure_seq(
                 DriverEvent.PRE_DRIVE,
             ).wait()
 
+@forastero.sequence()
+@forastero.requires("ifu_jmp_drv", IfuJmpInitiator)
+async def ifu_jmp_to_addr(
+    ctx: SeqContext,
+    ifu_jmp_drv: IfuJmpInitiator,
+    addr: int
+):
+    "Forces the IFU to jump to a desired address."
+    async with ctx.lock(ifu_jmp_drv):
+        await ifu_jmp_drv.enqueue(IfuJmpRequest(addr=addr), DriverEvent.PRE_DRIVE).wait()
 
+    
 @forastero.sequence()
 @forastero.requires("lsu_drv", LsuInitiator)
 async def lsu_drive_seq(
