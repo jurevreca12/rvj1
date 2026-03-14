@@ -303,7 +303,7 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 * Instruction issuing
 *************************************/
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
-assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE);
+assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE) && ~illegal_instr_o;
 assign update_output = ifu_fire ||  (state != eDEC_FIRST_CYCLE && ~stall_i);
 assign reset_output  = ~rstn_i  || (~update_output && ~stall_i);
 always_ff @(posedge clk_i) begin

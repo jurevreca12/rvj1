@@ -323,10 +323,7 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
     `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
-    // If there are two consecutive illegal instructions
-    // then a trap can hold for more than a single cylcle
-    // since traps are taken on MEM/WB stage.
-    //`ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
