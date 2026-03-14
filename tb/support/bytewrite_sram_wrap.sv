@@ -103,7 +103,9 @@ module bytewrite_sram_wrap #(
         .output_ready (data_rsp_ready_i),
         .output_data  (dram_req),
 
+        // verilator lint_off PINCONNECTEMPTY
         .empty ()
+        // verilator lint_on PINCONNECTEMPTY
     );
 
     skidbuffer #(
@@ -120,7 +122,9 @@ module bytewrite_sram_wrap #(
         .output_ready (instr_rsp_ready_i),
         .output_data  (iram_req),
 
+        // verilator lint_off PINCONNECTEMPTY
         .empty ()
+        // verilator lint_on PINCONNECTEMPTY
     );
 
     bytewrite_sram #(
@@ -154,14 +158,16 @@ module bytewrite_sram_wrap #(
         .rstn (rstn_i && ~data_ctrl_cancel_i),
 
         .input_valid  (dram_req_fire_r),
-        .input_ready  (),
+        .input_ready  (1'b1),
         .input_data   ({dram_rsp_data, dram_rsp_err}),
 
         .output_valid (data_rsp_valid_o),
         .output_ready (data_rsp_ready_i),
         .output_data  ({data_rsp_data_o, data_rsp_error_o}),
 
+        // verilator lint_off PINCONNECTEMPTY
         .empty ()
+        // verilator lint_on PINCONNECTEMPTY
     );
     skidbuffer #(
         .WORD_WIDTH($bits(mem_rsp_t))
@@ -170,14 +176,16 @@ module bytewrite_sram_wrap #(
         .rstn (rstn_i && ~instr_ctrl_cancel_i),
 
         .input_valid  (iram_req_fire_r),
-        .input_ready  (),
+        .input_ready  (1'b1),
         .input_data   ({iram_rsp_data, iram_rsp_err}),
 
         .output_valid (instr_rsp_valid_o),
         .output_ready (instr_rsp_ready_i),
         .output_data  ({instr_rsp_data_o, instr_rsp_error_o}),
 
+        // verilator lint_off PINCONNECTEMPTY
         .empty ()
+        // verilator lint_on PINCONNECTEMPTY
     );
 
 endmodule

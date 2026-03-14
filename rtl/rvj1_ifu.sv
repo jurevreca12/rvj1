@@ -113,7 +113,9 @@ module rvj1_ifu(
     .output_ready (response_ready),
     .output_data  ({dec_instr_o, dec_error_o}),
 
+    // verilator lint_off PINCONNECTEMPTY
     .empty        ()
+    // verilator lint_on PINCONNECTEMPTY
     );
     // We wait for the previous instruction to finish even if we just want to raise
     // an exception. This is because exceptions must be precise

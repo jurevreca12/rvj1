@@ -99,6 +99,7 @@ module ifu_mem_test_top #(
         .data_req_strobe_i ('0),
         .data_req_write_i  (1'b0),
         .data_req_valid_i  (1'b0),
+        // verilator lint_off PINCONNECTEMPTY
         .data_req_ready_o  (),
 
         .data_ctrl_cancel_i(),
@@ -106,6 +107,7 @@ module ifu_mem_test_top #(
         .data_rsp_data_o   (),
         .data_rsp_error_o  (),
         .data_rsp_valid_o  (),
+        // verilator lint_on PINCONNECTEMPTY
         .data_rsp_ready_i  (1'b0)
     );
 

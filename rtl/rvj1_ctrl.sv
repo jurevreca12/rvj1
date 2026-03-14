@@ -37,7 +37,6 @@ module rvj1_ctrl
   input  logic             ebreak_insn_i,
   input  logic             illegal_instr_i,
 
-  input  logic             instr_issued_i,
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
 

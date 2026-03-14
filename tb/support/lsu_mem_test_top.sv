@@ -106,14 +106,18 @@ module lsu_mem_test_top #(
         .instr_req_strobe_i('0),
         .instr_req_write_i (1'b0),
         .instr_req_valid_i (1'b0),
+        // verilator lint_off PINCONNECTEMPTY
         .instr_req_ready_o (),
+        // verilator lint_on PINCONNECTEMPTY
 
         .instr_ctrl_cancel_i(1'b0),
 
+        // verilator lint_off PINCONNECTEMPTY
         .instr_rsp_data_o  (),
         .instr_rsp_error_o (),
         .instr_rsp_valid_o (),
         .instr_rsp_ready_i (1'b0),
+        // verilator lint_onqq PINCONNECTEMPTY
 
         .data_req_addr_i   (data_req_addr),
         .data_req_data_i   (data_req_data),

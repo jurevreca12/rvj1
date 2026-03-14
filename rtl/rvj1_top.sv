@@ -57,8 +57,6 @@ module rvj1_top
   input logic [15:0] irq_platform_i,
   input logic        irq_nmi_i,
 
-  input logic fetch_enable_i,
-
   // RISC-V Formal Interface
   `ifdef RVFI
   `RVFI_OUTPUTS
@@ -360,7 +358,6 @@ module rvj1_top
     .alu_res_r_i            (alu_res_r),
     .ctrl_branch_i          (ctrl_branch),
     .ctrl_branch_type_i     (ctrl_branch_type),
-    .instr_issued_i         (instr_issued),
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .instr_retiring_o       (instr_retiring),

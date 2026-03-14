@@ -180,8 +180,9 @@ skidbuffer #(
   .output_valid (data_req_valid),
   .output_ready (data_req_ready_i && act_req_buff_inp_ready),
   .output_data  (req_buff_out_data),
-
+  // verilator lint_off PINCONNECTEMPTY
   .empty        ()
+  // verilator lint_on PINCONNECTEMPTY
 );
 assign data_req_valid_o = data_req_valid && act_req_buff_inp_ready;
 assign data_req_addr_o  = {req_buff_out_data.addr[31:2], 2'b00};
@@ -232,7 +233,9 @@ skidbuffer #(
   .output_ready (act_req_buff_out_valid),
   .output_data  (rsp_buff_out_data),
 
+  // verilator lint_off PINCONNECTEMPTY
   .empty        ()
+  // verilator lint_on PINCONNECTEMPTY
 );
 assign data_rsp_ready_o =  resp_buff_ready && ~act_req_buff_empty;
 

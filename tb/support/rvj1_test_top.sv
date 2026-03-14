@@ -1,5 +1,6 @@
 // The test used to simulate the core with the riscof test framework.
-import rvj1_defines::*;
+import rvj1_defines::XLEN;
+import rvj1_defines::NBYTES;
 
 module rvj1_test_top();
   parameter int IRAM_BASE_ADDR = 32'h8000_0000;
