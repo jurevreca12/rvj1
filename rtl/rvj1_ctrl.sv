@@ -526,7 +526,7 @@ module rvj1_ctrl
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_r_i;
       else if (ebreak_insn_r)
-        mtval_d = program_counter_o;
+        mtval_d = {program_counter_prev, 2'b00};
       else
         mtval_d = '0;
       mtval_ce = 1'b1;
