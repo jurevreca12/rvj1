@@ -309,7 +309,7 @@ module rvj1_ctrl
                               addr_unaligned_trap);
   assign synhr_trap_mem_wb2 = (lsu_trap ||
                               illegal_csr_insn ||
-                              addr_unaligned_trap);
+                              load_addr_misaligned_i);
   assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
