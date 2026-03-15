@@ -224,7 +224,7 @@ package rvj1_defines;
     //`define RISCV_FORMAL_CSR_MCOUNTEREN
 
     `ifdef RVFI
-    typedef struct {
+    typedef struct packed {
         logic [XLEN-1:0] instr;
         logic [4:0]      rs1_addr;
         logic [4:0]      rs2_addr;
