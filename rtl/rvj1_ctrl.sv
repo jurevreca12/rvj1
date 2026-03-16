@@ -120,6 +120,8 @@ module rvj1_ctrl
   logic [XLEN-1:0] mscratch_d, mscratch_q;
 
   logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
+  logic csr_valid_write;
+  logic csr_valid_read;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value, csr_mstatus_masked;
@@ -138,6 +140,7 @@ module rvj1_ctrl
   logic rf_b_hazard;
   logic lsu_b_hazard;
   logic lsu_busy_hazard;
+  logic csr_write_hazard;
   logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
@@ -193,13 +196,19 @@ module rvj1_ctrl
                          (rf_addr_b_i != 5'b00000) &&
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
+  assign csr_write_hazard = (csr_valid_r_i &&
+                             (mret_insn_i ||
+                             ecall_insn_i ||
+                             ebreak_insn_i ||
+                             illegal_instr_i ||
+                             instr_fetch_error_i));
   assign stall_mem_wb_o = (lsu_busy_hazard ||
                           (state == eJUMP1) ||
-                          (state == eTRAP) ||
-                          (state == eMRET));
+                          (state == eTRAP));
   assign stall_ex_o = (rf_a_hazard  ||
                        rf_b_hazard  ||
                        lsu_b_hazard ||
+                       csr_write_hazard ||
                        stall_mem_wb_o ||
                        (state == eLOAD) ||
                        (state == eJUMP0) ||
@@ -297,6 +306,7 @@ module rvj1_ctrl
 
   assign synhr_trap_ex = (ecall_insn ||
                           ebreak_insn ||
+                          illegal_csr_insn ||
                           illegal_instr ||
                           instr_fetch_error);
   register synhr_trap_ex_reg (
@@ -304,11 +314,8 @@ module rvj1_ctrl
   );
   assign synhr_trap_mem_wb = (lsu_trap ||
                               instr_addr_misaligned ||
-                              illegal_csr_insn ||
                               addr_unaligned_trap);
-  assign synhr_trap_mem_wb2 = (lsu_trap ||
-                              illegal_csr_insn ||
-                              load_addr_misaligned_i);
+  assign synhr_trap_mem_wb2 = (lsu_trap || load_addr_misaligned_i);
   assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
@@ -321,7 +328,6 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
-    `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
@@ -386,13 +392,13 @@ module rvj1_ctrl
   * Retiring
   *************************************/
   register insn_retire_reg (
-    .clk(clk_i),
-    .rstn(rstn_i),
-    .ce(~stall_mem_wb_o),
-    .in(instr_will_retire),
-    .out(instr_will_retire_r)
+    .clk (clk_i),
+    .rstn(rstn_i && ~(state == eTRAP)),
+    .ce  (~stall_mem_wb_o),
+    .in  (instr_will_retire && ~stall_ex_o),
+    .out (instr_will_retire_r)
   );
-  assign instr_retiring_o = instr_will_retire_r || loaded;
+  assign instr_retiring_o = (instr_will_retire_r && ~stall_mem_wb_o) || loaded;
 
   /*************************************
   * Control and Status Registers
@@ -428,29 +434,10 @@ module rvj1_ctrl
 
   // csr_valid_r does not need stall control as stall is already applied at the
   // pipeline register (_r)
-  register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (csr_value),
-    .out  (csr_value_o)
-  );
+  assign csr_value_o = csr_value;
+  assign csr_regdest_o = regdest_r_i;
+  assign csr_wb_o = csr_valid_r_i && ~stall_mem_wb_o;
 
-  register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (1'b1),
-    .out  (csr_wb_o)
-  );
-
-  register #(.WORD_WIDTH(RALEN), .RESET_VALUE(0)) csr_regdest_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (regdest_i),
-    .out  (csr_regdest_o)
-  );
 
   `ifdef ASSERTIONS
   always_ff @(posedge clk_i) begin
@@ -459,37 +446,46 @@ module rvj1_ctrl
   end
   `endif
 
+  assign csr_valid_read = (csr_valid_r_i && (csr_cmd_r_i == CSRRW) && (regdest_r_i != '0) ||
+                           csr_valid_r_i && (csr_cmd_r_i == CSRRS) ||
+                            csr_valid_r_i && (csr_cmd_r_i == CSRRC));
+  assign csr_valid_write = (csr_valid_r_i && (csr_cmd_r_i == CSRRW) ||
+                            csr_valid_r_i && (csr_cmd_r_i == CSRRS) && (alu_res_r_i != '0) ||
+                            csr_valid_r_i && (csr_cmd_r_i == CSRRC) && (alu_res_r_i != '0));
+
    // Read logic
   always_comb begin
     csr_value = '0;
     illegal_csr_addr = 1'b0;
     // ONLY implemented registers, others default to zero
-    unique case (csr_addr_r_i)
-      // Machine Information Registers
-      CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
-      CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
-      CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
-      CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
+    if (csr_valid_read) begin
+      unique case (csr_addr_r_i)
+        // Machine Information Registers
+        CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
+        CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
+        CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
+        CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
 
-      // Machine Trap Setup
-      CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
-      CSR_MSTATUSH_ADDR:   csr_value = CSR_MSTATUSH_VALUE;
-      CSR_MISA_ADDR:       csr_value = CSR_MISA_VALUE;
-      CSR_MEDELEG_ADDR:    csr_value = CSR_MEDELEG_VALUE;
-      CSR_MEDELEGH_ADDR:   csr_value = CSR_MEDELEGH_VALUE;
-      CSR_MIDELEG_ADDR:    csr_value = CSR_MIDELEG_VALUE;
-      CSR_MIE_ADDR:        csr_value = csr_mie_value;
-      CSR_MTVEC_ADDR:      csr_value = csr_mtvec_value;
-      CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
+        // Machine Trap Setup
+        CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
+        CSR_MSTATUSH_ADDR:   csr_value = CSR_MSTATUSH_VALUE;
+        CSR_MISA_ADDR:       csr_value = CSR_MISA_VALUE;
+        CSR_MEDELEG_ADDR:    csr_value = CSR_MEDELEG_VALUE;
+        CSR_MEDELEGH_ADDR:   csr_value = CSR_MEDELEGH_VALUE;
+        CSR_MIDELEG_ADDR:    csr_value = CSR_MIDELEG_VALUE;
+        CSR_MIE_ADDR:        csr_value = csr_mie_value;
+        CSR_MTVEC_ADDR:      csr_value = csr_mtvec_value;
+        CSR_MCOUNTEREN_ADDR: csr_value = CSR_MCOUNTEREN_VALUE;
 
-      // Machine Trap Handling
-      CSR_MSCRATCH_ADDR:   csr_value = csr_mscratch_value;
-      CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
-      CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
-      CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
-      CSR_MIP_ADDR:        csr_value = csr_mip_value;
-      default:             illegal_csr_addr = 1'b1;
-    endcase
+        // Machine Trap Handling
+        CSR_MSCRATCH_ADDR:   csr_value = csr_mscratch_value;
+        CSR_MEPC_ADDR:       csr_value = csr_mepc_value;
+        CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
+        CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
+        CSR_MIP_ADDR:        csr_value = csr_mip_value;
+        default:             illegal_csr_addr = 1'b1;
+      endcase
+    end
   end
 
   // Write logic
@@ -530,12 +526,12 @@ module rvj1_ctrl
         mtval_d = '0;
       mtval_ce = 1'b1;
     end
-    else if (mret) begin
+    else if (state == eMRET) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
-    else if (csr_valid_r_i) begin
+    else if (csr_valid_write) begin
       unique case (csr_addr_r_i)
         CSR_MSTATUS_ADDR: begin
           // Will the synthesis tool optimize these two function calls into a single module?
@@ -619,7 +615,7 @@ module rvj1_ctrl
   ) csr_mscratch_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mscratch_ce & ~stall_ex_o),
+    .ce  (mscratch_ce),
     .in  (mscratch_d),
     .out (mscratch_q)
   );
@@ -630,7 +626,7 @@ module rvj1_ctrl
   ) csr_mtvec_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mtvec_ce & ~stall_ex_o),
+    .ce  (mtvec_ce),
     .in  (mtvec_d),
     .out (mtvec_q)
   );

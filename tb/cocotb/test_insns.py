@@ -52,7 +52,7 @@ async def run_rvj1(dut):
 
 @pytest.fixture
 def top_test_fixture(hdl: HDL) -> HDL:
-    build_args = ["-Wno-fatal", "--no-stop-fail"]
+    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
     if WAVES:
         build_args += ["--trace-fst"]
     if RVFI:
@@ -64,7 +64,7 @@ def top_test_fixture(hdl: HDL) -> HDL:
     hdl.toplevel = "rvj1_test_top"
     hdl.build(
         sources = get_rtl_files("verilog"),
-        includes = ["/rvj1/rtl/inc"],
+        includes = ["/foss/designs/rvj1/rtl/inc"],
         build_args = build_args,
         parameters = {
             "IRAM_BASE_ADDR": 0x8000_0000, 

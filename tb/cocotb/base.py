@@ -33,7 +33,7 @@ def get_rtl_files(lang):
 
 def get_test_runner(hdl_top):
     sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal", "--no-stop-fail"]
+    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
     if WAVES:
         build_args += ["--trace-fst"]
     if RVFI:
@@ -45,7 +45,7 @@ def get_test_runner(hdl_top):
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(LANGUAGE),
-        includes=["/rvj1/rtl/inc"],
+        includes=["/foss/designs/rvj1/rtl/inc"],
         build_args=build_args,
         hdl_toplevel=hdl_top,
         always=True,

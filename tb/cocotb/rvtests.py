@@ -1283,7 +1283,7 @@ class CSRWriteFaultTest(Program):
             InstructionLUI  (x28, 0x80000),     # 0x8000_0000
             InstructionADDI (x28, x28, 0x28),   # 0x8000_0004
             InstructionCSRRW(x0, x28, mtvec),   # 0x8000_0008  rd, rs1, csr_addr
-            InstructionCSRRW(x0, x0,  0x000),   # 0x8000_000c  # illegal write 
+            InstructionCSRRW(x1, x0,  0x000),   # 0x8000_000c  # illegal write 
             InstructionADDI (x2, x0, 2),        # 0x8000_0010  0x40 - 0x14 = 0x2c
             InstructionJAL  (x10, 0x2c),        # 0x8000_0014 ------------------->
             InstructionADDI (x3, x0, 3),        # 0x8000_0018                    |

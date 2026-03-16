@@ -134,10 +134,11 @@ class rvj1(pluginTemplate):
             verilator_args = (
                 " --timescale 1ns/1ps "
                 + " --binary "
-                + " -I/rvj1/rtl/inc "
+                + " -I/foss/designs/rvj1/rtl/inc "
                 + " -DRVFI "
                 + r" ${VERILATOR_OPTS} "
                 + " -Wno-fatal "
+                + " -Wno-REDEFMACRO "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
                 + f" -GINSTR_MEM_INIT_FILE=\\\"{testentry['work_dir']}/text.hex\\\" "

@@ -2,6 +2,8 @@
 import rvj1_defines::XLEN;
 import rvj1_defines::NBYTES;
 
+`include "rvfi_macros.sv"
+
 module rvj1_test_top();
   parameter int IRAM_BASE_ADDR = 32'h8000_0000;
   parameter int IRAM_WORD_SIZE = 1 << 8;
@@ -39,6 +41,10 @@ module rvj1_test_top();
   logic            data_rsp_error;
   logic            data_rsp_valid;
   logic            data_rsp_ready;
+
+  `ifdef RVFI
+  `RVFI_WIRES
+  `endif
 
     // instruction memory
     bytewrite_sram_wrap #(
@@ -122,31 +128,11 @@ module rvj1_test_top();
       .irq_platform_i    (16'b0),
       .irq_nmi_i         (1'b0),
 
+      // verilator lint_off REDEFMACRO
       `ifdef RVFI
-      .rvfi_valid        (),
-      .rvfi_order        (),
-      .rvfi_insn         (),
-      .rvfi_trap         (),
-      .rvfi_halt         (),
-      .rvfi_intr         (),
-      .rvfi_mode         (),
-      .rvfi_ixl          (),
-      .rvfi_rs1_addr     (),
-      .rvfi_rs2_addr     (),
-      .rvfi_rs1_rdata    (),
-      .rvfi_rs2_rdata    (),
-      .rvfi_rd_addr      (),
-      .rvfi_rd_wdata     (),
-      .rvfi_pc_rdata     (),
-      .rvfi_pc_wdata     (),
-      .rvfi_mem_addr     (),
-      .rvfi_mem_rmask    (),
-      .rvfi_mem_wmask    (),
-      .rvfi_mem_rdata    (),
-      .rvfi_mem_wdata    (),
+      `RVFI_CONN
       `endif
-
-      .fetch_enable_i    (1'b0)
+      // verilator lint_on REDEFMACRO
   );
 
 endmodule

@@ -529,26 +529,16 @@ begin
         else if (csr_addr == 12'b0000_0000_0001) // EBREAK
           ebreak_insn = 1'b1;
       end else if (f3_is_csr_instr(funct3)) begin
-        regdest2 = regdest;
-        unique case (state)
-          eDEC_FIRST_CYCLE: begin
-            csr_valid         = 1'b1;
-            csr_cmd           = f3_to_csr_cmd(funct3);
-            state_next        = eDEC_SECOND_CYCLE;
-            instr_will_retire = 1'b0;
-            if (is_csr_imm(funct3)) begin
-              rpb_or_imm = 1'b1;
-              immediate  = {27'b0, regs1};
-            end
-            else begin
-              rf_addr_a = regs1;
-            end
-          end
-          eDEC_SECOND_CYCLE: begin;
-            instr_issued = 1'b0;
-            instr_will_retire = 1'b1;
-          end
-        endcase
+        regdest2  = regdest;
+        csr_valid = 1'b1;
+        csr_cmd   = f3_to_csr_cmd(funct3);
+        if (is_csr_imm(funct3)) begin
+          rpb_or_imm = 1'b1;
+          immediate  = {27'b0, regs1};
+        end
+        else begin
+          rf_addr_a = regs1;
+        end
       end else begin
         illegal_instr = 1'b1;
       end

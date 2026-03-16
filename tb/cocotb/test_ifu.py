@@ -135,7 +135,7 @@ async def response_error(tb: IfuTB, log):
 
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal", "--no-stop-fail"]
+    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
     if WAVES:
         build_args += ["--trace-fst"]
     if RVFI:
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files("verilog"),
-        includes=["/rvj1/rtl/inc"],
+        includes=["/foss/designs/rvj1/rtl/inc"],
         build_args=build_args,
         hdl_toplevel="ifu_mem_test_top",
         parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
