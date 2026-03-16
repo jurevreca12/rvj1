@@ -60,7 +60,9 @@ module rvj1_top
   input logic        irq_nmi_i,
 
   // RISC-V Formal Interface
+  `ifdef RVFI
   `RVFI_OUTPUTS
+  `endif
 );
 
   /****************************************
