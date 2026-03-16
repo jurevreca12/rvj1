@@ -158,7 +158,7 @@ module bytewrite_sram_wrap #(
         .rstn (rstn_i && ~data_ctrl_cancel_i),
 
         .input_valid  (dram_req_fire_r),
-        .input_ready  (1'b1),
+        .input_ready  (),
         .input_data   ({dram_rsp_data, dram_rsp_err}),
 
         .output_valid (data_rsp_valid_o),
@@ -176,7 +176,7 @@ module bytewrite_sram_wrap #(
         .rstn (rstn_i && ~instr_ctrl_cancel_i),
 
         .input_valid  (iram_req_fire_r),
-        .input_ready  (1'b1),
+        .input_ready  (),
         .input_data   ({iram_rsp_data, iram_rsp_err}),
 
         .output_valid (instr_rsp_valid_o),

@@ -225,6 +225,17 @@ package rvj1_defines;
 
     `ifdef RVFI
     typedef struct packed {
+        logic [XLEN-1:0] mstatus;
+        logic [XLEN-1:0] mie;
+        logic [XLEN-1:0] mip;
+        logic [XLEN-1:0] mtvec;
+        logic [XLEN-1:0] mepc;
+        logic [XLEN-1:0] mcause;
+        logic [XLEN-1:0] mtval;
+        logic [XLEN-1:0] mscratch;
+    } rvfi_csr_t;
+
+    typedef struct packed {
         logic [XLEN-1:0] instr;
         logic [4:0]      rs1_addr;
         logic [4:0]      rs2_addr;
@@ -243,19 +254,19 @@ package rvj1_defines;
         logic [XLEN-1:0] jmp_addr;
         logic [XLEN-1:0] rd_wdata;
         logic            trap;
+        rvfi_csr_t       csr_rdata;
+        rvfi_csr_t       csr_rmask;
+        rvfi_csr_t       csr_wdata;
+        rvfi_csr_t       csr_wmask;
     } rvfi_stage_info_t;
-
-    typedef struct packed {
-        logic [XLEN-1:0] mstatus;
-        logic [XLEN-1:0] mie;
-        logic [XLEN-1:0] mip;
-        logic [XLEN-1:0] mtvec;
-        logic [XLEN-1:0] mepc;
-        logic [XLEN-1:0] mcause;
-        logic [XLEN-1:0] mtval;
-        logic [XLEN-1:0] mscratch;
-    } rvfi_csr_t;
     `endif
+
+    `define RVFI_STAGE_CONN(reg) \
+        assign rvfi_csr_``reg``_rmask = retired_stage.csr_rmask.``reg``; \
+        assign rvfi_csr_``reg``_rdata = retired_stage.csr_rdata.``reg``; \
+        assign rvfi_csr_``reg``_wmask = retired_stage.csr_wmask.``reg``; \
+        assign rvfi_csr_``reg``_wdata = retired_stage.csr_wdata.``reg``;
+
 
     `define ASSERT_SINGLE_CYCLE_HOLD(signal, clock=clk_i) \
         always_ff @(posedge clock) begin \

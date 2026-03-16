@@ -133,13 +133,6 @@ module rvj1_riscof_tb();
       .data_rsp_valid_i  (data_rsp_valid),
       .data_rsp_ready_o  (data_rsp_ready),
 
-      .irq_external_i    (1'b0),
-      .irq_timer_i       (1'b1), // at reset mtime == mtimecmp, meaning it is 1
-      .irq_sw_i          (1'b0),
-      .irq_lcofi_i       (1'b0),
-      .irq_platform_i    (16'b0),
-      .irq_nmi_i         (1'b0),
-
       `ifdef RVFI
       .rvfi_valid        (),
       .rvfi_order        (),
@@ -164,7 +157,12 @@ module rvj1_riscof_tb();
       .rvfi_mem_wdata    (),
       `endif
 
-      .fetch_enable_i    (1'b0)
+      .irq_external_i    (1'b0),
+      .irq_timer_i       (1'b1), // at reset mtime == mtimecmp, meaning it is 1
+      .irq_sw_i          (1'b0),
+      .irq_lcofi_i       (1'b0),
+      .irq_platform_i    (16'b0),
+      .irq_nmi_i         (1'b0)
   );
 
 

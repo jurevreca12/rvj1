@@ -20,7 +20,7 @@ module rvfi_trace #(
     parameter string LOG_FILE = "rvfi_trace.log"
 )
 (
-    input logic        clk,
+    input logic clk,
     `RVFI_INPUTS
 );
     int file_handle;
@@ -60,14 +60,15 @@ module rvfi_trace #(
             $fwrite(file_handle, " mem 0x%8h", rvfi_mem_addr);
         if (mem_write)
             $fwrite(file_handle, " mem 0x%8h 0x%8h", rvfi_mem_addr, rvfi_mem_wdata); // mask?
-        // TODO: CSR
         // CSR registers should be written by addres (lower to higher)
-        //if (rvfi_csr_written && rvfi_csr_mod)
-        //    $fwrite(file_handle, " c%3d_%s 0x%8h",
-        //        rvfi_csr_waddr,
-        //        csr_addr_to_name(rvfi_csr_waddr),
-        //        rvfi_csr_rval
-        //    );
+        log_csr_write(rvfi_csr_mstatus_wmask, rvfi_csr_mstatus_wdata, CSR_MSTATUS_ADDR);
+        log_csr_write(rvfi_csr_mie_wmask, rvfi_csr_mie_wdata, CSR_MIE_ADDR);
+        log_csr_write(rvfi_csr_mip_wmask, rvfi_csr_mip_wdata, CSR_MIP_ADDR);
+        log_csr_write(rvfi_csr_mtvec_wmask, rvfi_csr_mtvec_wdata, CSR_MTVEC_ADDR);
+        log_csr_write(rvfi_csr_mepc_wmask, rvfi_csr_mepc_wdata, CSR_MEPC_ADDR);
+        log_csr_write(rvfi_csr_mcause_wmask, rvfi_csr_mcause_wdata, CSR_MCAUSE_ADDR);
+        log_csr_write(rvfi_csr_mtval_wmask, rvfi_csr_mtval_wdata, CSR_MTVAL_ADDR);
+        log_csr_write(rvfi_csr_mscratch_wmask, rvfi_csr_mscratch_wdata, CSR_MSCRATCH_ADDR);
         $fwrite(file_handle, "\n");
     endfunction
 
@@ -78,6 +79,11 @@ module rvfi_trace #(
             else
                 $fwrite(file_handle, " x%0d  0x%8h", rvfi_rd_addr, rvfi_rd_wdata);
         end
+    endfunction
+
+    function automatic void log_csr_write(logic [XLEN-1:0] wmask, logic [XLEN-1:0] wdata, logic [11:0] addr);
+        if (wmask != '0)
+            $fwrite(file_handle, " c%3d_%s 0x%8h", addr, csr_addr_to_name(addr), wdata);
     endfunction
 
     function automatic string csr_addr_to_name(logic [11:0] csr_addr);

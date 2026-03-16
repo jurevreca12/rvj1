@@ -13,6 +13,8 @@
 
 /* verilator lint_off IMPORTSTAR */
 import rvj1_defines::*;
+`include "rvfi_macros.sv"
+
 
 module rvj1_top
 (
@@ -58,9 +60,7 @@ module rvj1_top
   input logic        irq_nmi_i,
 
   // RISC-V Formal Interface
-  `ifdef RVFI
   `RVFI_OUTPUTS
-  `endif
 );
 
   /****************************************
@@ -438,6 +438,10 @@ module rvj1_top
     exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
     exec_stage_comb.rd_wdata       = alu_res;
     exec_stage_comb.trap           = synhr_trap;
+    exec_stage_comb.csr_rdata      = '0;
+    exec_stage_comb.csr_rmask      = '0;
+    exec_stage_comb.csr_wdata      = '0;
+    exec_stage_comb.csr_wmask      = '0;
   end
 
    cmd_to_strobe cmd2strb_dummy (
@@ -473,10 +477,12 @@ module rvj1_top
       retired_stage <= mem_wb_stage;
       retired_stage.rd_addr  <= (wpc_we) ? wpc_addr : '0;
       retired_stage.rd_wdata <= (wpc_we) ? wpc_data : '0;
-      if (lsu_wb_valid)
-        retired_stage.lsu_rdata <= wpc_data;
-      else
-        retired_stage.jmp_addr <= {jmp_addr, 2'b00};
+      retired_stage.csr_rdata <= rvfi_csr_rdata;
+      retired_stage.csr_rmask <= rvfi_csr_rmask;
+      retired_stage.csr_wdata <= rvfi_csr_wdata;
+      retired_stage.csr_wmask <= rvfi_csr_wmask;
+      retired_stage.lsu_rdata <= lsu_wb_valid  ? wpc_data : '0;
+      retired_stage.jmp_addr  <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
     end
   end
 
@@ -527,6 +533,15 @@ module rvj1_top
   assign rvfi_mem_wmask = retired_stage.lsu_strobe;
   assign rvfi_mem_rdata = retired_stage.lsu_rdata;
   assign rvfi_mem_wdata = retired_stage.lsu_wdata;
+
+  `RVFI_STAGE_CONN(mstatus);
+  `RVFI_STAGE_CONN(mie);
+  `RVFI_STAGE_CONN(mip);
+  `RVFI_STAGE_CONN(mtvec);
+  `RVFI_STAGE_CONN(mepc);
+  `RVFI_STAGE_CONN(mcause);
+  `RVFI_STAGE_CONN(mtval);
+  `RVFI_STAGE_CONN(mscratch);
 
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
