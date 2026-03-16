@@ -137,6 +137,7 @@ class spike(pluginTemplate):
             execute += compile_cmd + ";"
 
             sig_file = os.path.join(test_dir, self.name[:-1] + ".signature")
+            spike_log_file = os.path.join(test_dir, "spike-commits.log")
 
             if cgf_file is not None:
                 execute += (
@@ -148,8 +149,8 @@ class spike(pluginTemplate):
             else:
                 execute += (
                     self.dut_exe + r" ${SPIKE_OPTS} --priv=m "
-                    + " --isa={0} +signature={1} +signature-granularity=4 {2};".format(
-                        self.isa, sig_file, elf
+                    + " --log={0} --isa={1} +signature={2} +signature-granularity=4 {3};".format(
+                        spike_log_file, self.isa, sig_file, elf
                     )
                 )
 

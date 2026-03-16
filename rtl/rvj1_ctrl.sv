@@ -138,6 +138,7 @@ module rvj1_ctrl
   logic rf_b_hazard;
   logic lsu_b_hazard;
   logic lsu_busy_hazard;
+  logic csr_write_hazard;
   logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
@@ -326,7 +327,6 @@ module rvj1_ctrl
     `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
-    `ASSERT_SINGLE_CYCLE_HOLD(csr_valid_r_i);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);

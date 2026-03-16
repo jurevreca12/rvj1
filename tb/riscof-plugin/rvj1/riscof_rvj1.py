@@ -138,6 +138,7 @@ class rvj1(pluginTemplate):
                 + " -DRVFI "
                 + r" ${VERILATOR_OPTS} "
                 + " -Wno-fatal "
+                + " -Wno-REDEFMACRO "
                 + f" -Mdir {sim_dir} "
                 + " ".join(rtl_files)
                 + f" -GINSTR_MEM_INIT_FILE=\\\"{testentry['work_dir']}/text.hex\\\" "
