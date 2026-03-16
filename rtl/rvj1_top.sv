@@ -405,6 +405,7 @@ module rvj1_top
   * https://yosyshq.readthedocs.io/projects/riscv-formal/en/latest/rvfi.html
   *********************************************/
   `ifdef RVFI
+  logic insn_issued;
   logic simple_insn_issued;
   logic branch_insn_issued;
   logic load_insn_issued;
@@ -420,7 +421,11 @@ module rvj1_top
   assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
   assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
   assign csr_insn_issued = instr_issued && csr_valid && ~stall_ex && ~illegal_instr;
-
+  assign insn_issued = (simple_insn_issued ||
+                        branch_insn_issued ||
+                        load_insn_issued ||
+                        store_insn_issued ||
+                        csr_insn_issued);
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
     exec_stage_comb.rs1_addr       = rpa_or_pc  ? rf_addr_a : '0;
@@ -439,7 +444,7 @@ module rvj1_top
     exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
     exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
     exec_stage_comb.rd_wdata       = alu_res;
-    exec_stage_comb.trap           = synhr_trap;
+    exec_stage_comb.trap           = 1'b0;
     exec_stage_comb.csr_rdata      = '0;
     exec_stage_comb.csr_rmask      = '0;
     exec_stage_comb.csr_wdata      = '0;
@@ -459,26 +464,24 @@ module rvj1_top
   always_ff @(posedge clk_i) begin
     if (~rstn_i)
       mem_wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (simple_insn_issued || branch_insn_issued || csr_insn_issued)
-      mem_wb_stage <= exec_stage_comb;
-    else if (store_insn_issued) begin
-      mem_wb_stage <= exec_stage_comb;
-      mem_wb_stage.lsu_strobe <= strobe_sig;
-      mem_wb_stage.lsu_addr <= {alu_res[31:2], 2'b00};
-      mem_wb_stage.lsu_wdata <= exec_stage_comb.rs2_rdata;
+    else if (insn_issued) begin
+        mem_wb_stage <= exec_stage_comb;
+        mem_wb_stage.lsu_strobe <= store_insn_issued ? strobe_sig : '0;
+        mem_wb_stage.lsu_addr <= store_insn_issued ? {alu_res[31:2], 2'b00} : '0;
+        mem_wb_stage.lsu_wdata <= store_insn_issued ? exec_stage_comb.rs2_rdata : '0;
     end
-    else if (load_insn_issued)
-      mem_wb_stage <= exec_stage_comb;
     else if (data_req_valid_o && data_req_ready_i && ~data_req_write_o) begin // load
       mem_wb_stage.lsu_strobe <= data_req_strobe_o;
       mem_wb_stage.lsu_addr <= data_req_addr_o;
     end
+
   end
   always_ff @(posedge clk_i) begin
-    if (retiring) begin
-      retired_stage <= mem_wb_stage;
-      retired_stage.rd_addr  <= (wpc_we) ? wpc_addr : '0;
-      retired_stage.rd_wdata <= (wpc_we) ? wpc_data : '0;
+    if (instr_retiring) begin
+      retired_stage           <= mem_wb_stage;
+      retired_stage.trap      <= synhr_trap;
+      retired_stage.rd_addr   <= (wpc_we) ? wpc_addr : '0;
+      retired_stage.rd_wdata  <= (wpc_we) ? wpc_data : '0;
       retired_stage.csr_rdata <= rvfi_csr_rdata;
       retired_stage.csr_rmask <= rvfi_csr_rmask;
       retired_stage.csr_wdata <= rvfi_csr_wdata;
@@ -488,16 +491,11 @@ module rvj1_top
     end
   end
 
-  assign retiring = (instr_retiring &&
-                     ~store_addr_misaligned &&
-                     ~stop_jmp_write &&
-                     ~illegal_instr &&
-                     ~stall_mem_wb);
   register insn_retired_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (1'b1),
-    .in   (retiring),
+    .in   (instr_retiring),
     .out  (rvfi_valid)
   );
   counter #(

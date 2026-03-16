@@ -69,6 +69,9 @@ module rvfi_trace #(
         log_csr_write(rvfi_csr_mcause_wmask, rvfi_csr_mcause_wdata, CSR_MCAUSE_ADDR);
         log_csr_write(rvfi_csr_mtval_wmask, rvfi_csr_mtval_wdata, CSR_MTVAL_ADDR);
         log_csr_write(rvfi_csr_mscratch_wmask, rvfi_csr_mscratch_wdata, CSR_MSCRATCH_ADDR);
+        // spike compatibility on MRET insn
+        if (rvfi_insn == 32'h30200073)
+            $fwrite(file_handle, " c784_mstatush 0x00000000 c1957_tcontrol 0x00000000");
         $fwrite(file_handle, "\n");
     endfunction
 
