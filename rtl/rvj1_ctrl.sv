@@ -193,6 +193,12 @@ module rvj1_ctrl
                          (rf_addr_b_i != 5'b00000) &&
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
+  assign csr_write_hazard = (csr_valid_r_i &&
+                             (mret_insn_i ||
+                             ecall_insn_i ||
+                             ebreak_insn_i ||
+                             illegal_instr_i ||
+                             instr_fetch_error_i));
   assign stall_mem_wb_o = (lsu_busy_hazard ||
                           (state == eJUMP1) ||
                           (state == eTRAP) ||
@@ -200,6 +206,7 @@ module rvj1_ctrl
   assign stall_ex_o = (rf_a_hazard  ||
                        rf_b_hazard  ||
                        lsu_b_hazard ||
+                       csr_write_hazard ||
                        stall_mem_wb_o ||
                        (state == eLOAD) ||
                        (state == eJUMP0) ||
@@ -297,6 +304,7 @@ module rvj1_ctrl
 
   assign synhr_trap_ex = (ecall_insn ||
                           ebreak_insn ||
+                          illegal_csr_insn ||
                           illegal_instr ||
                           instr_fetch_error);
   register synhr_trap_ex_reg (
@@ -304,11 +312,8 @@ module rvj1_ctrl
   );
   assign synhr_trap_mem_wb = (lsu_trap ||
                               instr_addr_misaligned ||
-                              illegal_csr_insn ||
                               addr_unaligned_trap);
-  assign synhr_trap_mem_wb2 = (lsu_trap ||
-                              illegal_csr_insn ||
-                              load_addr_misaligned_i);
+  assign synhr_trap_mem_wb2 = (lsu_trap || load_addr_misaligned_i);
   assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
@@ -428,29 +433,10 @@ module rvj1_ctrl
 
   // csr_valid_r does not need stall control as stall is already applied at the
   // pipeline register (_r)
-  register #(.WORD_WIDTH(32), .RESET_VALUE(0)) csr_value_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (csr_value),
-    .out  (csr_value_o)
-  );
+  assign csr_value_o = csr_value;
+  assign csr_regdest_o = regdest_r_i;
+  assign csr_wb_o = csr_valid_r_i && ~stall_mem_wb_o;
 
-  register #(.WORD_WIDTH(1), .RESET_VALUE(0)) csr_wb_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (1'b1),
-    .out  (csr_wb_o)
-  );
-
-  register #(.WORD_WIDTH(RALEN), .RESET_VALUE(0)) csr_regdest_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i && !csr_wb_o),
-    .ce   (csr_valid_r_i),
-    .in   (regdest_i),
-    .out  (csr_regdest_o)
-  );
 
   `ifdef ASSERTIONS
   always_ff @(posedge clk_i) begin
@@ -619,7 +605,7 @@ module rvj1_ctrl
   ) csr_mscratch_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mscratch_ce & ~stall_ex_o),
+    .ce  (mscratch_ce),
     .in  (mscratch_d),
     .out (mscratch_q)
   );
@@ -630,7 +616,7 @@ module rvj1_ctrl
   ) csr_mtvec_reg (
     .clk (clk_i),
     .rstn(rstn_i),
-    .ce  (mtvec_ce & ~stall_ex_o),
+    .ce  (mtvec_ce),
     .in  (mtvec_d),
     .out (mtvec_q)
   );
