@@ -46,13 +46,13 @@ module lsu_mem_test_top #(
     logic [XLEN-1:0]   data_req_data;
     logic [NBYTES-1:0] data_req_strobe;
     logic              data_req_write;
+    logic [IDLEN-1:0]  data_req_id;
     logic              data_req_valid;
     logic              data_req_ready;
 
-    logic              data_ctrl_cancel;
-
     logic [XLEN-1:0]   data_rsp_data;
     logic              data_rsp_error;
+    logic [IDLEN-1:0]  data_rsp_id;
     logic              data_rsp_valid;
     logic              data_rsp_ready;
 
@@ -81,13 +81,13 @@ module lsu_mem_test_top #(
         .data_req_data_o            (data_req_data),
         .data_req_strobe_o          (data_req_strobe),
         .data_req_write_o           (data_req_write),
+        .data_req_id_o              (data_req_id),
         .data_req_valid_o           (data_req_valid),
         .data_req_ready_i           (data_req_ready),
 
-        .data_ctrl_cancel_o         (data_ctrl_cancel),
-
         .data_rsp_data_i            (data_rsp_data),
         .data_rsp_error_i           (data_rsp_error),
+        .data_rsp_id_i              (data_rsp_id),
         .data_rsp_valid_i           (data_rsp_valid),
         .data_rsp_ready_o           (data_rsp_ready)
     );
@@ -105,16 +105,16 @@ module lsu_mem_test_top #(
         .instr_req_data_i  ('0),
         .instr_req_strobe_i('0),
         .instr_req_write_i (1'b0),
+        .instr_req_id_i    ('0),
         .instr_req_valid_i (1'b0),
         // verilator lint_off PINCONNECTEMPTY
         .instr_req_ready_o (),
         // verilator lint_on PINCONNECTEMPTY
 
-        .instr_ctrl_cancel_i(1'b0),
-
         // verilator lint_off PINCONNECTEMPTY
         .instr_rsp_data_o  (),
         .instr_rsp_error_o (),
+        .instr_rsp_id_o    (),
         .instr_rsp_valid_o (),
         .instr_rsp_ready_i (1'b0),
         // verilator lint_onqq PINCONNECTEMPTY
@@ -123,13 +123,13 @@ module lsu_mem_test_top #(
         .data_req_data_i   (data_req_data),
         .data_req_strobe_i (data_req_strobe),
         .data_req_write_i  (data_req_write),
+        .data_req_id_i     (data_req_id),
         .data_req_valid_i  (data_req_valid),
         .data_req_ready_o  (data_req_ready),
 
-        .data_ctrl_cancel_i(data_ctrl_cancel),
-
         .data_rsp_data_o   (data_rsp_data),
         .data_rsp_error_o  (data_rsp_error),
+        .data_rsp_id_o     (data_rsp_id),
         .data_rsp_valid_o  (data_rsp_valid),
         .data_rsp_ready_i  (data_rsp_ready)
     );

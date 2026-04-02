@@ -9,6 +9,8 @@ package rvj1_defines;
     parameter int IALIGN = 32;  // instr addr alignment constraint (32 for RV32I, 16 for RV32IC)
     parameter int ILEN   = 32;  // the max instr length supported (multiple of IALIGN, 32 for RV32I)
 
+    parameter int IDLEN  = 4;   // The size of the ID field in the memory bus interface
+
     parameter logic [XLEN-1:0] BOOT_ADDR = 32'h8000_0000;
 
 

@@ -15,6 +15,7 @@ class MappedAccess(IntEnum):
 @dataclass(kw_only=True)
 class MappedRequest(BaseTransaction):
     cycles: int = 0
+    ident: int = 0
     address: int = 0
     mode: MappedAccess = MappedAccess.READ
     data: int = 0
@@ -23,6 +24,7 @@ class MappedRequest(BaseTransaction):
 
 @dataclass(kw_only=True)
 class MappedResponse(BaseTransaction):
+    ident: int = 0
     data: int = 0
     valid: bool = True
     valid_delay: int = field(compare=False, default=0)
@@ -33,8 +35,3 @@ class MappedResponse(BaseTransaction):
 class MappedBackpressure(BaseTransaction):
     ready: bool = True
     cycles: int = 0
-
-
-@dataclass(kw_only=True)
-class MappedControl(BaseTransaction):
-    cancel: bool = True

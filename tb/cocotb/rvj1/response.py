@@ -15,19 +15,8 @@ class IfuToDecMonitor(BaseMonitor):
             if self.io.get("valid") and self.io.get("ready"):
                 tran = InstrAddrResponse(
                     instr=self.io.get("instr", 0),
+                    error=self.io.get("error", 0)
                 )
-                capture(tran)
-
-
-class IfuErrorMonitor(BaseMonitor):
-    async def monitor(self, capture):
-        while True:
-            await RisingEdge(self.clk)
-            if self.rst.value == 0:
-                await RisingEdge(self.clk)
-                continue
-            if self.io.get("valid"):
-                tran = IfuErrorResponse(addr=self.io.get("addr"))
                 capture(tran)
 
 class DecoderResponder(BaseDriver):

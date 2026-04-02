@@ -16,7 +16,7 @@ class IfuToDecoderIO(BaseIO):
             dut=dut,
             name=name,
             role=role,
-            init_sigs=["instr", "valid"],
+            init_sigs=["instr", "valid", "error"],
             resp_sigs=["ready"],
             io_style=io_style,
         )
@@ -37,25 +37,6 @@ class IfuJmpIO(BaseIO):
             resp_sigs=[],
             io_style=io_style,
         )
-
-
-class IfuErrorIO(BaseIO):
-    def __init__(
-        self,
-        dut: HierarchyObject,
-        name: str | None,
-        role: IORole,
-        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
-    ) -> None:
-        super().__init__(
-            dut=dut,
-            name=name,
-            role=role,
-            init_sigs=["valid", "addr"],
-            resp_sigs=[],
-            io_style=io_style,
-        )
-
 
 class LsuIO(BaseIO):
     def __init__(

@@ -77,6 +77,7 @@ async def mapped_random_reads_seq(
                 address = ctx.random.getrandbits(driver.io.width("addr"))
             driver.enqueue(
                 MappedRequest(
+                    ident=ctx.random.getrandbits(driver.io.width("id")),
                     address=address,
                     mode=MappedAccess.READ,
                 )
@@ -99,6 +100,7 @@ async def mapped_random_writes_seq(
                 address = ctx.random.getrandbits(driver.io.width("addr"))
             driver.enqueue(
                 MappedRequest(
+                    ident=ctx.random.getrandbits(driver.io.width("id")),
                     address=address,
                     mode=MappedAccess.WRITE,
                     data=ctx.random.getrandbits(driver.io.width("data")),
@@ -120,21 +122,3 @@ async def mapped_delayed_response_seq(
     await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
     # Queue the transaction
     rsp_drv.enqueue(response)
-
-
-@forastero.sequence(auto_lock=True)
-@forastero.requires("rsp_drv", MappedResponseInitiator)
-async def mapped_responses_seq(
-    ctx: SeqContext,
-    rsp_drv: SeqProxy[MappedResponseInitiator],
-    responses: list[MappedResponse],
-) -> None:
-    # Queue the transactions
-    rsp_drv.enqueue(responses)
-
-
-def gen_responses_noerr(data: list[int]) -> list[MappedResponse]:
-    responses = []
-    for d in data:
-        responses.append(MappedResponse(data=d, error=0))
-    return responses

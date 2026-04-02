@@ -6,7 +6,8 @@ import math
 from cocotb.triggers import ClockCycles, RisingEdge
 from forastero.driver import BaseDriver
 from forastero.monitor import BaseMonitor
-from .transaction import MappedAccess, MappedBackpressure, MappedRequest, MappedControl
+
+from .transaction import MappedAccess, MappedBackpressure, MappedRequest
 
 
 class MappedRequestInitiator(BaseDriver):
@@ -14,6 +15,7 @@ class MappedRequestInitiator(BaseDriver):
         # Setup the transaction
         await ClockCycles(self.clk, transaction.cycles)
         is_write = transaction.mode is MappedAccess.WRITE
+        self.io.set("id", transaction.ident)
         self.io.set("addr", transaction.address)
         self.io.set("data", transaction.data if is_write else 0)
         self.io.set("strobe", transaction.strobe)
@@ -64,24 +66,10 @@ class MappedRequestMonitor(BaseMonitor):
                     strobe = 0
                 capture(
                     MappedRequest(
+                        ident=self.io.get("id", 0),
                         address=self.io.get("addr"),
                         mode=[MappedAccess.READ, MappedAccess.WRITE][is_write],
                         data=wr_data,
                         strobe=strobe,
                     )
                 )
-
-class MappedControlMonitor(BaseMonitor):
-    """
-        Monitors the cancel line, that resets the memory queues.
-    """
-    def __init__(self, *args, **kwds) -> None:
-        super().__init__(*args, **kwds)
-
-    async def monitor(self, capture):
-        while True:
-            await RisingEdge(self.clk)
-            if self.rst.value == 0:
-                continue
-            if self.io.get("cancel"):
-                capture(MappedControl(cancel=True))

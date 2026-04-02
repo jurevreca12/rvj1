@@ -26,30 +26,30 @@ module rvj1_top
   output logic [XLEN-1:0]   instr_req_data_o,
   output logic [NBYTES-1:0] instr_req_strobe_o,
   output logic              instr_req_write_o,
+  output logic [IDLEN-1:0]  instr_req_id_o,
   output logic              instr_req_valid_o,
   input  logic              instr_req_ready_i,
 
-  output logic              instr_ctrl_cancel_o,
-
-  input  logic [XLEN-1:0] instr_rsp_data_i,
-  input  logic            instr_rsp_error_i,
-  input  logic            instr_rsp_valid_i,
-  output logic            instr_rsp_ready_o,
+  input  logic [XLEN-1:0]   instr_rsp_data_i,
+  input  logic              instr_rsp_error_i,
+  input  logic [IDLEN-1:0]  instr_rsp_id_i,
+  input  logic              instr_rsp_valid_i,
+  output logic              instr_rsp_ready_o,
 
   // Interface to data memory
   output logic [XLEN-1:0]   data_req_addr_o,
   output logic [XLEN-1:0]   data_req_data_o,
   output logic [NBYTES-1:0] data_req_strobe_o,
   output logic              data_req_write_o,
+  output logic [IDLEN-1:0]  data_req_id_o,
   output logic              data_req_valid_o,
   input  logic              data_req_ready_i,
 
-  output logic              data_ctrl_cancel_o,
-
-  input  logic [XLEN-1:0] data_rsp_data_i,
-  input  logic            data_rsp_error_i,
-  input  logic            data_rsp_valid_i,
-  output logic            data_rsp_ready_o,
+  input  logic [XLEN-1:0]   data_rsp_data_i,
+  input  logic              data_rsp_error_i,
+  input  logic [IDLEN-1:0]  data_rsp_id_i,
+  input  logic              data_rsp_valid_i,
+  output logic              data_rsp_ready_o,
 
   // Interrupt sources
   input logic        irq_external_i,
@@ -168,13 +168,13 @@ module rvj1_top
     .instr_req_data_o   (instr_req_data_o),
     .instr_req_strobe_o (instr_req_strobe_o),
     .instr_req_write_o  (instr_req_write_o),
+    .instr_req_id_o     (instr_req_id_o),
     .instr_req_valid_o  (instr_req_valid_o),
     .instr_req_ready_i  (instr_req_ready_i),
 
-    .instr_ctrl_cancel_o(instr_ctrl_cancel_o),
-
     .instr_rsp_data_i   (instr_rsp_data_i),
     .instr_rsp_error_i  (instr_rsp_error_i),
+    .instr_rsp_id_i     (instr_rsp_id_i),
     .instr_rsp_valid_i  (instr_rsp_valid_i),
     .instr_rsp_ready_o  (instr_rsp_ready_o),
 
@@ -290,11 +290,12 @@ module rvj1_top
     .data_req_data_o            (data_req_data_o),
     .data_req_strobe_o          (data_req_strobe_o),
     .data_req_write_o           (data_req_write_o),
+    .data_req_id_o              (data_req_id_o),
     .data_req_valid_o           (data_req_valid_o),
     .data_req_ready_i           (data_req_ready_i),
-    .data_ctrl_cancel_o         (data_ctrl_cancel_o),
     .data_rsp_data_i            (data_rsp_data_i),
     .data_rsp_error_i           (data_rsp_error_i),
+    .data_rsp_id_i              (data_rsp_id_i),
     .data_rsp_valid_i           (data_rsp_valid_i),
     .data_rsp_ready_o           (data_rsp_ready_o)
   );

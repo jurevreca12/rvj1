@@ -2,10 +2,11 @@ from base import get_rtl_files
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
+from forastero.driver import DriverEvent
 from cocotb.triggers import ClockCycles
-from rvj1.io import IfuToDecoderIO, IfuJmpIO, IfuErrorIO
+from rvj1.io import IfuToDecoderIO, IfuJmpIO
 from rvj1.request import IfuJmpInitiator
-from rvj1.response import IfuToDecMonitor, DecoderResponder, IfuErrorMonitor
+from rvj1.response import IfuToDecMonitor, DecoderResponder
 from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
 from rvj1.transaction import InstrAddrResponse, IfuErrorResponse
 import os
@@ -18,7 +19,6 @@ class IfuTB(BaseBench):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
         dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
         ifu_jmp_io = IfuJmpIO(dut, "jmp", IORole.RESPONDER, io_style=io_suffix_style)
-        ifu_err_io = IfuErrorIO(dut, "error", IORole.INITIATOR, io_style=io_suffix_style)
         self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
         self.register(
             "dec_resp_drv",
@@ -28,18 +28,17 @@ class IfuTB(BaseBench):
             "ifu_jmp_drv",
             IfuJmpInitiator(self, ifu_jmp_io, self.clk, self.rst)
         )
-        self.register("err_mon", IfuErrorMonitor(self, ifu_err_io, self.clk, self.rst))
+        self.ifu_jmp_drv.subscribe(DriverEvent.POST_DRIVE, self.jump_change_counter)
         self.dec_mon.subscribe(MonitorEvent.CAPTURE, self.push_reference)
         self.counter = 1
 
-
     def push_reference(self, monitor, event, obj) -> None:
-        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter))
+        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter, error=False))
         self.counter += 1
-        if self.dut.jmp_addr_valid_i.value == 1:
-            addr = int(self.dut.jmp_addr_i.value)
-            self.counter = int(((addr - 0x8000_0000) / 4) + 1)
 
+
+    def jump_change_counter(self, driver, event, obj):
+        self.counter = int(((obj.addr - 0x8000_0000) / 4) + 1)
         
 		
 
@@ -115,7 +114,7 @@ async def run_and_jump(tb: IfuTB, log):
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
     await ClockCycles(tb.clk, 50)
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_006c))
-    await ClockCycles(tb.clk, 50)
+    await ClockCycles(tb.clk, 100)
 
 
 @IfuTB.testcase(

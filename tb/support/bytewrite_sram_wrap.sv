@@ -10,6 +10,7 @@ module bytewrite_sram_wrap #(
     parameter int DMEM_BASE_ADDR,
     parameter int IMEM_SIZE_WORDS,
     parameter int DMEM_SIZE_WORDS,
+    parameter int IDLEN = 4,
     localparam int NBytes = XLEN / 8,
     localparam int IMemSizeBytes = IMEM_SIZE_WORDS * 4,
     localparam int DMemSizeBytes = DMEM_SIZE_WORDS * 4,
@@ -27,13 +28,13 @@ module bytewrite_sram_wrap #(
     input  logic [NBytes-1:0] instr_req_strobe_i,
     input  logic              instr_req_write_i,
     input  logic              instr_req_valid_i,
+    input  logic [IDLEN-1:0]  instr_req_id_i,
     output logic              instr_req_ready_o,
-
-    input  logic              instr_ctrl_cancel_i,
 
     output logic [XLEN-1:0]   instr_rsp_data_o,
     output logic              instr_rsp_error_o,
     output logic              instr_rsp_valid_o,
+    output logic [IDLEN-1:0]  instr_rsp_id_o,
     input  logic              instr_rsp_ready_i,
 
     // Interface to data memory
@@ -41,17 +42,19 @@ module bytewrite_sram_wrap #(
     input  logic [XLEN-1:0]   data_req_data_i,
     input  logic [NBytes-1:0] data_req_strobe_i,
     input  logic              data_req_write_i,
+    input  logic [IDLEN-1:0]  data_req_id_i,
     input  logic              data_req_valid_i,
     output logic              data_req_ready_o,
 
-    input  logic              data_ctrl_cancel_i,
 
-    output logic [XLEN-1:0] data_rsp_data_o,
-    output logic            data_rsp_error_o,
-    output logic            data_rsp_valid_o,
-    input  logic            data_rsp_ready_i
+    output logic [XLEN-1:0]   data_rsp_data_o,
+    output logic              data_rsp_error_o,
+    output logic [IDLEN-1:0]  data_rsp_id_o,
+    output logic              data_rsp_valid_o,
+    input  logic              data_rsp_ready_i
 );
     typedef struct packed {
+        logic [IDLEN-1:0]  id;
         logic [XLEN-1:0]   addr;
         logic [XLEN-1:0]   data;
         logic [NBytes-1:0] strobe;
@@ -59,6 +62,7 @@ module bytewrite_sram_wrap #(
     } mem_req_t;
 
     typedef struct packed {
+        logic [IDLEN-1:0]  id;
         logic [XLEN-1:0] data;
         logic            error;
     } mem_rsp_t;
@@ -68,6 +72,7 @@ module bytewrite_sram_wrap #(
     logic dram_req_valid, dram_req_ready, dram_req_fire, dram_req_fire_r;
     logic dram_addr_valid;
     logic dram_rsp_err;
+    logic [IDLEN-1:0] dram_rsp_id;
     logic [XLEN-1:0] dram_rsp_data;
 
     mem_req_t iram_req;
@@ -76,6 +81,7 @@ module bytewrite_sram_wrap #(
     logic iram_addr_valid;
     logic iram_req_err;
     logic iram_rsp_err;
+    logic [IDLEN-1:0] iram_rsp_id;
     logic [XLEN-1:0] iram_rsp_data;
 
     assign iram_addr_valid = ((iram_req.addr >= IMEM_BASE_ADDR) &&
@@ -93,11 +99,11 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_req_t))
     ) dram_req_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~data_ctrl_cancel_i),
+        .rstn (rstn_i),
 
         .input_valid  (data_req_valid_i),
         .input_ready  (data_req_ready_o),
-        .input_data   ({data_req_addr_i, data_req_data_i, data_req_strobe_i, data_req_write_i}),
+        .input_data   ({data_req_id_i, data_req_addr_i, data_req_data_i, data_req_strobe_i, data_req_write_i}),
 
         .output_valid (dram_req_valid),
         .output_ready (data_rsp_ready_i),
@@ -112,11 +118,11 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_req_t))
     ) iram_req_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~instr_ctrl_cancel_i),
+        .rstn (rstn_i),
 
         .input_valid  (instr_req_valid_i),
         .input_ready  (instr_req_ready_o),
-        .input_data   ({instr_req_addr_i, instr_req_data_i, instr_req_strobe_i, instr_req_write_i}),
+        .input_data   ({instr_req_id_i, instr_req_addr_i, instr_req_data_i, instr_req_strobe_i, instr_req_write_i}),
 
         .output_valid (iram_req_valid),
         .output_ready (instr_rsp_ready_i),
@@ -147,23 +153,37 @@ module bytewrite_sram_wrap #(
         .addr1   (iram_req.addr[$clog2(MemSizeBytesTotal)-1:2]),
         .dout1   (iram_rsp_data)
     );
-    register dram_req_fire_reg (.clk(clk_i), .rstn(rstn_i && ~data_ctrl_cancel_i),  .ce(1'b1),          .in(dram_req_fire),    .out(dram_req_fire_r));
-    register dram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~data_ctrl_cancel_i),  .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err));
-    register iram_req_fire_req (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(1'b1),          .in(iram_req_fire),    .out(iram_req_fire_r));
-    register iram_req_err_reg  (.clk(clk_i), .rstn(rstn_i && ~instr_ctrl_cancel_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err));
+    register dram_req_fire_reg (
+        .clk(clk_i), .rstn(rstn_i), .ce(1'b1),          .in(dram_req_fire),    .out(dram_req_fire_r)
+    );
+    register dram_req_err_reg (
+        .clk(clk_i), .rstn(rstn_i), .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err)
+    );
+    register #(.WORD_WIDTH(IDLEN)) dram_req_id_reg (
+        .clk(clk_i), .rstn(rstn_i), .ce(dram_req_fire), .in(dram_req.id),      .out(dram_rsp_id)
+    );
+    register iram_req_fire_req (
+        .clk(clk_i), .rstn(rstn_i), .ce(1'b1),          .in(iram_req_fire),    .out(iram_req_fire_r)
+    );
+    register iram_req_err_reg (
+        .clk(clk_i), .rstn(rstn_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err)
+    );
+    register #(.WORD_WIDTH(IDLEN)) iram_req_id_reg (
+        .clk(clk_i), .rstn(rstn_i), .ce(iram_req_fire), .in(iram_req.id),      .out(iram_rsp_id)
+    );
     skidbuffer #(
         .WORD_WIDTH($bits(mem_rsp_t))
     ) dram_rsp_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~data_ctrl_cancel_i),
+        .rstn (rstn_i),
 
         .input_valid  (dram_req_fire_r),
         .input_ready  (),
-        .input_data   ({dram_rsp_data, dram_rsp_err}),
+        .input_data   ({dram_rsp_id, dram_rsp_data, dram_rsp_err}),
 
         .output_valid (data_rsp_valid_o),
         .output_ready (data_rsp_ready_i),
-        .output_data  ({data_rsp_data_o, data_rsp_error_o}),
+        .output_data  ({data_rsp_id_o, data_rsp_data_o, data_rsp_error_o}),
 
         // verilator lint_off PINCONNECTEMPTY
         .empty ()
@@ -173,15 +193,15 @@ module bytewrite_sram_wrap #(
         .WORD_WIDTH($bits(mem_rsp_t))
     ) iram_rsp_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~instr_ctrl_cancel_i),
+        .rstn (rstn_i),
 
         .input_valid  (iram_req_fire_r),
         .input_ready  (),
-        .input_data   ({iram_rsp_data, iram_rsp_err}),
+        .input_data   ({iram_rsp_id, iram_rsp_data, iram_rsp_err}),
 
         .output_valid (instr_rsp_valid_o),
         .output_ready (instr_rsp_ready_i),
-        .output_data  ({instr_rsp_data_o, instr_rsp_error_o}),
+        .output_data  ({instr_rsp_id_o, instr_rsp_data_o, instr_rsp_error_o}),
 
         // verilator lint_off PINCONNECTEMPTY
         .empty ()
