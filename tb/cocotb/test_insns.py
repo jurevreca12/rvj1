@@ -54,7 +54,7 @@ async def run_rvj1(dut):
 def top_test_fixture(hdl: HDL) -> HDL:
     build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
     if WAVES:
-        build_args += ["--trace-fst"]
+        build_args += ["--trace-fst", "--trace-structs"]
     if RVFI:
         build_args += [f"-DRVFI"]
     if RVFI_TRACE:

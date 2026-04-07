@@ -60,7 +60,8 @@ module rvj1_ctrl
   output logic             instr_retiring_o,
   output logic             stall_ex_o,
   output logic             stall_mem_wb_o,
-  output logic             flush_o,
+  output logic             flush_ex_o,
+  output logic             flush_mem_wb_o,
   output logic             stop_jmp_write_o,
 
   output logic [XLEN-1:0]  program_counter_o,
@@ -215,9 +216,10 @@ module rvj1_ctrl
                        (state == eJUMP1) ||
                        (state == eTRAP) ||
                        (state == eMRET));
-  assign flush_o = ((state == eJUMP0) ||
-                    (state == eTRAP) ||
-                    (state == eMRET));
+  assign flush_ex_o = ((state == eJUMP0) ||
+                      (state == eTRAP) ||
+                      (state == eMRET));
+  assign flush_mem_wb_o = (flush_ex_o || stall_ex_o);
 
   /*************************************
   * Jumping logic

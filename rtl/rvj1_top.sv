@@ -134,7 +134,8 @@ module rvj1_top
   logic             jmp_addr_valid;
   logic [XLEN-3:0]  jmp_addr;
   logic             lsu_ready;
-  logic             flush;
+  logic             flush_ex;
+  logic             flush_mem_wb;
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
@@ -193,7 +194,7 @@ module rvj1_top
   ****************************************/
   rvj1_dec decoder_inst(
     .clk_i               (clk_i),
-    .rstn_i              (rstn_i && ~flush),
+    .rstn_i              (rstn_i && ~flush_ex),
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
@@ -258,7 +259,7 @@ module rvj1_top
     .RESET_VALUE (0)
   ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
-    .rstn (rstn_i && ~flush),
+    .rstn (rstn_i && ~flush_mem_wb),
     .ce   (control && ~stall_mem_wb),
     .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid && ~stall_ex,   lsu_ctrl,
             alu_write_rf && ~stall_ex,   jump && ~stall_ex,   csr_valid && ~stall_ex,   csr_addr,   csr_cmd}),
@@ -330,7 +331,7 @@ module rvj1_top
       end
     endcase
   end
-  assign wpc_we = ((lsu_wb_valid && ~stall_mem_wb) ||
+  assign wpc_we = (lsu_wb_valid ||
                    (alu_write_rf_r  && ~stall_mem_wb) ||
                    (jump_r && ~stop_jmp_write) ||
                    csr_wb);
@@ -367,7 +368,8 @@ module rvj1_top
     .stall_ex_o             (stall_ex),
     .stall_mem_wb_o         (stall_mem_wb),
     .program_counter_o      (program_counter),
-    .flush_o                (flush),
+    .flush_ex_o             (flush_ex),
+    .flush_mem_wb_o         (flush_mem_wb),
     .stop_jmp_write_o       (stop_jmp_write),
     .jmp_addr_valid_o       (jmp_addr_valid),
     .jmp_addr_o             (jmp_addr),
