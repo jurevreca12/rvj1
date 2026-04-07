@@ -3,12 +3,12 @@ from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
 from forastero.driver import DriverEvent
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, RisingEdge
 from rvj1.io import IfuToDecoderIO, IfuJmpIO
 from rvj1.request import IfuJmpInitiator
 from rvj1.response import IfuToDecMonitor, DecoderResponder
 from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
-from rvj1.transaction import InstrAddrResponse, IfuErrorResponse
+from rvj1.transaction import InstrAddrResponse
 import os
 
 from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
@@ -19,7 +19,11 @@ class IfuTB(BaseBench):
         super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
         dec_io = IfuToDecoderIO(dut, "dec", IORole.INITIATOR, io_style=io_suffix_style)
         ifu_jmp_io = IfuJmpIO(dut, "jmp", IORole.RESPONDER, io_style=io_suffix_style)
-        self.register("dec_mon", IfuToDecMonitor(self, dec_io, self.clk, self.rst))
+        self.register(
+            "dec_mon", 
+            IfuToDecMonitor(self, dec_io, self.clk, self.rst),
+            sb_filter=self.filter_dec_data_on_error
+        )
         self.register(
             "dec_resp_drv",
             DecoderResponder(self, dec_io, self.clk, self.rst, blocking=False),
@@ -33,14 +37,29 @@ class IfuTB(BaseBench):
         self.counter = 1
 
     def push_reference(self, monitor, event, obj) -> None:
-        self.scoreboard.channels["dec_mon"].push_reference(InstrAddrResponse(instr=self.counter, error=False))
+        target_addr = int(0x8000_0000 + (self.counter * 4))
+        outofbounds = 0x8000_0100
+        error = (target_addr > outofbounds)
+        self.scoreboard.channels["dec_mon"].push_reference(
+            InstrAddrResponse(
+                instr=0 if error else self.counter, 
+                error=error
+            )
+        )
         self.counter += 1
 
 
     def jump_change_counter(self, driver, event, obj):
         self.counter = int(((obj.addr - 0x8000_0000) / 4) + 1)
+
         
-		
+    def filter_dec_data_on_error(self, 
+                            mon: IfuToDecMonitor,
+                            event: MonitorEvent, 
+                            obj: InstrAddrResponse) -> InstrAddrResponse | None:
+        if obj.error:
+            obj.instr = 0 # blank out instruction on error signal
+        return obj	
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -129,8 +148,9 @@ async def response_error(tb: IfuTB, log):
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
     tb.schedule(ifu_jmp_to_addr(ifu_jmp_drv=tb.ifu_jmp_drv, addr=0x8000_0000))
-    tb.scoreboard.channels['err_mon'].push_reference(IfuErrorResponse(addr=0x8000_0100))
-    await tb.err_mon.wait_for(MonitorEvent.CAPTURE)
+    await RisingEdge(tb.dec_error_o)
+    await RisingEdge(tb.dec_ready_i)
+    await ClockCycles(tb.clk, 10)
 
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")
