@@ -236,6 +236,7 @@ module rvj1_ifu(
     `endif
 
     assign consume_id = (rsp_buff_out_valid &&
+                         act_id_buff_out_valid &&
                          (state == eIFU_BUSY) &&
                          dec_ready_i);
 

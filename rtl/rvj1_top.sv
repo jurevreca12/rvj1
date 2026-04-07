@@ -261,8 +261,8 @@ module rvj1_top
     .clk  (clk_i),
     .rstn (rstn_i && ~flush_mem_wb),
     .ce   (control && ~stall_mem_wb),
-    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid && ~stall_ex,   lsu_ctrl,
-            alu_write_rf && ~stall_ex,   jump && ~stall_ex,   csr_valid && ~stall_ex,   csr_addr,   csr_cmd}),
+    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid,   lsu_ctrl,
+            alu_write_rf,   jump,   csr_valid,   csr_addr,   csr_cmd}),
     .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r,
             alu_write_rf_r, jump_r, csr_valid_r, csr_addr_r, csr_cmd_r})
   );

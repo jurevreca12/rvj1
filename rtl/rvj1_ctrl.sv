@@ -217,9 +217,10 @@ module rvj1_ctrl
                        (state == eTRAP) ||
                        (state == eMRET));
   assign flush_ex_o = ((state == eJUMP0) ||
-                      (state == eTRAP) ||
-                      (state == eMRET));
-  assign flush_mem_wb_o = (flush_ex_o || stall_ex_o);
+                       (state == eTRAP) ||
+                       (state == eMRET));
+  assign flush_mem_wb_o = (flush_ex_o ||
+                          (stall_ex_o && ~stall_mem_wb_o));
 
   /*************************************
   * Jumping logic
@@ -450,7 +451,7 @@ module rvj1_ctrl
 
   assign csr_valid_read = (csr_valid_r_i && (csr_cmd_r_i == CSRRW) && (regdest_r_i != '0) ||
                            csr_valid_r_i && (csr_cmd_r_i == CSRRS) ||
-                            csr_valid_r_i && (csr_cmd_r_i == CSRRC));
+                           csr_valid_r_i && (csr_cmd_r_i == CSRRC));
   assign csr_valid_write = (csr_valid_r_i && (csr_cmd_r_i == CSRRW) ||
                             csr_valid_r_i && (csr_cmd_r_i == CSRRS) && (alu_res_r_i != '0) ||
                             csr_valid_r_i && (csr_cmd_r_i == CSRRC) && (alu_res_r_i != '0));
