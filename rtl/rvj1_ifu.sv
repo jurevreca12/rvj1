@@ -120,6 +120,7 @@ module rvj1_ifu(
     logic [IDLEN-1:0] next_id;
     logic [IDLEN-1:0] next_exp_id;
     logic [IDLEN-1:0] dec_id;
+    logic             dec_fire;
     logic             consume_id;
 
 
@@ -188,7 +189,7 @@ module rvj1_ifu(
         .input_data   (instr_req_id_o),
 
         .output_valid (act_id_buff_out_valid),
-        .output_ready (dec_valid_o),
+        .output_ready (consume_id),
         .output_data  (next_exp_id),
 
         // verilator lint_off PINCONNECTEMPTY
@@ -235,16 +236,21 @@ module rvj1_ifu(
         end
     `endif
 
-    assign consume_id = (rsp_buff_out_valid &&
-                         act_id_buff_out_valid &&
-                         (state == eIFU_BUSY) &&
-                         dec_ready_i);
+
 
     /*************************************
     * Decoder Interface
     *************************************/
+    assign consume_id = (rsp_buff_out_valid &&
+                         act_id_buff_out_valid &&
+                        (state == eIFU_BUSY)) &&
+                         dec_ready_i;
     assign id_match = (dec_id == next_exp_id);
-    assign dec_valid_o = consume_id && id_match;
+    assign dec_valid_o = (rsp_buff_out_valid &&
+                          act_id_buff_out_valid &&
+                         (state == eIFU_BUSY)) &&
+                          id_match;
+    assign dec_fire = dec_ready_i && dec_valid_o;
 
     /*************************************
     * Finite State Machine (FSM)
