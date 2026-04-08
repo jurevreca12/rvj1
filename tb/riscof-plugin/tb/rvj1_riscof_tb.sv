@@ -87,7 +87,7 @@ module rvj1_riscof_tb();
 
       .instr_rsp_data_o  (instr_rsp_data),
       .instr_rsp_error_o (instr_rsp_error),
-      .instr_rsp_id_o    (isntr_rsp_id),
+      .instr_rsp_id_o    (instr_rsp_id),
       .instr_rsp_valid_o (instr_rsp_valid),
       .instr_rsp_ready_i (instr_rsp_ready),
 
