@@ -858,22 +858,22 @@ class BEQTest(Program):
 
     def __init__(self):
         insns = [
-            InstructionADDI(x10, x0, 3),
-            InstructionBEQ(x0, x10, 8),
-            InstructionADDI(x1, x0, 1),
-            InstructionBEQ(x1, x10, 8),
-            InstructionADDI(x2, x0, 2),
-            InstructionBEQ(x2, x10, 8),
-            InstructionADDI(x3, x0, 3),
-            InstructionBEQ(x3, x10, 8),  # ->|
-            InstructionADDI(x4, x0, 4),  #   |
-            InstructionBEQ(x4, x10, 8),  # <-|
-            InstructionADDI(x5, x0, 5),
-            InstructionADDI(x6, x0, 6),
-            InstructionADDI(x7, x0, 7),
-            InstructionADDI(x8, x0, 8),
-            InstructionADDI(x9, x0, 9),
-            InstructionADDI(x31, x0, 1)
+            InstructionADDI(x10, x0, 3), # 0x8000_0000
+            InstructionBEQ(x0, x10, 8),  # 0x8000_0004
+            InstructionADDI(x1, x0, 1),  # 0x8000_0008
+            InstructionBEQ(x1, x10, 8),  # 0x8000_000c 
+            InstructionADDI(x2, x0, 2),  # 0x8000_0010
+            InstructionBEQ(x2, x10, 8),  # 0x8000_0014
+            InstructionADDI(x3, x0, 3),  # 0x8000_0018
+            InstructionBEQ(x3, x10, 8),  # 0x8000_001c ->|
+            InstructionADDI(x4, x0, 4),  # 0x8000_0020   |
+            InstructionBEQ(x4, x10, 8),  # 0x8000_0024 <-|
+            InstructionADDI(x5, x0, 5),  # 0x8000_0028
+            InstructionADDI(x6, x0, 6),  # 0x8000_002c
+            InstructionADDI(x7, x0, 7),  # 0x8000_0030
+            InstructionADDI(x8, x0, 8),  # 0x8000_0034
+            InstructionADDI(x9, x0, 9),  # 0x8000_0038
+            InstructionADDI(x31, x0, 1)  # 0x8000_003c
         ]
         super().__init__(insns)
 

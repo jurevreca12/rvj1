@@ -122,6 +122,7 @@ module rvj1_ifu(
     logic [IDLEN-1:0] dec_id;
     logic             dec_fire;
     logic             consume_id;
+    logic             consume_rsp;
 
 
     /*************************************
@@ -203,6 +204,10 @@ module rvj1_ifu(
                 req_dropped: assert(act_req_buff_inp_ready);
                 id_dropped: assert(act_id_buff_inp_ready);
             end
+            if (instr_rsp_fire) begin
+                rsp_dropped: assert(act_req_buff_out_valid);
+                rsp_ready: assert(rsp_buff_inp_ready);
+            end
         end
     `endif
 
@@ -220,7 +225,7 @@ module rvj1_ifu(
     .input_data   ({next_strobe, instr_rsp_data_i, instr_rsp_error_i, instr_rsp_id_i}),
 
     .output_valid (rsp_buff_out_valid),
-    .output_ready (consume_id),
+    .output_ready (consume_rsp),
     .output_data  ({dec_strobe, dec_instr_o, dec_error_o, dec_id}),
 
     // verilator lint_off PINCONNECTEMPTY
@@ -233,6 +238,9 @@ module rvj1_ifu(
             if (instr_rsp_valid_i && rsp_buff_inp_ready) begin
                 inorder_ids: assert(instr_rsp_id_i == next_id);
             end
+            if (consume_id) begin
+                valid_consume: assert(rsp_buff_out_valid && act_id_buff_out_valid);
+            end
         end
     `endif
 
@@ -241,15 +249,20 @@ module rvj1_ifu(
     /*************************************
     * Decoder Interface
     *************************************/
+    assign consume_rsp = (rsp_buff_out_valid &&
+                          act_id_buff_out_valid &&
+                          (state == eIFU_BUSY) &&
+                          dec_ready_i);
+    assign id_match = (dec_id == next_exp_id);
     assign consume_id = (rsp_buff_out_valid &&
                          act_id_buff_out_valid &&
-                        (state == eIFU_BUSY)) &&
-                         dec_ready_i;
-    assign id_match = (dec_id == next_exp_id);
+                         (state == eIFU_BUSY) &&
+                         dec_ready_i &&
+                         id_match);
     assign dec_valid_o = (rsp_buff_out_valid &&
                           act_id_buff_out_valid &&
-                         (state == eIFU_BUSY)) &&
-                          id_match;
+                          (state == eIFU_BUSY) &&
+                          id_match);
     assign dec_fire = dec_ready_i && dec_valid_o;
 
     /*************************************
