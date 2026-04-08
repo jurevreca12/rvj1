@@ -37,6 +37,7 @@ module rvj1_ctrl
   input  logic             ebreak_insn_i,
   input  logic             illegal_instr_i,
 
+  input  logic             control_i,
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
 
@@ -142,6 +143,7 @@ module rvj1_ctrl
   logic lsu_b_hazard;
   logic lsu_busy_hazard;
   logic csr_write_hazard;
+  logic csr_write_hazard_r;
   logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
@@ -159,6 +161,8 @@ module rvj1_ctrl
   logic illegal_instr;
   logic instr_fetch_error;
   logic stall_ex_o_r;
+  logic sys_insns;
+  logic csr_mod_insns;
 
   /*************************************
   * Helper functions
@@ -197,12 +201,12 @@ module rvj1_ctrl
                          (rf_addr_b_i != 5'b00000) &&
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
+  assign sys_insns = mret_insn_i || ecall_insn_i || ebreak_insn_i;
+  assign csr_mod_insns = sys_insns || illegal_instr_i || instr_fetch_error_i;
+  register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   assign csr_write_hazard = (csr_valid_r_i &&
-                             (mret_insn_i ||
-                             ecall_insn_i ||
-                             ebreak_insn_i ||
-                             illegal_instr_i ||
-                             instr_fetch_error_i));
+                             csr_mod_insns &&
+                             ~csr_write_hazard_r);
   assign stall_mem_wb_o = (lsu_busy_hazard ||
                           (state == eJUMP1) ||
                           (state == eTRAP));
@@ -220,7 +224,8 @@ module rvj1_ctrl
                        (state == eTRAP) ||
                        (state == eMRET));
   assign flush_mem_wb_o = (flush_ex_o ||
-                          (stall_ex_o && ~stall_mem_wb_o));
+                          (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
+                          (~control_i && ~stall_ex_o));
 
   /*************************************
   * Jumping logic

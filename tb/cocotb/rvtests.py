@@ -1016,16 +1016,16 @@ class MSCRATCHTest(Program):
 
     def __init__(self):
         insns = [
-            InstructionLUI (x3, 0x80000),
-            InstructionADDI(x3, x3, 0x123),
-            InstructionCSRRW(x0, x3, mscratch), # rd, rs1, csr_addr
-            InstructionADDI(x0, 0x0),
-            InstructionADDI(x0, 0x0),
-            InstructionCSRRW(x4, x0, mscratch), # rd, rs1, csr_addr
-            InstructionADDI(x0, 0x0),
-            InstructionADDI(x0, 0x0),
-            InstructionADDI(x0, 0x0),
-            InstructionADDI(x31, x0, 1)
+            InstructionLUI (x3, 0x80000),       # 0x8000_0000
+            InstructionADDI(x3, x3, 0x123),     # 0x8000_0004
+            InstructionCSRRW(x0, x3, mscratch), # 0x8000_0008
+            InstructionADDI(x0, 0x0),           # 0x8000_000c
+            InstructionADDI(x0, 0x0),           # 0x8000_0010
+            InstructionCSRRW(x4, x0, mscratch), # 0x8000_0014
+            InstructionADDI(x0, 0x0),           # 0x8000_0018
+            InstructionADDI(x0, 0x0),           # 0x8000_001c
+            InstructionADDI(x0, 0x0),           # 0x8000_0020
+            InstructionADDI(x31, x0, 1)         # 0x8000_0024
         ]
         super().__init__(insns)
 

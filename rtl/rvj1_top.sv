@@ -260,7 +260,7 @@ module rvj1_top
   ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
     .rstn (rstn_i && ~flush_mem_wb),
-    .ce   (control && ~stall_mem_wb),
+    .ce   (control && ~stall_mem_wb && ~stall_ex),
     .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid,   lsu_ctrl,
             alu_write_rf,   jump,   csr_valid,   csr_addr,   csr_cmd}),
     .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r, lsu_ctrl_r,
@@ -362,6 +362,7 @@ module rvj1_top
     .alu_res_r_i            (alu_res_r),
     .ctrl_branch_i          (ctrl_branch),
     .ctrl_branch_type_i     (ctrl_branch_type),
+    .control_i              (control),
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .instr_retiring_o       (instr_retiring),
