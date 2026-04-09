@@ -12,9 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-module rvj1_alu (
+module rvj1_alu import rvj1_pkg::*; (
     input  alu_op_e sel_i,  // select arithmetic operation
     input  logic [XLEN-1:0]  op_a_i,
     input  logic [XLEN-1:0]  op_b_i,

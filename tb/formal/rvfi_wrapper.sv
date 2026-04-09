@@ -1,3 +1,5 @@
+`include "rvfi_macros.svh"
+
 module rvfi_wrapper (
   input         clock,
   input         reset,
@@ -25,6 +27,7 @@ module rvfi_wrapper (
   output logic [31:0]                  rvfi_mem_wdata
 );
 
+  (* keep *) logic [3:0]  instr_req_id;
   (* keep *) logic [31:0] instr_req_addr;
   (* keep *) logic [31:0] instr_req_data;
   (* keep *) logic [3:0]  instr_req_strobe;
@@ -32,11 +35,13 @@ module rvfi_wrapper (
   (* keep *) logic        instr_req_valid;
   (* keep *) `rvformal_rand_reg instr_req_ready;
 
+  (* keep *) `rvformal_rand_reg [3:0]  instr_rsp_id;
   (* keep *) `rvformal_rand_reg [31:0] instr_rsp_data;
   (* keep *) `rvformal_rand_reg        instr_rsp_error;
   (* keep *) `rvformal_rand_reg        instr_rsp_valid;
-  (* keep *) logic        instr_rsp_ready;
+  (* keep *) logic                     instr_rsp_ready;
 
+  (* keep *) logic [3:0]  data_req_id;
   (* keep *) logic [31:0] data_req_addr;
   (* keep *) logic [31:0] data_req_data;
   (* keep *) logic [3:0]  data_req_strobe;
@@ -44,6 +49,7 @@ module rvfi_wrapper (
   (* keep *) logic        data_req_valid;
   (* keep *) `rvformal_rand_reg data_req_ready;
 
+  (* keep *) `rvformal_rand_reg [31:0] data_rsp_id;
   (* keep *) `rvformal_rand_reg [31:0] data_rsp_data;
   (* keep *) `rvformal_rand_reg        data_rsp_error;
   (* keep *) `rvformal_rand_reg        data_rsp_valid;
@@ -56,13 +62,13 @@ module rvfi_wrapper (
   (* keep *) logic [15:0] irq_platform;
   (* keep *) logic        irq_nmi;
 
-  (* keep *) logic        fetch_enable;
 
 
   rvj1_top rvj1_inst (
     .clk_i             (clock),
     .rstn_i            (~reset),
 
+    .instr_req_id_o    (instr_req_id),
     .instr_req_addr_o  (instr_req_addr),
     .instr_req_data_o  (instr_req_data),
     .instr_req_strobe_o(instr_req_strobe),
@@ -70,11 +76,13 @@ module rvfi_wrapper (
     .instr_req_valid_o (instr_req_valid),
     .instr_req_ready_i (instr_req_ready),
 
+    .instr_rsp_id_i    (instr_rsp_id),
     .instr_rsp_data_i  (instr_rsp_data),
     .instr_rsp_error_i (instr_rsp_error),
     .instr_rsp_valid_i (instr_rsp_valid),
     .instr_rsp_ready_o (instr_rsp_ready),
 
+    .data_req_id_o     (data_req_id),
     .data_req_addr_o   (data_req_addr),
     .data_req_data_o   (data_req_data),
     .data_req_strobe_o (data_req_strobe),
@@ -82,6 +90,7 @@ module rvfi_wrapper (
     .data_req_valid_o  (data_req_valid),
     .data_req_ready_i  (data_req_ready),
 
+    .data_rsp_id_i     (data_rsp_id),
     .data_rsp_data_i   (data_rsp_data),
     .data_rsp_error_i  (data_rsp_error),
     .data_rsp_valid_i  (data_rsp_valid),
@@ -114,9 +123,7 @@ module rvfi_wrapper (
     .rvfi_mem_rmask    (rvfi_mem_rmask),
     .rvfi_mem_wmask    (rvfi_mem_wmask),
     .rvfi_mem_rdata    (rvfi_mem_rdata),
-    .rvfi_mem_wdata    (rvfi_mem_wdata),
-
-    .fetch_enable_i    (fetch_enable)
+    .rvfi_mem_wdata    (rvfi_mem_wdata)
   );
 
   assign irq_external = 1'b0;

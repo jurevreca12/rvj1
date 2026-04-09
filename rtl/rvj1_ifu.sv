@@ -40,10 +40,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-
-module rvj1_ifu(
+module rvj1_ifu import rvj1_pkg::*; (
   input logic clk_i,
   input logic rstn_i,
 
@@ -134,7 +131,7 @@ module rvj1_ifu(
     assign instr_req_strobe_o  = 4'b1111;
     assign instr_req_addr_next = (jmp_addr_valid_i) ? {jmp_addr_i, 2'b00} : (instr_req_addr_o + 4);
     register #(
-        .WORD_WIDTH(XLEN),
+        .DTYPE(logic [XLEN-1:0]),
         .RESET_VALUE('0)
     ) instr_req_addr_reg (
         .clk  (clk_i),
@@ -162,7 +159,7 @@ module rvj1_ifu(
     * Active request buffering
     *************************************/
     skidbuffer #(
-        .WORD_WIDTH($bits(ifu_act_req_t))
+        .DTYPE(ifu_act_req_t)
     ) act_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
@@ -180,7 +177,7 @@ module rvj1_ifu(
         // verilator lint_on PINCONNECTEMPTY
     );
     skidbuffer #(
-        .WORD_WIDTH(IDLEN)
+        .DTYPE(logic [IDLEN-1:0])
     ) next_id_buff (
         .clk  (clk_i),
         .rstn (rstn_i && ~jmp_addr_valid_i),
@@ -215,7 +212,7 @@ module rvj1_ifu(
     * Response buffering
     *************************************/
     skidbuffer #(
-        .WORD_WIDTH ($bits(ifu_rsp_t))
+        .DTYPE (ifu_rsp_t)
     ) rsp_buff (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -279,7 +276,7 @@ module rvj1_ifu(
         state_next = (state == eIFU_JMP)  ? eIFU_BUSY : state_next;
     end
     register #(
-        .WORD_WIDTH($bits(ifu_fsm_e)),
+        .DTYPE(ifu_fsm_e),
         .RESET_VALUE(eIFU_RST)
     ) state_reg (
         .clk  (clk_i),

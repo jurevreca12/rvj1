@@ -10,7 +10,7 @@ module counter #(
 );
     logic [WORD_WIDTH-1:0] plus_one;
     register #(
-        .WORD_WIDTH (WORD_WIDTH),
+        .DTYPE(logic [WORD_WIDTH-1:0]),
         .RESET_VALUE(RESET_VALUE)
     ) rvfi_order_reg (
         .clk (clk),

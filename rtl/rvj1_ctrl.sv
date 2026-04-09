@@ -11,10 +11,9 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+`include "rvj1_defines.svh"
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-module rvj1_ctrl
+module rvj1_ctrl import rvj1_pkg::*;
 (
   input logic clk_i,
   input logic rstn_i,
@@ -268,7 +267,7 @@ module rvj1_ctrl
       program_counter_next = program_counter + 1;  // ctrl_jump - gives us pc + 4 on JAL & JALR
   end
   register #(
-    .WORD_WIDTH(XLEN-2),
+    .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(BOOT_ADDR[31:2])
   ) program_counter_reg (
     .clk  (clk_i),
@@ -282,7 +281,7 @@ module rvj1_ctrl
   // This is here because we need mepc on write misalign trap
   // Tega se znebimo tak da vse izjeme obravnavamo v istem delu cevovoda
   register #(
-    .WORD_WIDTH(XLEN-2),
+    .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(BOOT_ADDR[31:2])
   ) program_counter_prev_reg (
     .clk  (clk_i),
@@ -363,7 +362,7 @@ module rvj1_ctrl
     else if (instr_addr_misaligned)
       trap_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
   end
-  register #(.WORD_WIDTH(6)) trap_cause_reg (
+  register #(.DTYPE(logic [5:0])) trap_cause_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (1'b1),
@@ -386,7 +385,7 @@ module rvj1_ctrl
     endcase
   end
   register #(
-    .WORD_WIDTH($bits(branch_ctrl_e)),
+    .DTYPE(branch_ctrl_e),
     .RESET_VALUE(BRANCH_EQ)
   ) ctrl_branch_type_reg (
     .clk  (clk_i),
@@ -596,7 +595,7 @@ module rvj1_ctrl
     irqs:irq_platform_i
   };
   register #(
-    .WORD_WIDTH($bits(miep_reg_t)),
+    .DTYPE(miep_reg_t),
     .RESET_VALUE(0)
   ) csr_mip_reg (
     .clk (clk_i),
@@ -607,7 +606,7 @@ module rvj1_ctrl
   );
 
   register #(
-    .WORD_WIDTH($bits(mstatus_reg_t)),
+    .DTYPE(mstatus_reg_t),
     .RESET_VALUE(3'b001) // MPP reset to 0 (spike compat)
   ) csr_mstatus_reg (
     .clk (clk_i),
@@ -618,7 +617,7 @@ module rvj1_ctrl
   );
 
   register #(
-    .WORD_WIDTH(XLEN),
+    .DTYPE(logic [XLEN-1:0]),
     .RESET_VALUE(0)
   ) csr_mscratch_reg (
     .clk (clk_i),
@@ -629,7 +628,7 @@ module rvj1_ctrl
   );
 
   register #(
-    .WORD_WIDTH(XLEN-2),
+    .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(0)
   ) csr_mtvec_reg (
     .clk (clk_i),
@@ -640,7 +639,7 @@ module rvj1_ctrl
   );
 
   register #(
-    .WORD_WIDTH(XLEN-2),
+    .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(0)
   ) csr_mepc_reg (
     .clk  (clk_i),
@@ -651,7 +650,7 @@ module rvj1_ctrl
   );
 
    register #(
-    .WORD_WIDTH(6),
+    .DTYPE(logic [5:0]),
     .RESET_VALUE(0)
    ) csr_mcause_reg (
     .clk (clk_i),
@@ -662,7 +661,7 @@ module rvj1_ctrl
   );
 
   register #(
-    .WORD_WIDTH(XLEN),
+    .DTYPE(logic [XLEN-1:0]),
     .RESET_VALUE(0)
   ) csr_mtval_reg (
     .clk  (clk_i),
@@ -702,7 +701,7 @@ module rvj1_ctrl
     state_next = (state == eMRET)  ? eRUN    : state_next;
   end
   register #(
-    .WORD_WIDTH($bits(rvj1_fsm_e)),
+    .DTYPE(rvj1_fsm_e),
     .RESET_VALUE(eRESET)
   ) state_reg (
     .clk  (clk_i),

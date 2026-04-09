@@ -11,11 +11,11 @@
 //                 the log produced by spike with --log-commits option.       //
 //                 This enables easy debuging of traces.                      //
 ////////////////////////////////////////////////////////////////////////////////
+`include "rvj1_defines.svh"
+`include "rvfi_macros.svh"
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-module rvfi_trace #(
+module rvfi_trace import rvj1_pkg::*; #(
     parameter int CORE_ID = 0,
     parameter string LOG_FILE = "rvfi_trace.log"
 )

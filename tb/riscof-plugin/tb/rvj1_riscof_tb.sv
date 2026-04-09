@@ -1,8 +1,7 @@
 // The test used to simulate the core with the riscof test framework.
-import rvj1_defines::*;
 `include "rvfi_macros.sv"
 
-module rvj1_riscof_tb();
+module rvj1_riscof_tb import rvj1_pkg::*; ();
   parameter int MEM_SIZE_WORDS = 1 << 19;
   parameter int TIMEOUT        = 1000000;
   parameter string INSTR_MEM_INIT_FILE = "text.hex";

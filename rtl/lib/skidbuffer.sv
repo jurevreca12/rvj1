@@ -15,7 +15,7 @@
 
 module skidbuffer
 #(
-    parameter int WORD_WIDTH = 0
+    parameter type DTYPE = logic
 )
 (
     input  logic                  clk,
@@ -23,16 +23,16 @@ module skidbuffer
 
     input  logic                  input_valid,
     output logic                  input_ready,
-    input  logic [WORD_WIDTH-1:0] input_data,
+    input  DTYPE                  input_data,
 
     output logic                  output_valid,
     input  logic                  output_ready,
-    output logic [WORD_WIDTH-1:0] output_data,
+    output DTYPE                  output_data,
 
     output logic                  empty
 );
-    logic [WORD_WIDTH-1:0] selected_data;
-    logic [WORD_WIDTH-1:0] input_buffer_out;
+    DTYPE selected_data;
+    DTYPE input_buffer_out;
     logic input_buffer_ce, output_buffer_ce, use_buffered_data;
     logic load, flow, fill, flush, unload;
     logic insert, remove;
@@ -50,7 +50,7 @@ module skidbuffer
     * Data Path
     *************************************/
     register #(
-        .WORD_WIDTH  (WORD_WIDTH),
+        .DTYPE (DTYPE),
         .RESET_VALUE (0)
     ) input_buffer (
         .clk  (clk),
@@ -61,7 +61,7 @@ module skidbuffer
     );
     assign selected_data = use_buffered_data ? input_buffer_out : input_data;
     register #(
-        .WORD_WIDTH  (WORD_WIDTH),
+        .DTYPE (DTYPE),
         .RESET_VALUE (0)
     ) output_buffer (
         .clk  (clk),
@@ -75,7 +75,7 @@ module skidbuffer
     * Control Logic
     *************************************/
     register #(
-        .WORD_WIDTH  (1),
+        .DTYPE (logic),
         .RESET_VALUE (1'b1)
     ) input_ready_reg (
         .clk  (clk),
@@ -85,10 +85,9 @@ module skidbuffer
         .out  (input_ready)
     );
     register #(
-        .WORD_WIDTH  (1),
+        .DTYPE (logic),
         .RESET_VALUE (1'b0)
-    ) output_valid_reg
-    (
+    ) output_valid_reg (
         .clk  (clk),
         .rstn (rstn),
         .ce   (1'b1),
@@ -116,10 +115,14 @@ module skidbuffer
         state_next = flush  ? eBUSY  : state_next;
         state_next = unload ? eEMPTY : state_next;
     end
-    always_ff @(posedge clk) begin
-        if (~rstn)
-            state <= eEMPTY;
-        else
-            state <= state_next;
-    end
+    register #(
+        .DTYPE (sb_fsm_e),
+        .RESET_VALUE (eEMPTY)
+    ) state_reg (
+        .clk  (clk),
+        .rstn (rstn),
+        .ce   (1'b1),
+        .in   (state_next),
+        .out  (state)
+    );
 endmodule

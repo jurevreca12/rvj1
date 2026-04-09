@@ -12,9 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-module lsu_mem_test_top #(
+module lsu_mem_test_top import rvj1_pkg::*; #(
     parameter int BASE_ADDR = 32'h8000_0000,
     parameter int MEM_SIZE_WORDS = 1 << 10
 ) (

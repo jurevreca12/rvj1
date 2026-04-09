@@ -12,9 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-module rvj1_regfile (
+module rvj1_regfile import rvj1_pkg::*; (
     input logic clk_i,
     input logic rstn_i,
 

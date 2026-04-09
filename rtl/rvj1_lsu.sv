@@ -43,51 +43,9 @@
 // to finnish, before issuing further requests.                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-
-typedef struct packed {
-  lsu_ctrl_e        cmd;
-  logic [XLEN-1:0]  addr;
-  logic [XLEN-1:0]  data;
-  logic [RALEN-1:0] regdest;
-} lsu_req_t;
-
-typedef struct packed {
-  lsu_ctrl_e        cmd;
-  logic [XLEN-1:0]  addr;
-  logic [RALEN-1:0] regdest;
-} lsu_act_req_t;
-
-typedef struct packed {
-  logic [XLEN-1:0] data;
-  logic            error;
-} lsu_rsp_t;
-
-typedef enum logic [1:0] {
-  eLSU_RUN,   // waiting on requests
-  eLSU_READ,  // stall to finnish read
-  eLSU_STALL  // stall because buffer full
-} lsu_state_e;
-
-function automatic logic is_write_cmd(input lsu_ctrl_e cmd);
-  return cmd[3];
-endfunction
-
-function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
-  logic [XLEN-1:0] ret;
-  case (cmd)
-    LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
-    LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
-    LSU_LOAD_WORD:        ret = data;
-    LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
-    LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
-    default:              ret = 32'h0000_0000;
-  endcase
-  return ret;
-endfunction
-
-module rvj1_lsu (
+module rvj1_lsu import rvj1_pkg::*; (
     input logic clk_i,
     input logic rstn_i,
 
@@ -126,6 +84,30 @@ module rvj1_lsu (
     input  logic [IDLEN-1:0] data_rsp_id_i,
     output logic             data_rsp_ready_o
 );
+
+typedef struct packed {
+  lsu_ctrl_e        cmd;
+  logic [XLEN-1:0]  addr;
+  logic [XLEN-1:0]  data;
+  logic [RALEN-1:0] regdest;
+} lsu_req_t;
+
+typedef struct packed {
+  lsu_ctrl_e        cmd;
+  logic [XLEN-1:0]  addr;
+  logic [RALEN-1:0] regdest;
+} lsu_act_req_t;
+
+typedef struct packed {
+  logic [XLEN-1:0] data;
+  logic            error;
+} lsu_rsp_t;
+
+typedef enum logic [1:0] {
+  eLSU_RUN,   // waiting on requests
+  eLSU_READ,  // stall to finnish read
+  eLSU_STALL  // stall because buffer full
+} lsu_state_e;
 
 lsu_state_e state, state_next;
 
@@ -168,7 +150,7 @@ assign exc_store_addr_misaligned_o = store_addr_misaligned && lsu_valid_i && lsu
 * Data Path
 *************************************/
 skidbuffer #(
-  .WORD_WIDTH ($bits(lsu_req_t))
+  .DTYPE (lsu_req_t)
 ) request_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
@@ -208,7 +190,7 @@ assign data_req_fire = data_req_valid_o && data_req_ready_i;
 
 
 skidbuffer #(
-  .WORD_WIDTH ($bits(lsu_act_req_t))
+  .DTYPE (lsu_act_req_t)
 ) act_req_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
@@ -224,7 +206,7 @@ skidbuffer #(
   .empty        (act_req_buff_empty)
 );
 skidbuffer #(
-  .WORD_WIDTH ($bits(lsu_rsp_t))
+  .DTYPE (lsu_rsp_t)
 ) response_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
@@ -315,7 +297,7 @@ end
 endmodule
 
 /* verilator lint_off DECLFILENAME */
-module cmd_to_strobe(
+module cmd_to_strobe import rvj1_pkg::*;(
   input lsu_ctrl_e cmd,
   input logic [1:0] addr,
   output logic [3:0] strobe
@@ -335,7 +317,7 @@ module cmd_to_strobe(
 endmodule
 
 /* verilator lint_off DECLFILENAME */
-module lsu_addr_check (
+module lsu_addr_check import rvj1_pkg::*; (
   input  lsu_ctrl_e  lsu_cmd_i,
   input  logic       valid_i,
   input  logic [1:0] eff_addr_i,
@@ -361,9 +343,9 @@ endmodule
 
 /* verilator lint_off DECLFILENAME */
 module byte_select_read(
-  input logic [XLEN-1:0] data,
-  input logic [1:0] byteaddr,
-  output logic [XLEN-1:0] data_out
+  input  logic [31:0] data,
+  input  logic [1:0] byteaddr,
+  output logic [31:0] data_out
 );
   always_comb begin
     data_out = 0;
@@ -377,11 +359,11 @@ module byte_select_read(
 endmodule
 
 /* verilator lint_off DECLFILENAME */
-module byte_select_write(
-  input logic [XLEN-1:0] data,
-  input lsu_ctrl_e cmd,
-  input logic [1:0] byteaddr,
-  output logic [XLEN-1:0] data_out
+module byte_select_write import rvj1_pkg::*; (
+  input  logic [31:0] data,
+  input  lsu_ctrl_e cmd,
+  input  logic [1:0] byteaddr,
+  output logic [31:0] data_out
 );
   always_comb begin
     data_out = 32'b0;

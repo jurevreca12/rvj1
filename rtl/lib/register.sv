@@ -12,15 +12,15 @@
 ////////////////////////////////////////////////////////////////////////////////////
 module register
 #(
-    parameter int WORD_WIDTH = 1,
-    parameter logic [WORD_WIDTH-1:0] RESET_VALUE = 0
+    parameter type DTYPE = logic,
+    parameter DTYPE RESET_VALUE = 0
 )
 (
-    input  logic                  clk,
-    input  logic                  rstn,
-    input  logic                  ce,   // clock-enable
-    input  logic [WORD_WIDTH-1:0] in,
-    output logic [WORD_WIDTH-1:0] out
+    input  logic clk,
+    input  logic rstn,
+    input  logic ce,   // clock-enable
+    input  DTYPE in,
+    output DTYPE out
 );
 
     always_ff @(posedge clk) begin
@@ -30,25 +30,3 @@ module register
             out <= in;
     end
 endmodule
-
-/* verilator lint_off DECLFILENAME */
-module pipeline_register
-#(
-    parameter int WORD_WIDTH = 0,
-    parameter logic [WORD_WIDTH-1:0] RESET_VALUE = 0
-)
-(
-    input  logic                  clk,
-    input  logic                  ce,   // clock-enable
-    input  logic [WORD_WIDTH-1:0] in,
-    output logic [WORD_WIDTH-1:0] out
-);
-
-    always_ff @(posedge clk) begin
-        if (ce)
-            out <= in;
-        else if (~ce)
-            out <= RESET_VALUE;
-    end
-endmodule
-

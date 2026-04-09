@@ -1,11 +1,9 @@
 // The test used to simulate the core with the riscof test framework.
-import rvj1_defines::XLEN;
-import rvj1_defines::NBYTES;
-import rvj1_defines::IDLEN;
+
 
 `include "rvfi_macros.sv"
 
-module rvj1_test_top();
+module rvj1_test_top import rvj1_pkg::*;();
   parameter int IRAM_BASE_ADDR = 32'h8000_0000;
   parameter int IRAM_WORD_SIZE = 1 << 8;
   parameter int DRAM_BASE_ADDR = 32'h8000_0400;

@@ -10,13 +10,11 @@
 // Description:    The top file of the rvj1 riscv core.                       //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
+`include "rvj1_defines.svh"
+`include "rvfi_macros.svh"
 
 /* verilator lint_off IMPORTSTAR */
-import rvj1_defines::*;
-`include "rvfi_macros.sv"
-
-
-module rvj1_top
+module rvj1_top import rvj1_pkg::*;
 (
   input logic clk_i,
   input logic rstn_i,
@@ -255,7 +253,7 @@ module rvj1_top
   );
 
   register #(
-    .WORD_WIDTH  (RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t)),
+    .DTYPE  (logic [(RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t))-1:0]),
     .RESET_VALUE (0)
   ) ex_mem_wb_stage_reg(
     .clk  (clk_i),

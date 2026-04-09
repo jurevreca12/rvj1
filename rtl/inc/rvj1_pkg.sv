@@ -1,5 +1,5 @@
 // This document contains the opcode definitions of RISC-V
-package rvj1_defines;
+package rvj1_pkg;
 
     // General defines
     parameter int XLEN   = 32;  // width of an integer register (either 32 or 64)
@@ -200,31 +200,6 @@ package rvj1_defines;
     parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
     parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
 
-    // RISCV-FORMAL Configuration
-    `define RISCV_FORMAL
-    `define RISCV_FORMAL_NRET 1
-    `define RISCV_FORMAL_XLEN 32
-    `define RISCV_FORMAL_ILEN 32
-    `define RISCV_FORMAL_ALIGNED_MEM
-    `define RISCV_FORMAL_CSR_MSTATUS
-    `define RISCV_FORMAL_CSR_MIE
-    `define RISCV_FORMAL_CSR_MIP
-    `define RISCV_FORMAL_CSR_MTVEC
-    `define RISCV_FORMAL_CSR_MEPC
-    `define RISCV_FORMAL_CSR_MCAUSE
-    `define RISCV_FORMAL_CSR_MTVAL
-    `define RISCV_FORMAL_CSR_MSCRATCH
-    //`define RISCV_FORMAL_CSR_MVENDORID
-    //`define RISCV_FORMAL_CSR_MARCHID
-    //`define RISCV_FORMAL_CSR_MIMPID
-    //`define RISCV_FORMAL_CSR_MHARTID
-    //`define RISCV_FORMAL_CSR_MSTATUSH
-    //`define RISCV_FORMAL_CSR_MISA
-    //`define RISCV_FORMAL_CSR_MEDELEG
-    //`define RISCV_FORMAL_CSR_MEDELEGH
-    //`define RISCV_FORMAL_CSR_MIDELEG
-    //`define RISCV_FORMAL_CSR_MCOUNTEREN
-
     `ifdef RVFI
     typedef struct packed {
         logic [XLEN-1:0] mstatus;
@@ -263,17 +238,22 @@ package rvj1_defines;
     } rvfi_stage_info_t;
     `endif
 
-    `define RVFI_STAGE_CONN(reg) \
-        assign rvfi_csr_``reg``_rmask = retired_stage.csr_rmask.``reg``; \
-        assign rvfi_csr_``reg``_rdata = retired_stage.csr_rdata.``reg``; \
-        assign rvfi_csr_``reg``_wmask = retired_stage.csr_wmask.``reg``; \
-        assign rvfi_csr_``reg``_wdata = retired_stage.csr_wdata.``reg``;
 
+    function automatic logic is_write_cmd(input lsu_ctrl_e cmd);
+        return cmd[3];
+    endfunction
 
-    `define ASSERT_SINGLE_CYCLE_HOLD(signal, clock=clk_i) \
-        always_ff @(posedge clock) begin \
-            if (signal == 1'b1) begin \
-                single_cycle_``signal``_hold: assert($past(signal) == 1'b0);\
-            end\
-        end
+    function automatic logic [XLEN-1:0] sign_extend(logic [XLEN-1:0] data, lsu_ctrl_e cmd);
+        logic [XLEN-1:0] ret;
+        case (cmd)
+            LSU_LOAD_BYTE:        ret = {{(XLEN-8){data[7]}},   data[7:0]};
+            LSU_LOAD_HALF_WORD:   ret = {{(XLEN-16){data[15]}}, data[15:0]};
+            LSU_LOAD_WORD:        ret = data;
+            LSU_LOAD_BYTE_U:      ret = {{(XLEN-8){1'b0}},      data[7:0]};
+            LSU_LOAD_HALF_WORD_U: ret = {{(XLEN-16){1'b0}},     data[15:0]};
+            default:              ret = 32'h0000_0000;
+        endcase
+        return ret;
+    endfunction
+
 endpackage

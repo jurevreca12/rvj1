@@ -96,7 +96,7 @@ module bytewrite_sram_wrap #(
     assign iram_req_err = (~iram_addr_valid) || (iram_req.strobe != 4'b1111) || (iram_req.write);
 
     skidbuffer #(
-        .WORD_WIDTH($bits(mem_req_t))
+        .DTYPE(mem_req_t)
     ) dram_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
@@ -115,7 +115,7 @@ module bytewrite_sram_wrap #(
     );
 
     skidbuffer #(
-        .WORD_WIDTH($bits(mem_req_t))
+        .DTYPE(mem_req_t)
     ) iram_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
@@ -159,7 +159,7 @@ module bytewrite_sram_wrap #(
     register dram_req_err_reg (
         .clk(clk_i), .rstn(rstn_i), .ce(dram_req_fire), .in(~dram_addr_valid), .out(dram_rsp_err)
     );
-    register #(.WORD_WIDTH(IDLEN)) dram_req_id_reg (
+    register #(.DTYPE(logic [IDLEN-1:0])) dram_req_id_reg (
         .clk(clk_i), .rstn(rstn_i), .ce(dram_req_fire), .in(dram_req.id),      .out(dram_rsp_id)
     );
     register iram_req_fire_req (
@@ -168,11 +168,11 @@ module bytewrite_sram_wrap #(
     register iram_req_err_reg (
         .clk(clk_i), .rstn(rstn_i), .ce(iram_req_fire), .in(iram_req_err),     .out(iram_rsp_err)
     );
-    register #(.WORD_WIDTH(IDLEN)) iram_req_id_reg (
+    register #(.DTYPE(logic [IDLEN-1:0])) iram_req_id_reg (
         .clk(clk_i), .rstn(rstn_i), .ce(iram_req_fire), .in(iram_req.id),      .out(iram_rsp_id)
     );
     skidbuffer #(
-        .WORD_WIDTH($bits(mem_rsp_t))
+        .DTYPE(mem_rsp_t)
     ) dram_rsp_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
@@ -190,7 +190,7 @@ module bytewrite_sram_wrap #(
         // verilator lint_on PINCONNECTEMPTY
     );
     skidbuffer #(
-        .WORD_WIDTH($bits(mem_rsp_t))
+        .DTYPE(mem_rsp_t)
     ) iram_rsp_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
