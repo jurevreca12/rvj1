@@ -1,30 +1,11 @@
+`include "rvj1_defines.svh"
 `include "rvfi_macros.svh"
 
 module rvfi_wrapper (
   input         clock,
   input         reset,
 
-  output logic                         rvfi_valid,
-  output logic [63:0]                  rvfi_order,
-  output logic [31:0]                  rvfi_insn,
-  output logic                         rvfi_trap,
-  output logic                         rvfi_halt,
-  output logic                         rvfi_intr,
-  output logic [ 1:0]                  rvfi_mode,
-  output logic [ 1:0]                  rvfi_ixl,
-  output logic [ 4:0]                  rvfi_rs1_addr,
-  output logic [ 4:0]                  rvfi_rs2_addr,
-  output logic [31:0]                  rvfi_rs1_rdata,
-  output logic [31:0]                  rvfi_rs2_rdata,
-  output logic [ 4:0]                  rvfi_rd_addr,
-  output logic [31:0]                  rvfi_rd_wdata,
-  output logic [31:0]                  rvfi_pc_rdata,
-  output logic [31:0]                  rvfi_pc_wdata,
-  output logic [31:0]                  rvfi_mem_addr,
-  output logic [ 3:0]                  rvfi_mem_rmask,
-  output logic [ 3:0]                  rvfi_mem_wmask,
-  output logic [31:0]                  rvfi_mem_rdata,
-  output logic [31:0]                  rvfi_mem_wdata
+  `RVFI_INPUTS
 );
 
   (* keep *) logic [3:0]  instr_req_id;
@@ -61,8 +42,6 @@ module rvfi_wrapper (
   (* keep *) logic        irq_lcofi;
   (* keep *) logic [15:0] irq_platform;
   (* keep *) logic        irq_nmi;
-
-
 
   rvj1_top rvj1_inst (
     .clk_i             (clock),
@@ -133,10 +112,15 @@ module rvfi_wrapper (
   assign irq_platform = 16'b0;
   assign irq_nmi      = 1'b0;
 
-  assign fetch_enable = 1'b1;
 
-  // Assume that we start in reset.
-  initial assume(reset == 1'b1);
+  integer cycle = 0;
+  always @(posedge clock) cycle <= cycle + 1;
+
+  // Start with reset
+  always_ff @(posedge clock) begin
+    if (cycle == 0)
+      assume (reset);
+  end
 
   // Assume no interrupts for now - TODO
   always @(posedge clock) begin
@@ -177,6 +161,20 @@ module rvfi_wrapper (
       dmem_delay <= dmem_delay + 1;
     assume(dmem_delay < DmemMaxDelay);
   end
+
+  counter instr_id_cnt #(.WORD_WIDTH(4))(
+    .clk  (clock),
+    .rstn (~reset),
+    .ce   (instr_rsp_fire),
+    .ce   (instr_rsp_id)
+  );
+
+  counter data_id_cnt #(.WORD_WIDTH(4))(
+    .clk  (clock),
+    .rstn (~reset),
+    .ce   (data_rsp_fire),
+    .ce   (data_rsp_id)
+  );
 
   // Assume no memory errors - TODO
   always @(posedge clock) begin

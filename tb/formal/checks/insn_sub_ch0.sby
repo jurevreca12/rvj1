@@ -1,0 +1,58 @@
+[options]
+mode bmc
+expect pass,fail
+append 0
+depth 11
+skip 10
+
+[engines]
+smtbmc yices
+
+[script]
+read -sv insn_sub_ch0.sv
+plugin -i slang
+read_slang -D RVFI --top rvj1_top --compat-mode --keep-hierarchy --allow-use-before-declare -F /foss/designs/rvj1/tb/formal/formal.flist
+read_verilog -sv /foss/designs/rvj1/tb/formal/rvfi_wrapper.sv
+prep -flatten -nordff -top rvfi_testbench
+chformal -early
+
+[files]
+/foss/tools/riscv-formal/checks/rvfi_macros.vh
+/foss/tools/riscv-formal/checks/rvfi_channel.sv
+/foss/tools/riscv-formal/checks/rvfi_testbench.sv
+/foss/tools/riscv-formal/checks/rvfi_insn_check.sv
+/foss/tools/riscv-formal/insns/insn_sub.v
+
+[file defines.sv]
+`define RISCV_FORMAL
+`define RISCV_FORMAL_NRET 1
+`define RISCV_FORMAL_XLEN 32
+`define RISCV_FORMAL_ILEN 32
+`define RISCV_FORMAL_RESET_CYCLES 1
+`define RISCV_FORMAL_CHECK_CYCLE 10
+`define RISCV_FORMAL_CHANNEL_IDX 0
+`define RISCV_FORMAL_CHECKER rvfi_insn_check
+`define RISCV_FORMAL_INSN_MODEL rvfi_insn_sub
+`define RVFI
+`define RVFI_TRACE
+`define RISCV_FORMAL
+`define RISCV_FORMAL_NRET 1
+`define RISCV_FORMAL_XLEN 32
+`define RISCV_FORMAL_ILEN 32
+`define RISCV_FORMAL_ALIGNED_MEM
+`define RISCV_FORMAL_CSR_MSTATUS
+`define RISCV_FORMAL_CSR_MIE
+`define RISCV_FORMAL_CSR_MIP
+`define RISCV_FORMAL_CSR_MTVEC
+`define RISCV_FORMAL_CSR_MEPC
+`define RISCV_FORMAL_CSR_MCAUSE
+`define RISCV_FORMAL_CSR_MTVAL
+`define RISCV_FORMAL_CSR_MSCRATCH
+`include "rvfi_macros.vh"
+
+[file insn_sub_ch0.sv]
+`include "defines.sv"
+`include "rvfi_channel.sv"
+`include "rvfi_testbench.sv"
+`include "rvfi_insn_check.sv"
+`include "insn_sub.v"
