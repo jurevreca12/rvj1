@@ -1,7 +1,7 @@
 // The test used to simulate the core with the riscof test framework.
 
 
-`include "rvfi_macros.sv"
+`include "rvfi_macros.svh"
 
 module rvj1_test_top import rvj1_pkg::*;();
   parameter int IRAM_BASE_ADDR = 32'h8000_0000;
