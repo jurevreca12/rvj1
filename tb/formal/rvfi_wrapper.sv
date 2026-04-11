@@ -8,33 +8,33 @@ module rvfi_wrapper (
   `RVFI_INPUTS
 );
 
-  (* keep *) logic [3:0]  instr_req_id;
-  (* keep *) logic [31:0] instr_req_addr;
-  (* keep *) logic [31:0] instr_req_data;
-  (* keep *) logic [3:0]  instr_req_strobe;
-  (* keep *) logic        instr_req_write;
-  (* keep *) logic        instr_req_valid;
+  (* keep *) logic [3:0]        instr_req_id;
+  (* keep *) logic [31:0]       instr_req_addr;
+  (* keep *) logic [31:0]       instr_req_data;
+  (* keep *) logic [3:0]        instr_req_strobe;
+  (* keep *) logic              instr_req_write;
+  (* keep *) logic              instr_req_valid;
   (* keep *) `rvformal_rand_reg instr_req_ready;
 
-  (* keep *) `rvformal_rand_reg [3:0]  instr_rsp_id;
+  (* keep *) logic [3:0]               instr_rsp_id;
   (* keep *) `rvformal_rand_reg [31:0] instr_rsp_data;
   (* keep *) `rvformal_rand_reg        instr_rsp_error;
   (* keep *) `rvformal_rand_reg        instr_rsp_valid;
   (* keep *) logic                     instr_rsp_ready;
 
-  (* keep *) logic [3:0]  data_req_id;
-  (* keep *) logic [31:0] data_req_addr;
-  (* keep *) logic [31:0] data_req_data;
-  (* keep *) logic [3:0]  data_req_strobe;
-  (* keep *) logic        data_req_write;
-  (* keep *) logic        data_req_valid;
+  (* keep *) logic [3:0]        data_req_id;
+  (* keep *) logic [31:0]       data_req_addr;
+  (* keep *) logic [31:0]       data_req_data;
+  (* keep *) logic [3:0]        data_req_strobe;
+  (* keep *) logic              data_req_write;
+  (* keep *) logic              data_req_valid;
   (* keep *) `rvformal_rand_reg data_req_ready;
 
-  (* keep *) `rvformal_rand_reg [31:0] data_rsp_id;
+  (* keep *) logic [3:0]               data_rsp_id;
   (* keep *) `rvformal_rand_reg [31:0] data_rsp_data;
   (* keep *) `rvformal_rand_reg        data_rsp_error;
   (* keep *) `rvformal_rand_reg        data_rsp_valid;
-  (* keep *) logic        data_rsp_ready;
+  (* keep *) logic                     data_rsp_ready;
 
   (* keep *) logic        irq_external;
   (* keep *) logic        irq_timer;
@@ -132,7 +132,6 @@ module rvfi_wrapper (
     assume(!irq_nmi);
   end
 
-`ifdef RVJ1_FAIRNESS
   // MEMORIES
   logic instr_req_fire, instr_rsp_fire;
   logic data_req_fire, data_rsp_fire;
@@ -162,27 +161,26 @@ module rvfi_wrapper (
     assume(dmem_delay < DmemMaxDelay);
   end
 
-  counter instr_id_cnt #(.WORD_WIDTH(4))(
+  counter #(.WORD_WIDTH(4)) instr_id_cnt (
     .clk  (clock),
     .rstn (~reset),
     .ce   (instr_rsp_fire),
-    .ce   (instr_rsp_id)
+    .count(instr_rsp_id)
   );
 
-  counter data_id_cnt #(.WORD_WIDTH(4))(
+  counter #(.WORD_WIDTH(4)) data_id_cnt (
     .clk  (clock),
     .rstn (~reset),
     .ce   (data_rsp_fire),
-    .ce   (data_rsp_id)
+    .count(data_rsp_id)
   );
 
   // Assume no memory errors - TODO
   always @(posedge clock) begin
-    if($past(instr_req_valid) && $past(instr_req_ready))
+    if (~reset) begin
       assume(!instr_rsp_error);
-
-    if($past(data_req_valid) && $past(data_req_ready)) 
       assume(!data_rsp_error);
+    end
   end
 
   // No responses without outstanding requests
@@ -215,5 +213,4 @@ module rvfi_wrapper (
     if (~reset)
       assume(dmem_req_act >= 8'h8);
   end
-`endif
 endmodule

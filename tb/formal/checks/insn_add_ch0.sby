@@ -4,6 +4,9 @@ expect pass,fail
 append 0
 depth 11
 skip 10
+vcd off
+fst on
+
 
 [engines]
 smtbmc yices
