@@ -408,21 +408,38 @@ module rvj1_top import rvj1_pkg::*;
   *********************************************/
   `ifdef RVFI
   logic insn_issued;
+  logic legal_issue;
   logic simple_insn_issued;
   logic branch_insn_issued;
   logic load_insn_issued;
   logic store_insn_issued;
+  logic mem_insn_issued;
   logic csr_insn_issued;
-  rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
-  logic [3:0] strobe_sig;
-  logic retiring;
   logic first_insn_of_trap;
+  rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
+  logic [31:0] exec_stage_instr;
+  logic [4:0]  exec_stage_rs1_addr;
+  logic [31:0] mem_wb_stage_instr;
+  logic [4:0]  mem_wb_stage_addr;
+  logic [31:0] retired_stage_instr;
+  logic [4:0]  retired_stage_rs1_addr;
+  logic [3:0]  strobe_sig;
 
-  assign simple_insn_issued = instr_issued && instr_will_retire && ~lsu_ctrl_valid && ~stall_ex && ~illegal_instr;
-  assign branch_insn_issued = instr_issued && (instr_exec[6:0] == OPCODE_BRANCH) && ~stall_ex && ~illegal_instr;
-  assign load_insn_issued = instr_issued && lsu_ctrl_valid && ~lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
-  assign store_insn_issued = instr_issued && lsu_ctrl_valid && lsu_ctrl[3] && ~stall_ex && ~illegal_instr;
-  assign csr_insn_issued = instr_issued && csr_valid && ~stall_ex && ~illegal_instr;
+  assign exec_stage_instr = exec_stage_comb.instr;
+  assign exec_stage_rs1_addr = exec_stage_comb.rs1_addr;
+  assign mem_wb_stage_instr = mem_wb_stage.instr;
+  assign mem_wb_stage_addr = mem_wb_stage.rs1_addr;
+  assign retired_stage_instr = retired_stage.instr;
+  assign retired_stage_rs1_addr = retired_stage.rs1_addr;
+
+  assign legal_issue = instr_issued && ~illegal_instr && ~stall_ex;
+
+  assign simple_insn_issued = legal_issue && instr_will_retire                   && ~lsu_ctrl_valid;
+  assign load_insn_issued   = legal_issue && lsu_ctrl_valid                      && ~lsu_ctrl[3];
+  assign store_insn_issued  = legal_issue && lsu_ctrl_valid                      && lsu_ctrl[3];
+  assign branch_insn_issued = legal_issue && (instr_exec[6:0] == OPCODE_BRANCH);
+  assign csr_insn_issued    = legal_issue && csr_valid;
+  assign mem_insn_issued    = load_insn_issued || store_insn_issued;
   assign insn_issued = (simple_insn_issued ||
                         branch_insn_issued ||
                         load_insn_issued ||
@@ -430,10 +447,10 @@ module rvj1_top import rvj1_pkg::*;
                         csr_insn_issued);
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
-    exec_stage_comb.rs1_addr       = rpa_or_pc  ? rf_addr_a : '0;
-    exec_stage_comb.rs2_addr       = rpb_or_imm ? rf_addr_b : '0;
-    exec_stage_comb.rs1_rdata      = rpa_or_pc  ? regs1_data : '0;
-    exec_stage_comb.rs2_rdata      = rpb_or_imm ? regs2_data : '0;
+    exec_stage_comb.rs1_addr       = rpa_or_pc  ? '0 : rf_addr_a;
+    exec_stage_comb.rs2_addr       = rpb_or_imm ? '0 : rf_addr_b;
+    exec_stage_comb.rs1_rdata      = rpa_or_pc  ? '0 : regs1_data;
+    exec_stage_comb.rs2_rdata      = rpb_or_imm ? '0 : regs2_data;
     exec_stage_comb.rd_addr        = '0; // written in WB
     exec_stage_comb.alu_res        = alu_res;
     exec_stage_comb.pc_rdata       = program_counter;
@@ -445,7 +462,7 @@ module rvj1_top import rvj1_pkg::*;
     exec_stage_comb.lsu_wdata      = 32'b0;
     exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
     exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
-    exec_stage_comb.rd_wdata       = alu_res;
+    exec_stage_comb.rd_wdata       = '0;
     exec_stage_comb.trap           = 1'b0;
     exec_stage_comb.csr_rdata      = '0;
     exec_stage_comb.csr_rmask      = '0;
@@ -453,42 +470,32 @@ module rvj1_top import rvj1_pkg::*;
     exec_stage_comb.csr_wmask      = '0;
   end
 
-   cmd_to_strobe cmd2strb_dummy (
-    .cmd(exec_stage_comb.lsu_cmd),
-    .addr(exec_stage_comb.alu_res[1:0]),
-    .strobe(strobe_sig)
-  );
   // Store instructions use expected values in the RVFI. This is because they are
   // retired (from the point of view of the core) immediately. Howver, RVFI if needs
   // information on the mutated state outside of the CPU. To satisfy this requirement
   // we duplicate the logic from the LSU. This allows write to finnish at any time (e.g,
   // if the slave device is not ready), but the RVFI is still in order.
-  always_ff @(posedge clk_i) begin
-    if (~rstn_i)
-      mem_wb_stage <= '{default:'0, lsu_cmd:LSU_NO_CMD};
-    else if (insn_issued) begin
-        mem_wb_stage <= exec_stage_comb;
-        mem_wb_stage.lsu_strobe <= store_insn_issued ? strobe_sig : '0;
-        mem_wb_stage.lsu_addr <= store_insn_issued ? {alu_res[31:2], 2'b00} : '0;
-        mem_wb_stage.lsu_wdata <= store_insn_issued ? exec_stage_comb.rs2_rdata : '0;
-    end
-    else if (data_req_valid_o && data_req_ready_i && ~data_req_write_o) begin // load
-      mem_wb_stage.lsu_strobe <= data_req_strobe_o;
-      mem_wb_stage.lsu_addr <= data_req_addr_o;
-    end
+  cmd_to_strobe c2sx (.cmd(lsu_ctrl), .addr(alu_res[1:0]), .strobe(strobe_sig));
 
+  always_ff @(posedge clk_i) begin
+   if (insn_issued) begin
+      mem_wb_stage            <= exec_stage_comb;
+      mem_wb_stage.lsu_addr   <= mem_insn_issued   ? {alu_res[31:2], 2'b00} : '0;
+      mem_wb_stage.lsu_strobe <= mem_insn_issued   ? strobe_sig : '0;
+      mem_wb_stage.lsu_wdata  <= store_insn_issued ? regs2_data : '0;
+    end
   end
   always_ff @(posedge clk_i) begin
     if (instr_retiring) begin
       retired_stage           <= mem_wb_stage;
+      retired_stage.rd_addr   <= (wpc_we                    ) ? wpc_addr : '0;
+      retired_stage.rd_wdata  <= (wpc_we && (wpc_addr != '0)) ? wpc_data : '0;
       retired_stage.trap      <= synhr_trap;
-      retired_stage.rd_addr   <= (wpc_we) ? wpc_addr : '0;
-      retired_stage.rd_wdata  <= (wpc_we) ? wpc_data : '0;
       retired_stage.csr_rdata <= rvfi_csr_rdata;
       retired_stage.csr_rmask <= rvfi_csr_rmask;
       retired_stage.csr_wdata <= rvfi_csr_wdata;
       retired_stage.csr_wmask <= rvfi_csr_wmask;
-      retired_stage.lsu_rdata <= lsu_wb_valid  ? wpc_data : '0;
+      retired_stage.lsu_rdata <= lsu_wb_valid   ? wpc_data : '0;
       retired_stage.jmp_addr  <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
     end
   end
@@ -516,21 +523,21 @@ module rvj1_top import rvj1_pkg::*;
     .in   (retired_stage.trap),
     .out  (first_insn_of_trap)
   );
-  assign rvfi_insn = retired_stage.instr;
-  assign rvfi_trap = retired_stage.trap;
-  assign rvfi_halt = 1'b0;
-  assign rvfi_intr = first_insn_of_trap;
-  assign rvfi_mode = 2'b11; // M-mode only
-  assign rvfi_ixl  = 2'b01; // MXL = 32
-  assign rvfi_rs1_addr = retired_stage.rs1_addr;
-  assign rvfi_rs2_addr = retired_stage.rs2_addr;
+  assign rvfi_insn      = retired_stage.instr;
+  assign rvfi_trap      = retired_stage.trap;
+  assign rvfi_halt      = 1'b0;
+  assign rvfi_intr      = first_insn_of_trap;
+  assign rvfi_mode      = 2'b11; // M-mode only
+  assign rvfi_ixl       = 2'b01; // MXL = 32
+  assign rvfi_rs1_addr  = retired_stage.rs1_addr;
+  assign rvfi_rs2_addr  = retired_stage.rs2_addr;
   assign rvfi_rs1_rdata = retired_stage.rs1_rdata;
   assign rvfi_rs2_rdata = retired_stage.rs2_rdata;
-  assign rvfi_rd_addr = retired_stage.rd_addr;
-  assign rvfi_rd_wdata = retired_stage.rd_wdata;
-  assign rvfi_pc_rdata = retired_stage.pc_rdata;
-  assign rvfi_pc_wdata = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
-  assign rvfi_mem_addr = retired_stage.lsu_addr;
+  assign rvfi_rd_addr   = retired_stage.rd_addr;
+  assign rvfi_rd_wdata  = retired_stage.rd_wdata;
+  assign rvfi_pc_rdata  = retired_stage.pc_rdata;
+  assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
+  assign rvfi_mem_addr  = retired_stage.lsu_addr;
   assign rvfi_mem_rmask = retired_stage.lsu_strobe;
   assign rvfi_mem_wmask = retired_stage.lsu_strobe;
   assign rvfi_mem_rdata = retired_stage.lsu_rdata;
