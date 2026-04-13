@@ -411,21 +411,6 @@ module rvj1_top import rvj1_pkg::*;
   logic first_insn_of_trap;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
 
-  logic [31:0] exec_stage_instr;
-  logic        exec_stage_trap;
-  logic [31:0] mem_wb_stage_instr;
-  logic        mem_wb_stage_trap;
-  logic [31:0] retired_stage_instr;
-  logic        retired_stage_trap;
-  logic [3:0]  strobe_sig;
-
-  assign exec_stage_instr    = exec_stage_comb.instr;
-  assign exec_stage_trap     = exec_stage_comb.trap;
-  assign mem_wb_stage_instr  = mem_wb_stage.instr;
-  assign mem_wb_stage_trap   = mem_wb_stage.trap;
-  assign retired_stage_instr = retired_stage.instr;
-  assign retired_stage_trap  = retired_stage.trap;
-
   assign valid_issue  = instr_issued && ~stall_ex;
   assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
   assign load_issue   = valid_issue  && lsu_ctrl_valid                      && ~lsu_ctrl[3];
@@ -435,7 +420,7 @@ module rvj1_top import rvj1_pkg::*;
   assign csr_issue    = valid_issue  && csr_valid;
   `ifdef ASSERTIONS
   always_ff @(posedge clk_i)
-    if (instr_issued)
+    if (valid_issue)
       assert( $onehot({simple_issue, branch_issue, load_issue, store_issue, csr_issue}) );
   `endif
 
@@ -472,7 +457,7 @@ module rvj1_top import rvj1_pkg::*;
   cmd_to_strobe c2s (.cmd(lsu_ctrl), .addr(alu_res[1:0]), .strobe(strobe_sig));
 
   always_ff @(posedge clk_i) begin
-   if (instr_issued) begin
+   if (valid_issue) begin
       mem_wb_stage            <= exec_stage_comb;
       mem_wb_stage.lsu_addr   <= mem_issue   ? {alu_res[31:2], 2'b00} : '0;
       mem_wb_stage.lsu_strobe <= mem_issue   ? strobe_sig : '0;
