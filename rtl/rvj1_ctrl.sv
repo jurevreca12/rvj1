@@ -313,21 +313,19 @@ module rvj1_ctrl import rvj1_pkg::*;
 
   assign synhr_trap_ex = (ecall_insn ||
                           ebreak_insn ||
-                          illegal_csr_insn ||
                           illegal_instr ||
                           instr_fetch_error);
   register synhr_trap_ex_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(synhr_trap_ex), .out(synhr_trap_ex_r)
   );
   assign synhr_trap_mem_wb = (lsu_trap ||
+                              illegal_csr_insn ||
                               instr_addr_misaligned ||
                               addr_unaligned_trap);
   assign synhr_trap_mem_wb2 = (lsu_trap || load_addr_misaligned_i);
   assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
-  //assign synhr_trap_ex_o = synhr_trap_ex;
-  //assign synhr_trap_mem_wb_o = synhr_trap_mem_wb;
   `endif
 
   `ifdef ASSERTIONS
