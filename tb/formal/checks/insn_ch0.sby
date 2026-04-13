@@ -1,3 +1,42 @@
+[tasks]
+add
+addi
+and
+andi
+auipc
+beq
+bge
+bgeu
+blt
+bltu
+bne
+jal
+jalr
+lb
+lbu
+lh
+lhu
+lui
+lw
+or
+ori
+sb
+sh
+sll
+slli
+slt
+slti
+sltiu
+sltu
+sra
+srai
+srl
+srli
+sub
+sw
+xor
+xori
+
 [options]
 mode bmc
 expect pass,fail
@@ -7,24 +46,28 @@ skip 10
 vcd off
 fst on
 
-
 [engines]
 smtbmc yices
 
 [script]
 plugin -i slang
-read_slang -D RVFI --top rvfi_testbench --compat-mode --keep-hierarchy --allow-use-before-declare -I . -f /foss/designs/rvj1/tb/formal/formal.flist insn_add_ch0.sv 
+--pycode-begin--
+base="read_slang -D RVFI --top rvfi_testbench  --compat-mode --keep-hierarchy --allow-use-before-declare -I . -f /foss/designs/rvj1/tb/formal/formal.flist"
+output("%s insn_%s_ch0.sv" % (base, task))
+--pycode-end--
 prep -flatten -nordff -top rvfi_testbench
 chformal -early
 
 [files]
+--pycode-begin--
+output("/foss/tools/riscv-formal/insns/insn_%s.v" % task) 
+--pycode-end--
 /foss/designs/rvj1/tb/formal/rvfi_wrapper.sv
 /foss/designs/rvj1/rtl/inc/rvj1_defines.svh
 /foss/designs/rvj1/rtl/inc/rvfi_macros.svh
 /foss/tools/riscv-formal/checks/rvfi_channel.sv
 /foss/tools/riscv-formal/checks/rvfi_testbench.sv
 /foss/tools/riscv-formal/checks/rvfi_insn_check.sv
-/foss/tools/riscv-formal/insns/insn_add.v
 /foss/designs/rvj1/rtl/inc/rvj1_pkg.sv
 /foss/designs/rvj1/rtl/rvj1_top.sv
 /foss/designs/rvj1/rtl/rvfi_trace.sv 
@@ -48,17 +91,23 @@ chformal -early
 /foss/designs/rvj1/rtl/lib/register.sv
 
 [file defines.svh]
-`define RISCV_FORMAL_INSN_MODEL rvfi_insn_add
+--pycode-begin--
+output("`define RISCV_FORMAL_INSN_MODEL rvfi_insn_%s" % task)
+--pycode-end--
 `define RISCV_FORMAL_CHECKER rvfi_insn_check
 `define RISCV_FORMAL_CHANNEL_IDX 0
 `define RISCV_FORMAL_RESET_CYCLES 1
 `define RISCV_FORMAL_CHECK_CYCLE 10
 
-[file insn_add_ch0.sv]
+--pycode-begin--
+output("[file insn_%s_ch0.sv]" % task)
+--pycode-end--
 `include "rvj1_defines.svh"
 `include "defines.svh"
 `include "rvfi_macros.svh"
 `include "rvfi_channel.sv"
 `include "rvfi_testbench.sv"
 `include "rvfi_insn_check.sv"
-`include "insn_add.v"
+--pycode-begin--
+output("`include \"insn_%s.v\"" % task)
+--pycode-end--
