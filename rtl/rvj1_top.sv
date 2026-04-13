@@ -407,44 +407,38 @@ module rvj1_top import rvj1_pkg::*;
   * https://yosyshq.readthedocs.io/projects/riscv-formal/en/latest/rvfi.html
   *********************************************/
   `ifdef RVFI
-  logic insn_issued;
-  logic legal_issue;
-  logic simple_insn_issued;
-  logic branch_insn_issued;
-  logic load_insn_issued;
-  logic store_insn_issued;
-  logic mem_insn_issued;
-  logic csr_insn_issued;
+  logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue, csr_issue;
   logic first_insn_of_trap;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
+
   logic [31:0] exec_stage_instr;
-  logic [4:0]  exec_stage_rs1_addr;
+  logic        exec_stage_trap;
   logic [31:0] mem_wb_stage_instr;
-  logic [4:0]  mem_wb_stage_addr;
+  logic        mem_wb_stage_trap;
   logic [31:0] retired_stage_instr;
-  logic [4:0]  retired_stage_rs1_addr;
+  logic        retired_stage_trap;
   logic [3:0]  strobe_sig;
 
-  assign exec_stage_instr = exec_stage_comb.instr;
-  assign exec_stage_rs1_addr = exec_stage_comb.rs1_addr;
-  assign mem_wb_stage_instr = mem_wb_stage.instr;
-  assign mem_wb_stage_addr = mem_wb_stage.rs1_addr;
+  assign exec_stage_instr    = exec_stage_comb.instr;
+  assign exec_stage_trap     = exec_stage_comb.trap;
+  assign mem_wb_stage_instr  = mem_wb_stage.instr;
+  assign mem_wb_stage_trap   = mem_wb_stage.trap;
   assign retired_stage_instr = retired_stage.instr;
-  assign retired_stage_rs1_addr = retired_stage.rs1_addr;
+  assign retired_stage_trap  = retired_stage.trap;
 
-  assign legal_issue = instr_issued && ~illegal_instr && ~stall_ex;
+  assign valid_issue  = instr_issued && ~stall_ex;
+  assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
+  assign load_issue   = valid_issue  && lsu_ctrl_valid                      && ~lsu_ctrl[3];
+  assign store_issue  = valid_issue  && lsu_ctrl_valid                      && lsu_ctrl[3];
+  assign mem_issue    = load_issue || store_issue;
+  assign branch_issue = valid_issue  && (instr_exec[6:0] == OPCODE_BRANCH);
+  assign csr_issue    = valid_issue  && csr_valid;
+  `ifdef ASSERTIONS
+  always_ff @(posedge clk_i)
+    if (instr_issued)
+      assert( $onehot({simple_issue, branch_issue, load_issue, store_issue, csr_issue}) );
+  `endif
 
-  assign simple_insn_issued = legal_issue && instr_will_retire                   && ~lsu_ctrl_valid;
-  assign load_insn_issued   = legal_issue && lsu_ctrl_valid                      && ~lsu_ctrl[3];
-  assign store_insn_issued  = legal_issue && lsu_ctrl_valid                      && lsu_ctrl[3];
-  assign branch_insn_issued = legal_issue && (instr_exec[6:0] == OPCODE_BRANCH);
-  assign csr_insn_issued    = legal_issue && csr_valid;
-  assign mem_insn_issued    = load_insn_issued || store_insn_issued;
-  assign insn_issued = (simple_insn_issued ||
-                        branch_insn_issued ||
-                        load_insn_issued ||
-                        store_insn_issued ||
-                        csr_insn_issued);
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
     exec_stage_comb.rs1_addr       = rpa_or_pc  ? '0 : rf_addr_a;
@@ -475,14 +469,14 @@ module rvj1_top import rvj1_pkg::*;
   // information on the mutated state outside of the CPU. To satisfy this requirement
   // we duplicate the logic from the LSU. This allows write to finnish at any time (e.g,
   // if the slave device is not ready), but the RVFI is still in order.
-  cmd_to_strobe c2sx (.cmd(lsu_ctrl), .addr(alu_res[1:0]), .strobe(strobe_sig));
+  cmd_to_strobe c2s (.cmd(lsu_ctrl), .addr(alu_res[1:0]), .strobe(strobe_sig));
 
   always_ff @(posedge clk_i) begin
-   if (insn_issued) begin
+   if (instr_issued) begin
       mem_wb_stage            <= exec_stage_comb;
-      mem_wb_stage.lsu_addr   <= mem_insn_issued   ? {alu_res[31:2], 2'b00} : '0;
-      mem_wb_stage.lsu_strobe <= mem_insn_issued   ? strobe_sig : '0;
-      mem_wb_stage.lsu_wdata  <= store_insn_issued ? regs2_data : '0;
+      mem_wb_stage.lsu_addr   <= mem_issue   ? {alu_res[31:2], 2'b00} : '0;
+      mem_wb_stage.lsu_strobe <= mem_issue   ? strobe_sig : '0;
+      mem_wb_stage.lsu_wdata  <= store_issue ? regs2_data : '0;
     end
   end
   always_ff @(posedge clk_i) begin
@@ -495,7 +489,7 @@ module rvj1_top import rvj1_pkg::*;
       retired_stage.csr_rmask <= rvfi_csr_rmask;
       retired_stage.csr_wdata <= rvfi_csr_wdata;
       retired_stage.csr_wmask <= rvfi_csr_wmask;
-      retired_stage.lsu_rdata <= lsu_wb_valid   ? wpc_data : '0;
+      retired_stage.lsu_rdata <= lsu_wb_valid   ? wpc_data          : '0;
       retired_stage.jmp_addr  <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
     end
   end
