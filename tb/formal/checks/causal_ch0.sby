@@ -4,52 +4,57 @@ expect pass,fail
 append 0
 depth 21
 skip 20
+vcd off
+fst on
 
 [engines]
 smtbmc yices
 
 [script]
-read -sv causal_ch0.sv
 plugin -i slang
-read_slang -D RVFI --top rvj1_top --compat-mode --keep-hierarchy --allow-use-before-declare -F /foss/designs/rvj1/tb/formal/formal.flist
-read_verilog -sv /foss/designs/rvj1/tb/formal/rvfi_wrapper.sv
+read_slang -D RVFI --top rvfi_testbench  --compat-mode --keep-hierarchy --allow-use-before-declare -I . -f /foss/designs/rvj1/tb/formal/formal.flist causal_ch0.sv
 prep -flatten -nordff -top rvfi_testbench
 chformal -early
 
 [files]
-/foss/tools/riscv-formal/checks/rvfi_macros.vh
+/foss/designs/rvj1/tb/formal/rvfi_wrapper.sv
+/foss/designs/rvj1/rtl/inc/rvj1_defines.svh
+/foss/designs/rvj1/rtl/inc/rvfi_macros.svh
 /foss/tools/riscv-formal/checks/rvfi_channel.sv
 /foss/tools/riscv-formal/checks/rvfi_testbench.sv
 /foss/tools/riscv-formal/checks/rvfi_causal_check.sv
+/foss/designs/rvj1/rtl/inc/rvj1_pkg.sv
+/foss/designs/rvj1/rtl/rvj1_top.sv
+/foss/designs/rvj1/rtl/rvfi_trace.sv 
+/foss/designs/rvj1/rtl/rvj1_alu.sv
+/foss/designs/rvj1/rtl/rvj1_lsu.sv
+/foss/designs/rvj1/rtl/rvj1_dec.sv
+/foss/designs/rvj1/rtl/rvj1_regfile.sv
+/foss/designs/rvj1/rtl/rvj1_ifu.sv
+/foss/designs/rvj1/rtl/rvj1_ctrl.sv
+/foss/designs/rvj1/rtl/alu/compare/equality_Nb.v
+/foss/designs/rvj1/rtl/alu/compare/less_than_unsign_Nb.sv
+/foss/designs/rvj1/rtl/alu/compare/less_than_sign_Nb.sv
+/foss/designs/rvj1/rtl/alu/shift/mux2x1.v
+/foss/designs/rvj1/rtl/alu/shift/barrel_shifter_right_32b.v
+/foss/designs/rvj1/rtl/alu/shift/barrel_shifter_left_32b.v
+/foss/designs/rvj1/rtl/alu/sign_extension/sign_extender.v
+/foss/designs/rvj1/rtl/alu/adder/full_adder_1b.v
+/foss/designs/rvj1/rtl/alu/adder/ripple_carry_adder_Nb.v
+/foss/designs/rvj1/rtl/lib/skidbuffer.sv
+/foss/designs/rvj1/rtl/lib/counter.sv
+/foss/designs/rvj1/rtl/lib/register.sv
 
-[file defines.sv]
-`define RISCV_FORMAL
-`define RISCV_FORMAL_NRET 1
-`define RISCV_FORMAL_XLEN 32
-`define RISCV_FORMAL_ILEN 32
+[file defines.svh]
 `define RISCV_FORMAL_CHECKER rvfi_causal_check
 `define RISCV_FORMAL_RESET_CYCLES 10
 `define RISCV_FORMAL_CHECK_CYCLE 20
 `define RISCV_FORMAL_CHANNEL_IDX 0
-`define RVFI
-`define RVFI_TRACE
-`define RISCV_FORMAL
-`define RISCV_FORMAL_NRET 1
-`define RISCV_FORMAL_XLEN 32
-`define RISCV_FORMAL_ILEN 32
-`define RISCV_FORMAL_ALIGNED_MEM
-`define RISCV_FORMAL_CSR_MSTATUS
-`define RISCV_FORMAL_CSR_MIE
-`define RISCV_FORMAL_CSR_MIP
-`define RISCV_FORMAL_CSR_MTVEC
-`define RISCV_FORMAL_CSR_MEPC
-`define RISCV_FORMAL_CSR_MCAUSE
-`define RISCV_FORMAL_CSR_MTVAL
-`define RISCV_FORMAL_CSR_MSCRATCH
-`include "rvfi_macros.vh"
 
 [file causal_ch0.sv]
-`include "defines.sv"
+`include "rvj1_defines.svh"
+`include "defines.svh"
+`include "rvfi_macros.svh"
 `include "rvfi_channel.sv"
 `include "rvfi_testbench.sv"
 `include "rvfi_causal_check.sv"
