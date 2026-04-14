@@ -439,7 +439,7 @@ module rvj1_top import rvj1_pkg::*;
     exec_stage_comb.lsu_addr       =  {alu_res[31:2], 2'b00};
     exec_stage_comb.lsu_rdata      = 32'b0;
     exec_stage_comb.lsu_wdata      = 32'b0;
-    exec_stage_comb.jmp_addr_valid = jmp_addr_valid;
+    exec_stage_comb.jmp_addr_valid = 1'b0;
     exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
     exec_stage_comb.rd_wdata       = '0;
     exec_stage_comb.trap           = 1'b0;
@@ -466,16 +466,17 @@ module rvj1_top import rvj1_pkg::*;
   end
   always_ff @(posedge clk_i) begin
     if (instr_retiring) begin
-      retired_stage           <= mem_wb_stage;
-      retired_stage.rd_addr   <= (wpc_we                    ) ? wpc_addr : '0;
-      retired_stage.rd_wdata  <= (wpc_we && (wpc_addr != '0)) ? wpc_data : '0;
-      retired_stage.trap      <= synhr_trap;
-      retired_stage.csr_rdata <= rvfi_csr_rdata;
-      retired_stage.csr_rmask <= rvfi_csr_rmask;
-      retired_stage.csr_wdata <= rvfi_csr_wdata;
-      retired_stage.csr_wmask <= rvfi_csr_wmask;
-      retired_stage.lsu_rdata <= lsu_wb_valid   ? wpc_data          : '0;
-      retired_stage.jmp_addr  <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+      retired_stage                <= mem_wb_stage;
+      retired_stage.rd_addr        <= (wpc_we                    ) ? wpc_addr : '0;
+      retired_stage.rd_wdata       <= (wpc_we && (wpc_addr != '0)) ? wpc_data : '0;
+      retired_stage.trap           <= synhr_trap;
+      retired_stage.csr_rdata      <= rvfi_csr_rdata;
+      retired_stage.csr_rmask      <= rvfi_csr_rmask;
+      retired_stage.csr_wdata      <= rvfi_csr_wdata;
+      retired_stage.csr_wmask      <= rvfi_csr_wmask;
+      retired_stage.jmp_addr_valid <= jmp_addr_valid;
+      retired_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+      retired_stage.lsu_rdata      <= lsu_wb_valid   ? wpc_data          : '0;
     end
   end
 
