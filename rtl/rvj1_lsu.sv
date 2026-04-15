@@ -127,7 +127,7 @@ logic [XLEN-1:0] byte_select_read_data;
 
 logic retire_request;
 
-logic data_req_fire;
+logic data_req_fire, data_rsp_fire;
 logic read_req, read_rsp, req_full, req_ready;
 logic store_addr_misaligned, load_addr_misaligned, addr_misaligned;
 
@@ -205,13 +205,14 @@ skidbuffer #(
 
   .empty        (act_req_buff_empty)
 );
+assign data_rsp_fire = data_rsp_valid_i && data_rsp_ready_o;
 skidbuffer #(
   .DTYPE (lsu_rsp_t)
 ) response_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
 
-  .input_valid  (data_rsp_valid_i),
+  .input_valid  (data_rsp_fire),
   .input_ready  (resp_buff_ready),
   .input_data   ({data_rsp_data_i, data_rsp_error_i}),
 
