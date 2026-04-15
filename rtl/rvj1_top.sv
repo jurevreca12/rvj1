@@ -410,6 +410,8 @@ module rvj1_top import rvj1_pkg::*;
   logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue, csr_issue;
   logic first_insn_of_trap;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
+  logic [3:0] strobe_sig;
+  logic use_rpb, use_rpa;
 
   assign valid_issue  = instr_issued && ~stall_ex;
   assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
@@ -424,12 +426,14 @@ module rvj1_top import rvj1_pkg::*;
       assert( $onehot({simple_issue, branch_issue, load_issue, store_issue, csr_issue}) );
   `endif
 
+  assign use_rpa = ~rpa_or_pc;
+  assign use_rpb = ((~rpb_or_imm) || store_issue); // store issue uses immediate and rpb
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
-    exec_stage_comb.rs1_addr       = rpa_or_pc  ? '0 : rf_addr_a;
-    exec_stage_comb.rs2_addr       = rpb_or_imm ? '0 : rf_addr_b;
-    exec_stage_comb.rs1_rdata      = rpa_or_pc  ? '0 : regs1_data;
-    exec_stage_comb.rs2_rdata      = rpb_or_imm ? '0 : regs2_data;
+    exec_stage_comb.rs1_addr       = use_rpa ? rf_addr_a : '0;
+    exec_stage_comb.rs2_addr       = use_rpb ? rf_addr_b : '0;
+    exec_stage_comb.rs1_rdata      = use_rpa ? regs1_data : '0;
+    exec_stage_comb.rs2_rdata      = use_rpb ? regs2_data : '0;
     exec_stage_comb.rd_addr        = '0; // written in WB
     exec_stage_comb.alu_res        = alu_res;
     exec_stage_comb.pc_rdata       = program_counter;
