@@ -410,7 +410,8 @@ module rvj1_top import rvj1_pkg::*;
   logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue, csr_issue;
   logic first_insn_of_trap;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
-  logic [3:0] strobe_sig;
+  logic [3:0]  strobe_sig;
+  logic [31:0] lsu_wdata_mod;
   logic use_rpb, use_rpa;
 
   assign valid_issue  = instr_issued && ~stall_ex;
@@ -463,7 +464,7 @@ module rvj1_top import rvj1_pkg::*;
   always_ff @(posedge clk_i) begin
    if (valid_issue) begin
       mem_wb_stage            <= exec_stage_comb;
-      mem_wb_stage.lsu_addr   <= mem_issue   ? {alu_res[31:2], 2'b00} : '0;
+      mem_wb_stage.lsu_addr   <= mem_issue   ? alu_res    : '0;
       mem_wb_stage.lsu_strobe <= mem_issue   ? strobe_sig : '0;
       mem_wb_stage.lsu_wdata  <= store_issue ? regs2_data : '0;
     end
@@ -507,6 +508,12 @@ module rvj1_top import rvj1_pkg::*;
     .in   (retired_stage.trap),
     .out  (first_insn_of_trap)
   );
+  byte_select_write bsw (
+    .data(retired_stage.lsu_wdata),
+    .cmd(retired_stage.lsu_cmd),
+    .byteaddr(retired_stage.lsu_addr[1:0]),
+    .data_out(lsu_wdata_mod)
+  );
   assign rvfi_insn      = retired_stage.instr;
   assign rvfi_trap      = retired_stage.trap;
   assign rvfi_halt      = 1'b0;
@@ -521,11 +528,11 @@ module rvj1_top import rvj1_pkg::*;
   assign rvfi_rd_wdata  = retired_stage.rd_wdata;
   assign rvfi_pc_rdata  = retired_stage.pc_rdata;
   assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
-  assign rvfi_mem_addr  = retired_stage.lsu_addr;
+  assign rvfi_mem_addr  = {retired_stage.lsu_addr[31:2], 2'b00};
   assign rvfi_mem_rmask = is_write_cmd(retired_stage.lsu_cmd) ? '0 : retired_stage.lsu_strobe;
   assign rvfi_mem_wmask = is_write_cmd(retired_stage.lsu_cmd) ? retired_stage.lsu_strobe : '0;
   assign rvfi_mem_rdata = retired_stage.lsu_rdata;
-  assign rvfi_mem_wdata = retired_stage.lsu_wdata;
+  assign rvfi_mem_wdata = lsu_wdata_mod;
 
   `RVFI_STAGE_CONN(mstatus);
   `RVFI_STAGE_CONN(mie);
