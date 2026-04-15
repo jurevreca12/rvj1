@@ -522,8 +522,8 @@ module rvj1_top import rvj1_pkg::*;
   assign rvfi_pc_rdata  = retired_stage.pc_rdata;
   assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
   assign rvfi_mem_addr  = retired_stage.lsu_addr;
-  assign rvfi_mem_rmask = retired_stage.lsu_strobe;
-  assign rvfi_mem_wmask = retired_stage.lsu_strobe;
+  assign rvfi_mem_rmask = is_write_cmd(retired_stage.lsu_cmd) ? '0 : retired_stage.lsu_strobe;
+  assign rvfi_mem_wmask = is_write_cmd(retired_stage.lsu_cmd) ? retired_stage.lsu_strobe : '0;
   assign rvfi_mem_rdata = retired_stage.lsu_rdata;
   assign rvfi_mem_wdata = retired_stage.lsu_wdata;
 
