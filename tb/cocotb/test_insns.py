@@ -63,7 +63,7 @@ def top_test_fixture(hdl: HDL) -> HDL:
         build_args += [f"-DASSERTIONS"]
     hdl.toplevel = "rvj1_test_top"
     hdl.build(
-        sources = get_rtl_files("verilog"),
+        sources = get_rtl_files(),
         includes = ["/foss/designs/rvj1/rtl/inc"],
         build_args = build_args,
         parameters = {

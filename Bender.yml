@@ -1,0 +1,28 @@
+package:
+  name: rvj1
+  authors:
+    - "Jure Vreča <jure.vreca@ijs.si>"
+
+dependencies:
+  std-lib: { git: "https://github.com/jurevreca12/std-lib.git",  rev: 88719a0 }
+
+sources:
+    - rtl/alu/compare/less_than_sign_Nb.sv
+    - rtl/alu/compare/less_than_unsign_Nb.sv
+    - rtl/rvj1_pkg.sv
+    - rtl/rvfi_trace.sv
+    - rtl/rvj1_alu.sv
+    - rtl/rvj1_ctrl.sv
+    - rtl/rvj1_dec.sv
+    - rtl/rvj1_ifu.sv
+    - rtl/rvj1_lsu.sv
+    - rtl/rvj1_regfile.sv
+    - rtl/rvj1_top.sv
+
+    - target: sim
+      files:
+            - tb/support/bytewrite_sram.sv
+            - tb/support/bytewrite_sram_wrap.sv
+            - tb/support/ifu_mem_test_top.sv
+            - tb/support/lsu_mem_test_top.sv
+            - tb/support/rvj1_test_top.sv
