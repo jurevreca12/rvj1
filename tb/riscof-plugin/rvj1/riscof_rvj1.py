@@ -1,6 +1,7 @@
 import os
 import logging
-import glob
+import subprocess
+import json
 from pathlib import Path
 
 import riscof.utils as utils
@@ -122,14 +123,15 @@ class rvj1(pluginTemplate):
                 "/foss/designs/rvj1/tb/riscof-plugin/tb/",
             )
             rtl_files = []
-            for rootdir in rtl_dirs:
-                rtl_files += list(glob.glob(f"{rootdir}/**/*.v", recursive=True))
-                rtl_files += list(glob.glob(f"{rootdir}/**/*.sv", recursive=True))
-
-            # Remove duplicates, while preserving order (defines must be first)
-            rtl_files = list(map(lambda x: Path(x), rtl_files))
-            seen = set()
-            rtl_files = [str(x) for x in rtl_files if not (x in seen or seen.add(x))]
+            sources = subprocess.run(
+                "bender sources -t sim --flatten",
+                capture_output=True,
+                shell=True
+            )
+            sources = json.loads(sources.stdout)
+            for src_pkg in sources:
+                for file in src_pkg['files']:
+                    rtl_files.append(file)
 
             verilator_args = (
                 " --timescale 1ns/1ps "
