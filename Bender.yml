@@ -6,6 +6,9 @@ package:
 dependencies:
   std-lib: { git: "https://github.com/jurevreca12/std-lib.git",  rev: 88719a0 }
 
+export_include_dirs:
+  - rtl/inc/
+
 sources:
     - rtl/alu/compare/less_than_sign_Nb.sv
     - rtl/alu/compare/less_than_unsign_Nb.sv
