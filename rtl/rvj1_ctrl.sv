@@ -81,12 +81,9 @@ module rvj1_ctrl import rvj1_pkg::*;
   output rvfi_csr_t rvfi_csr_rmask,
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
-
-  //output logic synhr_trap_ex_o,
-  //output logic synhr_trap_mem_wb_o
-  output logic synhr_trap_o
-
  `endif
+
+  output logic synhr_trap_o
 );
   typedef enum logic [3:0] {
       eRESET,
