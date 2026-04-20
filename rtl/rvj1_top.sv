@@ -492,7 +492,7 @@ module rvj1_top import rvj1_pkg::*;
     .in   (instr_retiring),
     .out  (rvfi_valid)
   );
-  counter #(
+  cntr #(
     .WORD_WIDTH (64),
     .RESET_VALUE(0)
   ) rvfi_order_cnt (

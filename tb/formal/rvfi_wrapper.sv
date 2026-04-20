@@ -161,14 +161,14 @@ module rvfi_wrapper (
     assume(dmem_delay < DmemMaxDelay);
   end
 
-  counter #(.WORD_WIDTH(4)) instr_id_cnt (
+  cntr #(.WORD_WIDTH(4)) instr_id_cnt (
     .clk  (clock),
     .rstn (~reset),
     .ce   (instr_rsp_fire),
     .count(instr_rsp_id)
   );
 
-  counter #(.WORD_WIDTH(4)) data_id_cnt (
+  cntr #(.WORD_WIDTH(4)) data_id_cnt (
     .clk  (clock),
     .rstn (~reset),
     .ce   (data_rsp_fire),
