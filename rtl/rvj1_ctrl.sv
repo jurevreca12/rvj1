@@ -69,21 +69,21 @@ module rvj1_ctrl import rvj1_pkg::*;
   output logic             jmp_addr_valid_o,
   output logic [XLEN-3:0]  jmp_addr_o,
 
-  input  logic             irq_external_i,
-  input  logic             irq_timer_i,
-  input  logic             irq_sw_i,
-  input  logic             irq_lcofi_i,
-  input  logic [15:0]      irq_platform_i,
-  input  logic             irq_nmi_i,
-
   `ifdef RVFI
   output rvfi_csr_t rvfi_csr_rdata,
   output rvfi_csr_t rvfi_csr_rmask,
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
- `endif
 
-  output logic synhr_trap_o
+  output logic synhr_trap_o,
+ `endif
+  
+  input  logic             irq_external_i,
+  input  logic             irq_timer_i,
+  input  logic             irq_sw_i,
+  input  logic             irq_lcofi_i,
+  input  logic [15:0]      irq_platform_i,
+  input  logic             irq_nmi_i
 );
   typedef enum logic [3:0] {
       eRESET,

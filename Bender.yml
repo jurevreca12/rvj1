@@ -4,7 +4,7 @@ package:
     - "Jure Vreča <jure.vreca@ijs.si>"
 
 dependencies:
-  std-lib: { git: "https://github.com/jurevreca12/std-lib.git",  rev: 1bc953ce }
+  std-lib: { git: "https://github.com/jurevreca12/std-lib.git",  rev: 1bc953c }
 
 export_include_dirs:
   - rtl/inc/
