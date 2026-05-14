@@ -133,7 +133,7 @@ module bytewrite_sram_wrap #(
         // verilator lint_on PINCONNECTEMPTY
     );
 
-    bytewrite_sram #(
+    bytewrite_sram_1w1r #(
         .MEM_INIT_FILE0(IMEM_INIT_FILE),
         .MEM_INIT_FILE1(DMEM_INIT_FILE),
         .INIT_FILE_BIN0(IMEM_INIT_FILE_BIN),

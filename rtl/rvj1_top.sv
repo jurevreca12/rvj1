@@ -49,11 +49,6 @@ module rvj1_top import rvj1_pkg::*;
   input  logic              data_rsp_valid_i,
   output logic              data_rsp_ready_o,
 
-  // RISC-V Formal Interface
-  `ifdef RVFI
-  `RVFI_OUTPUTS
-  `endif
-  
   // Interrupt sources
   input logic        irq_external_i,
   input logic        irq_timer_i,
@@ -61,6 +56,12 @@ module rvj1_top import rvj1_pkg::*;
   input logic        irq_lcofi_i,
   input logic [15:0] irq_platform_i,
   input logic        irq_nmi_i
+  
+  // RISC-V Formal Interface
+  `ifdef RVFI
+  ,`RVFI_OUTPUTS
+  `endif
+  
 );
 
   /****************************************
