@@ -126,9 +126,6 @@ module rvj1_obi import rvj1_pkg::*;
     .DATA_WIDTH(XLEN),
     .IDLEN(IDLEN)) m2o_instr (
 
-    .clk_i  (clk_i),
-    .rstn_i (rstn_i),
-
     .mapped_req_id_i     (instr_req_id),
     .mapped_req_addr_i   (instr_req_addr),
     .mapped_req_data_i   (instr_req_data),
@@ -162,9 +159,6 @@ module rvj1_obi import rvj1_pkg::*;
     .ADDR_WIDTH(XLEN),
     .DATA_WIDTH(XLEN),
     .IDLEN(IDLEN)) m2o_data (
-
-    .clk_i  (clk_i),
-    .rstn_i (rstn_i),
 
     .mapped_req_id_i     (data_req_id),
     .mapped_req_addr_i   (data_req_addr),
