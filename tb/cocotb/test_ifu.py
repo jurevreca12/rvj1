@@ -165,7 +165,7 @@ if __name__ == "__main__":
         build_args += [f"-DASSERTIONS"]
     runner = get_runner(sim)
     runner.build(
-        sources=get_rtl_files("verilog"),
+        sources=get_rtl_files(),
         includes=["/foss/designs/rvj1/rtl/inc"],
         build_args=build_args,
         hdl_toplevel="ifu_mem_test_top",

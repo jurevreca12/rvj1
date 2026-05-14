@@ -55,12 +55,13 @@ module rvj1_top import rvj1_pkg::*;
   input logic        irq_sw_i,
   input logic        irq_lcofi_i,
   input logic [15:0] irq_platform_i,
-  input logic        irq_nmi_i,
-
+  input logic        irq_nmi_i
+  
   // RISC-V Formal Interface
   `ifdef RVFI
-  `RVFI_OUTPUTS
+  ,`RVFI_OUTPUTS
   `endif
+  
 );
 
   /****************************************
@@ -378,12 +379,6 @@ module rvj1_top import rvj1_pkg::*;
     .csr_value_o            (csr_value),
     .csr_regdest_o          (csr_regdest),
     .csr_wb_o               (csr_wb),
-    .irq_external_i         (irq_external_i),
-    .irq_timer_i            (irq_timer_i),
-    .irq_sw_i               (irq_sw_i),
-    .irq_lcofi_i            (irq_lcofi_i),
-    .irq_platform_i         (irq_platform_i),
-    .irq_nmi_i              (irq_nmi_i),
     .ecall_insn_i           (ecall_insn),
     .mret_insn_i            (mret_insn),
     .ebreak_insn_i          (ebreak_insn),
@@ -398,8 +393,14 @@ module rvj1_top import rvj1_pkg::*;
     .rvfi_csr_rmask         (rvfi_csr_rmask),
     .rvfi_csr_wdata         (rvfi_csr_wdata),
     .rvfi_csr_wmask         (rvfi_csr_wmask),
-    .synhr_trap_o           (synhr_trap)
+    .synhr_trap_o           (synhr_trap),
     `endif
+    .irq_external_i         (irq_external_i),
+    .irq_timer_i            (irq_timer_i),
+    .irq_sw_i               (irq_sw_i),
+    .irq_lcofi_i            (irq_lcofi_i),
+    .irq_platform_i         (irq_platform_i),
+    .irq_nmi_i              (irq_nmi_i)
   );
 
   /*********************************************
@@ -492,7 +493,7 @@ module rvj1_top import rvj1_pkg::*;
     .in   (instr_retiring),
     .out  (rvfi_valid)
   );
-  counter #(
+  cntr #(
     .WORD_WIDTH (64),
     .RESET_VALUE(0)
   ) rvfi_order_cnt (

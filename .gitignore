@@ -5,3 +5,5 @@ venv/
 *xsim.dir
 *xvlog.log
 *xvlog.pb
+.bender/
+Bender.lock

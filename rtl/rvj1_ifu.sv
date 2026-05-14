@@ -140,7 +140,7 @@ module rvj1_ifu import rvj1_pkg::*; (
         .in   (instr_req_addr_next),
         .out  (instr_req_addr_o)
     );
-    counter #(.WORD_WIDTH(IDLEN)) instr_id_counter (
+    cntr #(.WORD_WIDTH(IDLEN)) instr_id_counter (
         .clk  (clk_i),
         .rstn (rstn_i),
         .ce   (instr_req_fire),

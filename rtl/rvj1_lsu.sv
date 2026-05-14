@@ -181,7 +181,7 @@ cmd_to_strobe cmd_to_strobe_inst (
 );
 assign data_req_write_o  = is_write_cmd(req_buff_out_data.cmd);
 assign data_req_fire = data_req_valid_o && data_req_ready_i;
-  counter #(.WORD_WIDTH(IDLEN)) data_id_counter (
+  cntr #(.WORD_WIDTH(IDLEN)) data_id_counter (
       .clk  (clk_i),
       .rstn (rstn_i),
       .ce   (data_req_fire),

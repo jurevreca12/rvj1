@@ -19,5 +19,8 @@ indent_style = tab
 [*.{v,sv}]
 indent_size = 2
 
+[Bender.yml]
+indent_style = space
+indent_size = 4
 
 
