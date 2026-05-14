@@ -16,8 +16,8 @@
 /* verilator lint_off IMPORTSTAR */
 module rvj1_top import rvj1_pkg::*;
 (
-  input logic clk_i,
-  input logic rstn_i,
+  input  logic              clk_i,
+  input  logic              rstn_i,
 
   // Interface to instr memory
   output logic [XLEN-1:0]   instr_req_addr_o,
@@ -50,12 +50,12 @@ module rvj1_top import rvj1_pkg::*;
   output logic              data_rsp_ready_o,
 
   // Interrupt sources
-  input logic        irq_external_i,
-  input logic        irq_timer_i,
-  input logic        irq_sw_i,
-  input logic        irq_lcofi_i,
-  input logic [15:0] irq_platform_i,
-  input logic        irq_nmi_i
+  input  logic              irq_external_i,
+  input  logic              irq_timer_i,
+  input  logic              irq_sw_i,
+  input  logic              irq_lcofi_i,
+  input  logic [15:0]       irq_platform_i,
+  input  logic              irq_nmi_i
   
   // RISC-V Formal Interface
   `ifdef RVFI
