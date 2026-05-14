@@ -22,6 +22,7 @@ sources:
     - rtl/rvj1_lsu.sv
     - rtl/rvj1_regfile.sv
     - rtl/rvj1_top.sv
+    - rtl/rvj1_obi.sv
 
     - target: sim
       files:
