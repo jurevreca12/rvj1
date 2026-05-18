@@ -4,7 +4,8 @@ package:
     - "Jure Vreča <jure.vreca@ijs.si>"
 
 dependencies:
-  std-lib: { git: "https://github.com/jurevreca12/std-lib.git",  rev: 1bc953c }
+  std-lib:    { git: "https://github.com/jurevreca12/std-lib.git",    rev: 1bc953c }
+  mapped2obi: { git: "https://github.com/jurevreca12/mapped2obi.git", rev: 06411af }
 
 export_include_dirs:
   - rtl/inc/
@@ -21,6 +22,7 @@ sources:
     - rtl/rvj1_lsu.sv
     - rtl/rvj1_regfile.sv
     - rtl/rvj1_top.sv
+    - rtl/rvj1_obi.sv
 
     - target: sim
       files:
