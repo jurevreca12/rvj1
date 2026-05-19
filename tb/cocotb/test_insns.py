@@ -6,6 +6,7 @@ from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
 from base import get_rtl_files, WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 from rvtests import RV32I_TESTS
+from sdexttests import SDEXT_TESTS
 import pytest
 from cocotb_tools.pytest.hdl import HDL
 import cocotb
@@ -77,9 +78,12 @@ def top_test_fixture(hdl: HDL) -> HDL:
     return hdl
 
 
-@pytest.mark.parametrize("asm_test_name", RV32I_TESTS.keys())
+@pytest.mark.parametrize("asm_test_name", list(RV32I_TESTS.keys()) + list(SDEXT_TESTS.keys()))
 def test_simple_runner(top_test_fixture, asm_test_name):
-    asm_test = RV32I_TESTS[asm_test_name]
+    if asm_test_name[0:5] == "sdext":
+        asm_test = SDEXT_TESTS[asm_test_name]
+    else:
+        asm_test = RV32I_TESTS[asm_test_name]
     print(f"Running test {asm_test_name} with the following instructions:")
     for insn in asm_test.insns:
         print(insn)
