@@ -1,0 +1,9 @@
+{
+  "flags": "-F files.f -f .slang/slang-conf.f",
+  "index": [
+    {
+      "excludeDirs": ["impl", "doc", "literature"]
+    }
+  ],
+  "indexingThreads": 4
+}

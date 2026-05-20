@@ -1,0 +1,2 @@
+--std 1800-2017
+--timescale 1ns/1ps

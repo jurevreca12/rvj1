@@ -7,3 +7,4 @@ venv/
 *xvlog.pb
 .bender/
 Bender.lock
+files.f

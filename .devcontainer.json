@@ -1,0 +1,43 @@
+{
+  "name": "iic-osic-tools",
+
+  "image": "hpretl/iic-osic-tools:2025.07",
+
+  "overrideCommand": false,
+
+  "containerUser": "${localEnv:UID}:${localEnv:GID}",
+
+  "workspaceFolder": "/foss/designs/rvj1",
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/foss/designs/rvj1,type=bind",
+
+  "mounts": [
+    "source=/etc/group,target=/etc/group,type=bind,readonly",
+    "source=/etc/passwd,target=/etc/passwd,type=bind,readonly",
+    "source=/etc/shadow,target=/etc/shadow,type=bind,readonly",
+    "source=${localEnv:HOME}/.cache,target=/headless/.cache,type=bind"
+  ],
+
+  "remoteEnv": {
+    "HOME": "${localEnv:HOME}",
+    "UID": "${localEnv:UID}",
+    "GID": "${localEnv:GID}"
+  },
+
+  "runArgs": [
+    "--user=${localEnv:UID}:${localEnv:GID}"
+  ],
+  "customizations": {
+      "vscode": {
+        "extensions": [
+          "hudson-river-trading.vscode-slang",
+          "lramseyer.vaporview",
+          "ms-vscode.makefile-tools",
+          "ms-vscode.cpptools",
+          "ms-vscode.cpp-devtools",
+          "ms-python.python",
+          "ms-python.debugpy"
+      ]
+      }
+  }
+}

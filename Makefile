@@ -56,3 +56,7 @@ docker-run-it:
 			   -v ~/.cache/:/headless/.cache:rw \
 			   -v $(CWD):/foss/designs/rvj1 \
 			    iic-osic-tools-plus:0.1 -s /bin/bash
+
+
+files.f:
+	bender script flist-plus --relative-path &> files.f
