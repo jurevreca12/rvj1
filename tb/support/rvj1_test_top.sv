@@ -8,6 +8,8 @@ module rvj1_test_top import rvj1_pkg::*;();
   parameter int IRAM_WORD_SIZE = 1 << 8;
   parameter int DRAM_BASE_ADDR = 32'h8000_0400;
   parameter int DRAM_WORD_SIZE = 1 << 8;
+  parameter int unsigned BootAddr  = 32'h8000_0000;
+  parameter int unsigned DmRomAddr = 32'h0000_0000;
 
   logic clk;
   logic rstn;
@@ -89,7 +91,10 @@ module rvj1_test_top import rvj1_pkg::*;();
         .data_rsp_ready_i  (data_rsp_ready)
     );
 
-    rvj1_top dut(
+    rvj1_top #(
+      .BootAddr(BootAddr),
+      .DmRomAddr(DmRomAddr)
+    )dut(
       .clk_i       (clk),
       .rstn_i      (rstn),
 

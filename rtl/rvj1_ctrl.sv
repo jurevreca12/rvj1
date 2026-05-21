@@ -14,6 +14,7 @@
 `include "rvj1_defines.svh"
 /* verilator lint_off IMPORTSTAR */
 module rvj1_ctrl import rvj1_pkg::*; #(
+  parameter int unsigned BootAddr  = 32'h8000_0000,
   parameter int unsigned DmRomAddr = 32'h0000_0000
 )
 (
@@ -36,6 +37,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             ecall_insn_i,
   input  logic             mret_insn_i,
   input  logic             ebreak_insn_i,
+  input  logic             dret_insn_i,
   input  logic             illegal_instr_i,
 
   input  logic             control_i,
@@ -87,6 +89,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic [15:0]      irq_platform_i,
   input  logic             irq_nmi_i
 );
+  $static_assert(DmRomAddr[1:0] == 2'b00);
+  typedef enum logic {
+    eMODE_NORM,
+    eMODE_DEBUG
+  } rvj1_op_mode_e;
   typedef enum logic [3:0] {
       eRESET,
       eBOOT0,
@@ -97,9 +104,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eLOAD,   // loading a value from data mem to a register.
       eBRANCH,
       eTRAP,
-      eMRET
+      eMRET,
+      eDEBUG
   } rvj1_fsm_e;
+  rvj1_op_mode_e cpu_mode, cpu_mode_next;
   rvj1_fsm_e state, state_next;
+
 
   // CSR register signal defintions
   //     +------+
@@ -118,6 +128,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [5:0]      mcause_d, mcause_q, trap_cause, trap_cause_r; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
   logic [XLEN-1:0] mtval_d, mtval_q;
   logic [XLEN-1:0] mscratch_d, mscratch_q;
+  dcsr_reg_t       dcsr_d, dcsr_q;
+  logic [XLEN-1:0] dpc_d, dpc_q;
+  logic [XLEN-1:0] dscratch0_d, dscratch0_q;
+  logic [XLEN-1:0] dscratch1_d, dscratch1_q;
 
   logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
   logic csr_valid_write;
@@ -132,6 +146,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [XLEN-1:0] csr_mcause_value, csr_mcause_masked;
   logic [XLEN-1:0] csr_mtval_value, csr_mtval_masked;
   logic [XLEN-1:0] csr_mscratch_value;
+  logic [XLEN-1:0] csr_dcsr_value;
+  logic [XLEN-1:0] csr_dpc_value;
+  logic [XLEN-1:0] csr_dscratch0_value;
+  logic [XLEN-1:0] csr_dscratch1_value;
 
   logic [XLEN-1:0] csr_value;
 
@@ -142,7 +160,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic lsu_busy_hazard;
   logic csr_write_hazard;
   logic csr_write_hazard_r;
-  logic load, loaded, jump, branch, takebr, nobr, mret;
+  logic load, loaded, jump, branch, takebr, nobr, mret, todbg, enddbg;
   branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
@@ -154,6 +172,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic instr_addr_misaligned;
   logic ecall_insn;
   logic ebreak_insn, ebreak_insn_r;
+  logic dret_insn;
   logic ctrl_jump;
   logic illegal_csr_insn, illegal_csr_read, illegal_csr_write;
   logic illegal_instr;
@@ -231,7 +250,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign jmp_addr_valid_o = (((state == eJUMP0) && ~instr_addr_misaligned) ||
                              (state == eBOOT0) ||
                              (state == eTRAP)  ||
-                             (state == eMRET));
+                             (state == eMRET)  ||
+                             ((cpu_mode == eMODE_DEBUG) && ebreak_insn_r));
   assign stop_jmp_write_o = instr_addr_misaligned;
   always_comb begin
     jmp_addr_o = '0;
@@ -241,19 +261,18 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       jmp_addr_o = csr_mtvec_value[31:2];
     else if (state == eMRET)
       jmp_addr_o = csr_mepc_value[31:2];
+    else if ((cpu_mode == eMODE_DEBUG) && ebreak_insn_r)
+      jmp_addr_o = DmRomAddr[31:2];
+    else if ((cpu_mode == eMODE_DEBUG) && dret_insn)
+      jmp_addr_o = csr_dpc_value[31:2];
     else
-      jmp_addr_o = BOOT_ADDR[31:2];
+      jmp_addr_o = BootAddr[31:2];
   end
 
   /*************************************
   * Program Counter
   *************************************/
-  assign pc_change = (state == eJUMP0) ||
-                      synhr_trap ||
-                      mret ||
-                      instr_will_retire ||
-                      ctrl_jump ||
-                      loaded;
+  assign pc_change = (state == eJUMP0) || synhr_trap || mret || instr_will_retire || ctrl_jump || loaded;
   always_comb begin
     program_counter_next = program_counter;
     if (synhr_trap)
@@ -267,7 +286,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   end
   register #(
     .DTYPE(logic [XLEN-3:0]),
-    .RESET_VALUE(BOOT_ADDR[31:2])
+    .RESET_VALUE(BootAddr[31:2])
   ) program_counter_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -281,7 +300,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   // Tega se znebimo tak da vse izjeme obravnavamo v istem delu cevovoda
   register #(
     .DTYPE(logic [XLEN-3:0]),
-    .RESET_VALUE(BOOT_ADDR[31:2])
+    .RESET_VALUE(BootAddr[31:2])
   ) program_counter_prev_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -297,6 +316,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_ex_o;
+  assign dret_insn         = dret_insn_i         && ~stall_ex_o;
   assign illegal_instr     = illegal_instr_i     && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
   assign illegal_csr_insn  = (illegal_csr_read || illegal_csr_write) && csr_valid_r_i && ~stall_ex_o;
@@ -311,7 +331,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   );
 
   assign synhr_trap_ex = (ecall_insn ||
-                          ebreak_insn ||
                           illegal_instr ||
                           instr_fetch_error);
   register synhr_trap_ex_reg (
@@ -435,6 +454,22 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign csr_mcause_value   = {mcause_q[5], 26'b0, mcause_q[4:0]};
   assign csr_mtval_value    = mtval_q;
   assign csr_mscratch_value = mscratch_q;
+  assign csr_dcsr_value     = (
+      ({30'b0, 2'd3}         << CSR_DCSR_PRV_BIT_0)
+    | ({31'b0, dcsr_q.step}  << CSR_DCSR_STEP_BIT)
+    | ({31'b0, dcsr_q.nmip}  << CSR_DCSR_NMIP_BIT)
+    | ({31'b0, 1'b0}         << CSR_DCSR_MPRVEN_BIT)
+    | ({29'b0, dcsr_q.cause} << CSR_DCSR_CAUSE_BIT_0)
+    | ({31'b0, 1'b0}         << CSR_DCSR_STOPTIME_BIT)
+    | ({31'b0, 1'b0}         << CSR_DCSR_STOPCOUNT_BIT)
+    | ({31'b0, 1'b0}         << CSR_DCSR_STEPIE_BIT)
+    | ({31'b0, 1'b1}         << CSR_DCSR_EBREAKM_BIT)
+    | ({28'b0, 4'h4}         << CSR_DCSR_XDEBUGVER_BIT_0)
+    | 32'b0
+  );
+  assign csr_dpc_value = dpc_q;
+  assign csr_dscratch0_value = dscratch0_q;
+  assign csr_dscratch1_value = dscratch1_q;
 
   // csr_valid_r does not need stall control as stall is already applied at the
   // pipeline register (_r)
@@ -518,7 +553,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     mtval_d = mtval_q;
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
-    if (synhr_trap) begin
+    if (synhr_trap && (cpu_mode != eMODE_DEBUG)) begin
       mcause_d = synhr_trap_ex_r ? trap_cause_r : trap_cause;
       mcause_ce = 1'b1;
       mepc_d = synhr_trap_mem_wb2 ? program_counter : program_counter_prev;
@@ -531,13 +566,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         mtval_d = lsu_exc_addr_i;
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_r_i;
-      else if (ebreak_insn_r)
-        mtval_d = {program_counter_prev, 2'b00};
       else
         mtval_d = '0;
       mtval_ce = 1'b1;
     end
-    else if (state == eMRET) begin
+    else if (state == eMRET && (cpu_mode != eMODE_DEBUG)) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
@@ -690,7 +723,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = (state == eRESET) ? eBOOT0  : state;
     state_next = (state == eBOOT0) ? eBOOT1  : state_next;
     state_next = (state == eBOOT1) ? eRUN    : state_next;
-    state_next = load              ? eLOAD  : state_next;
+    state_next = load              ? eLOAD   : state_next;
     state_next = loaded            ? eRUN    : state_next;
     state_next = jump              ? eJUMP0  : state_next;
     state_next = (state == eJUMP0) ? eJUMP1  : state_next;
@@ -714,6 +747,24 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (state)
   );
 
+  always_comb begin
+    todbg  = (cpu_mode == eMODE_NORM)  && ebreak_insn;
+    enddbg = (cpu_mode == eMODE_DEBUG) && dret_insn;
+  end
+  always_comb begin
+    cpu_mode_next = todbg  ? eMODE_DEBUG : cpu_mode_next;
+    cpu_mode_next = enddbg ? eMODE_NORM  : cpu_mode_next;
+  end
+  register #(
+    .DTYPE(rvj1_op_mode_e),
+    .RESET_VALUE(eMODE_NORM)
+  ) cpu_mode_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (cpu_mode_next),
+    .out  (cpu_mode)
+  );
   `ifdef RVFI
   assign rvfi_csr_rmask.mstatus = '1;
   assign rvfi_csr_rdata.mstatus = csr_mstatus_value;

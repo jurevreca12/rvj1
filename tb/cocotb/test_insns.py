@@ -71,7 +71,8 @@ def top_test_fixture(hdl: HDL) -> HDL:
             "IRAM_BASE_ADDR": 0x8000_0000, 
             "IRAM_WORD_SIZE": (1 << 8),
             "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
-            "DRAM_WORD_SIZE": (1 << 8)
+            "DRAM_WORD_SIZE": (1 << 8),
+            "DmRomAddr": 0x8000_0050,
         },
         waves = False,
     )

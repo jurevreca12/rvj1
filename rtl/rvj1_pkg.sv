@@ -11,8 +11,6 @@ package rvj1_pkg;
 
     parameter int IDLEN  = 4;   // The size of the ID field in the memory bus interface
 
-    parameter logic [XLEN-1:0] BOOT_ADDR = 32'h8000_0000;
-
 
     // OPCODES for RV32G/RV64G (all are defined but not necessarily implemented)
     parameter int OPCODE_WIDTH = 7;
@@ -176,6 +174,18 @@ package rvj1_pkg;
     parameter int unsigned CSR_MIEP_LCOFI_BIT         = 13;
     parameter int unsigned CSR_MIEP_PLATFORM_IRQS_BIT = 16;
 
+    // DCSR register fields
+    parameter int unsigned CSR_DCSR_PRV_BIT_0         = 0;
+    parameter int unsigned CSR_DCSR_STEP_BIT          = 2;
+    parameter int unsigned CSR_DCSR_NMIP_BIT          = 3;
+    parameter int unsigned CSR_DCSR_MPRVEN_BIT        = 4;
+    parameter int unsigned CSR_DCSR_CAUSE_BIT_0       = 6;
+    parameter int unsigned CSR_DCSR_STOPTIME_BIT      = 9;
+    parameter int unsigned CSR_DCSR_STOPCOUNT_BIT     = 10;
+    parameter int unsigned CSR_DCSR_STEPIE_BIT        = 11;
+    parameter int unsigned CSR_DCSR_EBREAKM_BIT       = 15;
+    parameter int unsigned CSR_DCSR_XDEBUGVER_BIT_0   = 28;
+
     typedef struct packed {
         logic msi;   // machine sw irq
         logic mti;   // machine timer irq
@@ -189,6 +199,12 @@ package rvj1_pkg;
         logic mpie; // machine previous irq enable
         logic mpp;  // machine previous priv (1 bit mirrored)
     } mstatus_reg_t;
+
+    typedef struct packed {
+        logic       step;
+        logic       nmip;
+        logic [2:0] cause;
+    } dcsr_reg_t;
 
     parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0
     parameter logic [5:0] MCAUSE_INSTR_ACCESS_FAULT    = 6'b0_00001; // 1

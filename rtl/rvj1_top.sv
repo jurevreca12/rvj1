@@ -15,6 +15,7 @@
 
 /* verilator lint_off IMPORTSTAR */
 module rvj1_top import rvj1_pkg::*; #(
+  parameter int unsigned BootAddr  = 32'h8000_0000,
   parameter int unsigned DmRomAddr = 32'h0000_0000
 )
 (
@@ -346,6 +347,7 @@ module rvj1_top import rvj1_pkg::*; #(
   * CONTROLLER
   *********************************************/
   rvj1_ctrl #(
+    .BootAddr(BootAddr),
     .DmRomAddr(DmRomAddr)
   ) ctrl_inst (
     .clk_i                  (clk_i),
