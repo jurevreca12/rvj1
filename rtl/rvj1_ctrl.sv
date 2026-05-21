@@ -12,10 +12,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 `include "rvj1_defines.svh"
+
 /* verilator lint_off IMPORTSTAR */
 module rvj1_ctrl import rvj1_pkg::*; #(
-  parameter int unsigned BootAddr  = 32'h8000_0000,
-  parameter int unsigned DmRomAddr = 32'h0000_0000
+  parameter int unsigned BootAddr   = 32'h8000_0000,
+  parameter int unsigned DmRomAddr  = 32'h0000_0000,
+  parameter int unsigned MVendorId  = 32'h0000_0000,
+  parameter int unsigned MArchId    = 32'h0000_0000,
+  parameter int unsigned MImpId     = 32'h0000_0000,
+  parameter int unsigned MHartId    = 32'h0000_0000,
+  parameter int unsigned MConfigPtr = 32'h0000_0000
 )
 (
   input logic clk_i,
@@ -26,7 +32,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic [RALEN-1:0] rf_addr_b_i,
   input  logic             rpa_or_pc_i,
   input  logic             rpb_or_imm_i,
-  input  logic [RALEN-1:0] regdest_i,
   input  lsu_ctrl_e        lsu_cmd_i,
   input  logic             lsu_ctrl_valid_i,
   input  logic             lsu_ready_i,
@@ -89,7 +94,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic [15:0]      irq_platform_i,
   input  logic             irq_nmi_i
 );
-  $static_assert(DmRomAddr[1:0] == 2'b00);
+  //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
   typedef enum logic {
     eMODE_NORM,
     eMODE_DEBUG
@@ -105,7 +110,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eBRANCH,
       eTRAP,
       eMRET,
-      eDEBUG
+      eTODEBUG
   } rvj1_fsm_e;
   rvj1_op_mode_e cpu_mode, cpu_mode_next;
   rvj1_fsm_e state, state_next;
@@ -132,7 +137,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [XLEN-1:0] dpc_d, dpc_q;
   logic [XLEN-1:0] dscratch0_d, dscratch0_q;
   logic [XLEN-1:0] dscratch1_d, dscratch1_q;
-
+  logic dcsr_ce, dpc_ce, dscratch0_ce, dscratch1_ce;
   logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
   logic csr_valid_write;
   logic csr_valid_read;
@@ -146,10 +151,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [XLEN-1:0] csr_mcause_value, csr_mcause_masked;
   logic [XLEN-1:0] csr_mtval_value, csr_mtval_masked;
   logic [XLEN-1:0] csr_mscratch_value;
-  logic [XLEN-1:0] csr_dcsr_value;
-  logic [XLEN-1:0] csr_dpc_value;
-  logic [XLEN-1:0] csr_dscratch0_value;
-  logic [XLEN-1:0] csr_dscratch1_value;
+  logic [XLEN-1:0] csr_dcsr_value, csr_dcsr_masked;
+  logic [XLEN-1:0] csr_dpc_value, csr_dpc_masked;
+  logic [XLEN-1:0] csr_dscratch0_value, csr_dscratch0_masked;
+  logic [XLEN-1:0] csr_dscratch1_value, csr_dscratch1_masked;
 
   logic [XLEN-1:0] csr_value;
 
@@ -167,18 +172,17 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic synhr_trap_ex, synhr_trap_ex_r;
   logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
   logic instr_will_retire, instr_will_retire_r;
-  logic pc_change;
+  logic pc_mod;
   logic [XLEN-3:0] program_counter, program_counter_prev, program_counter_next;
   logic instr_addr_misaligned;
   logic ecall_insn;
-  logic ebreak_insn, ebreak_insn_r;
+  logic ebreak_insn;
   logic dret_insn;
   logic ctrl_jump;
-  logic illegal_csr_insn, illegal_csr_read, illegal_csr_write;
+  logic illegal_csr_insn, illegal_csr_write, nonexist_csr_access, debug_csr_access_err;
   logic illegal_instr;
   logic instr_fetch_error;
   logic stall_ex_o_r;
-  logic sys_insns;
   logic csr_mod_insns;
 
   /*************************************
@@ -218,12 +222,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                          (rf_addr_b_i != 5'b00000) &&
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
-  assign sys_insns = mret_insn_i || ecall_insn_i || ebreak_insn_i;
-  assign csr_mod_insns = sys_insns || illegal_instr_i || instr_fetch_error_i;
+  assign csr_mod_insns = mret_insn_i || ecall_insn_i || illegal_instr_i || instr_fetch_error_i;
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
-  assign csr_write_hazard = (csr_valid_r_i &&
-                             csr_mod_insns &&
-                             ~csr_write_hazard_r);
+  assign csr_write_hazard = (csr_valid_r_i && csr_mod_insns &&  ~csr_write_hazard_r);
   assign stall_mem_wb_o = (lsu_busy_hazard ||
                           (state == eJUMP1) ||
                           (state == eTRAP));
@@ -236,10 +237,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                        (state == eJUMP0) ||
                        (state == eJUMP1) ||
                        (state == eTRAP) ||
-                       (state == eMRET));
+                       (state == eMRET) ||
+                       (state == eTODEBUG));
   assign flush_ex_o = ((state == eJUMP0) ||
                        (state == eTRAP) ||
-                       (state == eMRET));
+                       (state == eMRET) ||
+                       (state == eTODEBUG));
   assign flush_mem_wb_o = (flush_ex_o ||
                           (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
                           (~control_i && ~stall_ex_o));
@@ -251,7 +254,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                              (state == eBOOT0) ||
                              (state == eTRAP)  ||
                              (state == eMRET)  ||
-                             ((cpu_mode == eMODE_DEBUG) && ebreak_insn_r));
+                             ebreak_insn);
   assign stop_jmp_write_o = instr_addr_misaligned;
   always_comb begin
     jmp_addr_o = '0;
@@ -261,7 +264,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       jmp_addr_o = csr_mtvec_value[31:2];
     else if (state == eMRET)
       jmp_addr_o = csr_mepc_value[31:2];
-    else if ((cpu_mode == eMODE_DEBUG) && ebreak_insn_r)
+    else if (ebreak_insn)
       jmp_addr_o = DmRomAddr[31:2];
     else if ((cpu_mode == eMODE_DEBUG) && dret_insn)
       jmp_addr_o = csr_dpc_value[31:2];
@@ -272,7 +275,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   * Program Counter
   *************************************/
-  assign pc_change = (state == eJUMP0) || synhr_trap || mret || instr_will_retire || ctrl_jump || loaded;
+  assign pc_mod = (state == eJUMP0) || synhr_trap || mret || ebreak_insn || instr_will_retire || ctrl_jump || loaded;
   always_comb begin
     program_counter_next = program_counter;
     if (synhr_trap)
@@ -281,6 +284,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       program_counter_next = csr_mepc_value[31:2];
     else if (state == eJUMP0)
       program_counter_next = alu_res_r_i[31:2];
+    else if (ebreak_insn)
+      program_counter_next = DmRomAddr[31:2];
     else if (instr_will_retire || ctrl_jump || loaded)
       program_counter_next = program_counter + 1;  // ctrl_jump - gives us pc + 4 on JAL & JALR
   end
@@ -290,7 +295,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) program_counter_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (pc_change),
+    .ce   (pc_mod),
     .in   (program_counter_next),
     .out  (program_counter)
   );
@@ -304,7 +309,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) program_counter_prev_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (pc_change),
+    .ce   (pc_mod),
     .in   (program_counter),
     .out  (program_counter_prev)
   );
@@ -319,16 +324,21 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign dret_insn         = dret_insn_i         && ~stall_ex_o;
   assign illegal_instr     = illegal_instr_i     && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
-  assign illegal_csr_insn  = (illegal_csr_read || illegal_csr_write) && csr_valid_r_i && ~stall_ex_o;
-  
-  assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
-  // TODO: store_acess_fault should be routed to an IRQ
-  assign lsu_trap = load_access_fault_i || store_access_fault_i;
-  assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
 
-  register ebreak_insn_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_insn), .out(ebreak_insn_r)
-  );
+  `ifdef ASSERTIONS
+    `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
+    `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
+    `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
+    `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
+    `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
+  `endif
+  assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
+  assign addr_unaligned_trap   = load_addr_misaligned_i || store_addr_misaligned_i;
+  assign lsu_trap              = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
+  assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
 
   assign synhr_trap_ex = (ecall_insn ||
                           illegal_instr ||
@@ -346,16 +356,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign synhr_trap_o = synhr_trap;
   `endif
 
-  `ifdef ASSERTIONS
-    `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
-    `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
-    `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
-    `ASSERT_SINGLE_CYCLE_HOLD(instr_addr_misaligned);
-    `ASSERT_SINGLE_CYCLE_HOLD(illegal_instr);
-    `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
-    `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
-    `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
-  `endif
 
   always_comb begin
     trap_cause = 6'b0;
@@ -418,7 +418,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .clk (clk_i),
     .rstn(rstn_i && ~(state == eTRAP)),
     .ce  (~stall_mem_wb_o),
-    .in  (instr_will_retire && ~stall_ex_o),
+    .in  (instr_will_retire),
     .out (instr_will_retire_r)
   );
   assign instr_retiring_o = (instr_will_retire_r && ~stall_mem_wb_o) || loaded;
@@ -492,18 +492,49 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                             csr_valid_r_i && (csr_cmd_r_i == CSRRS) && (alu_res_r_i != '0) ||
                             csr_valid_r_i && (csr_cmd_r_i == CSRRC) && (alu_res_r_i != '0));
 
+  assign illegal_csr_write = csr_valid_write && csr_addr_r_i[11:10] == 2'b11;
+  assign debug_csr_access_err = csr_valid_r_i && cpu_mode != eMODE_DEBUG && (
+                                (csr_addr_r_i == CSR_DCSR_ADDR) || 
+                                (csr_addr_r_i == CSR_DPC_ADDR) || 
+                                (csr_addr_r_i == CSR_DSCRATCH0_ADDR) ||
+                                (csr_addr_r_i == CSR_DSCRATCH1_ADDR));
+  assign nonexist_csr_access = csr_valid_r_i && !(
+                        (csr_addr_r_i == CSR_MVENDORID_ADDR)  ||
+                        (csr_addr_r_i == CSR_MARCHID_ADDR)    ||
+                        (csr_addr_r_i == CSR_MIMPID_ADDR)     ||
+                        (csr_addr_r_i == CSR_MHARTID_ADDR)    ||
+                        (csr_addr_r_i == CSR_MCONFIGPTR_ADDR) ||
+                        (csr_addr_r_i == CSR_MSTATUS_ADDR)    ||
+                        (csr_addr_r_i == CSR_MSTATUSH_ADDR)   ||
+                        (csr_addr_r_i == CSR_MISA_ADDR)       ||
+                        (csr_addr_r_i == CSR_MEDELEG_ADDR)    ||
+                        (csr_addr_r_i == CSR_MEDELEGH_ADDR)   ||
+                        (csr_addr_r_i == CSR_MIDELEG_ADDR)    ||
+                        (csr_addr_r_i == CSR_MIE_ADDR)        ||
+                        (csr_addr_r_i == CSR_MTVEC_ADDR)      ||
+                        (csr_addr_r_i == CSR_MCOUNTEREN_ADDR) ||
+                        (csr_addr_r_i == CSR_MSCRATCH_ADDR)   ||
+                        (csr_addr_r_i == CSR_MEPC_ADDR)       ||
+                        (csr_addr_r_i == CSR_MCAUSE_ADDR)     ||
+                        (csr_addr_r_i == CSR_MTVAL_ADDR)      ||
+                        (csr_addr_r_i == CSR_MIP_ADDR)        ||
+                        (csr_addr_r_i == CSR_DCSR_ADDR)       ||
+                        (csr_addr_r_i == CSR_DPC_ADDR)        ||
+                        (csr_addr_r_i == CSR_DSCRATCH0_ADDR)  ||
+                        (csr_addr_r_i == CSR_DSCRATCH1_ADDR)
+                      );
    // Read logic
   always_comb begin
     csr_value = '0;
-    illegal_csr_read = 1'b0;
     // ONLY implemented registers, others default to zero
     if (csr_valid_read) begin
       unique case (csr_addr_r_i)
         // Machine Information Registers
-        CSR_MVENDORID_ADDR: csr_value = CSR_MVENDORID_VALUE;
-        CSR_MARCHID_ADDR:   csr_value = CSR_MARCHID_VALUE;
-        CSR_MIMPID_ADDR:    csr_value = CSR_MIMPID_VALUE;
-        CSR_MHARTID_ADDR:   csr_value = CSR_MHARTID_VALUE;
+        CSR_MVENDORID_ADDR:  csr_value = MVendorId;
+        CSR_MARCHID_ADDR:    csr_value = MArchId;
+        CSR_MIMPID_ADDR:     csr_value = MImpId;
+        CSR_MHARTID_ADDR:    csr_value = MHartId;
+        CSR_MCONFIGPTR_ADDR: csr_value = MConfigPtr;
 
         // Machine Trap Setup
         CSR_MSTATUS_ADDR:    csr_value = csr_mstatus_value;
@@ -522,19 +553,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
         CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
         CSR_MIP_ADDR:        csr_value = csr_mip_value;
-        default:             illegal_csr_read = 1'b1;
+
+        // Debug Mode CSRs
+        CSR_DCSR_ADDR:       csr_value = csr_dcsr_value;
+        CSR_DPC_ADDR:        csr_value = csr_dpc_value;
+        CSR_DSCRATCH0_ADDR:  csr_value = csr_dscratch0_value;
+        CSR_DSCRATCH1_ADDR:  csr_value = csr_dscratch1_value;
       endcase
     end
   end
 
-  // Write logic
-  assign illegal_csr_write = csr_valid_write &&(
-                          (csr_addr_r_i != CSR_MSTATUS_ADDR) &&
-                          (csr_addr_r_i != CSR_MSCRATCH_ADDR) &&
-                          (csr_addr_r_i != CSR_MTVEC_ADDR) &&
-                          (csr_addr_r_i != CSR_MEPC_ADDR) &&
-                          (csr_addr_r_i != CSR_MCAUSE_ADDR) &&
-                          (csr_addr_r_i != CSR_MTVAL_ADDR));
   always_comb begin
     mscratch_d = mscratch_q;
     mscratch_ce = 1'b0;
@@ -553,6 +581,18 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     mtval_d = mtval_q;
     mtval_ce = 1'b0;
     csr_mtval_masked = '0;
+    dcsr_d = dcsr_q;
+    dcsr_ce = 1'b0;
+    dpc_d = dpc_q;
+    dpc_ce = 1'b0;
+    csr_dcsr_masked = '0;
+    csr_dpc_masked = '0;
+    csr_dscratch0_masked = '0;
+    csr_dscratch1_masked = '0;
+    dscratch0_d = dscratch0_q;
+    dscratch0_ce = 1'b0;
+    dscratch1_d = dscratch1_q;
+    dscratch1_ce = 1'b0;
     if (synhr_trap && (cpu_mode != eMODE_DEBUG)) begin
       mcause_d = synhr_trap_ex_r ? trap_cause_r : trap_cause;
       mcause_ce = 1'b1;
@@ -609,6 +649,26 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           mtval_d = csr_mtval_masked;
           mtval_ce = 1'b1;
         end
+        CSR_DCSR_ADDR: begin
+          csr_dcsr_masked = csr_mask_op(alu_res_r_i, csr_dcsr_value, csr_cmd_r_i);
+          dcsr_d.step = csr_dcsr_masked[CSR_DCSR_STEP_BIT];
+          dcsr_ce = (cpu_mode == eMODE_DEBUG);
+        end
+        CSR_DPC_ADDR: begin
+          csr_dpc_masked = csr_mask_op(alu_res_r_i, csr_dpc_value, csr_cmd_r_i);
+          dpc_d = csr_dpc_masked;
+          dpc_ce = (cpu_mode == eMODE_DEBUG);
+        end
+        CSR_DSCRATCH0_ADDR: begin
+          csr_dscratch0_masked = csr_mask_op(alu_res_r_i, csr_dscratch0_value, csr_cmd_r_i);
+          dscratch0_d = csr_dscratch0_masked;
+          dscratch0_ce = (cpu_mode == eMODE_DEBUG);
+        end
+        CSR_DSCRATCH1_ADDR: begin
+          csr_dscratch1_masked = csr_mask_op(alu_res_r_i, csr_dscratch1_value, csr_cmd_r_i);
+          dscratch1_d = csr_dscratch1_masked;
+          dscratch1_ce = (cpu_mode == eMODE_DEBUG);
+        end
       endcase
     end
   end
@@ -630,6 +690,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     lcofi:irq_lcofi_i,
     irqs:irq_platform_i
   };
+
+  // REGISTER STORAGE
   register #(
     .DTYPE(miep_reg_t),
     .RESET_VALUE(0)
@@ -707,6 +769,50 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (mtval_q)
   );
 
+  register #(
+    .DTYPE(dcsr_reg_t),
+    .RESET_VALUE(0)
+  ) csr_dcsr_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .in   (dcsr_d),
+    .out  (dcsr_q)
+  );
+
+  register #(
+    .DTYPE(logic [XLEN-1:0]),
+    .RESET_VALUE(0)
+  ) csr_dpc_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .in   (dpc_d),
+    .out  (dpc_q)
+  );
+
+  register #(
+    .DTYPE(logic [XLEN-1:0]),
+    .RESET_VALUE(0)
+  ) csr_dscratch0_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .in   (dscratch0_d),
+    .out  (dscratch0_q)
+  );
+
+  register #(
+    .DTYPE(logic [XLEN-1:0]),
+    .RESET_VALUE(0)
+  ) csr_dscratch1_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .in   (dscratch1_d),
+    .out  (dscratch1_q)
+  );
+
   /*************************************
   * Finite State Machine (FSM)
   *************************************/
@@ -720,21 +826,23 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     mret    = (state == eRUN)    &&  mret_insn_i                       && ~stall_ex_o;
   end
   always_comb begin
-    state_next = (state == eRESET) ? eBOOT0  : state;
-    state_next = (state == eBOOT0) ? eBOOT1  : state_next;
-    state_next = (state == eBOOT1) ? eRUN    : state_next;
-    state_next = load              ? eLOAD   : state_next;
-    state_next = loaded            ? eRUN    : state_next;
-    state_next = jump              ? eJUMP0  : state_next;
-    state_next = (state == eJUMP0) ? eJUMP1  : state_next;
-    state_next = (state == eJUMP1) ? eRUN    : state_next;
-    state_next = branch            ? eBRANCH : state_next;
-    state_next = takebr            ? eJUMP0  : state_next;
-    state_next = nobr              ? eRUN    : state_next;
-    state_next = synhr_trap        ? eTRAP   : state_next;
-    state_next = (state == eTRAP)  ? eRUN    : state_next;
-    state_next = mret              ? eMRET   : state_next;
-    state_next = (state == eMRET)  ? eRUN    : state_next;
+    state_next = (state == eRESET)   ? eBOOT0   : state;
+    state_next = (state == eBOOT0)   ? eBOOT1   : state_next;
+    state_next = (state == eBOOT1)   ? eRUN     : state_next;
+    state_next = load                ? eLOAD    : state_next;
+    state_next = loaded              ? eRUN     : state_next;
+    state_next = jump                ? eJUMP0   : state_next;
+    state_next = (state == eJUMP0)   ? eJUMP1   : state_next;
+    state_next = (state == eJUMP1)   ? eRUN     : state_next;
+    state_next = branch              ? eBRANCH  : state_next;
+    state_next = takebr              ? eJUMP0   : state_next;
+    state_next = nobr                ? eRUN     : state_next;
+    state_next = synhr_trap          ? eTRAP    : state_next;
+    state_next = (state == eTRAP)    ? eRUN     : state_next;
+    state_next = mret                ? eMRET    : state_next;
+    state_next = (state == eMRET)    ? eRUN     : state_next;
+    state_next = ebreak_insn         ? eTODEBUG : state_next;
+    state_next = (state == eTODEBUG) ? eRUN     : state_next;
   end
   register #(
     .DTYPE(rvj1_fsm_e),

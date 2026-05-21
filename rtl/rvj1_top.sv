@@ -15,8 +15,13 @@
 
 /* verilator lint_off IMPORTSTAR */
 module rvj1_top import rvj1_pkg::*; #(
-  parameter int unsigned BootAddr  = 32'h8000_0000,
-  parameter int unsigned DmRomAddr = 32'h0000_0000
+  parameter int unsigned BootAddr   = 32'h8000_0000,
+  parameter int unsigned DmRomAddr  = 32'h0000_0000,
+  parameter int unsigned MVendorId  = 32'h0000_0000,
+  parameter int unsigned MArchId    = 32'h0000_0000,
+  parameter int unsigned MImpId     = 32'h0000_0000,
+  parameter int unsigned MHartId    = 32'h0000_0000,
+  parameter int unsigned MConfigPtr = 32'h0000_0000
 )
 (
   input  logic              clk_i,
@@ -347,8 +352,13 @@ module rvj1_top import rvj1_pkg::*; #(
   * CONTROLLER
   *********************************************/
   rvj1_ctrl #(
-    .BootAddr(BootAddr),
-    .DmRomAddr(DmRomAddr)
+    .BootAddr  (BootAddr),
+    .DmRomAddr (DmRomAddr),
+    .MVendorId (MVendorId),
+    .MArchId   (MArchId),
+    .MImpId    (MImpId),
+    .MHartId   (MHartId),
+    .MConfigPtr(MConfigPtr)
   ) ctrl_inst (
     .clk_i                  (clk_i),
     .rstn_i                 (rstn_i),
@@ -356,7 +366,6 @@ module rvj1_top import rvj1_pkg::*; #(
     .rf_addr_b_i            (rf_addr_b),
     .rpa_or_pc_i            (rpa_or_pc),
     .rpb_or_imm_i           (rpb_or_imm),
-    .regdest_i              (regdest),
     .regdest_r_i            (regdest_r),
     .lsu_cmd_i              (lsu_ctrl),
     .lsu_ctrl_valid_i       (lsu_ctrl_valid),

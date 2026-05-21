@@ -134,6 +134,11 @@ package rvj1_pkg;
     parameter logic [11:0] CSR_SECCFG_ADDR     = 12'h747;
     parameter logic [11:0] CSR_SECCFGH_ADDR    = 12'h757;
 
+    parameter logic [11:0] CSR_DCSR_ADDR       = 12'h7B0;
+    parameter logic [11:0] CSR_DPC_ADDR        = 12'h7B1;
+    parameter logic [11:0] CSR_DSCRATCH0_ADDR  = 12'h7B2;
+    parameter logic [11:0] CSR_DSCRATCH1_ADDR  = 12'h7B3;   
+
     parameter logic [1:0]      CSR_MISA_MXLEN = 2'b01; // XLEN == 32
     parameter logic [XLEN-1:0] CSR_MISA_VALUE = (
           (0 << 0)   // A - Atomic extension
@@ -152,10 +157,6 @@ package rvj1_pkg;
         | (CSR_MISA_MXLEN << 30)
         | 32'b0
     );
-    parameter logic [XLEN-1:0] CSR_MVENDORID_VALUE  = '0;
-    parameter logic [XLEN-1:0] CSR_MARCHID_VALUE    = '0;
-    parameter logic [XLEN-1:0] CSR_MIMPID_VALUE     = '0;
-    parameter logic [XLEN-1:0] CSR_MHARTID_VALUE    = '0;
     parameter logic [XLEN-1:0] CSR_MSTATUSH_VALUE   = '0;
     parameter logic [XLEN-1:0] CSR_MEDELEG_VALUE    = '0;
     parameter logic [XLEN-1:0] CSR_MEDELEGH_VALUE   = '0;
