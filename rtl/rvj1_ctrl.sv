@@ -13,7 +13,9 @@
 
 `include "rvj1_defines.svh"
 /* verilator lint_off IMPORTSTAR */
-module rvj1_ctrl import rvj1_pkg::*;
+module rvj1_ctrl import rvj1_pkg::*; #(
+  parameter int unsigned DmRomAddr = 32'h0000_0000
+)
 (
   input logic clk_i,
   input logic rstn_i,
@@ -153,7 +155,7 @@ module rvj1_ctrl import rvj1_pkg::*;
   logic ecall_insn;
   logic ebreak_insn, ebreak_insn_r;
   logic ctrl_jump;
-  logic illegal_csr_insn, illegal_csr_addr;
+  logic illegal_csr_insn, illegal_csr_read, illegal_csr_write;
   logic illegal_instr;
   logic instr_fetch_error;
   logic stall_ex_o_r;
@@ -296,9 +298,9 @@ module rvj1_ctrl import rvj1_pkg::*;
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_ex_o;
   assign illegal_instr     = illegal_instr_i     && ~stall_ex_o;
-  assign illegal_csr_insn  = illegal_csr_addr    && csr_valid_r_i && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
-
+  assign illegal_csr_insn  = (illegal_csr_read || illegal_csr_write) && csr_valid_r_i && ~stall_ex_o;
+  
   assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
   // TODO: store_acess_fault should be routed to an IRQ
   assign lsu_trap = load_access_fault_i || store_access_fault_i;
@@ -458,7 +460,7 @@ module rvj1_ctrl import rvj1_pkg::*;
    // Read logic
   always_comb begin
     csr_value = '0;
-    illegal_csr_addr = 1'b0;
+    illegal_csr_read = 1'b0;
     // ONLY implemented registers, others default to zero
     if (csr_valid_read) begin
       unique case (csr_addr_r_i)
@@ -485,12 +487,19 @@ module rvj1_ctrl import rvj1_pkg::*;
         CSR_MCAUSE_ADDR:     csr_value = csr_mcause_value;
         CSR_MTVAL_ADDR:      csr_value = csr_mtval_value;
         CSR_MIP_ADDR:        csr_value = csr_mip_value;
-        default:             illegal_csr_addr = 1'b1;
+        default:             illegal_csr_read = 1'b1;
       endcase
     end
   end
 
   // Write logic
+  assign illegal_csr_write = csr_valid_write &&(
+                          (csr_addr_r_i != CSR_MSTATUS_ADDR) &&
+                          (csr_addr_r_i != CSR_MSCRATCH_ADDR) &&
+                          (csr_addr_r_i != CSR_MTVEC_ADDR) &&
+                          (csr_addr_r_i != CSR_MEPC_ADDR) &&
+                          (csr_addr_r_i != CSR_MCAUSE_ADDR) &&
+                          (csr_addr_r_i != CSR_MTVAL_ADDR));
   always_comb begin
     mscratch_d = mscratch_q;
     mscratch_ce = 1'b0;
@@ -534,7 +543,7 @@ module rvj1_ctrl import rvj1_pkg::*;
       mstatus_ce = 1'b1;
     end
     else if (csr_valid_write) begin
-      unique case (csr_addr_r_i)
+      case (csr_addr_r_i)
         CSR_MSTATUS_ADDR: begin
           // Will the synthesis tool optimize these two function calls into a single module?
           csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
@@ -567,7 +576,6 @@ module rvj1_ctrl import rvj1_pkg::*;
           mtval_d = csr_mtval_masked;
           mtval_ce = 1'b1;
         end
-        default:;
       endcase
     end
   end

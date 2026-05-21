@@ -14,7 +14,9 @@
 `include "rvfi_macros.svh"
 
 /* verilator lint_off IMPORTSTAR */
-module rvj1_top import rvj1_pkg::*;
+module rvj1_top import rvj1_pkg::*; #(
+  parameter int unsigned DmRomAddr = 32'h0000_0000
+)
 (
   input  logic              clk_i,
   input  logic              rstn_i,
@@ -343,7 +345,9 @@ module rvj1_top import rvj1_pkg::*;
   /*********************************************
   * CONTROLLER
   *********************************************/
-  rvj1_ctrl ctrl_inst(
+  rvj1_ctrl #(
+    .DmRomAddr(DmRomAddr)
+  ) ctrl_inst (
     .clk_i                  (clk_i),
     .rstn_i                 (rstn_i),
     .rf_addr_a_i            (rf_addr_a),
@@ -408,7 +412,7 @@ module rvj1_top import rvj1_pkg::*;
   * https://yosyshq.readthedocs.io/projects/riscv-formal/en/latest/rvfi.html
   *********************************************/
   `ifdef RVFI
-  logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue, csr_issue;
+  logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue;
   logic first_insn_of_trap;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
   logic [3:0]  strobe_sig;
@@ -421,11 +425,10 @@ module rvj1_top import rvj1_pkg::*;
   assign store_issue  = valid_issue  && lsu_ctrl_valid                      && lsu_ctrl[3];
   assign mem_issue    = load_issue || store_issue;
   assign branch_issue = valid_issue  && (instr_exec[6:0] == OPCODE_BRANCH);
-  assign csr_issue    = valid_issue  && csr_valid;
   `ifdef ASSERTIONS
   always_ff @(posedge clk_i)
     if (valid_issue)
-      assert( $onehot({simple_issue, branch_issue, load_issue, store_issue, csr_issue}) );
+      assert( $onehot({simple_issue, branch_issue, load_issue, store_issue}) );
   `endif
 
   assign use_rpa = ~rpa_or_pc;
