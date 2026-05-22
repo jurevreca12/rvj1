@@ -181,6 +181,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic dret_insn;
   logic illegal_csr_insn, illegal_csr_write, nonexist_csr_access, debug_csr_access_err;
   logic ebreak_todbg, ebreak_todbg_r, dret_fromdbg, dret_fromdbg_r;
+  logic ebreak_totrp, ebreak_totrp_r;
   logic illegal_instr;
   logic instr_fetch_error;
   logic stall_ex_o_r;
@@ -223,7 +224,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                          (rf_addr_b_i != 5'b00000) &&
                           ~stall_ex_o_r);
   assign lsu_busy_hazard = lsu_ctrl_valid_r_i && ~lsu_ready_i;
-  assign csr_mod_insns = mret_insn_i || ecall_insn_i || illegal_instr_i || instr_fetch_error_i;
+  assign csr_mod_insns = mret_insn_i || ecall_insn_i || ebreak_insn_i || illegal_instr_i || instr_fetch_error_i;
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   assign csr_write_hazard = (csr_valid_r_i && csr_mod_insns &&  ~csr_write_hazard_r);
   assign stall_mem_wb_o = (lsu_busy_hazard ||
@@ -252,6 +253,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   *  Program Counter - Jumping logic
   *************************************/
   assign ebreak_todbg     = dcsr_q.ebreakm && ebreak_insn;
+  assign ebreak_totrp     = ~dcsr_q.ebreakm && ebreak_insn;
   assign dret_fromdbg     = (cpu_mode == eMODE_DEBUG) && dret_insn;
   register ebreak_todbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_todbg), .out(ebreak_todbg_r)
@@ -333,7 +335,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   assign synhr_trap_ex = (ecall_insn ||
                           illegal_instr ||
+                          ebreak_totrp || // EBREAK causes a trap only if ebreakm is 0
                           instr_fetch_error);
+  register ebreak_totrp_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_totrp), .out(ebreak_totrp_r)
+  );
   register synhr_trap_ex_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(synhr_trap_ex), .out(synhr_trap_ex_r)
   );
@@ -597,6 +603,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         mtval_d = lsu_exc_addr_i;
       else if (addr_unaligned_trap || instr_addr_misaligned)
         mtval_d = alu_res_r_i;
+      else if (ebreak_totrp_r)
+        mtval_d = {program_counter_prev, 2'b00};
       else
         mtval_d = '0;
       mtval_ce = 1'b1;
