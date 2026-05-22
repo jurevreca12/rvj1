@@ -63,7 +63,9 @@ module rvj1_top import rvj1_pkg::*; #(
   input  logic              irq_sw_i,
   input  logic              irq_lcofi_i,
   input  logic [15:0]       irq_platform_i,
-  input  logic              irq_nmi_i
+  input  logic              irq_nmi_i,
+
+  input  logic              debug_req_i
   
   // RISC-V Formal Interface
   `ifdef RVFI
@@ -339,8 +341,8 @@ module rvj1_top import rvj1_pkg::*; #(
     endcase
   end
   assign wpc_we = (lsu_wb_valid ||
-                   (alu_write_rf_r  && ~stall_mem_wb) ||
-                   (jump_r && ~stop_jmp_write) ||
+                  (alu_write_rf_r  && ~stall_mem_wb) ||
+                  (jump_r && ~stop_jmp_write) ||
                    csr_wb);
 
   `ifdef ASSERTIONS
@@ -415,7 +417,8 @@ module rvj1_top import rvj1_pkg::*; #(
     .irq_sw_i               (irq_sw_i),
     .irq_lcofi_i            (irq_lcofi_i),
     .irq_platform_i         (irq_platform_i),
-    .irq_nmi_i              (irq_nmi_i)
+    .irq_nmi_i              (irq_nmi_i),
+    .debug_req_i            (debug_req_i)
   );
 
   /*********************************************

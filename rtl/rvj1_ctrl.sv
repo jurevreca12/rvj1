@@ -92,7 +92,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             irq_sw_i,
   input  logic             irq_lcofi_i,
   input  logic [15:0]      irq_platform_i,
-  input  logic             irq_nmi_i
+  input  logic             irq_nmi_i,
+  input  logic             debug_req_i
 );
   //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
   typedef enum logic {
@@ -110,7 +111,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eBRANCH,
       eTRAP,
       eMRET,
-      eTODEBUG
+      eTO_DEBUG
   } rvj1_fsm_e;
   rvj1_op_mode_e cpu_mode, cpu_mode_next;
   rvj1_fsm_e state, state_next;
@@ -178,8 +179,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic ecall_insn;
   logic ebreak_insn;
   logic dret_insn;
-  logic ctrl_jump;
   logic illegal_csr_insn, illegal_csr_write, nonexist_csr_access, debug_csr_access_err;
+  logic ebreak_todbg, ebreak_todbg_r, dret_fromdbg, dret_fromdbg_r;
   logic illegal_instr;
   logic instr_fetch_error;
   logic stall_ex_o_r;
@@ -238,56 +239,47 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                        (state == eJUMP1) ||
                        (state == eTRAP) ||
                        (state == eMRET) ||
-                       (state == eTODEBUG));
+                       (state == eTO_DEBUG));
   assign flush_ex_o = ((state == eJUMP0) ||
                        (state == eTRAP) ||
                        (state == eMRET) ||
-                       (state == eTODEBUG));
+                       (state == eTO_DEBUG));
   assign flush_mem_wb_o = (flush_ex_o ||
                           (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
                           (~control_i && ~stall_ex_o));
 
   /*************************************
-  * Jumping logic
+  *  Program Counter - Jumping logic
   *************************************/
-  assign jmp_addr_valid_o = (((state == eJUMP0) && ~instr_addr_misaligned) ||
-                             (state == eBOOT0) ||
-                             (state == eTRAP)  ||
-                             (state == eMRET)  ||
-                             ebreak_insn);
+  assign ebreak_todbg     = dcsr_q.ebreakm && ebreak_insn;
+  assign dret_fromdbg     = (cpu_mode == eMODE_DEBUG) && dret_insn;
+  register ebreak_todbg_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_todbg), .out(ebreak_todbg_r)
+  );
+  register dret_fromdbg_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dret_fromdbg), .out(dret_fromdbg_r)
+  );
+  assign pc_mod           = (synhr_trap || mret || (state == eJUMP0) || ebreak_todbg || dret_fromdbg ||
+                            instr_will_retire || jump || loaded);
+  assign valid_jump       = (state == eJUMP1) && ~instr_addr_misaligned;  
   assign stop_jmp_write_o = instr_addr_misaligned;
-  always_comb begin
-    jmp_addr_o = '0;
-    if (state == eJUMP0)
-      jmp_addr_o = alu_res_r_i[31:2];
-    else if (state == eTRAP)
-      jmp_addr_o = csr_mtvec_value[31:2];
-    else if (state == eMRET)
-      jmp_addr_o = csr_mepc_value[31:2];
-    else if (ebreak_insn)
-      jmp_addr_o = DmRomAddr[31:2];
-    else if ((cpu_mode == eMODE_DEBUG) && dret_insn)
-      jmp_addr_o = csr_dpc_value[31:2];
-    else
-      jmp_addr_o = BootAddr[31:2];
-  end
-
-  /*************************************
-  * Program Counter
-  *************************************/
-  assign pc_mod = (state == eJUMP0) || synhr_trap || mret || ebreak_insn || instr_will_retire || ctrl_jump || loaded;
+  assign jmp_addr_o       = (jmp_addr_valid_o) ? program_counter : '0;
+  assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eTRAP) || (state == eMRET) || valid_jump ||
+                            ebreak_todbg_r || dret_fromdbg_r);
   always_comb begin
     program_counter_next = program_counter;
     if (synhr_trap)
       program_counter_next = csr_mtvec_value[31:2];
     else if (mret)
       program_counter_next = csr_mepc_value[31:2];
-    else if (state == eJUMP0)
+    else if ((state == eJUMP0))
       program_counter_next = alu_res_r_i[31:2];
-    else if (ebreak_insn)
+    else if (ebreak_todbg)
       program_counter_next = DmRomAddr[31:2];
-    else if (instr_will_retire || ctrl_jump || loaded)
-      program_counter_next = program_counter + 1;  // ctrl_jump - gives us pc + 4 on JAL & JALR
+    else if (dret_fromdbg)
+      program_counter_next = csr_dpc_value[31:2];
+    else if (instr_will_retire || jump || loaded)
+      program_counter_next = program_counter + 1;  // jump - gives us pc + 4 on JAL & JALR
   end
   register #(
     .DTYPE(logic [XLEN-3:0]),
@@ -318,7 +310,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Traps
   *************************************/
   assign ecall_insn        = ecall_insn_i        && ~stall_ex_o;
-  assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_ex_o;
   assign dret_insn         = dret_insn_i         && ~stall_ex_o;
@@ -817,32 +808,34 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load    = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_ex_o;
-    loaded  = (state == eLOAD)   &&  lsu_wb_i;
-    jump    = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_ex_o;
-    branch  = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_ex_o;
-    takebr  = (state == eBRANCH) &&  cond_met                          && ~stall_ex_o;
-    nobr    = (state == eBRANCH) && ~cond_met                          && ~stall_ex_o;
-    mret    = (state == eRUN)    &&  mret_insn_i                       && ~stall_ex_o;
+    load     = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_ex_o;
+    loaded   = (state == eLOAD)   &&  lsu_wb_i;
+    jump     = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_ex_o;
+    branch   = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_ex_o;
+    takebr   = (state == eBRANCH) &&  cond_met                          && ~stall_ex_o;
+    nobr     = (state == eBRANCH) && ~cond_met                          && ~stall_ex_o;
+    mret     = (state == eRUN)    &&  mret_insn_i                       && ~stall_ex_o;
+    todbg    = (state == eRUN)    &&  debug_req_i                       && ~stall_ex_o;
+
   end
   always_comb begin
-    state_next = (state == eRESET)   ? eBOOT0   : state;
-    state_next = (state == eBOOT0)   ? eBOOT1   : state_next;
-    state_next = (state == eBOOT1)   ? eRUN     : state_next;
-    state_next = load                ? eLOAD    : state_next;
-    state_next = loaded              ? eRUN     : state_next;
-    state_next = jump                ? eJUMP0   : state_next;
-    state_next = (state == eJUMP0)   ? eJUMP1   : state_next;
-    state_next = (state == eJUMP1)   ? eRUN     : state_next;
-    state_next = branch              ? eBRANCH  : state_next;
-    state_next = takebr              ? eJUMP0   : state_next;
-    state_next = nobr                ? eRUN     : state_next;
-    state_next = synhr_trap          ? eTRAP    : state_next;
-    state_next = (state == eTRAP)    ? eRUN     : state_next;
-    state_next = mret                ? eMRET    : state_next;
-    state_next = (state == eMRET)    ? eRUN     : state_next;
-    state_next = ebreak_insn         ? eTODEBUG : state_next;
-    state_next = (state == eTODEBUG) ? eRUN     : state_next;
+    state_next = (state == eRESET)    ? eBOOT0     : state;
+    state_next = (state == eBOOT0)    ? eBOOT1     : state_next;
+    state_next = (state == eBOOT1)    ? eRUN       : state_next;
+    state_next = load                 ? eLOAD      : state_next;
+    state_next = loaded               ? eRUN       : state_next;
+    state_next = jump                 ? eJUMP0     : state_next;
+    state_next = (state == eJUMP0)    ? eJUMP1     : state_next;
+    state_next = (state == eJUMP1)    ? eRUN       : state_next;
+    state_next = branch               ? eBRANCH    : state_next;
+    state_next = takebr               ? eJUMP0     : state_next;
+    state_next = nobr                 ? eRUN       : state_next;
+    state_next = synhr_trap           ? eTRAP      : state_next;
+    state_next = (state == eTRAP)     ? eRUN       : state_next;
+    state_next = mret                 ? eMRET      : state_next;
+    state_next = (state == eMRET)     ? eRUN       : state_next;
+    state_next = todbg                ? eTO_DEBUG  : state_next;
+    state_next = (state == eTO_DEBUG) ? eRUN       : state_next;
   end
   register #(
     .DTYPE(rvj1_fsm_e),
@@ -855,13 +848,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (state)
   );
 
+
   always_comb begin
-    todbg  = (cpu_mode == eMODE_NORM)  && ebreak_insn;
-    enddbg = (cpu_mode == eMODE_DEBUG) && dret_insn;
-  end
-  always_comb begin
-    cpu_mode_next = todbg  ? eMODE_DEBUG : cpu_mode_next;
-    cpu_mode_next = enddbg ? eMODE_NORM  : cpu_mode_next;
+    cpu_mode_next = todbg        ? eMODE_DEBUG : cpu_mode_next;
+    cpu_mode_next = ebreak_todbg ? eMODE_DEBUG : cpu_mode_next;
+    cpu_mode_next = dret_fromdbg ? eMODE_NORM  : cpu_mode_next;
   end
   register #(
     .DTYPE(rvj1_op_mode_e),

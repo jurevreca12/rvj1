@@ -205,6 +205,7 @@ package rvj1_pkg;
         logic       step;
         logic       nmip;
         logic [2:0] cause;
+        logic       ebreakm;
     } dcsr_reg_t;
 
     parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0
