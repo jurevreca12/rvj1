@@ -52,7 +52,8 @@ module rvj1_dec import rvj1_pkg::*;
   output csr_cmd_t         csr_cmd_o,
   output logic             ecall_insn_o,
   output logic             mret_insn_o,
-  output logic             ebreak_insn_o
+  output logic             ebreak_insn_o,
+  output logic             dret_insn_o
 );
 
 /*************************************
@@ -82,6 +83,7 @@ csr_cmd_t         csr_cmd;
 logic             ecall_insn;
 logic             mret_insn;
 logic             ebreak_insn;
+logic             dret_insn;
 
 logic ifu_fire;
 logic [XLEN-1:0] instr_buff;
@@ -275,6 +277,10 @@ begin
 end
 endfunction
 
+function automatic logic is_dret_instr(input logic [31:0] instr_raw);
+  return (instr_raw == 32'h7b20_0073);
+endfunction
+
 /*************************************
 * INSN PARTS and IMMEDIATES
 *************************************/
@@ -344,6 +350,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= 1'b0;
     illegal_instr_o     <= 1'b0;
     ebreak_insn_o       <= 1'b0;
+    dret_insn_o         <= 1'b0;
     fetch_error_o       <= 1'b0;
   end
   else if (update_output) begin
@@ -371,6 +378,7 @@ always_ff @(posedge clk_i) begin
     mret_insn_o         <= mret_insn;
     illegal_instr_o     <= illegal_instr;
     ebreak_insn_o       <= ebreak_insn;
+    dret_insn_o         <= dret_insn;
     fetch_error_o       <= ifu_error_i;
   end
 end
@@ -401,6 +409,7 @@ begin
   ecall_insn        = 1'b0;
   mret_insn         = 1'b0;
   ebreak_insn       = 1'b0;
+  dret_insn         = 1'b0;
   regdest2          = 5'b0;
   illegal_instr     = 1'b0;
   unique case (opcode)
@@ -537,6 +546,8 @@ begin
         else begin
           rf_addr_a = regs1;
         end
+      end else if (is_dret_instr(instr)) begin
+        dret_insn = 1'b1;
       end else begin
         illegal_instr = 1'b1;
       end

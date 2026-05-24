@@ -48,7 +48,7 @@ from riscvmodel.insn import (
     InstructionEBREAK,
 )
 from riscvmodel.isa import Instruction
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x28, x29, x30, x31
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x20, x21, x28, x29, x30, x31
 from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval, dcsr, dpc, dscratch0, dscratch1
 from riscvmodel.program import Program
 
@@ -68,6 +68,8 @@ class MetaInstruction(Instruction):
 def InstructionCustomEBREAK() -> MetaInstruction:
     return MetaInstruction(0x00100073) 
 
+def InstructionCustomDRET() -> MetaInstruction:
+    return MetaInstruction(0x7b200073) 
 
 class DCSRExceptionTest(Program):
     """Test that accessing debug CSR outside of debug mode raises an exception"""
@@ -182,12 +184,26 @@ class EBreakToDebugROM(Program):
             InstructionADDI(x0, x0, 1),          # 0x8000_0048   |
             InstructionADDI(x0, x0, 1),          # 0x8000_004c   |
             InstructionADDI(x6, x0, 6),          # 0x8000_0050 <--
-            InstructionADDI(x31, x0, 1),         # 0x8000_0054
+            InstructionBEQ(x21, x6, 24),         # 0x8000_0054 --|
+            InstructionADDI(x20, x0, 1),         # 0x8000_0058   |
+            InstructionSLLI(x20, x20, 15),       # 0x8000_005c   |
+            InstructionCSRRS(x0, x20, dcsr),     # 0x8000_0060   |    
+            InstructionADDI(x21, x0, 6),         # 0x8000_0064   |    
+            InstructionCustomDRET(),             # 0x8000_0068   |
+            InstructionADDI(x31, x0, 1),         # 0x8000_006c <--
+            InstructionADDI(x0, x0, 1),
+            InstructionADDI(x0, x0, 1),
+            InstructionADDI(x0, x0, 1),
         ]
         super().__init__(insns)
     
     def expects(self) -> dict:
         return {x1: 1, x2: 2, x3: 3, x4: 0, x5:0, x6:6}
+    
+    def extra_env(self) -> dict:
+        return {
+            'TEST_DEBUG_REQ' : 1
+        }
 
 @dataclass
 class DCSRExpVal:
@@ -258,6 +274,8 @@ class DebugRegAccessTest(Program):
     
     def expects(self) -> dict:
         return {x1: 1, x2: 2, x3: 3, x4: 0, x5:0, x6:6, x7:DCSRExpVal().encode(), x8: 0x8000_001c}
+
+
 
 
 SDEXT_TESTS = {

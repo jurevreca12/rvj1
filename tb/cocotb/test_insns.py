@@ -25,6 +25,7 @@ async def run_rvj1(dut):
         if exp_val is not None:
             expects[regnum] = int(exp_val)
     assert len(expects.items()) > 1
+    debug_req_clock = int(os.environ.get(f"TEST_DEBUG_REQ", -1))
 
     # Start clock
     clock = Clock(dut.clk, 10, unit="us")
@@ -36,8 +37,12 @@ async def run_rvj1(dut):
     dut.rstn.value = 1
 
     # wait for the test to finish
-    for _ in range(TIMEOUT_CLOCKS):
+    for clk_cnt in range(TIMEOUT_CLOCKS):
         await RisingEdge(dut.clk)
+        if clk_cnt == debug_req_clock:
+            dut.dut.debug_req_i.value = 1
+        if dut.dut.debug_rsp_o.value == 1:
+            dut.dut.debug_req_i.value = 0
         if dut.dut.regfile_inst.regfile[31].value == 1:
             break
 
@@ -98,6 +103,9 @@ def test_simple_runner(top_test_fixture, asm_test_name):
     extraenv = {}
     for regnum, regval in expects.items():
         extraenv[f"TEST_EXP_REG{regnum}"] = str(regval)
+    if hasattr(asm_test, 'extra_env'):
+        for key, val in asm_test.extra_env().items():
+            extraenv[key] = str(val)
     top_test_fixture.test(
         toplevel=top_test_fixture.toplevel, 
         test_module="test_insns",

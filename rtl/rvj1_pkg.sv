@@ -187,6 +187,10 @@ package rvj1_pkg;
     parameter int unsigned CSR_DCSR_EBREAKM_BIT       = 15;
     parameter int unsigned CSR_DCSR_XDEBUGVER_BIT_0   = 28;
 
+    parameter logic [2:0] DCSR_CAUSE_EBREAK  = 3'b001;
+    parameter logic [2:0] DCSR_CAUSE_HALTREQ = 3'b011;
+    parameter logic [2:0] DCSR_CAUSE_STEP    = 3'b100;
+
     typedef struct packed {
         logic msi;   // machine sw irq
         logic mti;   // machine timer irq

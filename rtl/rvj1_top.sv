@@ -65,7 +65,8 @@ module rvj1_top import rvj1_pkg::*; #(
   input  logic [15:0]       irq_platform_i,
   input  logic              irq_nmi_i,
 
-  input  logic              debug_req_i
+  input  logic              debug_req_i, // dm requests core to enter debug mode
+  output logic              debug_rsp_o  // core has entered debug mode (ack)
   
   // RISC-V Formal Interface
   `ifdef RVFI
@@ -102,6 +103,7 @@ module rvj1_top import rvj1_pkg::*; #(
   logic             ecall_insn;
   logic             mret_insn;
   logic             ebreak_insn;
+  logic             dret_insn;
   logic             csr_valid;
   logic [11:0]      csr_addr;
   csr_cmd_t         csr_cmd;
@@ -235,7 +237,8 @@ module rvj1_top import rvj1_pkg::*; #(
     .csr_cmd_o           (csr_cmd),
     .ecall_insn_o        (ecall_insn),
     .mret_insn_o         (mret_insn),
-    .ebreak_insn_o       (ebreak_insn)
+    .ebreak_insn_o       (ebreak_insn),
+    .dret_insn_o         (dret_insn)
   );
 
   /*********************************************
@@ -399,6 +402,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .ecall_insn_i           (ecall_insn),
     .mret_insn_i            (mret_insn),
     .ebreak_insn_i          (ebreak_insn),
+    .dret_insn_i            (dret_insn),
     .illegal_instr_i        (illegal_instr),
     .load_addr_misaligned_i (load_addr_misaligned),
     .load_access_fault_i    (load_access_fault),
@@ -418,7 +422,8 @@ module rvj1_top import rvj1_pkg::*; #(
     .irq_lcofi_i            (irq_lcofi_i),
     .irq_platform_i         (irq_platform_i),
     .irq_nmi_i              (irq_nmi_i),
-    .debug_req_i            (debug_req_i)
+    .debug_req_i            (debug_req_i),
+    .debug_rsp_o            (debug_rsp_o)
   );
 
   /*********************************************
