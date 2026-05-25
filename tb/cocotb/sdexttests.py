@@ -48,7 +48,7 @@ from riscvmodel.insn import (
     InstructionEBREAK,
 )
 from riscvmodel.isa import Instruction
-from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x20, x21, x28, x29, x30, x31
+from riscvmodel.regnames import x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x20, x21, x28, x29, x30, x31
 from riscvmodel.csrnames import misa, mscratch, mtvec, mepc, mcause, mstatus, mtval, dcsr, dpc, dscratch0, dscratch1
 from riscvmodel.program import Program
 
@@ -207,32 +207,32 @@ class EBreakToDebugROM(Program):
 
 @dataclass
 class DCSRExpVal:
-    prv = 3
-    step = 0
-    nmip = 0
-    mprev = 0
-    cause = 1
-    stoptime = 0
-    stopcount = 0
-    stepie = 0
-    ebreaku = 0
-    ebreaks = 0
-    ebreakm = 1
-    xdebugver = 4
+    prv: int = 3
+    step: int = 0
+    nmip: int = 0
+    mprven: int = 0
+    cause: int = 1
+    stoptime: int = 0
+    stopcount: int = 0
+    stepie: int = 0
+    ebreaku: int = 0
+    ebreaks: int = 0
+    ebreakm: int = 0
+    xdebugver: int = 4
 
     def encode(self) -> int:
-        return (prv       << 0  |
-                step      << 2  |
-                nmip      << 3  |
-                mprven    << 4  |
-                cause     << 6  |
-                stoptime  << 9  |
-                stopcount << 10 |
-                stepie    << 11 |
-                ebreaku   << 12 |
-                ebreaks   << 13 |
-                ebreakm   << 15 |
-                xdebugver << 28)
+        return (self.prv       << 0  |
+                self.step      << 2  |
+                self.nmip      << 3  |
+                self.mprven    << 4  |
+                self.cause     << 6  |
+                self.stoptime  << 9  |
+                self.stopcount << 10 |
+                self.stepie    << 11 |
+                self.ebreaku   << 12 |
+                self.ebreaks   << 13 |
+                self.ebreakm   << 15 |
+                self.xdebugver << 28)
                
     
 class DebugRegAccessTest(Program):
@@ -262,20 +262,44 @@ class DebugRegAccessTest(Program):
             InstructionADDI(x0, x0, 1),          # 0x8000_0044   |
             InstructionADDI(x0, x0, 1),          # 0x8000_0048   |
             InstructionADDI(x0, x0, 1),          # 0x8000_004c   |
-            InstructionADDI(x6, x0, 6),          # 0x8000_0050 <--
-            InstructionCSRRW(x7, x0, dcsr),      # 0x0800_0054
-            InstructionCSRRW(x8, x0, dpc),       # 0x0800_0058
-            InstructionADDI(x31, x0, 1),         # 0x8000_005c
+            InstructionADDI(x6, x0, 1),          # 0x8000_0050 <--
+            InstructionBEQ (x1, x6, 28),         # 0x8000_0054 --| 
+            InstructionCSRRS(x7, x0, dcsr),      # 0x0800_0058   |
+            InstructionCSRRS(x8, x0, dpc),       # 0x0800_005c   |
+            InstructionADDI(x20, x0, 1),         # 0x8000_0060   |
+            InstructionSLLI(x20, x20, 15),       # 0x8000_0064   |
+            InstructionCSRRS(x0, x20, dcsr),     # 0x8000_0068   |    
+            InstructionCustomDRET(),             # 0x8000_006c   |
+            InstructionCSRRS(x9,  x0, dcsr),     # 0x0800_0070 <--
+            InstructionCSRRS(x10, x0, dpc),      # 0x0800_0074
+            InstructionADDI(x12, x10, 4),        # 0x8000_0078
+            InstructionCSRRW(x0, x12, dpc),      # 0x8000_007c
+            InstructionCustomDRET(),             # 0x8000_0080
+            InstructionADDI(x11, x0, 1),
+            InstructionADDI(x0, x0, 1),
+            InstructionADDI(x0, x0, 1),
         ]
         super().__init__(insns)
 
-    def dcsr_exp_val() -> int:
-        return prv
     
     def expects(self) -> dict:
-        return {x1: 1, x2: 2, x3: 3, x4: 0, x5:0, x6:6, x7:DCSRExpVal().encode(), x8: 0x8000_001c}
+        return {
+            x1: 1, 
+            x2: 2, 
+            x3: 3, 
+            x4: 4, 
+            x5: 5, 
+            x6: 1, 
+            x7:DCSRExpVal(cause=3).encode(), 
+            x8: 0x8000_0000,
+            x9: DCSRExpVal(ebreakm=1).encode(),
+            x10: 0x8000_0018,
+            x11: 0}
 
-
+    def extra_env(self) -> dict:
+        return {
+            'TEST_DEBUG_REQ' : 1
+        }
 
 
 SDEXT_TESTS = {
@@ -284,4 +308,5 @@ SDEXT_TESTS = {
     "sdext-dscratch0-exc": DScratch0ExceptionTest(),
     "sdext-dscratch1-exc": DScratch1ExceptionTest(),
     "sdext-ebreak-dbgrom": EBreakToDebugROM(),
+    "sdext-dbg-regs-acc":  DebugRegAccessTest(),
 }

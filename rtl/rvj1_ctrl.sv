@@ -629,12 +629,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         mtval_d = '0;
       mtval_ce = 1'b1;
     end
-    else if (state == eMRET && (cpu_mode != eMODE_DEBUG)) begin
+    else if ((cpu_mode != eMODE_DEBUG) && (state == eMRET)) begin
       mstatus_d.mie = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
-    else if (cpu_mode != eMODE_DEBUG && (ebreak_todbg || ext_dbg_req)) begin
+    else if ((cpu_mode != eMODE_DEBUG) && enter_debug) begin
       dcsr_d.cause = dcsr_cause;
       dcsr_ce = 1'b1;
       dpc_d = dpc_next;
