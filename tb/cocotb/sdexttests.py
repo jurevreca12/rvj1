@@ -302,6 +302,58 @@ class DebugRegAccessTest(Program):
         }
 
 
+class DebugStepTest(Program):
+    """
+    Test if the step functionality of the debug module works. Each time the CPU enters debug mode,
+    a counter is incremented. This signals if the CPU is correctly stepping through instructions.
+    """
+    def __init__(self):
+        insns = [
+            InstructionLUI  (x28, 0x80000),      # 0x8000_0000
+            InstructionADDI (x28, x28, 0x20),    # 0x8000_0004
+            InstructionCSRRW(x0, x28, mtvec),    # 0x8000_0008
+            InstructionADDI(x1, x0, 1),          # 0x8000_000c
+            InstructionADDI(x2, x0, 2),          # 0x8000_0010
+            InstructionADDI(x3, x0, 3),          # 0x8000_0014
+            InstructionADDI(x4, x0, 2),          # 0x8000_0018 
+            InstructionADDI(x4, x0, 4),          # 0x8000_001c
+            InstructionADDI(x5, x0, 5),          # 0x8000_0020
+            InstructionADDI(x31, x0, 1),         # 0x8000_0024
+            InstructionADDI(x0, x0, 1),          # 0x8000_0028  
+            InstructionADDI(x0, x0, 1),          # 0x8000_002c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0030
+            InstructionADDI(x0, x0, 1),          # 0x8000_0034
+            InstructionADDI(x0, x0, 1),          # 0x8000_0038
+            InstructionADDI(x0, x0, 1),          # 0x8000_003c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0040
+            InstructionADDI(x0, x0, 1),          # 0x8000_0044
+            InstructionADDI(x0, x0, 1),          # 0x8000_0048
+            InstructionADDI(x0, x0, 1),          # 0x8000_004c
+            InstructionADDI(x6, x6, 1),          # 0x8000_0050 <--
+            InstructionCSRRSI(x0, 0x4, dcsr),    # 0x8000_0054   | step = 1
+            InstructionCustomDRET(),             # 0x8000_0058   |
+            InstructionADDI(x0, x0, 1),
+            InstructionADDI(x0, x0, 1),
+        ]
+        super().__init__(insns)
+
+    
+    def expects(self) -> dict:
+        return {
+            x1: 1, 
+            x2: 2, 
+            x3: 3, 
+            x4: 4, 
+            x5: 5, 
+            x6: 10
+        }
+
+    def extra_env(self) -> dict:
+        return {
+            'TEST_DEBUG_REQ' : 1
+        }
+
+
 SDEXT_TESTS = {
     "sdext-dcsr-exc":      DCSRExceptionTest(),
     "sdext-dpc-exc":       DPCExceptionTest(),
@@ -309,4 +361,5 @@ SDEXT_TESTS = {
     "sdext-dscratch1-exc": DScratch1ExceptionTest(),
     "sdext-ebreak-dbgrom": EBreakToDebugROM(),
     "sdext-dbg-regs-acc":  DebugRegAccessTest(),
+    "sdext-step":          DebugStepTest(),
 }

@@ -113,7 +113,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eBRANCH,
       eTRAP,
       eMRET,
-      eTO_DEBUG
+      eTO_DEBUG,
+      eDRAIN    // wait for all instructions to retire before entering debug mode (used for single stepping)
   } rvj1_fsm_e;
   rvj1_op_mode_e cpu_mode, cpu_mode_next;
   rvj1_fsm_e state, state_next;
@@ -184,6 +185,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic illegal_csr_insn, illegal_csr_write, nonexist_csr_access, debug_csr_access_err;
   logic ebreak_todbg, ebreak_todbg_r, dret_fromdbg, dret_fromdbg_r;
   logic ebreak_totrp, ebreak_totrp_r;
+  logic step_todrain;
+  logic step_todbg, step_todbg_r;
   logic enter_debug;
   logic [2:0]  dcsr_cause;
   logic [31:0] dpc_next;
@@ -246,11 +249,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                        (state == eTRAP) ||
                        (state == eMRET) ||
                        (state == eTO_DEBUG) ||
+                       (state == eDRAIN) ||
                        dret_fromdbg_r);
   assign flush_ex_o = ((state == eJUMP0) ||
                        (state == eTRAP) ||
                        (state == eMRET) ||
                        (state == eTO_DEBUG) ||
+                       (state == eDRAIN) ||
                        dret_fromdbg_r);
   assign flush_mem_wb_o = (flush_ex_o ||
                           (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
@@ -268,22 +273,25 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   register ext_dbg_req_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(debug_req_i), .out(ext_dbg_req_r)
   );
-  assign pc_mod           = (synhr_trap || mret || (state == eJUMP0) || ext_dbg_req || ebreak_todbg || dret_fromdbg ||
-                            instr_will_retire || jump || loaded);
+  register step_todbg_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(step_todbg), .out(step_todbg_r)
+  );
+  assign pc_mod           = (synhr_trap || mret || (state == eJUMP0) || ext_dbg_req || ebreak_todbg || 
+                            dret_fromdbg || step_todbg || instr_will_retire || jump || loaded);
   assign valid_jump       = (state == eJUMP1) && ~instr_addr_misaligned;  
   assign stop_jmp_write_o = instr_addr_misaligned;
   assign jmp_addr_o       = (jmp_addr_valid_o) ? program_counter : '0;
   assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eTRAP) || (state == eMRET) || valid_jump ||
-                            ext_dbg_req_r || ebreak_todbg_r || dret_fromdbg_r);
+                            ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
   always_comb begin
     program_counter_next = program_counter;
     if (synhr_trap)
       program_counter_next = csr_mtvec_value[31:2];
     else if (mret)
       program_counter_next = csr_mepc_value[31:2];
-    else if ((state == eJUMP0))
+    else if (state == eJUMP0)
       program_counter_next = alu_res_r_i[31:2];
-    else if (ebreak_todbg || ext_dbg_req)
+    else if (enter_debug)
       program_counter_next = DmRomAddr[31:2];
     else if (dret_fromdbg)
       program_counter_next = csr_dpc_value[31:2];
@@ -366,10 +374,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     dpc_next = '0;
     if (ebreak_todbg) begin
       dcsr_cause = DCSR_CAUSE_EBREAK;
-      dpc_next = {program_counter, 2'b00};
-    end else begin //if (ext_dbg_req)
+      dpc_next   = {program_counter, 2'b00};
+    end else if (step_todrain) begin
+      dcsr_cause = DCSR_CAUSE_STEP;
+      dpc_next   = {program_counter + 1'b1, 2'b00};
+    end else if (ext_dbg_req) begin 
       dcsr_cause = DCSR_CAUSE_HALTREQ;
-      dpc_next = {program_counter, 2'b00};
+      dpc_next   = {program_counter, 2'b00};
+    end else begin
+      dcsr_cause = '0;
+      dpc_next   = '0;
     end
   end
 
@@ -510,36 +524,36 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                             csr_valid_r_i && (csr_cmd_r_i == CSRRC) && (alu_res_r_i != '0));
 
   assign illegal_csr_write = csr_valid_write && csr_addr_r_i[11:10] == 2'b11;
-  assign debug_csr_access_err = csr_valid_r_i && cpu_mode != eMODE_DEBUG && (
+  assign debug_csr_access_err = csr_valid_r_i && (cpu_mode != eMODE_DEBUG) && (
                                 (csr_addr_r_i == CSR_DCSR_ADDR) || 
                                 (csr_addr_r_i == CSR_DPC_ADDR) || 
                                 (csr_addr_r_i == CSR_DSCRATCH0_ADDR) ||
                                 (csr_addr_r_i == CSR_DSCRATCH1_ADDR));
   assign nonexist_csr_access = csr_valid_r_i && !(
-                        (csr_addr_r_i == CSR_MVENDORID_ADDR)  ||
-                        (csr_addr_r_i == CSR_MARCHID_ADDR)    ||
-                        (csr_addr_r_i == CSR_MIMPID_ADDR)     ||
-                        (csr_addr_r_i == CSR_MHARTID_ADDR)    ||
-                        (csr_addr_r_i == CSR_MCONFIGPTR_ADDR) ||
-                        (csr_addr_r_i == CSR_MSTATUS_ADDR)    ||
-                        (csr_addr_r_i == CSR_MSTATUSH_ADDR)   ||
-                        (csr_addr_r_i == CSR_MISA_ADDR)       ||
-                        (csr_addr_r_i == CSR_MEDELEG_ADDR)    ||
-                        (csr_addr_r_i == CSR_MEDELEGH_ADDR)   ||
-                        (csr_addr_r_i == CSR_MIDELEG_ADDR)    ||
-                        (csr_addr_r_i == CSR_MIE_ADDR)        ||
-                        (csr_addr_r_i == CSR_MTVEC_ADDR)      ||
-                        (csr_addr_r_i == CSR_MCOUNTEREN_ADDR) ||
-                        (csr_addr_r_i == CSR_MSCRATCH_ADDR)   ||
-                        (csr_addr_r_i == CSR_MEPC_ADDR)       ||
-                        (csr_addr_r_i == CSR_MCAUSE_ADDR)     ||
-                        (csr_addr_r_i == CSR_MTVAL_ADDR)      ||
-                        (csr_addr_r_i == CSR_MIP_ADDR)        ||
-                        (csr_addr_r_i == CSR_DCSR_ADDR)       ||
-                        (csr_addr_r_i == CSR_DPC_ADDR)        ||
-                        (csr_addr_r_i == CSR_DSCRATCH0_ADDR)  ||
-                        (csr_addr_r_i == CSR_DSCRATCH1_ADDR)
-                      );
+    (csr_addr_r_i == CSR_MVENDORID_ADDR)  ||
+    (csr_addr_r_i == CSR_MARCHID_ADDR)    ||
+    (csr_addr_r_i == CSR_MIMPID_ADDR)     ||
+    (csr_addr_r_i == CSR_MHARTID_ADDR)    ||
+    (csr_addr_r_i == CSR_MCONFIGPTR_ADDR) ||
+    (csr_addr_r_i == CSR_MSTATUS_ADDR)    ||
+    (csr_addr_r_i == CSR_MSTATUSH_ADDR)   ||
+    (csr_addr_r_i == CSR_MISA_ADDR)       ||
+    (csr_addr_r_i == CSR_MEDELEG_ADDR)    ||
+    (csr_addr_r_i == CSR_MEDELEGH_ADDR)   ||
+    (csr_addr_r_i == CSR_MIDELEG_ADDR)    ||
+    (csr_addr_r_i == CSR_MIE_ADDR)        ||
+    (csr_addr_r_i == CSR_MTVEC_ADDR)      ||
+    (csr_addr_r_i == CSR_MCOUNTEREN_ADDR) ||
+    (csr_addr_r_i == CSR_MSCRATCH_ADDR)   ||
+    (csr_addr_r_i == CSR_MEPC_ADDR)       ||
+    (csr_addr_r_i == CSR_MCAUSE_ADDR)     ||
+    (csr_addr_r_i == CSR_MTVAL_ADDR)      ||
+    (csr_addr_r_i == CSR_MIP_ADDR)        ||
+    (csr_addr_r_i == CSR_DCSR_ADDR)       ||
+    (csr_addr_r_i == CSR_DPC_ADDR)        ||
+    (csr_addr_r_i == CSR_DSCRATCH0_ADDR)  ||
+    (csr_addr_r_i == CSR_DSCRATCH1_ADDR)
+  );
    // Read logic
   always_comb begin
     csr_value = '0;
@@ -634,7 +648,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
-    else if ((cpu_mode != eMODE_DEBUG) && enter_debug) begin
+    else if ((cpu_mode != eMODE_DEBUG) && (ext_dbg_req || ebreak_todbg || step_todrain)) begin
       dcsr_d.cause = dcsr_cause;
       dcsr_ce = 1'b1;
       dpc_d = dpc_next;
@@ -801,7 +815,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) csr_dcsr_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .ce   (dcsr_ce), // The core is stalled in debug mode
     .in   (dcsr_d),
     .out  (dcsr_q)
   );
@@ -812,7 +826,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) csr_dpc_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .ce   (dpc_ce),
     .in   (dpc_d),
     .out  (dpc_q)
   );
@@ -823,7 +837,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) csr_dscratch0_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .ce   (dscratch0_ce),
     .in   (dscratch0_d),
     .out  (dscratch0_q)
   );
@@ -834,7 +848,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   ) csr_dscratch1_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (1'b1), // Always writeable, but only takes effect in debug mode
+    .ce   (dscratch1_ce),
     .in   (dscratch1_d),
     .out  (dscratch1_q)
   );
@@ -853,7 +867,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     ext_dbg_req  = (state == eRUN)    &&  debug_req_i                       && ~stall_ex_o;
     ebreak_todbg = (state == eRUN)    &&  ebreak_insn && dcsr_q.ebreakm     && ~stall_ex_o;
     ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm    && ~stall_ex_o;
-    enter_debug  = ext_dbg_req || ebreak_todbg;
+    step_todrain = (state == eRUN)    && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
+    step_todbg   = (state == eDRAIN)  &&  instr_retiring_o;
+    enter_debug  = ext_dbg_req || ebreak_todbg || step_todbg;
   end
   always_comb begin
     state_next = (state == eRESET)    ? eBOOT0     : state;
@@ -871,6 +887,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = (state == eTRAP)     ? eRUN       : state_next;
     state_next = mret                 ? eMRET      : state_next;
     state_next = (state == eMRET)     ? eRUN       : state_next;
+    state_next = step_todrain         ? eDRAIN     : state_next;
     state_next = enter_debug          ? eTO_DEBUG  : state_next;
     state_next = (state == eTO_DEBUG) ? eRUN       : state_next;
   end
@@ -887,8 +904,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   assign dret_fromdbg = (cpu_mode == eMODE_DEBUG) && dret_insn;
   always_comb begin
-    cpu_mode_next = ext_dbg_req  ? eMODE_DEBUG : cpu_mode_next;
-    cpu_mode_next = ebreak_todbg ? eMODE_DEBUG : cpu_mode_next;
+    cpu_mode_next = enter_debug  ? eMODE_DEBUG : cpu_mode_next;
     cpu_mode_next = dret_fromdbg ? eMODE_NORM  : cpu_mode_next;
   end
   register #(
