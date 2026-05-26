@@ -50,7 +50,10 @@ module rvj1_obi import rvj1_pkg::*;
   input logic                    irq_sw_i,
   input logic                    irq_lcofi_i,
   input logic [15:0]             irq_platform_i,
-  input logic                    irq_nmi_i
+  input logic                    irq_nmi_i,
+
+  input  logic                   debug_req_i,
+  output logic                   debug_rsp_o
 );
 
   logic [IDLEN-1:0]       instr_req_id;
@@ -118,7 +121,10 @@ module rvj1_obi import rvj1_pkg::*;
     .irq_sw_i,
     .irq_lcofi_i,
     .irq_platform_i,
-    .irq_nmi_i
+    .irq_nmi_i,
+
+    .debug_req_i,
+    .debug_rsp_o
   );
 
   mapped2obi #(
