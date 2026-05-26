@@ -271,7 +271,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dret_fromdbg), .out(dret_fromdbg_r)
   );
   register ext_dbg_req_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(debug_req_i), .out(ext_dbg_req_r)
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ext_dbg_req), .out(ext_dbg_req_r)
   );
   register step_todbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(step_todbg), .out(step_todbg_r)
