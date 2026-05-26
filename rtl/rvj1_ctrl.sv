@@ -857,16 +857,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Finite State Machine (FSM)
   *************************************/
   always_comb begin
-    load         = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3] && ~stall_ex_o;
+    load         = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3]      && ~stall_ex_o;
     loaded       = (state == eLOAD)   &&  lsu_wb_i;
-    jump         = (state == eRUN)    &&  ctrl_jump_i                       && ~stall_ex_o;
-    branch       = (state == eRUN)    &&  ctrl_branch_i                     && ~stall_ex_o;
-    takebr       = (state == eBRANCH) &&  cond_met                          && ~stall_ex_o;
-    nobr         = (state == eBRANCH) && ~cond_met                          && ~stall_ex_o;
-    mret         = (state == eRUN)    &&  mret_insn_i                       && ~stall_ex_o;
-    ext_dbg_req  = (state == eRUN)    &&  debug_req_i                       && ~stall_ex_o;
-    ebreak_todbg = (state == eRUN)    &&  ebreak_insn && dcsr_q.ebreakm     && ~stall_ex_o;
-    ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm    && ~stall_ex_o;
+    jump         = (state == eRUN)    &&  ctrl_jump_i                            && ~stall_ex_o;
+    branch       = (state == eRUN)    &&  ctrl_branch_i                          && ~stall_ex_o;
+    takebr       = (state == eBRANCH) &&  cond_met                               && ~stall_ex_o;
+    nobr         = (state == eBRANCH) && ~cond_met                               && ~stall_ex_o;
+    mret         = (state == eRUN)    &&  mret_insn_i                            && ~stall_ex_o;
+    ext_dbg_req  = (state == eRUN)    && (cpu_mode == eMODE_NORM) && debug_req_i && ~stall_ex_o;
+    ebreak_todbg = (state == eRUN)    &&  ebreak_insn && dcsr_q.ebreakm          && ~stall_ex_o;
+    ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm         && ~stall_ex_o;
     step_todrain = (state == eRUN)    && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
     step_todbg   = (state == eDRAIN)  &&  instr_retiring_o;
     enter_debug  = ext_dbg_req || ebreak_todbg || step_todbg;
