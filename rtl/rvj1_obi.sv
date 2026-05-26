@@ -12,7 +12,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /* verilator lint_off IMPORTSTAR */
-module rvj1_obi import rvj1_pkg::*;
+module rvj1_obi import rvj1_pkg::*; #(
+  parameter int unsigned BootAddr   = 32'h8000_0000,
+  parameter int unsigned DmRomAddr  = 32'h0000_0000,
+  parameter int unsigned MVendorId  = 32'h0000_0000,
+  parameter int unsigned MArchId    = 32'h0000_0000,
+  parameter int unsigned MImpId     = 32'h0000_0000,
+  parameter int unsigned MHartId    = 32'h0000_0000,
+  parameter int unsigned MConfigPtr = 32'h0000_0000
+)
 (
   input  logic                   clk_i,
   input  logic                   rstn_i,
@@ -84,7 +92,15 @@ module rvj1_obi import rvj1_pkg::*;
   logic                   data_rsp_valid;
   logic                   data_rsp_ready;
 
-  rvj1_top rvj1_inst (
+  rvj1_top #(
+    .BootAddr(BootAddr),
+    .DmRomAddr(DmRomAddr),
+    .MVendorId(MVendorId),
+    .MArchId(MArchId),
+    .MImpId(MImpId),
+    .MHartId(MHartId),
+    .MConfigPtr(MConfigPtr)
+  ) rvj1_inst (
     .clk_i              (clk_i),
     .rstn_i             (rstn_i),
 
