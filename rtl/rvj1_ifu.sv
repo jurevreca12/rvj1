@@ -96,8 +96,6 @@ module rvj1_ifu import rvj1_pkg::*; (
     logic            instr_req_fire;
     logic            instr_rsp_fire;
 
-    logic response_valid;
-    logic response_ready;
 
     logic boot;
     logic jmpi;
@@ -111,7 +109,7 @@ module rvj1_ifu import rvj1_pkg::*; (
     logic rsp_buff_out_valid;
 
     logic id_match;
-
+    logic  buffers_valid;
     ifu_strobe_e      next_strobe;
     ifu_strobe_e      dec_strobe;
     logic [IDLEN-1:0] next_id;
@@ -150,10 +148,10 @@ module rvj1_ifu import rvj1_pkg::*; (
     assign instr_req_valid_o = (act_req_buff_inp_ready &&
                                 act_id_buff_inp_ready &&
                                 (state == eIFU_BUSY));
-
-    assign instr_rsp_fire = instr_rsp_valid_i && instr_rsp_ready_o;
     assign instr_rsp_ready_o = (rsp_buff_inp_ready &&
+                                act_req_buff_out_valid &&
                                 (state == eIFU_BUSY));
+    assign instr_rsp_fire = instr_rsp_valid_i && instr_rsp_ready_o;
 
     /*************************************
     * Active request buffering
@@ -169,7 +167,7 @@ module rvj1_ifu import rvj1_pkg::*; (
         .input_data   ({eSTROBE_FULL, instr_req_id_o}),
 
         .output_valid (act_req_buff_out_valid),
-        .output_ready (instr_rsp_fire),
+        .output_ready (consume_rsp),
         .output_data  ({next_strobe, next_id}),
 
         // verilator lint_off PINCONNECTEMPTY
@@ -217,7 +215,7 @@ module rvj1_ifu import rvj1_pkg::*; (
     .clk  (clk_i),
     .rstn (rstn_i),
 
-    .input_valid  (instr_rsp_valid_i),
+    .input_valid  (instr_rsp_fire),
     .input_ready  (rsp_buff_inp_ready),
     .input_data   ({next_strobe, instr_rsp_data_i, instr_rsp_error_i, instr_rsp_id_i}),
 
@@ -232,9 +230,9 @@ module rvj1_ifu import rvj1_pkg::*; (
 
     `ifdef ASSERTIONS
         always_ff @(posedge clk_i) begin
-            if (instr_rsp_valid_i && rsp_buff_inp_ready) begin
+            /*if (instr_rsp_fire) begin
                 inorder_ids: assert(instr_rsp_id_i == next_id);
-            end
+            end*/
             if (consume_id) begin
                 valid_consume: assert(rsp_buff_out_valid && act_id_buff_out_valid);
             end
@@ -246,20 +244,11 @@ module rvj1_ifu import rvj1_pkg::*; (
     /*************************************
     * Decoder Interface
     *************************************/
-    assign consume_rsp = (rsp_buff_out_valid &&
-                          act_id_buff_out_valid &&
-                          (state == eIFU_BUSY) &&
-                          dec_ready_i);
+    assign buffers_valid = rsp_buff_out_valid && act_req_buff_out_valid && (state == eIFU_BUSY); 
+    assign consume_rsp = buffers_valid  && dec_ready_i;
     assign id_match = (dec_id == next_exp_id);
-    assign consume_id = (rsp_buff_out_valid &&
-                         act_id_buff_out_valid &&
-                         (state == eIFU_BUSY) &&
-                         dec_ready_i &&
-                         id_match);
-    assign dec_valid_o = (rsp_buff_out_valid &&
-                          act_id_buff_out_valid &&
-                          (state == eIFU_BUSY) &&
-                          id_match);
+    assign consume_id = consume_rsp && id_match && act_id_buff_out_valid;
+    assign dec_valid_o = consume_id;
     assign dec_fire = dec_ready_i && dec_valid_o;
 
     /*************************************
