@@ -16,9 +16,7 @@ module rvj1_alu import rvj1_pkg::*; (
     input  alu_op_e sel_i,  // select arithmetic operation
     input  logic [XLEN-1:0]  op_a_i,
     input  logic [XLEN-1:0]  op_b_i,
-    input  branch_ctrl_e     ctrl_branch_type,
-    output logic [XLEN-1:0]  res_o,
-    output logic             branch_taken_o
+    output logic [XLEN-1:0]  res_o
 );
 
   /*******************************

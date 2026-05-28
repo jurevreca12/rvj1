@@ -169,7 +169,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic lsu_busy_hazard;
   logic csr_write_hazard;
   logic csr_write_hazard_r;
-  logic load, loaded, jump, branch, takebr, nobr, mret, ext_dbg_req;
+  logic load, loaded, jump, branch, takebr, nobr, mret;
   branch_ctrl_e ctrl_branch_type_r;
   logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
@@ -187,6 +187,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic ebreak_totrp, ebreak_totrp_r;
   logic step_todrain;
   logic step_todbg, step_todbg_r;
+  logic ext_dbg_req, ext_dbg_req_r;
+  logic valid_jump;
   logic enter_debug;
   logic [2:0]  dcsr_cause;
   logic [31:0] dpc_next;
@@ -903,7 +905,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   assign dret_fromdbg = (cpu_mode == eMODE_DEBUG) && dret_insn; 
   always_comb begin
-    cpu_mode_next = enter_debug   ? eMODE_DEBUG : cpu_mode_next;
+    cpu_mode_next = enter_debug   ? eMODE_DEBUG : cpu_mode;
     cpu_mode_next = step_todrain  ? eMODE_DRAIN : cpu_mode_next;
     cpu_mode_next = step_todbg    ? eMODE_DEBUG : cpu_mode_next;
     cpu_mode_next = dret_fromdbg  ? eMODE_NORM  : cpu_mode_next;
