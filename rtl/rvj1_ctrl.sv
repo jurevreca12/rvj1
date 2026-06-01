@@ -561,7 +561,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     csr_value = '0;
     // ONLY implemented registers, others default to zero
     if (csr_valid_read) begin
-      unique case (csr_addr_r_i)
+      case (csr_addr_r_i)
         // Machine Information Registers
         CSR_MVENDORID_ADDR:  csr_value = MVendorId;
         CSR_MARCHID_ADDR:    csr_value = MArchId;
@@ -592,6 +592,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         CSR_DPC_ADDR:        csr_value = csr_dpc_value;
         CSR_DSCRATCH0_ADDR:  csr_value = csr_dscratch0_value;
         CSR_DSCRATCH1_ADDR:  csr_value = csr_dscratch1_value;
+        default :            csr_value = '0;
       endcase
     end
   end
