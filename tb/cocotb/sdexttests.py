@@ -405,6 +405,52 @@ class DebugStepLongTest(Program):
         }
 
 
+class InfiniteLoopTest(Program):
+    """
+    Spin in an infinite loop and break the loop with a debug request. This debug request is not
+    present at startup instead it only gets triggered after some time.
+    """
+    def __init__(self):
+        insns = [
+            InstructionADDI(x1, x1, 1),          # 0x8000_0000
+            InstructionBNE(x0, x1, -4),          # 0x8000_0004
+            InstructionADDI(x0, x0, 1),          # 0x8000_0008
+            InstructionADDI(x0, x0, 1),          # 0x8000_000c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0010
+            InstructionADDI(x2, x0, 1),          # 0x8000_0014
+            InstructionADDI(x0, x0, 1),          # 0x8000_0018 
+            InstructionADDI(x0, x0, 1),          # 0x8000_001c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0020
+            InstructionADDI(x0, x0, 1),          # 0x8000_0024
+            InstructionADDI(x0, x0, 1),          # 0x8000_0028  
+            InstructionADDI(x0, x0, 1),          # 0x8000_002c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0030
+            InstructionADDI(x0, x0, 1),          # 0x8000_0034
+            InstructionADDI(x0, x0, 1),          # 0x8000_0038
+            InstructionADDI(x0, x0, 1),          # 0x8000_003c
+            InstructionADDI(x0, x0, 1),          # 0x8000_0040
+            InstructionADDI(x0, x0, 1),          # 0x8000_0044
+            InstructionADDI(x0, x0, 1),          # 0x8000_0048
+            InstructionADDI(x0, x0, 1),          # 0x8000_004c
+            InstructionADDI(x3, x0, 1),          # 0x8000_0050
+            InstructionADDI(x31, x0, 1),         # 0x8000_0054
+            InstructionADDI(x0, x0, 1),
+            InstructionADDI(x0, x0, 1),
+        ]
+        super().__init__(insns)
+
+    
+    def expects(self) -> dict:
+        return { 
+            x2: 0, 
+            x3: 1
+        }
+
+    def extra_env(self) -> dict:
+        return {
+            'TEST_DEBUG_REQ' : 501
+        }
+
 SDEXT_TESTS = {
     "sdext-dcsr-exc":      DCSRExceptionTest(),
     "sdext-dpc-exc":       DPCExceptionTest(),
@@ -414,4 +460,5 @@ SDEXT_TESTS = {
     "sdext-dbg-regs-acc":  DebugRegAccessTest(),
     "sdext-step":          DebugStepTest(),
     "sdext-step-long":     DebugStepLongTest(),
+    "sdext-infinite-loop": InfiniteLoopTest(),
 }
