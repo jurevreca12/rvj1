@@ -251,13 +251,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                        (state == eTRAP) ||
                        (state == eMRET) ||
                        (state == eTO_DEBUG) ||
-                       (cpu_mode == eMODE_DRAIN) ||
+                       step_todbg ||
                        dret_fromdbg_r);
   assign flush_ex_o = ((state == eJUMP0) ||
                        (state == eTRAP) ||
                        (state == eMRET) ||
                        (state == eTO_DEBUG) ||
-                       (cpu_mode == eMODE_DRAIN) ||
+                       step_todbg ||
                        dret_fromdbg_r);
   assign flush_mem_wb_o = (flush_ex_o ||
                           (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
@@ -869,7 +869,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     mret         = (state == eRUN)    &&  mret_insn_i                            && ~stall_ex_o;
     ext_dbg_req  = (state == eRUN)    && (cpu_mode == eMODE_NORM) && debug_req_i && ~stall_ex_o;
     ebreak_todbg = (state == eRUN)    &&  ebreak_insn && (dcsr_q.ebreakm || (cpu_mode == eMODE_DEBUG)) && ~stall_ex_o;
-    ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm         && ~stall_ex_o;
+    ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm && (cpu_mode != eMODE_DEBUG)  && ~stall_ex_o;
     step_todrain = (state == eRUN) && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
     step_todbg   = (cpu_mode == eMODE_DRAIN)  &&  instr_retiring_o;
     enter_debug  = ext_dbg_req || ebreak_todbg || step_todbg;

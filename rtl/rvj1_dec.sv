@@ -553,7 +553,8 @@ begin
       end
     end
     OPCODE_MISCMEM: begin
-      if (funct3 != 3'b000)
+      // This includes fence and fence.i (000 and 001)
+      if (funct3[14:13] != 2'b00)
         illegal_instr = 1'b1;
     end
     default: begin

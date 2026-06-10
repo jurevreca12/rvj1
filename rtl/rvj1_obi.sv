@@ -15,6 +15,7 @@
 module rvj1_obi import rvj1_pkg::*; #(
   parameter int unsigned BootAddr   = 32'h8000_0000,
   parameter int unsigned DmRomAddr  = 32'h0000_0000,
+  parameter int unsigned DmExcAddr  = 32'h0000_0000,
   parameter int unsigned MVendorId  = 32'h0000_0000,
   parameter int unsigned MArchId    = 32'h0000_0000,
   parameter int unsigned MImpId     = 32'h0000_0000,
@@ -95,6 +96,7 @@ module rvj1_obi import rvj1_pkg::*; #(
   rvj1_top #(
     .BootAddr(BootAddr),
     .DmRomAddr(DmRomAddr),
+    .DmExcAddr(DmExcAddr),
     .MVendorId(MVendorId),
     .MArchId(MArchId),
     .MImpId(MImpId),
