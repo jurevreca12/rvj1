@@ -16,6 +16,7 @@ sources:
     - rtl/rvj1_pkg.sv
     - rtl/rvfi_trace.sv
     - rtl/rvj1_alu.sv
+    - rtl/rvj1_branch.sv
     - rtl/rvj1_ctrl.sv
     - rtl/rvj1_dec.sv
     - rtl/rvj1_ifu.sv

@@ -37,8 +37,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             lsu_ready_i,
   input  logic             lsu_wb_i,
   input  logic             ctrl_jump_i,
-  input  logic             ctrl_branch_i,
-  input  branch_ctrl_e     ctrl_branch_type_i,
   input  logic             ecall_insn_i,
   input  logic             mret_insn_i,
   input  logic             ebreak_insn_i,
@@ -61,6 +59,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
   input  csr_cmd_t         csr_cmd_r_i,
+  input  logic             branch_cond_met_i,
 
   output logic [XLEN-1:0]  csr_value_o,
   output logic [RALEN-1:0] csr_regdest_o,
@@ -111,7 +110,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eJUMP1,
       eRUN,
       eLOAD,   // loading a value from data mem to a register.
-      eBRANCH,
       eTRAP,
       eMRET,
       eTO_DEBUG
@@ -170,8 +168,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic csr_write_hazard;
   logic csr_write_hazard_r;
   logic load, loaded, jump, branch, takebr, nobr, mret;
-  branch_ctrl_e ctrl_branch_type_r;
-  logic cond_met;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
   logic synhr_trap_ex, synhr_trap_ex_r;
   logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
@@ -419,30 +415,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (trap_cause_r)
   );
 
-  /*************************************
-  * Branching conditions - TODO: Move this to ALU?
-  *************************************/
-  always_comb begin
-    cond_met = 1'b0;
-    unique case (ctrl_branch_type_r)
-      BRANCH_EQ:  cond_met = (alu_res_r_i    == 0   );
-      BRANCH_NEQ: cond_met = (alu_res_r_i    != 0   );
-      BRANCH_LT:  cond_met = (alu_res_r_i[0] == 1'b1);
-      BRANCH_GE:  cond_met = (alu_res_r_i[0] == 1'b0);
-      BRANCH_LTU: cond_met = (alu_res_r_i[0] == 1'b1);
-      BRANCH_GEU: cond_met = (alu_res_r_i[0] == 1'b0);
-    endcase
-  end
-  register #(
-    .DTYPE(branch_ctrl_e),
-    .RESET_VALUE(BRANCH_EQ)
-  ) ctrl_branch_type_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (ctrl_branch_i),
-    .in   (ctrl_branch_type_i),
-    .out  (ctrl_branch_type_r)
-  );
 
   /*************************************
   * Retiring
@@ -863,9 +835,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     load         = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3]      && ~stall_ex_o;
     loaded       = (state == eLOAD)   &&  lsu_wb_i;
     jump         = (state == eRUN)    &&  ctrl_jump_i                            && ~stall_ex_o;
-    branch       = (state == eRUN)    &&  ctrl_branch_i                          && ~stall_ex_o;
-    takebr       = (state == eBRANCH) &&  cond_met                               && ~stall_ex_o;
-    nobr         = (state == eBRANCH) && ~cond_met                               && ~stall_ex_o;
+    takebr       = (state == eRUN)    &&  branch_cond_met_i                      && ~stall_ex_o;
     mret         = (state == eRUN)    &&  mret_insn_i                            && ~stall_ex_o;
     ext_dbg_req  = (state == eRUN)    && (cpu_mode == eMODE_NORM) && debug_req_i && ~stall_ex_o;
     ebreak_todbg = (state == eRUN)    &&  ebreak_insn && (dcsr_q.ebreakm || (cpu_mode == eMODE_DEBUG)) && ~stall_ex_o;
@@ -883,7 +853,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = jump                 ? eJUMP0     : state_next;
     state_next = (state == eJUMP0)    ? eJUMP1     : state_next;
     state_next = (state == eJUMP1)    ? eRUN       : state_next;
-    state_next = branch               ? eBRANCH    : state_next;
     state_next = takebr               ? eJUMP0     : state_next;
     state_next = nobr                 ? eRUN       : state_next;
     state_next = synhr_trap           ? eTRAP      : state_next;

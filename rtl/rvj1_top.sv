@@ -133,6 +133,9 @@ module rvj1_top import rvj1_pkg::*; #(
   logic             csr_valid_r;
   logic [11:0]      csr_addr_r;
   csr_cmd_t         csr_cmd_r;
+  logic             ctrl_branch_r;
+  branch_ctrl_e     ctrl_branch_type_r;
+  logic             branch_cond_met;
 
   logic [RALEN-1:0] wpc_addr;
   logic [XLEN-1:0]  wpc_data;
@@ -268,16 +271,24 @@ module rvj1_top import rvj1_pkg::*; #(
   );
 
   register #(
-    .DTYPE  (logic [(RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + 1  + 1 + 1 + 12 + $bits(csr_cmd_t))-1:0]),
+    .DTYPE  (logic [(RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + $bits(branch_ctrl_e) + 1  + 1 + 1 + 1 + 12 + $bits(csr_cmd_t))-1:0]),
     .RESET_VALUE (0)
   ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
     .rstn (rstn_i && ~flush_mem_wb),
     .ce   (control && ~stall_mem_wb),
-    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid & ~stall_ex,   lsu_ctrl,
-            alu_write_rf & ~stall_ex,   jump & ~stall_ex,   csr_valid & ~stall_ex,   csr_addr,   csr_cmd}),
-    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r,             lsu_ctrl_r,
-            alu_write_rf_r,              jump_r,            csr_valid_r,             csr_addr_r, csr_cmd_r})
+    .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid & ~stall_ex,   lsu_ctrl, ctrl_branch_type,
+            alu_write_rf & ~stall_ex,   jump & ~stall_ex,   csr_valid & ~stall_ex, ctrl_branch & ~stall_ex,  csr_addr,   csr_cmd}),
+    .out  ({regdest_r, alu_res_r, regs2_data_r, lsu_ctrl_valid_r,             lsu_ctrl_r, ctrl_branch_type_r,
+            alu_write_rf_r,              jump_r,            csr_valid_r,           ctrl_branch_r,  csr_addr_r, csr_cmd_r})
+  );
+
+
+  rvj1_branch branch_inst (
+    .alu_res_r_i  (alu_res_r),
+    .branch_type_i(ctrl_branch_type_r),
+    .valid_i      (ctrl_branch_r),
+    .cond_met_o   (branch_cond_met)
   );
 
   /*********************************************
@@ -380,8 +391,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .lsu_wb_i               (lsu_wb_valid),
     .ctrl_jump_i            (jump),
     .alu_res_r_i            (alu_res_r),
-    .ctrl_branch_i          (ctrl_branch),
-    .ctrl_branch_type_i     (ctrl_branch_type),
+    .branch_cond_met_i      (branch_cond_met),
     .control_i              (control),
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
