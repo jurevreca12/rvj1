@@ -283,14 +283,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                             ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
   always_comb begin
     program_counter_next = program_counter;
-    if (synhr_trap)
+    if (enter_debug)
+      program_counter_next = DmRomAddr[31:2];
+    else if (synhr_trap)
       program_counter_next = csr_mtvec_value[31:2];
     else if (mret)
       program_counter_next = csr_mepc_value[31:2];
     else if (state == eJUMP0)
       program_counter_next = alu_res_r_i[31:2];
-    else if (enter_debug)
-      program_counter_next = DmRomAddr[31:2];
     else if (dret_fromdbg)
       program_counter_next = csr_dpc_value[31:2];
     else if (instr_will_retire || jump || loaded)
