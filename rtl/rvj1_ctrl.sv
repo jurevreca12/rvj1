@@ -167,7 +167,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic lsu_busy_hazard;
   logic csr_write_hazard;
   logic csr_write_hazard_r;
-  logic load, loaded, jump, branch, takebr, nobr, mret;
+  logic load, loaded, jump, takebr, mret;
   logic synhr_trap, lsu_trap, addr_unaligned_trap;
   logic synhr_trap_ex, synhr_trap_ex_r;
   logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
@@ -341,15 +341,15 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
   `endif
+
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign addr_unaligned_trap   = load_addr_misaligned_i || store_addr_misaligned_i;
   assign lsu_trap              = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
   assign instr_addr_misaligned = alu_res_r_i[1] && (state == eJUMP0);
-
   assign synhr_trap_ex = (ecall_insn ||
                           illegal_instr ||
                           ebreak_totrp || // EBREAK causes a trap only if ebreakm is 0
-                          instr_fetch_error) && (cpu_mode == eMODE_NORM);
+                          instr_fetch_error);
   register ebreak_totrp_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_totrp), .out(ebreak_totrp_r)
   );
@@ -359,14 +359,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign synhr_trap_mem_wb = (lsu_trap ||
                               illegal_csr_insn ||
                               instr_addr_misaligned ||
-                              addr_unaligned_trap) && (cpu_mode == eMODE_NORM);
+                              addr_unaligned_trap);
   assign synhr_trap_mem_wb2 = (lsu_trap || load_addr_misaligned_i);
   assign synhr_trap = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
   `endif
   assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
-  
+
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
@@ -623,7 +623,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
-    else if ((cpu_mode != eMODE_DEBUG) && (ext_dbg_req || ebreak_todbg || step_todrain)) begin
+    else if ((cpu_mode != eMODE_DEBUG) && enter_debug) begin
       dcsr_d.cause = dcsr_cause;
       dcsr_ce = 1'b1;
       dpc_d = dpc_next;
@@ -840,7 +840,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     ext_dbg_req  = (state == eRUN)    && (cpu_mode == eMODE_NORM) && debug_req_i && ~stall_ex_o;
     ebreak_todbg = (state == eRUN)    &&  ebreak_insn && (dcsr_q.ebreakm || (cpu_mode == eMODE_DEBUG)) && ~stall_ex_o;
     ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm && (cpu_mode != eMODE_DEBUG)  && ~stall_ex_o;
-    step_todrain = (state == eRUN) && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
+    step_todrain = (state == eRUN)    && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
     step_todbg   = (cpu_mode == eMODE_DRAIN)  &&  instr_retiring_o;
     enter_debug  = ext_dbg_req || ebreak_todbg || step_todbg;
   end
@@ -854,7 +854,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = (state == eJUMP0)    ? eJUMP1     : state_next;
     state_next = (state == eJUMP1)    ? eRUN       : state_next;
     state_next = takebr               ? eJUMP0     : state_next;
-    state_next = nobr                 ? eRUN       : state_next;
     state_next = synhr_trap           ? eTRAP      : state_next;
     state_next = (state == eTRAP)     ? eRUN       : state_next;
     state_next = mret                 ? eMRET      : state_next;
