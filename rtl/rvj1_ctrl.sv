@@ -623,7 +623,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       mstatus_d.mpie = 1'b1;
       mstatus_ce = 1'b1;
     end
-    else if ((cpu_mode != eMODE_DEBUG) && enter_debug) begin
+    else if ((cpu_mode != eMODE_DEBUG) && (ext_dbg_req || ebreak_todbg || step_todrain)) begin
       dcsr_d.cause = dcsr_cause;
       dcsr_ce = 1'b1;
       dpc_d = dpc_next;
