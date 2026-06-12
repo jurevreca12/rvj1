@@ -94,7 +94,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
 
-  output logic synhr_trap_o,
+  output logic exception_o,
  `endif
 );
   //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
@@ -109,7 +109,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic csr_write_hazard, csr_write_hazard_r;
   logic raw_hazard;
   logic load, loaded, jump, takebr, mret;
-  logic synhr_trap, exc_lsu_access_fault, exc_lsu_addr_unalign;
+  logic exception, exc_lsu_access_fault, exc_lsu_addr_unalign;
   logic exc_exec_stage, exc_exec_stage_r;
   logic exc_mem_wb_stage, exc_mem_wb_stage2;
   logic instr_will_retire, instr_will_retire_r;
@@ -158,18 +158,18 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign raw_hazard       = rf_a_hazard || rf_b_hazard || lsu_b_hazard || csr_write_hazard;
   
   assign lsu_busy       = lsu_ctrl_valid_r_i && ~lsu_ready_i;
-  assign stall_mem_wb_o = lsu_busy || (state == eJUMP1) || (state == eTRAP);
+  assign stall_mem_wb_o = lsu_busy || (state == eJUMP1) || (state == eEXC);
   assign stall_ex_o     = (raw_hazard ||
                            stall_mem_wb_o ||
                            (state == eLOAD) ||
                            (state == eJUMP0) ||
                            (state == eJUMP1) ||
-                           (state == eTRAP) ||
+                           (state == eEXC) ||
                            (state == eMRET) ||
                            (state == eTO_DEBUG) ||
                            dret_fromdbg_r);
   assign flush_ex_o     = ((state == eJUMP0) ||
-                           (state == eTRAP) ||
+                           (state == eEXC) ||
                            (state == eMRET) ||
                            (state == eTO_DEBUG) ||
                            step_todbg ||
@@ -181,18 +181,18 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   *  Program Counter - Jumping logic
   *************************************/
-  assign pc_mod           = (synhr_trap || mret || (state == eJUMP0) ||  enter_debug || 
+  assign pc_mod           = (exception || mret || (state == eJUMP0) ||  enter_debug || 
                             dret_fromdbg ||  instr_will_retire || jump || loaded);
   assign valid_jump       = (state == eJUMP1) && ~exc_jmp_addr_misalign;  
   assign stop_jmp_write_o = exc_jmp_addr_misalign;
   assign jmp_addr_o       = (jmp_addr_valid_o) ? program_counter : '0;
-  assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eTRAP) || (state == eMRET) || valid_jump ||
+  assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eEXC) || (state == eMRET) || valid_jump ||
                             ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
   always_comb begin
     program_counter_next = program_counter;
     if (enter_debug)
       program_counter_next = DmRomAddr[31:2];
-    else if (synhr_trap)
+    else if (exception)
       program_counter_next = csr_mtvec_value[31:2];
     else if (mret)
       program_counter_next = csr_mepc_value[31:2];
@@ -225,9 +225,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign exc_exec_stage        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
   assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
-  assign synhr_trap            = exc_exec_stage_r || exc_mem_wb_stage;
+  assign exception             = exc_exec_stage_r || exc_mem_wb_stage;
   `ifdef RVFI
-  assign synhr_trap_o = synhr_trap;
+  assign exception_o = exception;
   `endif
   assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
 
@@ -292,7 +292,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .ebreak_todbg_i          (ebreak_todbg),
     .step_todrain_i          (step_todrain),
     .ext_dbg_req_i           (ext_dbg_req),
-    .synhr_trap_i            (synhr_trap),
+    .exception_i            (exception),
     .exc_exec_stage_r_i      (exc_exec_stage_r),
     .exc_mem_wb_stage2_i     (exc_mem_wb_stage2),
     .exc_lsu_access_fault_i  (exc_lsu_access_fault),
@@ -362,8 +362,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = (state == eJUMP0)    ? eJUMP1     : state_next;
     state_next = (state == eJUMP1)    ? eRUN       : state_next;
     state_next = takebr               ? eJUMP0     : state_next;
-    state_next = synhr_trap           ? eTRAP      : state_next;
-    state_next = (state == eTRAP)     ? eRUN       : state_next;
+    state_next = exception            ? eEXC      : state_next;
+    state_next = (state == eEXC)      ? eRUN       : state_next;
     state_next = mret                 ? eMRET      : state_next;
     state_next = (state == eMRET)     ? eRUN       : state_next;
     state_next = enter_debug          ? eTO_DEBUG  : state_next;
@@ -448,7 +448,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   );
   register insn_retire_reg (
     .clk (clk_i),
-    .rstn(rstn_i && ~(state == eTRAP)),
+    .rstn(rstn_i && ~(state == eEXC)),
     .ce  (~stall_mem_wb_o),
     .in  (instr_will_retire),
     .out (instr_will_retire_r)

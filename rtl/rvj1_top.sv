@@ -425,7 +425,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .rvfi_csr_rmask         (rvfi_csr_rmask),
     .rvfi_csr_wdata         (rvfi_csr_wdata),
     .rvfi_csr_wmask         (rvfi_csr_wmask),
-    .synhr_trap_o           (synhr_trap),
+    .exception_o            (synhr_trap),
     `endif
     .irq_external_i         (irq_external_i),
     .irq_timer_i            (irq_timer_i),

@@ -32,7 +32,7 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic             ebreak_todbg_i,
   input  logic             step_todrain_i,
   input  logic             ext_dbg_req_i,
-  input  logic             synhr_trap_i,
+  input  logic             exception_i,
   input  logic             exc_exec_stage_r_i,
   input  logic             exc_mem_wb_stage2_i,
   input  logic             exc_lsu_access_fault_i,
@@ -337,37 +337,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     dscratch0_ce = 1'b0;
     dscratch1_d = dscratch1_q;
     dscratch1_ce = 1'b0;
-    if (synhr_trap_i && (cpu_mode_i != eMODE_DEBUG)) begin
-      mcause_d = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
-      mcause_ce = 1'b1;
-      mepc_d = exc_mem_wb_stage2_i ? program_counter_i : program_counter_prev_i;
-      mepc_ce = 1'b1;
-      mstatus_d.mie = 1'b0;
-      mstatus_d.mpie = mstatus_q.mie;
-      mstatus_d.mpp = 1'b1;
-      mstatus_ce = 1'b1;
-      if (exc_lsu_access_fault_i)
-        mtval_d = lsu_exc_addr_i;
-      else if (exc_lsu_addr_unalign_i || exc_jmp_addr_misalign_i)
-        mtval_d = alu_res_r_i;
-      else if (ebreak_totrp_r_i)
-        mtval_d = {program_counter_prev_i, 2'b00};
-      else
-        mtval_d = '0;
-      mtval_ce = 1'b1;
-    end
-    else if ((cpu_mode_i != eMODE_DEBUG) && (state_i == eMRET)) begin
-      mstatus_d.mie = mstatus_q.mpie;
-      mstatus_d.mpie = 1'b1;
-      mstatus_ce = 1'b1;
-    end
-    else if ((cpu_mode_i != eMODE_DEBUG) && (ext_dbg_req_i || ebreak_todbg_i || step_todrain_i)) begin
-      dcsr_d.cause = dcsr_cause;
-      dcsr_ce = 1'b1;
-      dpc_d = dpc_next;
-      dpc_ce = 1'b1;
-    end
-    else if (csr_valid_write) begin
+    if (csr_valid_write) begin
       case (csr_addr_r_i)
         CSR_MSTATUS_ADDR: begin
           // Will the synthesis tool optimize these two function calls into a single module?
@@ -423,6 +393,36 @@ module rvj1_csr import rvj1_pkg::*; #(
           dscratch1_ce = (cpu_mode_i == eMODE_DEBUG);
         end
       endcase
+    end
+    if (exception_i && (cpu_mode_i != eMODE_DEBUG)) begin
+      mcause_d = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
+      mcause_ce = 1'b1;
+      mepc_d = exc_mem_wb_stage2_i ? program_counter_i : program_counter_prev_i;
+      mepc_ce = 1'b1;
+      mstatus_d.mie = 1'b0;
+      mstatus_d.mpie = mstatus_q.mie;
+      mstatus_d.mpp = 1'b1;
+      mstatus_ce = 1'b1;
+      if (exc_lsu_access_fault_i)
+        mtval_d = lsu_exc_addr_i;
+      else if (exc_lsu_addr_unalign_i || exc_jmp_addr_misalign_i)
+        mtval_d = alu_res_r_i;
+      else if (ebreak_totrp_r_i)
+        mtval_d = {program_counter_prev_i, 2'b00};
+      else
+        mtval_d = '0;
+      mtval_ce = 1'b1;
+    end
+    else if ((cpu_mode_i != eMODE_DEBUG) && (state_i == eMRET)) begin
+      mstatus_d.mie = mstatus_q.mpie;
+      mstatus_d.mpie = 1'b1;
+      mstatus_ce = 1'b1;
+    end
+    else if ((cpu_mode_i != eMODE_DEBUG) && (ext_dbg_req_i || ebreak_todbg_i || step_todrain_i)) begin
+      dcsr_d.cause = dcsr_cause;
+      dcsr_ce = 1'b1;
+      dpc_d = dpc_next;
+      dpc_ce = 1'b1;
     end
   end
 

@@ -273,7 +273,7 @@ package rvj1_pkg;
       eJUMP1,
       eRUN,
       eLOAD,   // loading a value from data mem to a register.
-      eTRAP,
+      eEXC,
       eMRET,
       eTO_DEBUG
     } rvj1_fsm_e;
