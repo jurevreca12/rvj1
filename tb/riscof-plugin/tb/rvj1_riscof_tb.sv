@@ -144,9 +144,12 @@ module rvj1_riscof_tb import rvj1_pkg::*; ();
     .irq_platform_i    (16'b0),
     .irq_nmi_i         (1'b0),
 
+    .debug_req_i       (1'b0),
+    .debug_rsp_o       ()
+
     // verilator lint_off REDEFMACRO
     `ifdef RVFI
-    `RVFI_CONN
+    ,`RVFI_CONN
     `endif
     // verilator lint_on REDEFMACRO
   );

@@ -43,6 +43,8 @@ module rvj1_test_top import rvj1_pkg::*;();
   logic              data_rsp_valid;
   logic              data_rsp_ready;
 
+  logic              debug_req_i;
+
   `ifdef RVFI
   `RVFI_WIRES
   `endif
@@ -133,9 +135,12 @@ module rvj1_test_top import rvj1_pkg::*;();
       .irq_platform_i    (16'b0),
       .irq_nmi_i         (1'b0),
 
+      .debug_req_i       (debug_req_i),
+      .debug_rsp_o       ()
+
       // verilator lint_off REDEFMACRO
       `ifdef RVFI
-      `RVFI_CONN
+      ,`RVFI_CONN
       `endif
       // verilator lint_on REDEFMACRO
   );

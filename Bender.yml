@@ -18,6 +18,7 @@ sources:
     - rtl/rvj1_alu.sv
     - rtl/rvj1_branch.sv
     - rtl/rvj1_ctrl.sv
+    - rtl/rvj1_csr.sv
     - rtl/rvj1_dec.sv
     - rtl/rvj1_ifu.sv
     - rtl/rvj1_lsu.sv

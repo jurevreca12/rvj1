@@ -63,6 +63,11 @@ module rvj1_obi import rvj1_pkg::*; #(
 
   input  logic                   debug_req_i,
   output logic                   debug_rsp_o
+
+  // RISC-V Formal Interface
+  `ifdef RVFI
+  ,`RVFI_OUTPUTS
+  `endif
 );
 
   logic [IDLEN-1:0]       instr_req_id;
@@ -134,15 +139,20 @@ module rvj1_obi import rvj1_pkg::*; #(
     .data_rsp_valid_i   (data_rsp_valid),
     .data_rsp_ready_o   (data_rsp_ready),
 
-    .irq_external_i,
-    .irq_timer_i,
-    .irq_sw_i,
-    .irq_lcofi_i,
-    .irq_platform_i,
-    .irq_nmi_i,
+    .irq_external_i     (irq_external_i),
+    .irq_timer_i        (irq_timer_i),
+    .irq_sw_i           (irq_sw_i),
+    .irq_lcofi_i        (irq_lcofi_i),
+    .irq_platform_i     (irq_platform_i),
+    .irq_nmi_i          (irq_nmi_i),
 
-    .debug_req_i,
-    .debug_rsp_o
+    .debug_req_i        (debug_req_i),
+    .debug_rsp_o        (debug_rsp_o)
+
+    // RISC-V Formal Interface
+    `ifdef RVFI
+    ,`RVFI_CONN
+    `endif
   );
 
   mapped2obi #(
