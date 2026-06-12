@@ -27,6 +27,15 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic [11:0]      csr_addr_r_i,
   input  csr_cmd_t         csr_cmd_r_i,
 
+  input  logic             csr_exc_write_i,
+  input  logic [5:0]       csr_exc_mcause_i,
+  input  logic [XLEN-1:0]  csr_exc_mepc_i,
+  input  logic [XLEN-1:0]  csr_exc_mtval_i,
+  input  logic             csr_mret_restore_i
+  input  logic             csr_dbg_write_i
+  input  logic [2:0]       csr_dbg_cause
+  input  logic [XLEN-3:0]  csr_dbg_dpc,
+
   input  rvj1_op_mode_e    cpu_mode_i,
   input  rvj1_fsm_e        state_i,
   input  logic             ebreak_todbg_i,
@@ -144,26 +153,7 @@ module rvj1_csr import rvj1_pkg::*; #(
   assign csr_mepc_value_o  = csr_mepc_value;
   assign csr_mtvec_value_o = csr_mtvec_value;
 
-  /*************************************
-  * DCSR/DPC
-  *************************************/
-  always_comb begin
-    dcsr_cause = '0;
-    dpc_next = '0;
-    if (ebreak_todbg_i) begin
-      dcsr_cause = DCSR_CAUSE_EBREAK;
-      dpc_next   = {pc_i, 2'b00};
-    end else if (step_todrain_i) begin
-      dcsr_cause = DCSR_CAUSE_STEP;
-      dpc_next   = {pc_i + 1'b1, 2'b00};
-    end else if (ext_dbg_req_i) begin 
-      dcsr_cause = DCSR_CAUSE_HALTREQ;
-      dpc_next   = {pc_i, 2'b00};
-    end else begin
-      dcsr_cause = '0;
-      dpc_next   = '0;
-    end
-  end
+
 
   /*************************************
   * Control and Status Registers

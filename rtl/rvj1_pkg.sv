@@ -265,6 +265,7 @@ package rvj1_pkg;
       eMODE_DEBUG,
       eMODE_DRAIN // wait for all instructions to retire before entering debug mode (used for single stepping)
     } rvj1_op_mode_e;
+
     typedef enum logic [3:0] {
       eRESET,
       eBOOT0,

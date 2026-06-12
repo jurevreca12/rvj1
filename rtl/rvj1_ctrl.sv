@@ -128,6 +128,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic enter_debug;
   logic valid_jump;
   logic cancel_retire;
+  logic dbg_mode, dbg_mode_next;
 
   logic illegal_insn;
   logic instr_fetch_error;
@@ -220,7 +221,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
-  assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP0);
+  assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP);
   assign exc_exec_stage        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
   assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
@@ -228,8 +229,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   `ifdef RVFI
   assign exception_o = exception;
   `endif
-  assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
-  assign enter_debug = ext_dbg_req || ebreak_todbg || step_todbg;
+
   always_comb begin
     exc_cause = 6'b0;
     if (ecall_insn)
@@ -268,6 +268,31 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   *************************************/
   assign instr_retiring_o = (instr_will_retire_r && ~stall_mem_wb_o) || loaded;
   assign cancel_retire    = (state == eEXC);
+
+
+
+  /*************************************
+  * Debug
+  *************************************/
+  assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
+  assign enter_debug = ext_dbg_req || ebreak_todbg || step_todbg;
+  always_comb begin
+    dcsr_cause = '0;
+    dpc_next = '0;
+    if (ebreak_todbg_i) begin
+      dcsr_cause = DCSR_CAUSE_EBREAK;
+      dpc_next   = {pc_i, 2'b00};
+    end else if (step_todrain_i) begin
+      dcsr_cause = DCSR_CAUSE_STEP;
+      dpc_next   = {pc_i + 1'b1, 2'b00};
+    end else if (ext_dbg_req_i) begin 
+      dcsr_cause = DCSR_CAUSE_HALTREQ;
+      dpc_next   = {pc_i, 2'b00};
+    end else begin
+      dcsr_cause = '0;
+      dpc_next   = '0;
+    end
+  end
 
   /*************************************
   * CSR
@@ -334,6 +359,96 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     `endif
   );
 
+  always_comb begin
+    pc_next          = pc;
+    pc_mod           = 1'b0;
+    exc_cause        = 6'b0;
+    state_next       = state;
+    cancel_retire    = 1'b0;
+    jmp_addr_valid_o = 1'b0;
+    jmp_addr_o       = '0;
+    stall_ex_o       = 1'b0;
+    stall_mem_wb_o   = 1'b0;
+    flush_ex_o       = 1'b0;
+    flush_mem_wb_o   = 1'b0;
+    stop_jmp_write_o = 1'b0;
+    dbg_mode_next    = dbg_mode;
+
+    csr_exc_write    = 1'b0;
+    csr_exc_mcause   = '0;
+    csr_exc_mepc     = '0;
+    csr_exc_mtval    = '0;
+    csr_mret_restore = 1'b0;
+    csr_dbg_write    = 1'b0;
+    csr_dbg_cause    = '0;
+    csr_dbg_dpc      = '0;
+
+    unique case (state)
+      eRESET: begin
+        state_next       = eRUN;
+        pc_next          = BootAddr;
+        pc_mod           = 1'b1;
+        jmp_addr_valid_o = 1'b1;
+        jmp_addr_o       = BootAddr[31:2];
+      end
+      eRUN: begin
+        stall_ex_o = raw_hazard;
+        if (instr_will_retire || jump) begin
+          pc_next = pc + 1; // jump - gives us pc + 4 on JAL & JALR
+          pc_mod  = 1'b1;
+        end
+        if (exception) begin
+          jmp_addr_valid_o = 1'b1;
+          jmp_addr_o       = csr_mtvec_value[31:2];
+          pc_next          = csr_mtvec_value[31:2];
+          pc_mod           = 1'b1;
+          csr_exc_write    = 1'b1;
+          csr_exc_mcause   = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
+          csr_exc_mepc     = exc_mem_wb_stage2_i ? pc_i : pc_r_i;
+          csr_exc_mtval    = exc_mtval;
+        end
+        
+        if (mret_insn) begin
+          jmp_addr_valid_o = 1'b1;
+          jmp_addr_o       = csr_mepc_value[31:2];
+          pc_next          = csr_mepc_value[31:2];
+          pc_mod           = 1'b1;
+          csr_mret_restore = 1'b1;
+        end
+
+        if (enter_debug) begin
+          jmp_addr_valid_o = 1'b1;
+          jmp_addr_o       = DmRomAddr[31:2];
+          pc_next          = DmRomAddr[31:2];
+          pc_mod           = 1'b1;
+          dbg_mode_next    = 1'b1;
+          csr_dbg_write    = 1'b1;
+          csr_dbg_cause    = dbg_cause;
+          csr_dbg_dpc      = dbg_dpc; 
+        end
+
+        if (exit_debug) begin
+          dbg_mode_next   = 1'b0;
+        end
+      end
+      eJUMP: begin
+        state_next = eRUN;
+        stall_ex_o = 1'b1;
+        flush_ex_o = 1'b1;
+        if (exc_jmp_addr_misalign) begin
+          state_next        = eJUMP;
+          pc_next           = mtval;
+          pc_mod            = 1'b1;
+          jmp_addr_o        = csr_mtvec_value[31:2];
+          stop_jmp_write_o  = 1'b1;
+        end
+      end
+      eLOAD: begin
+      end
+    endcase
+
+  end
+
   /*************************************
   * Finite State Machine (FSM)
   *************************************/
@@ -398,6 +513,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (cpu_mode_next),
     .out  (cpu_mode)
   );
+  register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next) .out(dbg_mode));
   register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   register ebreak_todbg_reg (
@@ -419,8 +535,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(exc_exec_stage), .out(exc_exec_stage_r)
   );
   register #(
-    .DTYPE(logic [XLEN-3:0]),
-    .RESET_VALUE(BootAddr[31:2])
+    .DTYPE(logic [XLEN-3:0])
   ) pc_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -429,8 +544,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (pc)
   );
   register #(
-    .DTYPE(logic [XLEN-3:0]),
-    .RESET_VALUE(BootAddr[31:2])
+    .DTYPE(logic [XLEN-3:0])
   ) pc_r_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
