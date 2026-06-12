@@ -83,7 +83,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output logic             flush_mem_wb_o,
   output logic             stop_jmp_write_o,
 
-  output logic [XLEN-1:0]  program_counter_o,
+  output logic [XLEN-1:0]  pc_o,
 
   output logic             jmp_addr_valid_o,
   output logic [XLEN-3:0]  jmp_addr_o,
@@ -114,7 +114,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic exc_mem_wb_stage, exc_mem_wb_stage2;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_mod;
-  logic [XLEN-3:0] program_counter, program_counter_prev, program_counter_next;
+  logic [XLEN-3:0] pc, pc_r, pc_next;
   logic exc_jmp_addr_misalign;
   logic ecall_insn;
   logic ebreak_insn;
@@ -127,6 +127,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic ext_dbg_req, ext_dbg_req_r;
   logic enter_debug;
   logic valid_jump;
+  logic cancel_retire;
 
   logic illegal_insn;
   logic instr_fetch_error;
@@ -185,27 +186,25 @@ module rvj1_ctrl import rvj1_pkg::*; #(
                             dret_fromdbg ||  instr_will_retire || jump || loaded);
   assign valid_jump       = (state == eJUMP1) && ~exc_jmp_addr_misalign;  
   assign stop_jmp_write_o = exc_jmp_addr_misalign;
-  assign jmp_addr_o       = (jmp_addr_valid_o) ? program_counter : '0;
+  assign jmp_addr_o       = (jmp_addr_valid_o) ? pc : '0;
   assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eEXC) || (state == eMRET) || valid_jump ||
                             ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
   always_comb begin
-    program_counter_next = program_counter;
+    pc_next = pc;
     if (enter_debug)
-      program_counter_next = DmRomAddr[31:2];
+      pc_next = DmRomAddr[31:2];
     else if (exception)
-      program_counter_next = csr_mtvec_value[31:2];
+      pc_next = csr_mtvec_value[31:2];
     else if (mret)
-      program_counter_next = csr_mepc_value[31:2];
+      pc_next = csr_mepc_value[31:2];
     else if (state == eJUMP0)
-      program_counter_next = alu_res_r_i[31:2];
+      pc_next = alu_res_r_i[31:2];
     else if (dret_fromdbg)
-      program_counter_next = csr_dpc_value[31:2];
+      pc_next = csr_dpc_value[31:2];
     else if (instr_will_retire || jump || loaded)
-      program_counter_next = program_counter + 1;  // jump - gives us pc + 4 on JAL & JALR
+      pc_next = pc + 1;  // jump - gives us pc + 4 on JAL & JALR
   end
-  
-
-  assign program_counter_o = {program_counter, 2'b00};
+  assign pc_o = {pc, 2'b00};
 
 
   /*************************************
@@ -230,7 +229,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign exception_o = exception;
   `endif
   assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
-
+  assign enter_debug = ext_dbg_req || ebreak_todbg || step_todbg;
   always_comb begin
     exc_cause = 6'b0;
     if (ecall_insn)
@@ -268,7 +267,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Retiring
   *************************************/
   assign instr_retiring_o = (instr_will_retire_r && ~stall_mem_wb_o) || loaded;
-
+  assign cancel_retire    = (state == eEXC);
 
   /*************************************
   * CSR
@@ -292,7 +291,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .ebreak_todbg_i          (ebreak_todbg),
     .step_todrain_i          (step_todrain),
     .ext_dbg_req_i           (ext_dbg_req),
-    .exception_i            (exception),
+    .exception_i             (exception),
     .exc_exec_stage_r_i      (exc_exec_stage_r),
     .exc_mem_wb_stage2_i     (exc_mem_wb_stage2),
     .exc_lsu_access_fault_i  (exc_lsu_access_fault),
@@ -302,8 +301,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .exc_lsu_addr_unalign_i  (exc_lsu_addr_unalign),
     .exc_jmp_addr_misalign_i (exc_jmp_addr_misalign),
     .ebreak_totrp_r_i        (ebreak_totrp_r),
-    .program_counter_i       (program_counter),
-    .program_counter_prev_i  (program_counter_prev),
+    .pc_i                    (pc),
+    .pc_r_i                  (pc_r),
     .alu_res_r_i             (alu_res_r_i),
     .regdest_r_i             (regdest_r_i),
     .stall_mem_wb_i          (stall_mem_wb_o),
@@ -350,7 +349,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm && (cpu_mode != eMODE_DEBUG)  && ~stall_ex_o;
     step_todrain = (state == eRUN)    && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
     step_todbg   = (cpu_mode == eMODE_DRAIN)  &&  instr_retiring_o;
-    enter_debug  = ext_dbg_req || ebreak_todbg || step_todbg;
+    
   end
   always_comb begin
     state_next = (state == eRESET)    ? eBOOT0     : state;
@@ -399,7 +398,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (cpu_mode_next),
     .out  (cpu_mode)
   );
-  register stall_ex_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
+  register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   register ebreak_todbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_todbg), .out(ebreak_todbg_r)
@@ -422,22 +421,22 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   register #(
     .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(BootAddr[31:2])
-  ) program_counter_reg (
+  ) pc_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (pc_mod),
-    .in   (program_counter_next),
-    .out  (program_counter)
+    .in   (pc_next),
+    .out  (pc)
   );
   register #(
     .DTYPE(logic [XLEN-3:0]),
     .RESET_VALUE(BootAddr[31:2])
-  ) program_counter_prev_reg (
+  ) pc_r_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (pc_mod),
-    .in   (program_counter),
-    .out  (program_counter_prev)
+    .in   (pc),
+    .out  (pc_r)
   );
   register #(.DTYPE(logic [5:0])) exc_cause_reg (
     .clk  (clk_i),
@@ -448,7 +447,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   );
   register insn_retire_reg (
     .clk (clk_i),
-    .rstn(rstn_i && ~(state == eEXC)),
+    .rstn(rstn_i && ~cancel_retire),
     .ce  (~stall_mem_wb_o),
     .in  (instr_will_retire),
     .out (instr_will_retire_r)

@@ -118,7 +118,7 @@ module rvj1_top import rvj1_pkg::*; #(
   logic [XLEN-1:0]  alu_op_a_data;
   logic [XLEN-1:0]  alu_op_b_data;
   logic [XLEN-1:0]  alu_res;
-  logic [XLEN-1:0]  program_counter;
+  logic [XLEN-1:0]  pc;
   logic             stall_ex;
   logic             stall_mem_wb;
 
@@ -260,7 +260,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .wpc_we_i   (wpc_we)
   );
 
-  assign alu_op_a_data = rpa_or_pc  ? program_counter : regs1_data;
+  assign alu_op_a_data = rpa_or_pc  ? pc : regs1_data;
   assign alu_op_b_data = rpb_or_imm ? immediate       : regs2_data;
 
   rvj1_alu alu_inst(
@@ -335,7 +335,7 @@ module rvj1_top import rvj1_pkg::*; #(
     unique case ({jump_r, lsu_wb_valid, alu_write_rf_r, csr_wb})
       4'b1000: begin // jump_r - one cycle after execute
         wpc_addr = regdest_r;
-        wpc_data = program_counter;
+        wpc_data = pc;
       end
       4'b0100: begin // lsu_wb_valid - ctrl logic stalls execution path
         wpc_addr = lsu_wb_regdest;
@@ -398,7 +398,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .instr_retiring_o       (instr_retiring),
     .stall_ex_o             (stall_ex),
     .stall_mem_wb_o         (stall_mem_wb),
-    .program_counter_o      (program_counter),
+    .pc_o                   (pc),
     .flush_ex_o             (flush_ex),
     .flush_mem_wb_o         (flush_mem_wb),
     .stop_jmp_write_o       (stop_jmp_write),
@@ -471,7 +471,7 @@ module rvj1_top import rvj1_pkg::*; #(
     exec_stage_comb.rs2_rdata      = use_rpb ? regs2_data : '0;
     exec_stage_comb.rd_addr        = '0; // written in WB
     exec_stage_comb.alu_res        = alu_res;
-    exec_stage_comb.pc_rdata       = program_counter;
+    exec_stage_comb.pc_rdata       = pc;
     exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
     exec_stage_comb.lsu_cmd        = lsu_ctrl;
     exec_stage_comb.lsu_strobe     = 4'b0;

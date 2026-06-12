@@ -42,8 +42,8 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic             exc_lsu_addr_unalign_i,
   input  logic             exc_jmp_addr_misalign_i,
   input  logic             ebreak_totrp_r_i,
-  input  logic [XLEN-3:0]  program_counter_i,
-  input  logic [XLEN-3:0]  program_counter_prev_i,
+  input  logic [XLEN-3:0]  pc_i,
+  input  logic [XLEN-3:0]  pc_r_i,
   input  logic [XLEN-1:0]  alu_res_r_i,
   input  logic [RALEN-1:0] regdest_r_i,
   input  logic             stall_mem_wb_i,
@@ -152,13 +152,13 @@ module rvj1_csr import rvj1_pkg::*; #(
     dpc_next = '0;
     if (ebreak_todbg_i) begin
       dcsr_cause = DCSR_CAUSE_EBREAK;
-      dpc_next   = {program_counter_i, 2'b00};
+      dpc_next   = {pc_i, 2'b00};
     end else if (step_todrain_i) begin
       dcsr_cause = DCSR_CAUSE_STEP;
-      dpc_next   = {program_counter_i + 1'b1, 2'b00};
+      dpc_next   = {pc_i + 1'b1, 2'b00};
     end else if (ext_dbg_req_i) begin 
       dcsr_cause = DCSR_CAUSE_HALTREQ;
-      dpc_next   = {program_counter_i, 2'b00};
+      dpc_next   = {pc_i, 2'b00};
     end else begin
       dcsr_cause = '0;
       dpc_next   = '0;
@@ -397,7 +397,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     if (exception_i && (cpu_mode_i != eMODE_DEBUG)) begin
       mcause_d = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
       mcause_ce = 1'b1;
-      mepc_d = exc_mem_wb_stage2_i ? program_counter_i : program_counter_prev_i;
+      mepc_d = exc_mem_wb_stage2_i ? pc_i : pc_r_i;
       mepc_ce = 1'b1;
       mstatus_d.mie = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
@@ -408,7 +408,7 @@ module rvj1_csr import rvj1_pkg::*; #(
       else if (exc_lsu_addr_unalign_i || exc_jmp_addr_misalign_i)
         mtval_d = alu_res_r_i;
       else if (ebreak_totrp_r_i)
-        mtval_d = {program_counter_prev_i, 2'b00};
+        mtval_d = {pc_r_i, 2'b00};
       else
         mtval_d = '0;
       mtval_ce = 1'b1;
