@@ -414,7 +414,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .mret_insn_i            (mret_insn),
     .ebreak_insn_i          (ebreak_insn),
     .dret_insn_i            (dret_insn),
-    .illegal_instr_i        (illegal_instr),
+    .illegal_insn_i         (illegal_instr),
     .load_addr_misaligned_i (load_addr_misaligned),
     .load_access_fault_i    (load_access_fault),
     .store_addr_misaligned_i(store_addr_misaligned),
