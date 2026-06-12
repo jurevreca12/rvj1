@@ -35,11 +35,11 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic             synhr_trap_i,
   input  logic             synhr_trap_ex_r_i,
   input  logic             synhr_trap_mem_wb2_i,
-  input  logic             lsu_trap_i,
+  input  logic             exc_lsu_access_fault_i,
   input  logic [XLEN-1:0]  lsu_exc_addr_i,
-  input  logic [5:0]       trap_cause_i,
-  input  logic [5:0]       trap_cause_r_i,
-  input  logic             addr_unaligned_trap_i,
+  input  logic [5:0]       exc_cause_i,
+  input  logic [5:0]       exc_cause_r_i,
+  input  logic             exc_lsu_addr_unalign_i,
   input  logic             instr_addr_misaligned_i,
   input  logic             ebreak_totrp_r_i,
   input  logic [XLEN-3:0]  program_counter_i,
@@ -338,7 +338,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     dscratch1_d = dscratch1_q;
     dscratch1_ce = 1'b0;
     if (synhr_trap_i && (cpu_mode_i != eMODE_DEBUG)) begin
-      mcause_d = synhr_trap_ex_r_i ? trap_cause_r_i : trap_cause_i;
+      mcause_d = synhr_trap_ex_r_i ? exc_cause_r_i : exc_cause_i;
       mcause_ce = 1'b1;
       mepc_d = synhr_trap_mem_wb2_i ? program_counter_i : program_counter_prev_i;
       mepc_ce = 1'b1;
@@ -346,9 +346,9 @@ module rvj1_csr import rvj1_pkg::*; #(
       mstatus_d.mpie = mstatus_q.mie;
       mstatus_d.mpp = 1'b1;
       mstatus_ce = 1'b1;
-      if (lsu_trap_i)
+      if (exc_lsu_access_fault_i)
         mtval_d = lsu_exc_addr_i;
-      else if (addr_unaligned_trap_i || instr_addr_misaligned_i)
+      else if (exc_lsu_addr_unalign_i || instr_addr_misaligned_i)
         mtval_d = alu_res_r_i;
       else if (ebreak_totrp_r_i)
         mtval_d = {program_counter_prev_i, 2'b00};

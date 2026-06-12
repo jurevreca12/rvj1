@@ -109,7 +109,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic csr_write_hazard, csr_write_hazard_r;
   logic raw_hazard;
   logic load, loaded, jump, takebr, mret;
-  logic synhr_trap, lsu_trap, addr_unaligned_trap;
+  logic synhr_trap, exc_lsu_access_fault, exc_lsu_addr_unalign;
   logic synhr_trap_ex, synhr_trap_ex_r;
   logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
   logic instr_will_retire, instr_will_retire_r;
@@ -132,7 +132,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic instr_fetch_error;
   logic stall_ex_o_r;
   logic csr_mod_insns;
-  logic [5:0] trap_cause, trap_cause_r;
+  logic [5:0] exc_cause, exc_cause_r;
   logic illegal_csr_write;
   logic nonexist_csr_access; 
   logic debug_csr_access_err;
@@ -159,21 +159,21 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   
   assign lsu_busy       = lsu_ctrl_valid_r_i && ~lsu_ready_i;
   assign stall_mem_wb_o = lsu_busy || (state == eJUMP1) || (state == eTRAP);
-  assign stall_ex_o = (raw_hazard ||
-                       stall_mem_wb_o ||
-                       (state == eLOAD) ||
-                       (state == eJUMP0) ||
-                       (state == eJUMP1) ||
-                       (state == eTRAP) ||
-                       (state == eMRET) ||
-                       (state == eTO_DEBUG) ||
-                       dret_fromdbg_r);
-  assign flush_ex_o = ((state == eJUMP0) ||
-                       (state == eTRAP) ||
-                       (state == eMRET) ||
-                       (state == eTO_DEBUG) ||
-                       step_todbg ||
-                       dret_fromdbg_r);
+  assign stall_ex_o     = (raw_hazard ||
+                           stall_mem_wb_o ||
+                           (state == eLOAD) ||
+                           (state == eJUMP0) ||
+                           (state == eJUMP1) ||
+                           (state == eTRAP) ||
+                           (state == eMRET) ||
+                           (state == eTO_DEBUG) ||
+                           dret_fromdbg_r);
+  assign flush_ex_o     = ((state == eJUMP0) ||
+                           (state == eTRAP) ||
+                           (state == eMRET) ||
+                           (state == eTO_DEBUG) ||
+                           step_todbg ||
+                           dret_fromdbg_r);
   assign flush_mem_wb_o = (flush_ex_o ||
                           (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
                           (~control_i && ~stall_ex_o));
@@ -209,7 +209,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
 
   /*************************************
-  * Traps
+  * Exceptions
   *************************************/
   assign ecall_insn        = ecall_insn_i        && ~stall_ex_o;
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
@@ -218,45 +218,45 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
 
-  assign illegal_csr_insn    = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
-  assign addr_unaligned_trap = load_addr_misaligned_i || store_addr_misaligned_i;
-  assign lsu_trap            = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
-  assign insn_addr_misalign  = alu_res_r_i[1] && (state == eJUMP0);
-  assign synhr_trap_ex       = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
-  assign synhr_trap_mem_wb   = (lsu_trap || illegal_csr_insn || insn_addr_misalign || addr_unaligned_trap);
-  assign synhr_trap_mem_wb2  = (lsu_trap || load_addr_misaligned_i);
-  assign synhr_trap          = synhr_trap_ex_r || synhr_trap_mem_wb;
+  assign illegal_csr_insn     = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
+  assign exc_lsu_addr_unalign = load_addr_misaligned_i || store_addr_misaligned_i;
+  assign exc_lsu_access_fault = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
+  assign insn_addr_misalign   = alu_res_r_i[1] && (state == eJUMP0);
+  assign synhr_trap_ex        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
+  assign synhr_trap_mem_wb    = (exc_lsu_access_fault || illegal_csr_insn || insn_addr_misalign || exc_lsu_addr_unalign);
+  assign synhr_trap_mem_wb2   = (exc_lsu_access_fault || load_addr_misaligned_i);
+  assign synhr_trap           = synhr_trap_ex_r || synhr_trap_mem_wb;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
   `endif
   assign debug_rsp_o         = (state == eTO_DEBUG) && ext_dbg_req_r;
 
   always_comb begin
-    trap_cause = 6'b0;
+    exc_cause = 6'b0;
     if (ecall_insn)
-      trap_cause = MCAUSE_ECALL_FROM_M_MODE;
+      exc_cause = MCAUSE_ECALL_FROM_M_MODE;
     else if (instr_fetch_error)
-      trap_cause = MCAUSE_INSTR_ACCESS_FAULT;
+      exc_cause = MCAUSE_INSTR_ACCESS_FAULT;
     else if (illegal_insn || illegal_csr_insn)
-      trap_cause = MCAUSE_ILLEGAL_INSTRUCTION;
+      exc_cause = MCAUSE_ILLEGAL_INSTRUCTION;
     else if (ebreak_insn)
-      trap_cause = MCAUSE_BREAKPOINT;
+      exc_cause = MCAUSE_BREAKPOINT;
     else if (load_addr_misaligned_i)
-      trap_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
+      exc_cause = MCAUSE_LOAD_ADDR_MISALIGNED;
     else if (store_addr_misaligned_i)
-      trap_cause = MCAUSE_STORE_ADDR_MISALINGED;
+      exc_cause = MCAUSE_STORE_ADDR_MISALINGED;
     else if (load_access_fault_i)
-      trap_cause = MCAUSE_LOAD_ACCESS_FAULT;
+      exc_cause = MCAUSE_LOAD_ACCESS_FAULT;
     else if (store_access_fault_i)
-      trap_cause = MCAUSE_STORE_ACCESS_FAULT;
+      exc_cause = MCAUSE_STORE_ACCESS_FAULT;
     else if (insn_addr_misalign)
-      trap_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
+      exc_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
   end
 
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
-    `ASSERT_SINGLE_CYCLE_HOLD(lsu_trap);
-    `ASSERT_SINGLE_CYCLE_HOLD(addr_unaligned_trap);
+    `ASSERT_SINGLE_CYCLE_HOLD(exc_lsu_access_fault);
+    `ASSERT_SINGLE_CYCLE_HOLD(exc_lsu_addr_unalign);
     `ASSERT_SINGLE_CYCLE_HOLD(insn_addr_misalign);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
@@ -295,17 +295,17 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .synhr_trap_i            (synhr_trap),
     .synhr_trap_ex_r_i       (synhr_trap_ex_r),
     .synhr_trap_mem_wb2_i    (synhr_trap_mem_wb2),
-    .lsu_trap_i              (lsu_trap),
+    .exc_lsu_access_fault_i  (exc_lsu_access_fault),
     .lsu_exc_addr_i          (lsu_exc_addr_i),
-    .trap_cause_i            (trap_cause),
-    .trap_cause_r_i          (trap_cause_r),
-    .addr_unaligned_trap_i   (addr_unaligned_trap),
+    .exc_cause_i             (exc_cause),
+    .exc_cause_r_i           (exc_cause_r),
+    .exc_lsu_addr_unalign_i  (exc_lsu_addr_unalign),
     .instr_addr_misaligned_i (insn_addr_misalign),
     .ebreak_totrp_r_i        (ebreak_totrp_r),
     .program_counter_i       (program_counter),
     .program_counter_prev_i  (program_counter_prev),
     .alu_res_r_i             (alu_res_r_i),
-    .regdest_r_i                  (regdest_r_i),
+    .regdest_r_i             (regdest_r_i),
     .stall_mem_wb_i          (stall_mem_wb_o),
 
     .illegal_csr_write_o     (illegal_csr_write), 
@@ -440,12 +440,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (program_counter),
     .out  (program_counter_prev)
   );
-  register #(.DTYPE(logic [5:0])) trap_cause_reg (
+  register #(.DTYPE(logic [5:0])) exc_cause_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (1'b1),
-    .in   (trap_cause),
-    .out  (trap_cause_r)
+    .in   (exc_cause),
+    .out  (exc_cause_r)
   );
   register insn_retire_reg (
     .clk (clk_i),
