@@ -65,8 +65,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic [15:0]      irq_platform_i,
   input  logic             irq_nmi_i,
 
-  input  logic             debug_req_i,
-  output logic             debug_rsp_o,
+  input  logic             ext_dbg_req_i,
 
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
@@ -94,11 +93,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
 
-  output logic exception_o,
+  output logic exception_o
  `endif
 );
   //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
-  rvj1_op_mode_e cpu_mode, cpu_mode_next;
+  typedef enum logic [1:0] {
+    eRESET,
+    eJUMP,
+    eRUN,
+    eLOAD
+  } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
   // Other defintions
@@ -108,7 +112,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic lsu_busy;
   logic csr_write_hazard, csr_write_hazard_r;
   logic raw_hazard;
-  logic load, loaded, jump, takebr, mret;
+  logic loaded;
   logic exception, exc_lsu_access_fault, exc_lsu_addr_unalign;
   logic exc_exec_stage, exc_exec_stage_r;
   logic exc_mem_wb_stage, exc_mem_wb_stage2;
@@ -117,18 +121,21 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [XLEN-3:0] pc, pc_r, pc_next;
   logic exc_jmp_addr_misalign;
   logic ecall_insn;
-  logic ebreak_insn;
+  logic ebreak_insn, ebreak_insn_r;
   logic dret_insn;
+  logic mret_insn;
   logic illegal_csr_insn;
   logic ebreak_todbg, ebreak_todbg_r, dret_fromdbg, dret_fromdbg_r;
   logic ebreak_totrp, ebreak_totrp_r;
   logic step_todrain;
   logic step_todbg, step_todbg_r;
-  logic ext_dbg_req, ext_dbg_req_r;
+  logic ext_dbg_req_r;
   logic enter_debug;
-  logic valid_jump;
   logic cancel_retire;
   logic dbg_mode, dbg_mode_next;
+  logic ctrl_jump;
+  logic [2:0]  dcsr_cause;
+  logic [31:0] dpc_next;
 
   logic illegal_insn;
   logic instr_fetch_error;
@@ -140,13 +147,24 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic debug_csr_access_err;
   logic rf_a_reg_match, rf_b_reg_match;
 
+  logic [XLEN-1:0]  exc_mtval;
+
+  logic             csr_exc_write;
+  logic [5:0]       csr_exc_mcause;
+  logic [XLEN-1:0]  csr_exc_mepc;
+  logic [XLEN-1:0]  csr_exc_mtval;
+  logic             csr_mret_restore;
+  logic             csr_dbg_write;
+  logic [2:0]       csr_dbg_cause;
+  logic [XLEN-3:0]  csr_dbg_dpc;
+
   dcsr_reg_t dcsr_q;
   logic [XLEN-1:0] csr_dpc_value;
   logic [XLEN-1:0] csr_mepc_value;
   logic [XLEN-1:0] csr_mtvec_value;
 
   /*************************************
-  * Stalling logic
+  * Hazard Detection logic
   *************************************/
   assign rf_a_reg_match = (regdest_r_i == rf_addr_a_i) && (rf_addr_a_i != 5'b00000);
   assign rf_b_reg_match = (regdest_r_i == rf_addr_b_i) && (rf_addr_b_i != 5'b00000);
@@ -158,54 +176,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign csr_mod_insns    = mret_insn_i || ecall_insn_i || ebreak_insn_i || illegal_insn_i || instr_fetch_error_i;
   assign csr_write_hazard = (csr_valid_r_i && csr_mod_insns && ~csr_write_hazard_r); 
   assign raw_hazard       = rf_a_hazard || rf_b_hazard || lsu_b_hazard || csr_write_hazard;
-  
-  assign lsu_busy       = lsu_ctrl_valid_r_i && ~lsu_ready_i;
-  assign stall_mem_wb_o = lsu_busy || (state == eJUMP1) || (state == eEXC);
-  assign stall_ex_o     = (raw_hazard ||
-                           stall_mem_wb_o ||
-                           (state == eLOAD) ||
-                           (state == eJUMP0) ||
-                           (state == eJUMP1) ||
-                           (state == eEXC) ||
-                           (state == eMRET) ||
-                           (state == eTO_DEBUG) ||
-                           dret_fromdbg_r);
-  assign flush_ex_o     = ((state == eJUMP0) ||
-                           (state == eEXC) ||
-                           (state == eMRET) ||
-                           (state == eTO_DEBUG) ||
-                           step_todbg ||
-                           dret_fromdbg_r);
-  assign flush_mem_wb_o = (flush_ex_o ||
-                          (lsu_ctrl_valid_r_i && lsu_ready_i && (state == eLOAD)) || // flush so each cmd used only once
-                          (~control_i && ~stall_ex_o));
-
-  /*************************************
-  *  Program Counter - Jumping logic
-  *************************************/
-  assign pc_mod           = (exception || mret || (state == eJUMP0) ||  enter_debug || 
-                            dret_fromdbg ||  instr_will_retire || jump || loaded);
-  assign valid_jump       = (state == eJUMP1) && ~exc_jmp_addr_misalign;  
-  assign stop_jmp_write_o = exc_jmp_addr_misalign;
-  assign jmp_addr_o       = (jmp_addr_valid_o) ? pc : '0;
-  assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eEXC) || (state == eMRET) || valid_jump ||
-                            ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
-  always_comb begin
-    pc_next = pc;
-    if (enter_debug)
-      pc_next = DmRomAddr[31:2];
-    else if (exception)
-      pc_next = csr_mtvec_value[31:2];
-    else if (mret)
-      pc_next = csr_mepc_value[31:2];
-    else if (state == eJUMP0)
-      pc_next = alu_res_r_i[31:2];
-    else if (dret_fromdbg)
-      pc_next = csr_dpc_value[31:2];
-    else if (instr_will_retire || jump || loaded)
-      pc_next = pc + 1;  // jump - gives us pc + 4 on JAL & JALR
-  end
-  assign pc_o = {pc, 2'b00};
+  assign lsu_busy         = lsu_ctrl_valid_r_i && ~lsu_ready_i;
 
 
   /*************************************
@@ -215,8 +186,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign instr_will_retire = instr_will_retire_i && ~stall_ex_o;
   assign ebreak_insn       = ebreak_insn_i       && ~stall_ex_o;
   assign dret_insn         = dret_insn_i         && ~stall_ex_o;
+  assign mret_insn         = mret_insn_i         && ~stall_ex_o;
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
+  assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
  
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
@@ -267,31 +240,38 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Retiring
   *************************************/
   assign instr_retiring_o = (instr_will_retire_r && ~stall_mem_wb_o) || loaded;
-  assign cancel_retire    = (state == eEXC);
-
 
 
   /*************************************
   * Debug
   *************************************/
-  assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
-  assign enter_debug = ext_dbg_req || ebreak_todbg || step_todbg;
+  assign enter_debug = ext_dbg_req_i || ebreak_todbg || step_todbg;
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
-    if (ebreak_todbg_i) begin
+    if (ebreak_todbg) begin
       dcsr_cause = DCSR_CAUSE_EBREAK;
-      dpc_next   = {pc_i, 2'b00};
-    end else if (step_todrain_i) begin
+      dpc_next   = {pc, 2'b00};
+    end else if (step_todrain) begin
       dcsr_cause = DCSR_CAUSE_STEP;
-      dpc_next   = {pc_i + 1'b1, 2'b00};
+      dpc_next   = {pc + 1'b1, 2'b00};
     end else if (ext_dbg_req_i) begin 
       dcsr_cause = DCSR_CAUSE_HALTREQ;
-      dpc_next   = {pc_i, 2'b00};
+      dpc_next   = {pc, 2'b00};
     end else begin
       dcsr_cause = '0;
       dpc_next   = '0;
     end
+  end
+
+  always_comb begin
+    exc_mtval = '0;
+    if (exc_lsu_access_fault)
+      exc_mtval = lsu_exc_addr_i;
+    else if (exc_lsu_addr_unalign || exc_jmp_addr_misalign)
+      exc_mtval = alu_res_r_i;
+    else if (ebreak_insn_r)
+      exc_mtval = {pc_r, 2'b00};
   end
 
   /*************************************
@@ -310,26 +290,19 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .csr_valid_r_i           (csr_valid_r_i),
     .csr_addr_r_i            (csr_addr_r_i),
     .csr_cmd_r_i             (csr_cmd_r_i),
-
-    .cpu_mode_i              (cpu_mode),
-    .state_i                 (state),
-    .ebreak_todbg_i          (ebreak_todbg),
-    .step_todrain_i          (step_todrain),
-    .ext_dbg_req_i           (ext_dbg_req),
-    .exception_i             (exception),
-    .exc_exec_stage_r_i      (exc_exec_stage_r),
-    .exc_mem_wb_stage2_i     (exc_mem_wb_stage2),
-    .exc_lsu_access_fault_i  (exc_lsu_access_fault),
-    .lsu_exc_addr_i          (lsu_exc_addr_i),
-    .exc_cause_i             (exc_cause),
-    .exc_cause_r_i           (exc_cause_r),
-    .exc_lsu_addr_unalign_i  (exc_lsu_addr_unalign),
-    .exc_jmp_addr_misalign_i (exc_jmp_addr_misalign),
-    .ebreak_totrp_r_i        (ebreak_totrp_r),
-    .pc_i                    (pc),
-    .pc_r_i                  (pc_r),
     .alu_res_r_i             (alu_res_r_i),
     .regdest_r_i             (regdest_r_i),
+
+    .csr_exc_write_i         (csr_exc_write),
+    .csr_exc_mcause_i        (csr_exc_mcause),
+    .csr_exc_mepc_i          (csr_exc_mepc),
+    .csr_exc_mtval_i         (csr_exc_mtval),
+    .csr_mret_restore_i      (csr_mret_restore),
+    .csr_dbg_write_i         (csr_dbg_write),
+    .csr_dbg_cause_i         (csr_dbg_cause),
+    .csr_dbg_dpc_i           (csr_dbg_dpc),
+
+    .dbg_mode_i              (dbg_mode),
     .stall_mem_wb_i          (stall_mem_wb_o),
 
     .illegal_csr_write_o     (illegal_csr_write), 
@@ -362,7 +335,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   always_comb begin
     pc_next          = pc;
     pc_mod           = 1'b0;
-    exc_cause        = 6'b0;
     state_next       = state;
     cancel_retire    = 1'b0;
     jmp_addr_valid_o = 1'b0;
@@ -373,6 +345,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     flush_mem_wb_o   = 1'b0;
     stop_jmp_write_o = 1'b0;
     dbg_mode_next    = dbg_mode;
+    loaded           = 1'b0;
 
     csr_exc_write    = 1'b0;
     csr_exc_mcause   = '0;
@@ -391,21 +364,38 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         jmp_addr_valid_o = 1'b1;
         jmp_addr_o       = BootAddr[31:2];
       end
+
       eRUN: begin
-        stall_ex_o = raw_hazard;
-        if (instr_will_retire || jump) begin
-          pc_next = pc + 1; // jump - gives us pc + 4 on JAL & JALR
+        stall_ex_o     = raw_hazard | lsu_busy | exception | mret_insn | enter_debug | mret_insn;
+        stall_mem_wb_o = lsu_busy;
+        flush_ex_o     = ctrl_jump | exception | mret_insn | enter_debug | mret_insn;
+        flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
+
+        if (instr_will_retire) begin
+          pc_next = pc + 1; 
           pc_mod  = 1'b1;
         end
+
+        if (branch_cond_met_i) begin
+          state_next = eJUMP;
+        end
+
+        if (ctrl_jump) begin 
+          pc_next    = pc + 1; // gives us pc + 4 on JAL & JALR
+          pc_mod     = 1'b1;
+          state_next = eJUMP;
+        end
+
         if (exception) begin
           jmp_addr_valid_o = 1'b1;
           jmp_addr_o       = csr_mtvec_value[31:2];
           pc_next          = csr_mtvec_value[31:2];
           pc_mod           = 1'b1;
           csr_exc_write    = 1'b1;
-          csr_exc_mcause   = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
-          csr_exc_mepc     = exc_mem_wb_stage2_i ? pc_i : pc_r_i;
+          csr_exc_mcause   = exc_exec_stage_r  ? exc_cause_r : exc_cause;
+          csr_exc_mepc     = exc_mem_wb_stage2 ? pc          : pc_r;
           csr_exc_mtval    = exc_mtval;
+          cancel_retire    = 1'b1;
         end
         
         if (mret_insn) begin
@@ -423,74 +413,42 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           pc_mod           = 1'b1;
           dbg_mode_next    = 1'b1;
           csr_dbg_write    = 1'b1;
-          csr_dbg_cause    = dbg_cause;
-          csr_dbg_dpc      = dbg_dpc; 
+          csr_dbg_cause    = dcsr_cause;
+          csr_dbg_dpc      = dpc_next; 
         end
 
-        if (exit_debug) begin
+        if (mret_insn) begin
           dbg_mode_next   = 1'b0;
         end
       end
+
       eJUMP: begin
         state_next = eRUN;
         stall_ex_o = 1'b1;
         flush_ex_o = 1'b1;
+        jmp_addr_valid_o = 1'b1;
+        jmp_addr_o       = alu_res_r_i[31:2];
         if (exc_jmp_addr_misalign) begin
           state_next        = eJUMP;
-          pc_next           = mtval;
+          pc_next           = csr_mtvec_value[31:2];
           pc_mod            = 1'b1;
           jmp_addr_o        = csr_mtvec_value[31:2];
+          jmp_addr_valid_o  = 1'b1;
           stop_jmp_write_o  = 1'b1;
         end
       end
+
       eLOAD: begin
+        stall_ex_o = 1'b1;
+        if (lsu_wb_i) begin
+          loaded = 1'b1;
+          state_next = eRUN;
+        end
       end
     endcase
 
   end
 
-  /*************************************
-  * Finite State Machine (FSM)
-  *************************************/
-  always_comb begin
-    load         = (state == eRUN)    &&  lsu_ctrl_valid_i && ~lsu_cmd_i[3]      && ~stall_ex_o;
-    loaded       = (state == eLOAD)   &&  lsu_wb_i;
-    jump         = (state == eRUN)    &&  ctrl_jump_i                            && ~stall_ex_o;
-    takebr       = (state == eRUN)    &&  branch_cond_met_i                      && ~stall_ex_o;
-    mret         = (state == eRUN)    &&  mret_insn_i                            && ~stall_ex_o;
-    ext_dbg_req  = (state == eRUN)    && (cpu_mode == eMODE_NORM) && debug_req_i && ~stall_ex_o;
-    ebreak_todbg = (state == eRUN)    &&  ebreak_insn && (dcsr_q.ebreakm || (cpu_mode == eMODE_DEBUG)) && ~stall_ex_o;
-    // EBREAK causes a trap only if ebreakm is 0
-    ebreak_totrp = (state == eRUN)    &&  ebreak_insn && ~dcsr_q.ebreakm && (cpu_mode != eMODE_DEBUG)  && ~stall_ex_o;
-    step_todrain = (state == eRUN)    && (cpu_mode == eMODE_NORM) && control_i && dcsr_q.step && ~stall_ex_o;
-    step_todbg   = (cpu_mode == eMODE_DRAIN)  &&  instr_retiring_o;
-    
-  end
-  always_comb begin
-    state_next = (state == eRESET)    ? eBOOT0     : state;
-    state_next = (state == eBOOT0)    ? eBOOT1     : state_next;
-    state_next = (state == eBOOT1)    ? eRUN       : state_next;
-    state_next = load                 ? eLOAD      : state_next;
-    state_next = loaded               ? eRUN       : state_next;
-    state_next = jump                 ? eJUMP0     : state_next;
-    state_next = (state == eJUMP0)    ? eJUMP1     : state_next;
-    state_next = (state == eJUMP1)    ? eRUN       : state_next;
-    state_next = takebr               ? eJUMP0     : state_next;
-    state_next = exception            ? eEXC      : state_next;
-    state_next = (state == eEXC)      ? eRUN       : state_next;
-    state_next = mret                 ? eMRET      : state_next;
-    state_next = (state == eMRET)     ? eRUN       : state_next;
-    state_next = enter_debug          ? eTO_DEBUG  : state_next;
-    state_next = (state == eTO_DEBUG) ? eRUN       : state_next;
-  end
-
-  assign dret_fromdbg = (cpu_mode == eMODE_DEBUG) && dret_insn; 
-  always_comb begin
-    cpu_mode_next = enter_debug   ? eMODE_DEBUG : cpu_mode;
-    cpu_mode_next = step_todrain  ? eMODE_DRAIN : cpu_mode_next;
-    cpu_mode_next = step_todbg    ? eMODE_DEBUG : cpu_mode_next;
-    cpu_mode_next = dret_fromdbg  ? eMODE_NORM  : cpu_mode_next;
-  end
 
   // REGISTERS
   register #(
@@ -503,17 +461,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (state_next),
     .out  (state)
   );
-  register #(
-    .DTYPE(rvj1_op_mode_e),
-    .RESET_VALUE(eMODE_NORM)
-  ) cpu_mode_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (1'b1),
-    .in   (cpu_mode_next),
-    .out  (cpu_mode)
-  );
-  register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next) .out(dbg_mode));
+  register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next), .out(dbg_mode));
   register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   register ebreak_todbg_reg (
@@ -522,8 +470,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   register dret_fromdbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dret_fromdbg), .out(dret_fromdbg_r)
   );
+  register ebreak_insn_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_insn), .out(ebreak_insn_r)
+  );
   register ext_dbg_req_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ext_dbg_req), .out(ext_dbg_req_r)
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ext_dbg_req_i), .out(ext_dbg_req_r)
   );
   register step_todbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(step_todbg), .out(step_todbg_r)

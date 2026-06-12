@@ -43,7 +43,7 @@ module rvj1_test_top import rvj1_pkg::*;();
   logic              data_rsp_valid;
   logic              data_rsp_ready;
 
-  logic              debug_req_i;
+  logic              ext_dbg_req_i;
 
   `ifdef RVFI
   `RVFI_WIRES
@@ -96,7 +96,7 @@ module rvj1_test_top import rvj1_pkg::*;();
     rvj1_top #(
       .BootAddr(BootAddr),
       .DmRomAddr(DmRomAddr)
-    )dut(
+    ) dut (
       .clk_i       (clk),
       .rstn_i      (rstn),
 
@@ -135,8 +135,7 @@ module rvj1_test_top import rvj1_pkg::*;();
       .irq_platform_i    (16'b0),
       .irq_nmi_i         (1'b0),
 
-      .debug_req_i       (debug_req_i),
-      .debug_rsp_o       ()
+      .ext_dbg_req_i     (ext_dbg_req_i)
 
       // verilator lint_off REDEFMACRO
       `ifdef RVFI

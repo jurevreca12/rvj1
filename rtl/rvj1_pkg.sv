@@ -260,26 +260,6 @@ package rvj1_pkg;
     } rvfi_stage_info_t;
     `endif
 
-    typedef enum logic [1:0] {
-      eMODE_NORM,
-      eMODE_DEBUG,
-      eMODE_DRAIN // wait for all instructions to retire before entering debug mode (used for single stepping)
-    } rvj1_op_mode_e;
-
-    typedef enum logic [3:0] {
-      eRESET,
-      eBOOT0,
-      eBOOT1,
-      eJUMP0,
-      eJUMP1,
-      eRUN,
-      eLOAD,   // loading a value from data mem to a register.
-      eEXC,
-      eMRET,
-      eTO_DEBUG
-    } rvj1_fsm_e;
-
-
     function automatic logic is_write_cmd(input lsu_ctrl_e cmd);
         return cmd[3];
     endfunction

@@ -40,9 +40,9 @@ async def run_rvj1(dut):
     for clk_cnt in range(TIMEOUT_CLOCKS):
         await RisingEdge(dut.clk)
         if clk_cnt == debug_req_clock:
-            dut.debug_req_i.value = 1
-        if dut.dut.debug_rsp_o.value == 1:
-            dut.debug_req_i.value = 0
+            dut.ext_dbg_req_i.value = 1
+        if clk_cnt == (debug_req_clock + 1):
+            dut.ext_dbg_req_i.value = 0
         if dut.dut.regfile_inst.regfile[31].value == 1:
             break
 

@@ -26,35 +26,19 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic             csr_valid_r_i,
   input  logic [11:0]      csr_addr_r_i,
   input  csr_cmd_t         csr_cmd_r_i,
+  input  logic [XLEN-1:0]  alu_res_r_i,
+  input  logic [RALEN-1:0] regdest_r_i,
 
   input  logic             csr_exc_write_i,
   input  logic [5:0]       csr_exc_mcause_i,
   input  logic [XLEN-1:0]  csr_exc_mepc_i,
   input  logic [XLEN-1:0]  csr_exc_mtval_i,
-  input  logic             csr_mret_restore_i
-  input  logic             csr_dbg_write_i
-  input  logic [2:0]       csr_dbg_cause
-  input  logic [XLEN-3:0]  csr_dbg_dpc,
+  input  logic             csr_mret_restore_i,
+  input  logic             csr_dbg_write_i,
+  input  logic [2:0]       csr_dbg_cause_i,
+  input  logic [XLEN-3:0]  csr_dbg_dpc_i,
 
-  input  rvj1_op_mode_e    cpu_mode_i,
-  input  rvj1_fsm_e        state_i,
-  input  logic             ebreak_todbg_i,
-  input  logic             step_todrain_i,
-  input  logic             ext_dbg_req_i,
-  input  logic             exception_i,
-  input  logic             exc_exec_stage_r_i,
-  input  logic             exc_mem_wb_stage2_i,
-  input  logic             exc_lsu_access_fault_i,
-  input  logic [XLEN-1:0]  lsu_exc_addr_i,
-  input  logic [5:0]       exc_cause_i,
-  input  logic [5:0]       exc_cause_r_i,
-  input  logic             exc_lsu_addr_unalign_i,
-  input  logic             exc_jmp_addr_misalign_i,
-  input  logic             ebreak_totrp_r_i,
-  input  logic [XLEN-3:0]  pc_i,
-  input  logic [XLEN-3:0]  pc_r_i,
-  input  logic [XLEN-1:0]  alu_res_r_i,
-  input  logic [RALEN-1:0] regdest_r_i,
+  input  logic             dbg_mode_i,
   input  logic             stall_mem_wb_i,
 
   output logic             illegal_csr_write_o, 
@@ -110,8 +94,6 @@ module rvj1_csr import rvj1_pkg::*; #(
   logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
   logic csr_valid_write;
   logic csr_valid_read;
-  logic [2:0]  dcsr_cause;
-  logic [31:0] dpc_next;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value, csr_mstatus_masked;
@@ -225,7 +207,7 @@ module rvj1_csr import rvj1_pkg::*; #(
                             csr_valid_r_i && (csr_cmd_r_i == CSRRC) && (alu_res_r_i != '0));
 
   assign illegal_csr_write_o = csr_valid_write && csr_addr_r_i[11:10] == 2'b11;
-  assign debug_csr_access_err_o = csr_valid_r_i && (cpu_mode_i != eMODE_DEBUG) && (
+  assign debug_csr_access_err_o = csr_valid_r_i && !dbg_mode_i && (
                                 (csr_addr_r_i == CSR_DCSR_ADDR) || 
                                 (csr_addr_r_i == CSR_DPC_ADDR) || 
                                 (csr_addr_r_i == CSR_DSCRATCH0_ADDR) ||
@@ -332,87 +314,82 @@ module rvj1_csr import rvj1_pkg::*; #(
         CSR_MSTATUS_ADDR: begin
           // Will the synthesis tool optimize these two function calls into a single module?
           csr_mstatus_masked = csr_mask_op(alu_res_r_i, csr_mstatus_value, csr_cmd_r_i);
-          mstatus_d.mie = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
-          mstatus_d.mpie = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
-          mstatus_d.mpp = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
-          mstatus_ce = 1'b1;
+          mstatus_d.mie      = csr_mstatus_masked[CSR_MSTATUS_MIE_BIT];
+          mstatus_d.mpie     = csr_mstatus_masked[CSR_MSTATUS_MPIE_BIT];
+          mstatus_d.mpp      = csr_mstatus_masked[CSR_MSTATUS_MPP_BIT_0]; // WARL
+          mstatus_ce         = 1'b1;
         end
         CSR_MSCRATCH_ADDR: begin
-          mscratch_d = csr_mask_op(alu_res_r_i, csr_mscratch_value, csr_cmd_r_i);
+          mscratch_d  = csr_mask_op(alu_res_r_i, csr_mscratch_value, csr_cmd_r_i);
           mscratch_ce = 1'b1;
         end
         CSR_MTVEC_ADDR: begin
           csr_mtvec_masked = csr_mask_op(alu_res_r_i, csr_mtvec_value, csr_cmd_r_i);
-          mtvec_d = csr_mtvec_masked[31:2];
-          mtvec_ce = 1'b1;
+          mtvec_d          = csr_mtvec_masked[31:2];
+          mtvec_ce         = 1'b1;
         end
         CSR_MEPC_ADDR: begin
           csr_mepc_masked = csr_mask_op(alu_res_r_i, csr_mepc_value, csr_cmd_r_i);
-          mepc_d = csr_mepc_masked[31:2];
-          mepc_ce = 1'b1;
+          mepc_d          = csr_mepc_masked[31:2];
+          mepc_ce         = 1'b1;
         end
         CSR_MCAUSE_ADDR: begin
           csr_mcause_masked = csr_mask_op(alu_res_r_i, csr_mcause_value, csr_cmd_r_i);
-          mcause_d = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
-          mcause_ce = 1'b1;
+          mcause_d          = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
+          mcause_ce         = 1'b1;
         end
         CSR_MTVAL_ADDR: begin
           csr_mtval_masked = csr_mask_op(alu_res_r_i, csr_mtval_value, csr_cmd_r_i);
-          mtval_d = csr_mtval_masked;
-          mtval_ce = 1'b1;
+          mtval_d          = csr_mtval_masked;
+          mtval_ce         = 1'b1;
         end
         CSR_DCSR_ADDR: begin
           csr_dcsr_masked = csr_mask_op(alu_res_r_i, csr_dcsr_value, csr_cmd_r_i);
-          dcsr_d.step = csr_dcsr_masked[CSR_DCSR_STEP_BIT];
-          dcsr_d.ebreakm = csr_dcsr_masked[CSR_DCSR_EBREAKM_BIT];
-          dcsr_ce = (cpu_mode_i == eMODE_DEBUG);
+          dcsr_d.step     = csr_dcsr_masked[CSR_DCSR_STEP_BIT];
+          dcsr_d.ebreakm  = csr_dcsr_masked[CSR_DCSR_EBREAKM_BIT];
+          dcsr_ce         = dbg_mode_i;
         end
         CSR_DPC_ADDR: begin
           csr_dpc_masked = csr_mask_op(alu_res_r_i, csr_dpc_value, csr_cmd_r_i);
-          dpc_d = csr_dpc_masked;
-          dpc_ce = (cpu_mode_i == eMODE_DEBUG);
+          dpc_d          = csr_dpc_masked;
+          dpc_ce         = dbg_mode_i;
         end
         CSR_DSCRATCH0_ADDR: begin
           csr_dscratch0_masked = csr_mask_op(alu_res_r_i, csr_dscratch0_value, csr_cmd_r_i);
-          dscratch0_d = csr_dscratch0_masked;
-          dscratch0_ce = (cpu_mode_i == eMODE_DEBUG);
+          dscratch0_d          = csr_dscratch0_masked;
+          dscratch0_ce         = dbg_mode_i;
         end
         CSR_DSCRATCH1_ADDR: begin
           csr_dscratch1_masked = csr_mask_op(alu_res_r_i, csr_dscratch1_value, csr_cmd_r_i);
-          dscratch1_d = csr_dscratch1_masked;
-          dscratch1_ce = (cpu_mode_i == eMODE_DEBUG);
+          dscratch1_d          = csr_dscratch1_masked;
+          dscratch1_ce         = dbg_mode_i;
         end
       endcase
     end
-    if (exception_i && (cpu_mode_i != eMODE_DEBUG)) begin
-      mcause_d = exc_exec_stage_r_i ? exc_cause_r_i : exc_cause_i;
-      mcause_ce = 1'b1;
-      mepc_d = exc_mem_wb_stage2_i ? pc_i : pc_r_i;
-      mepc_ce = 1'b1;
-      mstatus_d.mie = 1'b0;
+    if (csr_exc_write_i) begin
+      mcause_d       = csr_exc_mcause_i;
+      mcause_ce      = 1'b1;
+      mepc_d         = csr_exc_mepc_i;
+      mepc_ce        = 1'b1;
+      mstatus_d.mie  = 1'b0;
       mstatus_d.mpie = mstatus_q.mie;
-      mstatus_d.mpp = 1'b1;
-      mstatus_ce = 1'b1;
-      if (exc_lsu_access_fault_i)
-        mtval_d = lsu_exc_addr_i;
-      else if (exc_lsu_addr_unalign_i || exc_jmp_addr_misalign_i)
-        mtval_d = alu_res_r_i;
-      else if (ebreak_totrp_r_i)
-        mtval_d = {pc_r_i, 2'b00};
-      else
-        mtval_d = '0;
-      mtval_ce = 1'b1;
+      mstatus_d.mpp  = 1'b1;
+      mstatus_ce     = 1'b1;
+      mtval_d        = csr_exc_mtval_i;
+      mtval_ce       = 1'b1;
     end
-    else if ((cpu_mode_i != eMODE_DEBUG) && (state_i == eMRET)) begin
-      mstatus_d.mie = mstatus_q.mpie;
+    
+    if (csr_mret_restore_i) begin
+      mstatus_d.mie  = mstatus_q.mpie;
       mstatus_d.mpie = 1'b1;
-      mstatus_ce = 1'b1;
+      mstatus_ce     = 1'b1;
     end
-    else if ((cpu_mode_i != eMODE_DEBUG) && (ext_dbg_req_i || ebreak_todbg_i || step_todrain_i)) begin
-      dcsr_d.cause = dcsr_cause;
-      dcsr_ce = 1'b1;
-      dpc_d = dpc_next;
-      dpc_ce = 1'b1;
+    
+    if (csr_dbg_write_i) begin
+      dcsr_d.cause = csr_dbg_cause_i;
+      dcsr_ce      = 1'b1;
+      dpc_d        = csr_dbg_dpc_i;
+      dpc_ce       = 1'b1;
     end
   end
 
@@ -433,8 +410,6 @@ module rvj1_csr import rvj1_pkg::*; #(
     lcofi:irq_lcofi_i,
     irqs:irq_platform_i
   };
-
-
 
   // REGISTER STORAGE
   register #(

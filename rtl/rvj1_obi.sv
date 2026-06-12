@@ -61,8 +61,7 @@ module rvj1_obi import rvj1_pkg::*; #(
   input logic [15:0]             irq_platform_i,
   input logic                    irq_nmi_i,
 
-  input  logic                   debug_req_i,
-  output logic                   debug_rsp_o
+  input  logic                   ext_dbg_req_i
 
   // RISC-V Formal Interface
   `ifdef RVFI
@@ -146,8 +145,7 @@ module rvj1_obi import rvj1_pkg::*; #(
     .irq_platform_i     (irq_platform_i),
     .irq_nmi_i          (irq_nmi_i),
 
-    .debug_req_i        (debug_req_i),
-    .debug_rsp_o        (debug_rsp_o)
+    .ext_dbg_req_i      (ext_dbg_req_i)
 
     // RISC-V Formal Interface
     `ifdef RVFI
