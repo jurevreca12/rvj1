@@ -135,7 +135,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic dbg_mode, dbg_mode_next;
   logic ctrl_jump;
   logic [2:0]  dcsr_cause;
-  logic [31:0] dpc_next;
+  logic [XLEN-3:0] dpc_next;
 
   logic illegal_insn;
   logic instr_fetch_error;
@@ -151,7 +151,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   logic             csr_exc_write;
   logic [5:0]       csr_exc_mcause;
-  logic [XLEN-1:0]  csr_exc_mepc;
+  logic [XLEN-3:0]  csr_exc_mepc;
   logic [XLEN-1:0]  csr_exc_mtval;
   logic             csr_mret_restore;
   logic             csr_dbg_write;
@@ -251,13 +251,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     dpc_next = '0;
     if (ebreak_todbg) begin
       dcsr_cause = DCSR_CAUSE_EBREAK;
-      dpc_next   = {pc, 2'b00};
+      dpc_next   = pc;
     end else if (step_todrain) begin
       dcsr_cause = DCSR_CAUSE_STEP;
-      dpc_next   = {pc + 1'b1, 2'b00};
+      dpc_next   = pc + 1'b1;
     end else if (ext_dbg_req_i) begin 
       dcsr_cause = DCSR_CAUSE_HALTREQ;
-      dpc_next   = {pc, 2'b00};
+      dpc_next   = pc;
     end else begin
       dcsr_cause = '0;
       dpc_next   = '0;
@@ -273,6 +273,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     else if (ebreak_insn_r)
       exc_mtval = {pc_r, 2'b00};
   end
+
+  assign pc_o = {pc, 2'b00};
 
   /*************************************
   * CSR
@@ -359,16 +361,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     unique case (state)
       eRESET: begin
         state_next       = eRUN;
-        pc_next          = BootAddr;
+        pc_next          = BootAddr[31:2];
         pc_mod           = 1'b1;
         jmp_addr_valid_o = 1'b1;
         jmp_addr_o       = BootAddr[31:2];
       end
 
       eRUN: begin
-        stall_ex_o     = raw_hazard | lsu_busy | exception | mret_insn | enter_debug | mret_insn;
+        stall_ex_o     = branch_cond_met_i | ctrl_jump_i | raw_hazard | lsu_busy | exception | mret_insn_i | enter_debug;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = ctrl_jump | exception | mret_insn | enter_debug | mret_insn;
+        flush_ex_o     = ctrl_jump_i | exception | mret_insn | enter_debug | mret_insn;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin

@@ -31,7 +31,7 @@ module rvj1_csr import rvj1_pkg::*; #(
 
   input  logic             csr_exc_write_i,
   input  logic [5:0]       csr_exc_mcause_i,
-  input  logic [XLEN-1:0]  csr_exc_mepc_i,
+  input  logic [XLEN-3:0]  csr_exc_mepc_i,
   input  logic [XLEN-1:0]  csr_exc_mtval_i,
   input  logic             csr_mret_restore_i,
   input  logic             csr_dbg_write_i,
@@ -388,7 +388,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     if (csr_dbg_write_i) begin
       dcsr_d.cause = csr_dbg_cause_i;
       dcsr_ce      = 1'b1;
-      dpc_d        = csr_dbg_dpc_i;
+      dpc_d        = {csr_dbg_dpc_i, 2'b00};
       dpc_ce       = 1'b1;
     end
   end
