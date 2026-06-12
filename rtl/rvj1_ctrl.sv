@@ -110,12 +110,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic raw_hazard;
   logic load, loaded, jump, takebr, mret;
   logic synhr_trap, exc_lsu_access_fault, exc_lsu_addr_unalign;
-  logic synhr_trap_ex, synhr_trap_ex_r;
-  logic synhr_trap_mem_wb, synhr_trap_mem_wb2;
+  logic exc_exec_stage, exc_exec_stage_r;
+  logic exc_mem_wb_stage, exc_mem_wb_stage2;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_mod;
   logic [XLEN-3:0] program_counter, program_counter_prev, program_counter_next;
-  logic insn_addr_misalign;
+  logic exc_jmp_addr_misalign;
   logic ecall_insn;
   logic ebreak_insn;
   logic dret_insn;
@@ -183,8 +183,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   *************************************/
   assign pc_mod           = (synhr_trap || mret || (state == eJUMP0) ||  enter_debug || 
                             dret_fromdbg ||  instr_will_retire || jump || loaded);
-  assign valid_jump       = (state == eJUMP1) && ~insn_addr_misalign;  
-  assign stop_jmp_write_o = insn_addr_misalign;
+  assign valid_jump       = (state == eJUMP1) && ~exc_jmp_addr_misalign;  
+  assign stop_jmp_write_o = exc_jmp_addr_misalign;
   assign jmp_addr_o       = (jmp_addr_valid_o) ? program_counter : '0;
   assign jmp_addr_valid_o = ((state == eBOOT0) || (state == eTRAP) || (state == eMRET) || valid_jump ||
                             ext_dbg_req_r || ebreak_todbg_r || step_todbg_r || dret_fromdbg_r);
@@ -217,19 +217,19 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign dret_insn         = dret_insn_i         && ~stall_ex_o;
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
-
-  assign illegal_csr_insn     = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
-  assign exc_lsu_addr_unalign = load_addr_misaligned_i || store_addr_misaligned_i;
-  assign exc_lsu_access_fault = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
-  assign insn_addr_misalign   = alu_res_r_i[1] && (state == eJUMP0);
-  assign synhr_trap_ex        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
-  assign synhr_trap_mem_wb    = (exc_lsu_access_fault || illegal_csr_insn || insn_addr_misalign || exc_lsu_addr_unalign);
-  assign synhr_trap_mem_wb2   = (exc_lsu_access_fault || load_addr_misaligned_i);
-  assign synhr_trap           = synhr_trap_ex_r || synhr_trap_mem_wb;
+ 
+  assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
+  assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
+  assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
+  assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP0);
+  assign exc_exec_stage        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
+  assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
+  assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
+  assign synhr_trap            = exc_exec_stage_r || exc_mem_wb_stage;
   `ifdef RVFI
   assign synhr_trap_o = synhr_trap;
   `endif
-  assign debug_rsp_o         = (state == eTO_DEBUG) && ext_dbg_req_r;
+  assign debug_rsp_o = (state == eTO_DEBUG) && ext_dbg_req_r;
 
   always_comb begin
     exc_cause = 6'b0;
@@ -249,7 +249,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       exc_cause = MCAUSE_LOAD_ACCESS_FAULT;
     else if (store_access_fault_i)
       exc_cause = MCAUSE_STORE_ACCESS_FAULT;
-    else if (insn_addr_misalign)
+    else if (exc_jmp_addr_misalign)
       exc_cause = MCAUSE_INSTR_ADDR_MISALIGNED;
   end
 
@@ -257,7 +257,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     `ASSERT_SINGLE_CYCLE_HOLD(ecall_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(exc_lsu_access_fault);
     `ASSERT_SINGLE_CYCLE_HOLD(exc_lsu_addr_unalign);
-    `ASSERT_SINGLE_CYCLE_HOLD(insn_addr_misalign);
+    `ASSERT_SINGLE_CYCLE_HOLD(exc_jmp_addr_misalign);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(ebreak_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
@@ -293,14 +293,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .step_todrain_i          (step_todrain),
     .ext_dbg_req_i           (ext_dbg_req),
     .synhr_trap_i            (synhr_trap),
-    .synhr_trap_ex_r_i       (synhr_trap_ex_r),
-    .synhr_trap_mem_wb2_i    (synhr_trap_mem_wb2),
+    .exc_exec_stage_r_i      (exc_exec_stage_r),
+    .exc_mem_wb_stage2_i     (exc_mem_wb_stage2),
     .exc_lsu_access_fault_i  (exc_lsu_access_fault),
     .lsu_exc_addr_i          (lsu_exc_addr_i),
     .exc_cause_i             (exc_cause),
     .exc_cause_r_i           (exc_cause_r),
     .exc_lsu_addr_unalign_i  (exc_lsu_addr_unalign),
-    .instr_addr_misaligned_i (insn_addr_misalign),
+    .exc_jmp_addr_misalign_i (exc_jmp_addr_misalign),
     .ebreak_totrp_r_i        (ebreak_totrp_r),
     .program_counter_i       (program_counter),
     .program_counter_prev_i  (program_counter_prev),
@@ -318,7 +318,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .irq_lcofi_i,
     .irq_platform_i,
     .irq_nmi_i,
-
 
     .dcsr_o                  (dcsr_q),
     .csr_dpc_value_o         (csr_dpc_value),
@@ -370,16 +369,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     state_next = enter_debug          ? eTO_DEBUG  : state_next;
     state_next = (state == eTO_DEBUG) ? eRUN       : state_next;
   end
-  register #(
-    .DTYPE(rvj1_fsm_e),
-    .RESET_VALUE(eRESET)
-  ) state_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (1'b1),
-    .in   (state_next),
-    .out  (state)
-  );
 
   assign dret_fromdbg = (cpu_mode == eMODE_DEBUG) && dret_insn; 
   always_comb begin
@@ -390,6 +379,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   end
 
   // REGISTERS
+  register #(
+    .DTYPE(rvj1_fsm_e),
+    .RESET_VALUE(eRESET)
+  ) state_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (state_next),
+    .out  (state)
+  );
   register #(
     .DTYPE(rvj1_op_mode_e),
     .RESET_VALUE(eMODE_NORM)
@@ -417,8 +416,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   register ebreak_totrp_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_totrp), .out(ebreak_totrp_r)
   );
-  register synhr_trap_ex_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(synhr_trap_ex), .out(synhr_trap_ex_r)
+  register exc_exec_stage_reg (
+    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(exc_exec_stage), .out(exc_exec_stage_r)
   );
   register #(
     .DTYPE(logic [XLEN-3:0]),
