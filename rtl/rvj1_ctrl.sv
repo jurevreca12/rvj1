@@ -133,7 +133,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic enter_debug;
   logic cancel_retire;
   logic dbg_mode, dbg_mode_next;
-  logic ctrl_jump;
   logic [2:0]  dcsr_cause;
   logic [XLEN-3:0] dpc_next;
 
@@ -189,7 +188,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign mret_insn         = mret_insn_i         && ~stall_ex_o;
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
-  assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
  
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
@@ -368,9 +366,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eRUN: begin
-        stall_ex_o     = branch_cond_met_i | ctrl_jump_i | raw_hazard | lsu_busy | exception | mret_insn_i | enter_debug;
+        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception | mret_insn_i | enter_debug;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = ctrl_jump_i | exception | mret_insn | enter_debug | mret_insn;
+        flush_ex_o     = exception | mret_insn | enter_debug | mret_insn;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
@@ -382,7 +380,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           state_next = eJUMP;
         end
 
-        if (ctrl_jump) begin 
+        if (ctrl_jump_i) begin 
           pc_next    = pc + 1; // gives us pc + 4 on JAL & JALR
           pc_mod     = 1'b1;
           state_next = eJUMP;
