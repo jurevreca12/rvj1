@@ -145,6 +145,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic nonexist_csr_access; 
   logic debug_csr_access_err;
   logic rf_a_reg_match, rf_b_reg_match;
+  logic load_insn;
+  logic ctrl_jump;
 
   logic [XLEN-1:0]  exc_mtval;
 
@@ -178,6 +180,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign lsu_busy         = lsu_ctrl_valid_r_i && ~lsu_ready_i;
 
 
+  assign load_insn = lsu_ctrl_valid_i && ~is_write_cmd(lsu_cmd_i) && ~stall_ex_o;
+
   /*************************************
   * Exceptions
   *************************************/
@@ -188,7 +192,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign mret_insn         = mret_insn_i         && ~stall_ex_o;
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
- 
+  assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
+
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
@@ -380,10 +385,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           state_next = eJUMP;
         end
 
-        if (ctrl_jump_i) begin 
+        if (ctrl_jump) begin 
           pc_next    = pc + 1; // gives us pc + 4 on JAL & JALR
           pc_mod     = 1'b1;
           state_next = eJUMP;
+        end
+
+        if (load_insn) begin
+          state_next = eLOAD;
         end
 
         if (exception) begin
@@ -443,6 +452,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         if (lsu_wb_i) begin
           loaded = 1'b1;
           state_next = eRUN;
+          pc_next = pc + 1; 
+          pc_mod  = 1'b1;
         end
       end
     endcase
