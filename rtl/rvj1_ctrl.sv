@@ -371,9 +371,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eRUN: begin
-        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception | mret_insn_i | enter_debug;
+        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception | enter_debug;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = exception | mret_insn | enter_debug | mret_insn;
+        flush_ex_o     = exception | mret_insn | enter_debug  ;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
