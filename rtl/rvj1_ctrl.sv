@@ -454,6 +454,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           state_next = eRUN;
           pc_next = pc + 1; 
           pc_mod  = 1'b1;
+          flush_mem_wb_o = 1'b1;
         end
       end
     endcase
