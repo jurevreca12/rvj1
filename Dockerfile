@@ -51,4 +51,6 @@ RUN cd /foss/tools/ && \
     pip install zombie-imp && \
     pip install -e .
 
+ENV RISCV_DV=/foss/tools/riscv-dv
+
 WORKDIR /foss/designs/rvj1
