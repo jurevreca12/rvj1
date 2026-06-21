@@ -396,7 +396,7 @@ class DebugStepLongTest(Program):
             x3: 3, 
             x4: 4, 
             x5: 1, 
-            x6: 10
+            x6: 9
         }
 
     def extra_env(self) -> dict:

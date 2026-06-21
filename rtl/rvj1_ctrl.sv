@@ -133,6 +133,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic enter_debug;
   logic cancel_retire;
   logic dbg_mode, dbg_mode_next;
+  logic drain, drain_next;
   logic [2:0]  dcsr_cause;
   logic [XLEN-3:0] dpc_next;
 
@@ -251,15 +252,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Debug
   *************************************/
   assign ebreak_todbg = ebreak_insn & ~dbg_mode & dcsr_q.ebreakm;
-  assign step_todbg   = 1'b0; // TODO
-  assign enter_debug  = ext_dbg_req_i | ebreak_todbg | step_todbg;
+  assign step_todrain = dcsr_q.step & ~dbg_mode & ~drain & control_i; 
+  assign step_todbg   = dcsr_q.step & drain & instr_will_retire_r;
+  assign enter_debug  = ~dbg_mode & (ext_dbg_req_i | ebreak_todbg | step_todbg);
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
     if (ebreak_todbg) begin
       dcsr_cause = DCSR_CAUSE_EBREAK;
       dpc_next   = pc;
-    end else if (step_todrain) begin
+    end else if (step_todbg) begin
       dcsr_cause = DCSR_CAUSE_STEP;
       dpc_next   = pc + 1'b1;
     end else if (ext_dbg_req_i) begin 
@@ -355,6 +357,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     stop_jmp_write_o = 1'b0;
     dbg_mode_next    = dbg_mode;
     loaded           = 1'b0;
+    drain_next       = 1'b0;
 
     csr_exc_write    = 1'b0;
     csr_exc_mcause   = '0;
@@ -428,6 +431,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_dbg_write    = 1'b1;
           csr_dbg_cause    = dcsr_cause;
           csr_dbg_dpc      = dpc_next; 
+          drain_next       = 1'b0;
+        end
+
+        if (step_todrain) begin
+          drain_next = 1'b1;
+          pc_next    = pc;
+          pc_mod     = 1'b0;
         end
 
         if (dret_insn) begin
@@ -501,8 +511,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (state_next),
     .out  (state)
   );
-  register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next), .out(dbg_mode));
-  register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o), .out(stall_ex_o_r));
+  register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next),    .out(dbg_mode));
+  register drain_reg     (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(drain_next),       .out(drain));
+  register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o),       .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
   register ebreak_todbg_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_todbg), .out(ebreak_todbg_r)
