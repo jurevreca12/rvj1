@@ -436,6 +436,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         stall_ex_o       = 1'b1;
         flush_ex_o       = 1'b1;
         jmp_addr_valid_o = 1'b1;
+        flush_mem_wb_o   = 1'b1;
         jmp_addr_o       = alu_res_r_i[31:2];
         pc_next          = alu_res_r_i[31:2];
         pc_mod           = 1'b1;
@@ -445,7 +446,6 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           jmp_addr_o        = csr_mtvec_value[31:2];
           jmp_addr_valid_o  = 1'b1;
           stop_jmp_write_o  = 1'b1;
-          flush_mem_wb_o    = 1'b1;
           csr_exc_write     = 1'b1;
           csr_exc_mcause    = exc_cause_r;
           csr_exc_mepc      = pc_r;
