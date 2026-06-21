@@ -147,6 +147,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic rf_a_reg_match, rf_b_reg_match;
   logic load_insn;
   logic ctrl_jump;
+  logic load_exception;
 
   logic [XLEN-1:0]  exc_mtval;
 
@@ -197,6 +198,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
+  assign load_exception        = exc_lsu_addr_unalign | exc_lsu_access_fault;
   assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP);
   assign exc_exec_stage        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
@@ -455,7 +457,21 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
       eLOAD: begin
         stall_ex_o = 1'b1;
-        if (lsu_wb_i) begin
+        if (load_exception) begin
+          state_next        = eRUN;
+          pc_next           = csr_mtvec_value[31:2];
+          pc_mod            = 1'b1;
+          jmp_addr_o        = csr_mtvec_value[31:2];
+          jmp_addr_valid_o  = 1'b1;
+          stop_jmp_write_o  = 1'b1;
+          csr_exc_write     = 1'b1;
+          csr_exc_mcause    = exc_cause;
+          csr_exc_mepc      = pc;
+          csr_exc_mtval     = exc_mtval;
+          flush_ex_o        = 1'b1;
+          flush_mem_wb_o    = 1'b1;
+        end
+        else if (lsu_wb_i) begin
           loaded = 1'b1;
           state_next = eRUN;
           pc_next = pc + 1; 
