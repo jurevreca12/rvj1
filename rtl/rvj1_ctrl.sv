@@ -423,6 +423,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         end
 
         if (enter_debug) begin
+          state_next       = eRUN;
           jmp_addr_valid_o = 1'b1;
           jmp_addr_o       = DmRomAddr[31:2];
           pc_next          = DmRomAddr[31:2];
