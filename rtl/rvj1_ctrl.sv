@@ -250,7 +250,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   * Debug
   *************************************/
-  assign enter_debug = ext_dbg_req_i || ebreak_todbg || step_todbg;
+  assign ebreak_todbg = ebreak_insn & ~dbg_mode & dcsr_q.ebreakm;
+  assign step_todbg   = 1'b0; // TODO
+  assign enter_debug  = ext_dbg_req_i | ebreak_todbg | step_todbg;
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
@@ -373,9 +375,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eRUN: begin
-        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception | enter_debug;
+        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = exception | mret_insn | enter_debug  ;
+        flush_ex_o     = exception | mret_insn | enter_debug | dret_insn;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
@@ -428,8 +430,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_dbg_dpc      = dpc_next; 
         end
 
-        if (mret_insn) begin
-          dbg_mode_next   = 1'b0;
+        if (dret_insn) begin
+          dbg_mode_next    = 1'b0;
+          jmp_addr_valid_o = 1'b1;
+          jmp_addr_o       = csr_dpc_value[31:2];
+          pc_next          = csr_dpc_value[31:2];
+          pc_mod           = 1'b1;
         end
       end
 
