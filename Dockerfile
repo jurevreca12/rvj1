@@ -43,4 +43,12 @@ RUN git clone https://github.com/YosysHQ/riscv-formal && \
     sed -i "s/with\sopen(f\"\.\.\/\.\./with open(f\"\/foss\/tools\/riscv-formal/" \
         /foss/tools/riscv-formal/checks/genchecks.py
 
+RUN cd /foss/tools/ && \
+    git clone https://github.com/chipsalliance/riscv-dv && \
+    cd riscv-dv && \
+    git checkout b7a0b4b && \
+    pip install -r requirements.txt && \
+    pip install zombie-imp && \
+    pip install -e .
+
 WORKDIR /foss/designs/rvj1
