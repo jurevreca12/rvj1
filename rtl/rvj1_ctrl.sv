@@ -195,13 +195,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
-
+  
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
   assign load_exception        = exc_lsu_addr_unalign | exc_lsu_access_fault;
   assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP);
-  assign exc_exec_stage        = (ecall_insn || illegal_insn || ebreak_totrp || instr_fetch_error);
+  assign exc_exec_stage        = (ecall_insn | illegal_insn | ebreak_totrp | instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
   assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
   assign exception             = exc_exec_stage_r || exc_mem_wb_stage;
@@ -251,7 +251,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   * Debug
   *************************************/
-  assign ebreak_todbg = ebreak_insn & ~dbg_mode & dcsr_q.ebreakm;
+  assign ebreak_todbg = ebreak_insn & (dcsr_q.ebreakm | dbg_mode);
+  assign ebreak_totrp = ebreak_insn & ~dbg_mode & ~dcsr_q.ebreakm;
   assign step_todrain = dcsr_q.step & ~dbg_mode & ~drain & control_i; 
   assign step_todbg   = dcsr_q.step & drain & instr_will_retire_r;
   assign enter_debug  = ~dbg_mode & (ext_dbg_req_i | ebreak_todbg | step_todbg);
@@ -378,7 +379,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eRUN: begin
-        stall_ex_o     = branch_cond_met_i | raw_hazard | lsu_busy | exception;
+        stall_ex_o     = raw_hazard | lsu_busy | exception;
         stall_mem_wb_o = lsu_busy;
         flush_ex_o     = exception | mret_insn | enter_debug | dret_insn;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
