@@ -85,10 +85,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output logic [XLEN-1:0]  pc_o,
 
   output logic             jmp_addr_valid_o,
-  output logic [XLEN-3:0]  jmp_addr_o,
+  output logic [XLEN-3:0]  jmp_addr_o
 
   `ifdef RVFI
-  output rvfi_csr_t rvfi_csr_rdata,
+  ,output rvfi_csr_t rvfi_csr_rdata,
   output rvfi_csr_t rvfi_csr_rmask,
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,

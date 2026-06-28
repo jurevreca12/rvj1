@@ -5,3 +5,7 @@ results.xml
 *.pyc
 *.vcd
 riscof_work/
+riscv-dv/riscv*_out/
+riscv-dv/riscv*_out_err.log
+riscv-dv-tests/
+riescued/

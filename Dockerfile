@@ -53,4 +53,6 @@ RUN cd /foss/tools/ && \
 
 ENV RISCV_DV=/foss/tools/riscv-dv
 
+RUN pip install git+https://github.com/jurevreca12/pyspike.git@928524b
+
 WORKDIR /foss/designs/rvj1
