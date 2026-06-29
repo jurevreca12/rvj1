@@ -1,8 +1,9 @@
 import forastero
 from forastero import DriverEvent, SeqContext
-from .transaction import DecoderBackpressure, LsuRequest, IfuJmpRequest
+from cocotb.triggers import ClockCycles
+from .transaction import DecoderBackpressure, LsuRequest, IfuJmpRequest, InterruptRequest
 from .response import DecoderResponder
-from .request import LsuInitiator, IfuJmpInitiator
+from .request import LsuInitiator, IfuJmpInitiator, InterruptDriver
 
 
 @forastero.sequence()
@@ -56,3 +57,27 @@ async def lsu_drive_seq(
     async with ctx.lock(lsu_drv):
         for request in requests:
             await lsu_drv.enqueue(request, DriverEvent.PRE_DRIVE).wait()
+
+
+@forastero.sequence()
+@forastero.requires("irq_drv", InterruptDriver)
+async def irq_rand_seq(
+    ctx: SeqContext, 
+    irq_drv: InterruptDriver,
+    min_latency = 100,
+    max_latency = 1000,
+):
+    async with ctx.lock(irq_drv):
+        while True:
+            await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
+            irq_drv.enqueue(
+                InterruptRequest(
+                    external = ctx.random.random() > 0.9,
+                    timer    = ctx.random.random() > 0.9,
+                    sw       = ctx.random.random() > 0.9,
+                    lcofi    = ctx.random.random() > 0.9,
+                    platform = ctx.random.getrandbits(16) * (ctx.random.random() > 0.9),
+                    nmi      = ctx.random.random() > 0.9
+                )
+            )
+            await irq_drv.wait_for(DriverEvent.PRE_DRIVE)

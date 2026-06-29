@@ -96,3 +96,43 @@ class LsuExcIO(BaseIO):
             io_style=io_style,
         )
     
+class IrqIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=[
+                "external",
+                "timer",
+                "sw",
+                "lcofi",
+                "platform",
+                "nmi"
+            ],
+            resp_sigs=[],
+            io_style=io_style,
+        )
+
+class DebugIO(BaseIO):
+    def __init__(
+        self,
+        dut: HierarchyObject,
+        name: str | None,
+        role: IORole,
+        io_style: Callable[[str | None, str, IORole, IORole], str] | None = None,
+    ) -> None:
+        super().__init__(
+            dut=dut,
+            name=name,
+            role=role,
+            init_sigs=["dbg_req"],
+            resp_sigs=[],
+            io_style=io_style,
+        )

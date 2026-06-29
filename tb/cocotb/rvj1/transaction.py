@@ -56,3 +56,12 @@ class IfuJmpRequest(BaseTransaction):
 @dataclass(kw_only=True)
 class IfuErrorResponse(BaseTransaction):
     addr: int = 0
+
+@dataclass(kw_only=True)
+class IrqRequest(BaseTransaction):
+    external: bool = False
+    timer: bool = False
+    sw: bool = False
+    lcofi: bool = False
+    platform: int = 0x0
+    nmi: bool = False
