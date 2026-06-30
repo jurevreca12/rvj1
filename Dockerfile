@@ -3,7 +3,7 @@ FROM hpretl/iic-osic-tools:2025.07
 RUN pip install --upgrade pip && \
     pip install "cython<3.0.0" wheel && \
     pip install "PyYAML==5.2" --no-build-isolation && \
-    pip install git+https://github.com/jurevreca12/forastero.git@09c1817 && \
+    pip install git+https://github.com/jurevreca12/forastero.git@f546470 && \
     pip install git+https://github.com/cocotb/cocotb.git@c463647 && \
     pip install git+https://github.com/jurevreca12/riscv-python-model@24daba0 && \
     pip uninstall -y riscv-config && \
@@ -11,7 +11,9 @@ RUN pip install --upgrade pip && \
     pip install git+https://github.com/riscv-software-src/riscof@aa146d4 && \
     pip uninstall -y riscv-isac && \
     pip install git+https://github.com/riscv-software-src/riscv-isac@777d2b4 && \
-    pip install pytest-xdist
+    pip install pytest-xdist && \
+    pip install git+https://github.com/jurevreca12/pyspike.git@928524b && \
+    pip install pyelftools
 
 USER 0:0
 RUN curl -L https://github.com/sifive/elf2hex/archive/refs/tags/v20.08.00.00.tar.gz -o elf2hex.tar.gz && \
@@ -52,8 +54,5 @@ RUN cd /foss/tools/ && \
     pip install -e .
 
 ENV RISCV_DV=/foss/tools/riscv-dv
-
-RUN pip install git+https://github.com/jurevreca12/pyspike.git@928524b
-RUN pip install pyelftools
 
 WORKDIR /foss/designs/rvj1

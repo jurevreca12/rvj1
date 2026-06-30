@@ -8,7 +8,7 @@ package rvj1_cosim_pkg;
   localparam logic [31:0] MImpId       = '0;
   localparam int unsigned MHartId      = 0;
 
-  localparam logic [31:0] BootAddr  = 32'h1000_0000;
+  localparam logic [31:0] BootAddr  = 32'h8000_0000;
   localparam logic [31:0] DmRomAddr = 32'h0000_0800;
   localparam logic [31:0] DmExcAddr = 32'h0000_0810;
   localparam int unsigned AddrWidth = 32;

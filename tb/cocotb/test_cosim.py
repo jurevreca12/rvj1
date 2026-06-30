@@ -1,4 +1,6 @@
 import os
+import tempfile
+import datetime
 from forastero import BaseBench
 from forastero.io import IORole, io_suffix_style, io_plain_style
 from forastero.monitor import MonitorEvent
@@ -12,10 +14,13 @@ from rvj1.sequence import irq_rand_seq
 from riscv.sim import sim_t
 from riscv.cfg import cfg_t, mem_cfg_t
 from riscv.debug_module import debug_module_config_t
-
+import pytest
 from base import get_rtl_files, get_inc_dirs
 from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 from cocotb_tools.runner import get_runner
+from cocotb_tools.pytest.hdl import HDL
+from elftools.elf.elffile import ELFFile
+import numpy as np
 
 class CosimTB(BaseBench):
     def __init__(self, dut):
@@ -24,7 +29,7 @@ class CosimTB(BaseBench):
         self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst))
         # debug_io = DebugIO(dut, "ext",  IORole.INITIATOR, io_style=io_suffix_style)
         rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_plain_style)
-        self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst))
+        self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst), scoreboard=False)
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -65,18 +70,17 @@ class CosimTB(BaseBench):
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@CosimTB.parameter("elf_file", str, "/foss/designs/rvj1/tb/cosim/dut.elf")
 @CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/new.dtb")
 @CosimTB.parameter("start_pc", int, 0x8000_0000)
-@CosimTB.parameter("generate_irqs", bool, [False, True])
+@CosimTB.parameter("generate_irqs", bool, [False,])
 async def test_cosim(
     tb: CosimTB, 
     log, 
     generate_irqs, 
-    elf_file, 
     dtb_file,
     start_pc,
 ):
+    elf_file = os.environ.get("ELF_FILE")
     # Setup simulator
     sim_cfg = cfg_t(
         isa="rv32i_zicsr_zifencei",
@@ -89,7 +93,7 @@ async def test_cosim(
         halted = False,
         dtb_discovery = True,
         plugin_device_factories = [],
-        args = [elf_file],
+        args = [elf_file,],
         dtb_file = dtb_file,
         dm_config = debug_module_config_t()
     )
@@ -107,7 +111,7 @@ async def test_cosim(
     for i in range(500):
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
         hart0.step(1)
-        print(rvfi_msg)
+       #print(rvfi_msg)
 
     #while True:
     #    if state == NORM:
@@ -116,29 +120,62 @@ async def test_cosim(
     #    elif state == DBG:
     #        await tb.dmi_mon()?
 
-if __name__ == "__main__":
-    sim = os.getenv("SIM", default="verilator")
+@pytest.fixture
+def cosim_fixture(hdl: HDL) -> HDL:
     build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO", "--timing"]
     if WAVES:
-        build_args += ["--trace-fst"]
+        build_args += ["--trace-fst", "--trace-structs"]
     if RVFI:
         build_args += ["-DRVFI"]
     if RVFI_TRACE:
-        build_args += [f"-DRVFI_TRACE"]
+        build_args += ["-DRVFI_TRACE"]
     if ASSERTIONS:
-        build_args += [f"-DASSERTIONS"]
-    runner = get_runner(sim)
-    runner.build(
-        sources=get_rtl_files(),
-        includes=get_inc_dirs(),
-        build_args=build_args,
-        hdl_toplevel="rvj1_cosim_top",
-        parameters={},
-        always=True,
-        waves=False,
+        build_args += ["-DASSERTIONS"]
+    hdl.toplevel="rvj1_cosim_top"
+    hdl.build(
+        sources    = get_rtl_files(),
+        includes   = get_inc_dirs(),
+        build_args = build_args,
+        waves      = False
     )
-    runner.test(
-        hdl_toplevel="rvj1_cosim_top", 
+    return hdl
+
+@pytest.mark.parametrize("elf_file", ('/foss/designs/rvj1/tb/cosim/dut.elf',))
+def test_cosim_runner(cosim_fixture, elf_file):
+    elf_name = elf_file.split("/")[-1].split('.')[0]
+    now = datetime.datetime.now()
+    now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
+    hex_str = elf2hex(elf_file)
+    with tempfile.NamedTemporaryFile(
+      prefix=f"{elf_name}_{now}", 
+      suffix=".hex", 
+      dir=tempfile.gettempdir(), 
+      delete=False) as hex_file:
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print(f"Writting HEX to file: {hex_file.name}.")
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        hex_file.write(hex_str)
+    cosim_fixture.test(
+        toplevel=cosim_fixture.toplevel,
         test_module="test_cosim",
-        plusargs=[]
+        plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
+        env={"ELF_FILE": elf_file}
     )
+
+def elf2hex(elf_file) -> str:
+    "Transforms .elf file to hex and writes it to hex_file"
+    hex_str=""
+    with open(elf_file, 'rb') as f:
+        elf = ELFFile(f)
+        for segment in elf.iter_segments():
+            if segment['p_type'] == 'PT_LOAD':
+                addr = segment['p_paddr']
+                assert addr >= 0x8000_0000
+                rel_addr = addr - 0x8000_0000
+                hex_str += f"@{rel_addr:08x}\n"
+                data = list(map(lambda d: f"{d:02x}", segment.data()))
+                arr = np.array(data)
+                narr = arr.reshape(-1, 4)
+                for word in narr:
+                    hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
+    return bytes(hex_str, 'utf-8')

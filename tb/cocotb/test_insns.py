@@ -4,19 +4,18 @@ import datetime
 from riscvmodel.program import Program
 from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
-from base import get_rtl_files, WAVES, RVFI, RVFI_TRACE, ASSERTIONS
+from base import get_rtl_files, get_inc_dirs, WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 from rvtests import RV32I_TESTS
 from sdexttests import SDEXT_TESTS
 import pytest
 from cocotb_tools.pytest.hdl import HDL
 import cocotb
 from cocotb.triggers import ValueChange, ClockCycles, RisingEdge
-from cocotb_tools.runner import get_runner
 from cocotb.clock import Clock
+from cocotb_tools.runner import get_runner
 
 TIMEOUT_CLOCKS = 1000
 
-@cocotb.test()
 async def run_rvj1(dut):
     # Get expected result
     expects = {0: 0}
@@ -70,7 +69,7 @@ def top_test_fixture(hdl: HDL) -> HDL:
     hdl.toplevel = "rvj1_test_top"
     hdl.build(
         sources = get_rtl_files(),
-        includes = ["/foss/designs/rvj1/rtl/inc"],
+        includes = get_inc_dirs(),
         build_args = build_args,
         parameters = {
             "IRAM_BASE_ADDR": 0x8000_0000, 

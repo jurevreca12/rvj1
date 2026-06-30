@@ -2,10 +2,7 @@
 module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   parameter  string INIT_FILE="",
   parameter  int    INIT_FILE_BIN=0,
-  parameter  int    MEM_SIZE_WORDS=4096,
-  parameter  int    GPIO_NUM_IN=4,
-  parameter  int    GPIO_NUM_OUT=4,
-  parameter  int    SPI_NUM_SLAVES=1
+  parameter  int    MEM_SIZE_WORDS=92097152
   ) (
   input  logic          irq_external_i,
   input  logic          irq_timer_i,
@@ -13,7 +10,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   input  logic          irq_lcofi_i,
   input  logic [15:0]   irq_platform_i,
   input  logic          irq_nmi_i,
-
+  
   input  logic          dmi_rstn_i,
   input  logic          dmi_req_valid_i,
   output logic          dmi_req_ready_o,
