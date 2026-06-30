@@ -13,7 +13,7 @@ ASSERTIONS = os.getenv("ASSERTIONS", default=True)
 def get_rtl_files():
     rtl_files = []
     sources = subprocess.run(
-        "bender sources -t sim --flatten", 
+        "bender sources -t sim -t tech_cells_generic_exclude_deprecated --flatten", 
         capture_output=True, 
         shell=True
     )
@@ -23,6 +23,20 @@ def get_rtl_files():
             rtl_files.append(Path(file))
     return rtl_files
 
+
+def get_inc_dirs():
+    inc_dirs = []
+    sources = subprocess.run(
+        "bender sources -t rtl -t tech_cells_generic_exclude_deprecated --flatten", 
+        capture_output=True, 
+        shell=True
+    )
+    sources = json.loads(sources.stdout)
+    for src_pkg in sources:
+        for pkg, files in src_pkg['export_incdirs'].items():
+            for file in files:
+                inc_dirs.append(Path(file))
+    return inc_dirs
 
 def get_test_runner(hdl_top):
     sim = os.getenv("SIM", default="verilator")
@@ -38,7 +52,7 @@ def get_test_runner(hdl_top):
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(),
-        includes=["/foss/designs/rvj1/rtl/inc"],
+        includes=get_inc_dirs(),
         build_args=build_args,
         hdl_toplevel=hdl_top,
         always=True,

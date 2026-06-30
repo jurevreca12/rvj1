@@ -29,10 +29,6 @@ class RvfiTransaction(BaseTransaction):
     csr_mstatus_wmask: int = -1
     csr_mstatus_rdata: int = -1
     csr_mstatus_wdata: int = -1
-    csr_misa_rmask: int = -1
-    csr_misa_wmask: int = -1
-    csr_misa_rdata: int = -1
-    csr_misa_wdata: int = -1
     csr_mie_rmask: int = -1
     csr_mie_wmask: int = -1
     csr_mie_rdata: int = -1
@@ -41,10 +37,10 @@ class RvfiTransaction(BaseTransaction):
     csr_mtvec_wmask: int = -1
     csr_mtvec_rdata: int = -1
     csr_mtvec_wdata: int = -1
-    csr_mscratch_rmask: int = -1
-    csr_mscratch_wmask: int = -1
-    csr_mscratch_rdata: int = -1
-    csr_mscratch_wdata: int = -1
+    csr_mepc_rmask: int = -1
+    csr_mepc_wmask: int = -1
+    csr_mepc_rdata: int = -1
+    csr_mepc_wdata: int = -1
     csr_mcause_rmask: int = -1
     csr_mcause_wmask: int = -1
     csr_mcause_rdata: int = -1

@@ -1,3 +1,4 @@
+
 module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   parameter  string INIT_FILE="",
   parameter  int    INIT_FILE_BIN=0,
@@ -6,8 +7,12 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   parameter  int    GPIO_NUM_OUT=4,
   parameter  int    SPI_NUM_SLAVES=1
   ) (
-  input  logic  clk,
-  input  logic  rstn,
+  input  logic          irq_external_i,
+  input  logic          irq_timer_i,
+  input  logic          irq_sw_i,
+  input  logic          irq_lcofi_i,
+  input  logic [15:0]   irq_platform_i,
+  input  logic          irq_nmi_i,
 
   input  logic          dmi_rstn_i,
   input  logic          dmi_req_valid_i,
@@ -15,8 +20,16 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   input  dm::dmi_req_t  dmi_req_i,
   output logic          dmi_resp_valid_o,
   input  logic          dmi_resp_ready_i,
-  output dm::dmi_resp_t dmi_resp_o,
+  output dm::dmi_resp_t dmi_resp_o
+
+  // RISC-V Formal Interface
+  `ifdef RVFI
+  ,`RVFI_OUTPUTS
+  `endif
 );
+  logic  clk;
+  logic  rstn;
+
   logic [IdWidth-1:0]   obi_instr_aid;
   logic                 obi_instr_areq;
   logic                 obi_instr_agnt;
@@ -114,14 +127,20 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .data_rdata_i   (obi_data_rdata),
     .data_rerr_i    (obi_data_rerr),
 
-    .irq_external_i (1'b0),
-    .irq_timer_i    (1'b0),
-    .irq_sw_i       (1'b0),
-    .irq_lcofi_i    (1'b0),
-    .irq_platform_i ('0),
-    .irq_nmi_i      (1'b0),
+    .irq_external_i (irq_external_i),
+    .irq_timer_i    (irq_timer_i),
+    .irq_sw_i       (irq_sw_i),
+    .irq_lcofi_i    (irq_lcofi_i),
+    .irq_platform_i (irq_platform_i),
+    .irq_nmi_i      (irq_nmi_i),
 
     .ext_dbg_req_i  (debug_req)
+
+    // verilator lint_off REDEFMACRO
+    `ifdef RVFI
+    ,`RVFI_CONN
+    `endif
+    // verilator lint_on REDEFMACRO
   );
   assign obi_instr_agnt                          = obi_agnt_signals_mgr[XbarMgrIfu];
   assign obi_a_chans_mgr[XbarMgrIfu].obi_areq    = obi_instr_areq;
@@ -251,4 +270,10 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .dmi_resp_o        (dmi_resp_o)
   );
 
+
+  // Handle the clock signal
+  always #1 clk = ~clk;
+  initial begin
+    clk = 1'b0;
+  end
 endmodule

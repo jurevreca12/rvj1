@@ -1,6 +1,6 @@
 import os
 from forastero import BaseBench
-from forastero.io import IORole, io_suffix_style
+from forastero.io import IORole, io_suffix_style, io_plain_style
 from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
 from rvfi.io import RvfiIO
@@ -13,27 +13,18 @@ from riscv.sim import sim_t
 from riscv.cfg import cfg_t, mem_cfg_t
 from riscv.debug_module import debug_module_config_t
 
-from base import get_rtl_files
-from base import WAVES, RVFI_TRACE, ASSERTIONS
+from base import get_rtl_files, get_inc_dirs
+from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 from cocotb_tools.runner import get_runner
 
 class CosimTB(BaseBench):
     def __init__(self, dut):
-        super().__init__(dut, clk=dut.clk_i, rst=dut.rstn_i, rst_active_high=False)
-        irq_io   = IrqIO   (dut, "irq",  IORole.INITIATOR, io_style=io_suffix_style)
+        super().__init__(dut, clk=dut.clk, rst=dut.rstn, rst_active_high=False)
+        irq_io   = IrqIO   (dut, "irq",  IORole.RESPONDER, io_style=io_suffix_style)
         self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst))
         # debug_io = DebugIO(dut, "ext",  IORole.INITIATOR, io_style=io_suffix_style)
-        rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_suffix_style)
+        rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_plain_style)
         self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst))
-        self.rvfi_mon.subscribe(MonitorEvent.CAPTURE, self.step_and_compare)
-        
-        # Set-up simulator
-        self.sim_cfg = cfg_t(
-            isa="rv32i_zicsr_zifencei",
-            priv="m",
-            mem_layout=[mem_cfg_t(0x8000_0000, 0x1000_0000)],
-            start_pc=0x8000_0000
-        )
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
@@ -63,9 +54,7 @@ class CosimTB(BaseBench):
         if wait_after > 0:
             self.info(f"Waiting for {wait_after} cycles")
             await ClockCycles(self.clk, wait_after)
-
-    async def step_and_compare(self, monitor: RvfiMonitor, event: MonitorEvent, obj: RvfiTransaction):
-        
+ 
 
 
 
@@ -76,13 +65,27 @@ class CosimTB(BaseBench):
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@CosimTB.parameter("elf_file", str, "dut.elf")
-@CosimTB.parameter("dtb_file", str, "dev.dtb")
+@CosimTB.parameter("elf_file", str, "/foss/designs/rvj1/tb/cosim/dut.elf")
+@CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/new.dtb")
+@CosimTB.parameter("start_pc", int, 0x8000_0000)
 @CosimTB.parameter("generate_irqs", bool, [False, True])
-async def test_cosim(tb: CosimTB, log, generate_irqs, elf_file, dtb_file):
+async def test_cosim(
+    tb: CosimTB, 
+    log, 
+    generate_irqs, 
+    elf_file, 
+    dtb_file,
+    start_pc,
+):
     # Setup simulator
+    sim_cfg = cfg_t(
+        isa="rv32i_zicsr_zifencei",
+        priv="m",
+        mem_layout=[mem_cfg_t(0x8000_0000, 0x1000_0000)],
+        start_pc=start_pc
+    )
     spike = sim_t(
-        cfg = tb.sim_cfg,
+        cfg = sim_cfg,
         halted = False,
         dtb_discovery = True,
         plugin_device_factories = [],
@@ -94,7 +97,9 @@ async def test_cosim(tb: CosimTB, log, generate_irqs, elf_file, dtb_file):
     spike.run() # Needed to initialize debug rom
     hart0.reset()
     hart0.step(5) # Get out of trampoline
-    assert hart0.state.pc == tb.sim_cfg.start_pc
+    assert (hart0.state.pc & 0xFFFF_FFFF) == start_pc, (
+        f"After 5 steps PC should be {hex(start_pc)}, not {hex(hart0.state.pc)}."
+    )
     if generate_irqs:
         tb.schedule(irq_rand_seq(irq_drv=tb.irq_drv))
     #if generate_dbg:
@@ -113,9 +118,11 @@ async def test_cosim(tb: CosimTB, log, generate_irqs, elf_file, dtb_file):
 
 if __name__ == "__main__":
     sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO", "-DRVFI"]
+    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO", "--timing"]
     if WAVES:
         build_args += ["--trace-fst"]
+    if RVFI:
+        build_args += ["-DRVFI"]
     if RVFI_TRACE:
         build_args += [f"-DRVFI_TRACE"]
     if ASSERTIONS:
@@ -123,7 +130,7 @@ if __name__ == "__main__":
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(),
-        includes=["/foss/designs/rvj1/rtl/inc"],
+        includes=get_inc_dirs(),
         build_args=build_args,
         hdl_toplevel="rvj1_cosim_top",
         parameters={},

@@ -1,9 +1,9 @@
 import forastero
 from forastero import DriverEvent, SeqContext
 from cocotb.triggers import ClockCycles
-from .transaction import DecoderBackpressure, LsuRequest, IfuJmpRequest, InterruptRequest
+from .transaction import DecoderBackpressure, LsuRequest, IfuJmpRequest, IrqRequest
 from .response import DecoderResponder
-from .request import LsuInitiator, IfuJmpInitiator, InterruptDriver
+from .request import LsuInitiator, IfuJmpInitiator, IrqDriver
 
 
 @forastero.sequence()
@@ -60,10 +60,10 @@ async def lsu_drive_seq(
 
 
 @forastero.sequence()
-@forastero.requires("irq_drv", InterruptDriver)
+@forastero.requires("irq_drv", IrqDriver)
 async def irq_rand_seq(
     ctx: SeqContext, 
-    irq_drv: InterruptDriver,
+    irq_drv: IrqDriver,
     min_latency = 100,
     max_latency = 1000,
 ):
@@ -71,7 +71,7 @@ async def irq_rand_seq(
         while True:
             await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
             irq_drv.enqueue(
-                InterruptRequest(
+                IrqRequest(
                     external = ctx.random.random() > 0.9,
                     timer    = ctx.random.random() > 0.9,
                     sw       = ctx.random.random() > 0.9,

@@ -26,16 +26,9 @@ rvfi_sigs = [
     "mem_wdata",
 ]
 csrs = (
-    "mvendorid", 
-    "marchid",
-    "mimpid",
-    "mhartid",
     "mstatus",
-    "mstatush",
-    "misa",
     "mie",
     "mtvec",
-    "msratch",
     "mepc",
     "mcause",
     "mtval",
@@ -43,10 +36,10 @@ csrs = (
 )
 csr_sigs = []
 for csr in csrs:
-    csr_sigs += f"csr_{csr}_rmask"
-    csr_sigs += f"csr_{csr}_wmask"
-    csr_sigs += f"csr_{csr}_rdata"
-    csr_sigs += f"csr_{csr}_wdata"
+    csr_sigs += (f"csr_{csr}_rmask",)
+    csr_sigs += (f"csr_{csr}_wmask",)
+    csr_sigs += (f"csr_{csr}_rdata",)
+    csr_sigs += (f"csr_{csr}_wdata",)
 
 class RvfiIO(BaseIO):
     def __init__(
