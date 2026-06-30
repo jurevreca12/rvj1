@@ -111,7 +111,8 @@ async def test_cosim(
     for i in range(500):
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
         hart0.step(1)
-       #print(rvfi_msg)
+        compare(hart0.state, rvfi_msg, log)
+
 
     #while True:
     #    if state == NORM:
@@ -119,6 +120,17 @@ async def test_cosim(
     #        compare()
     #    elif state == DBG:
     #        await tb.dmi_mon()?
+
+
+def compare(state, rvfi_msg, log) -> bool:
+    assert (state.pc & 0xFFFF_FFFF) == rvfi_msg.pc_wdata, (
+        f"PC mismatch: {hex(state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_rdata)}."
+    )
+    if rvfi_msg.rd_addr > 0:
+        assert (state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF) == rvfi_msg.rd_wdata, (
+             f"Register {rvfi_msg.rd_addr} mismatch:" + 
+             f"{hex(state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF)} != {hex(rvfi_msg.rd_wdata)}."
+        )
 
 @pytest.fixture
 def cosim_fixture(hdl: HDL) -> HDL:
@@ -151,9 +163,9 @@ def test_cosim_runner(cosim_fixture, elf_file):
       suffix=".hex", 
       dir=tempfile.gettempdir(), 
       delete=False) as hex_file:
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         print(f"Writting HEX to file: {hex_file.name}.")
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hex_file.write(hex_str)
     cosim_fixture.test(
         toplevel=cosim_fixture.toplevel,
