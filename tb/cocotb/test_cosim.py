@@ -80,7 +80,8 @@ async def test_cosim(
     dtb_file,
     start_pc,
 ):
-    elf_file = os.environ.get("ELF_FILE")
+    elf_file  = os.environ.get("ELF_FILE")
+    exit_addr = int(os.environ.get("EXIT_ADDR"))
     # Setup simulator
     sim_cfg = cfg_t(
         isa="rv32i_zicsr_zifencei",
@@ -108,11 +109,12 @@ async def test_cosim(
         tb.schedule(irq_rand_seq(irq_drv=tb.irq_drv))
     #if generate_dbg:
     #    tb.schedule(dbg_seq(dmi_drv=tb.dmi_drv))
-    for i in range(500):
+    while True:
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
         hart0.step(1)
+        if (hart0.state.pc & 0xFFFF_FFFF) == exit_addr:
+            break
         compare(hart0.state, rvfi_msg, log)
-
 
     #while True:
     #    if state == NORM:
@@ -158,20 +160,22 @@ def test_cosim_runner(cosim_fixture, elf_file):
     now = datetime.datetime.now()
     now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
     hex_str = elf2hex(elf_file)
+    exit_addr = get_exit_addr(elf_file)
     with tempfile.NamedTemporaryFile(
       prefix=f"{elf_name}_{now}", 
       suffix=".hex", 
       dir=tempfile.gettempdir(), 
       delete=False) as hex_file:
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         print(f"Writting HEX to file: {hex_file.name}.")
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hex_file.write(hex_str)
+
     cosim_fixture.test(
         toplevel=cosim_fixture.toplevel,
         test_module="test_cosim",
         plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
-        env={"ELF_FILE": elf_file}
+        env={"ELF_FILE": elf_file, "EXIT_ADDR": str(exit_addr)}
     )
 
 def elf2hex(elf_file) -> str:
@@ -191,3 +195,12 @@ def elf2hex(elf_file) -> str:
                 for word in narr:
                     hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
     return bytes(hex_str, 'utf-8')
+
+def get_exit_addr(elf_file) -> int:
+    "Based on the elf file determines the exit address"
+    return 0x8000_2280
+    #with open(elf_file, 'rb') as f:
+    #    elf = ELFFile(f)
+    #    for section in elf.iter_sections():
+    #        import pdb; pdb.set_trace()
+
