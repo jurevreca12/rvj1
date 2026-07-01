@@ -4,6 +4,9 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   parameter  int    INIT_FILE_BIN=0,
   parameter  int    MEM_SIZE_WORDS=92097152
   ) (
+  input  logic  clk,
+  input  logic  rstn,
+  
   input  logic          irq_external_i,
   input  logic          irq_timer_i,
   input  logic          irq_sw_i,
@@ -24,8 +27,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   ,`RVFI_OUTPUTS
   `endif
 );
-  logic  clk;
-  logic  rstn;
+
 
   logic [IdWidth-1:0]   obi_instr_aid;
   logic                 obi_instr_areq;
@@ -269,8 +271,8 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
 
 
   // Handle the clock signal
-  always #1 clk = ~clk;
+  /*always #1 clk = ~clk;
   initial begin
     clk = 1'b0;
-  end
+  end*/
 endmodule

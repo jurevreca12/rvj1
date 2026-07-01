@@ -17,7 +17,6 @@ from riscv.debug_module import debug_module_config_t
 import pytest
 from base import get_rtl_files, get_inc_dirs
 from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
-from cocotb_tools.runner import get_runner
 from cocotb_tools.pytest.hdl import HDL
 from elftools.elf.elffile import ELFFile
 import numpy as np
@@ -66,7 +65,7 @@ class CosimTB(BaseBench):
 @CosimTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
-    timeout=100,
+    timeout=1000000,
     shutdown_delay=1,
     shutdown_loops=1,
 )
@@ -113,8 +112,15 @@ async def test_cosim(
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
         hart0.step(1)
         if (hart0.state.pc & 0xFFFF_FFFF) == exit_addr:
+            log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
             break
-        compare(hart0.state, rvfi_msg, log)
+        try:
+            compare(hart0.state, rvfi_msg, log)
+        except AssertionError as e:
+            log.error(f"Step and compare error at spike address: {hex(hart0.state.pc)}. Error message: {e}.")
+            log.info("Running 10 clock cycles and then ending simulation.")
+            await ClockCycles(tb.clk, 10)
+            raise AssertionError(e)
 
     #while True:
     #    if state == NORM:
@@ -126,7 +132,7 @@ async def test_cosim(
 
 def compare(state, rvfi_msg, log) -> bool:
     assert (state.pc & 0xFFFF_FFFF) == rvfi_msg.pc_wdata, (
-        f"PC mismatch: {hex(state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_rdata)}."
+        f"PC mismatch: {hex(state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_wdata)}."
     )
     if rvfi_msg.rd_addr > 0:
         assert (state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF) == rvfi_msg.rd_wdata, (
@@ -160,7 +166,9 @@ def test_cosim_runner(cosim_fixture, elf_file):
     now = datetime.datetime.now()
     now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
     hex_str = elf2hex(elf_file)
-    exit_addr = get_exit_addr(elf_file)
+    exit_symbol = 'write_tohost'
+    exit_addr = get_exit_addr(elf_file, exit_symbol)
+    print(f"Using symbol {exit_symbol} address as an exit address: {hex(exit_addr)}")
     with tempfile.NamedTemporaryFile(
       prefix=f"{elf_name}_{now}", 
       suffix=".hex", 
@@ -196,11 +204,16 @@ def elf2hex(elf_file) -> str:
                     hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
     return bytes(hex_str, 'utf-8')
 
-def get_exit_addr(elf_file) -> int:
+def get_exit_addr(elf_file, exit_symbol='write_tohost') -> int:
     "Based on the elf file determines the exit address"
-    return 0x8000_2280
-    #with open(elf_file, 'rb') as f:
-    #    elf = ELFFile(f)
-    #    for section in elf.iter_sections():
-    #        import pdb; pdb.set_trace()
+    with open(elf_file, 'rb') as f:
+        elf = ELFFile(f)
+        for section in elf.iter_sections():
+            if section.name == ".symtab":
+                symbol = section.get_symbol_by_name(exit_symbol)
+                if symbol:
+                    exit_addr = symbol[0]["st_value"]
+                    return exit_addr
+
+    raise KeyError(f"Symbol '{exit_symbol}' not found")
 
