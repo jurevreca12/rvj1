@@ -1,5 +1,5 @@
 import os
-from base import get_rtl_files, WAVES, RVFI, RVFI_TRACE, ASSERTIONS, get_runner
+from base import get_rtl_files, get_inc_dirs, WAVES, RVFI, RVFI_TRACE, ASSERTIONS, get_runner
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     runner = get_runner(sim)
     runner.build(
         sources=get_rtl_files(),
-        includes=["/foss/designs/rvj1/rtl/inc"],
+        includes=get_inc_dirs(),
         build_args=build_args,
         hdl_toplevel="lsu_mem_test_top",
         parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},

@@ -123,8 +123,9 @@ class rvj1(pluginTemplate):
                 "/foss/designs/rvj1/tb/riscof-plugin/tb/",
             )
             rtl_files = []
+            inc_dirs = []
             sources = subprocess.run(
-                "bender sources -t sim --flatten",
+                "bender sources -t rtl -t sim -t tech_cells_generic_exclude_deprecated --keep-excluded-incdirs --flatten",
                 capture_output=True,
                 shell=True
             )
@@ -132,11 +133,13 @@ class rvj1(pluginTemplate):
             for src_pkg in sources:
                 for file in src_pkg['files']:
                     rtl_files.append(file)
-
+                for inc_dir in src_pkg['include_dirs']:
+                    inc_dirs.append(Path(inc_dir))
+            inc_args = [f' -I{str(inc_dir)} ' for inc_dir in inc_dirs]
             verilator_args = (
                 " --timescale 1ns/1ps "
                 + " --binary "
-                + " -I/foss/designs/rvj1/rtl/inc "
+                + ''.join(inc_args)
                 + " -DRVFI "
                 + r" ${VERILATOR_OPTS} "
                 + " -Wno-fatal "
