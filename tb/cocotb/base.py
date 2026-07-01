@@ -13,7 +13,7 @@ ASSERTIONS = os.getenv("ASSERTIONS", default=True)
 def get_rtl_files():
     rtl_files = []
     sources = subprocess.run(
-        "bender sources -t sim -t tech_cells_generic_exclude_deprecated --flatten", 
+        "bender sources -t rtl -t sim -t tech_cells_generic_exclude_deprecated --flatten", 
         capture_output=True, 
         shell=True
     )
@@ -27,15 +27,14 @@ def get_rtl_files():
 def get_inc_dirs():
     inc_dirs = []
     sources = subprocess.run(
-        "bender sources -t rtl -t tech_cells_generic_exclude_deprecated --flatten", 
+        "bender sources --keep-excluded-incdirs -t rtl -t sim -t tech_cells_generic_exclude_deprecated --flatten", 
         capture_output=True, 
         shell=True
     )
     sources = json.loads(sources.stdout)
     for src_pkg in sources:
-        for pkg, files in src_pkg['export_incdirs'].items():
-            for file in files:
-                inc_dirs.append(Path(file))
+        for inc_dir in src_pkg['include_dirs']:
+            inc_dirs.append(Path(inc_dir))
     return inc_dirs
 
 def get_test_runner(hdl_top):

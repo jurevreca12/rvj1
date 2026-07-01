@@ -35,6 +35,6 @@ sources:
             - tb/support/ifu_mem_test_top.sv
             - tb/support/lsu_mem_test_top.sv
             - tb/support/rvj1_test_top.sv
-            - tb/support/rvj1_cosim_top.sv
             - tb/support/rvj1_cosim_pkg.sv
+            - tb/support/rvj1_cosim_top.sv
             - tb/riscof-plugin/tb/rvj1_riscof_tb.sv
