@@ -10,12 +10,13 @@ USER developer
 
 RUN pip install  "cython<3.0.0" wheel && \
     pip install  "PyYAML==5.2" --no-build-isolation && \ 
+    pip install vcs_versioning pyelftools && \
     pip install git+https://github.com/jurevreca12/forastero.git@f546470 \
                 git+https://github.com/riscv-software-src/riscv-config@54171f2 \
                 git+https://github.com/riscv-software-src/riscv-isac@777d2b4 \
                 git+https://github.com/riscv-software-src/riscof@aa146d4 \
                 git+https://github.com/jurevreca12/pyspike.git@928524b \
-                pyelftools && \
+                git+https://github.com/jurevreca12/riscv-python-model@24daba0 && \
     pip install git+https://github.com/cocotb/cocotb.git@c463647 # installed separetly - version conflict
 
 USER root
