@@ -138,7 +138,7 @@ def compare(state, rvfi_msg, log) -> bool:
 
 ELF_LIST_FILE = os.getenv(
     "ELF_LIST_FILE", 
-    default="/foss/designs/rvj1/tb/cocotb/elf_files.list"
+    default="/foss/designs/rvj1/tb/cocotb/test_elf_files.list"
 )
 with open(ELF_LIST_FILE, 'r') as f:
     ELF_FILES = f.read().splitlines()
