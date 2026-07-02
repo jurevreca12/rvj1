@@ -76,6 +76,7 @@ async def test_cosim(
     start_pc,
 ):
     elf_file  = os.environ.get("ELF_FILE")
+    log.info(f"Running test with ELF file: {elf_file}")
     exit_addr = int(os.environ.get("EXIT_ADDR"))
     # Setup simulator
     sim_cfg = cfg_t(
@@ -94,7 +95,7 @@ async def test_cosim(
         dm_config = debug_module_config_t()
     )
     hart0 = spike.get_core(0)
-    spike.run() # Needed to initialize debug rom
+    spike.start() # Initialize simulation (load ELF, setup boot rom)
     hart0.reset()
     hart0.step(5) # Get out of trampoline
     assert (hart0.state.pc & 0xFFFF_FFFF) == start_pc, (
@@ -111,10 +112,10 @@ async def test_cosim(
             log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
             break
         try:
-            compare(hart0.state, rvfi_msg, log)
+            compare(hart0.state, rvfi_msg)
         except AssertionError as e:
             tb.log.error("Step and compare failed")
-            tb.log.error("Spike PC: %s", hex(hart0.state.pc))
+            tb.log.error("PC: %s", hex(rvfi_msg.pc_rdata))
             tb.log.error("RVFI message: %s", rvfi_msg)
             tb.log.info("Running 10 additional clock cycles before terminating...")
             await ClockCycles(tb.clk, 10)
@@ -128,13 +129,13 @@ async def test_cosim(
     #        await tb.dmi_mon()?
 
 
-def compare(state, rvfi_msg, log) -> bool:
+def compare(state, rvfi_msg) -> bool:
     assert (state.pc & 0xFFFF_FFFF) == rvfi_msg.pc_wdata, (
         f"PC mismatch: {hex(state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_wdata)}."
     )
     if rvfi_msg.rd_addr > 0:
         assert (state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF) == rvfi_msg.rd_wdata, (
-             f"Register {rvfi_msg.rd_addr} mismatch:" + 
+             f"Register {rvfi_msg.rd_addr} mismatch: " + 
              f"{hex(state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF)} != {hex(rvfi_msg.rd_wdata)}."
         )
 

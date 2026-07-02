@@ -15,7 +15,7 @@ RUN pip install  "cython<3.0.0" wheel && \
                 git+https://github.com/riscv-software-src/riscv-config@54171f2 \
                 git+https://github.com/riscv-software-src/riscv-isac@777d2b4 \
                 git+https://github.com/riscv-software-src/riscof@aa146d4 \
-                git+https://github.com/jurevreca12/pyspike.git@928524b \
+                git+https://github.com/jurevreca12/pyspike.git@7c92846 \
                 git+https://github.com/jurevreca12/riscv-python-model@24daba0 && \
     pip install git+https://github.com/cocotb/cocotb.git@c463647 # installed separetly - version conflict
 
