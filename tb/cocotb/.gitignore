@@ -3,3 +3,5 @@ sim_build
 results.xml
 *.fst
 *.vcd
+sources.f
+test_elf_files.list

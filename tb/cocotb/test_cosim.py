@@ -7,17 +7,13 @@ from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
 from rvfi.io import RvfiIO
 from rvfi.response import RvfiMonitor
-from rvfi.transaction import RvfiTransaction
-from rvj1.io import IrqIO, DebugIO
+from rvj1.io import IrqIO
 from rvj1.request import IrqDriver
 from rvj1.sequence import irq_rand_seq
 from riscv.sim import sim_t
 from riscv.cfg import cfg_t, mem_cfg_t
 from riscv.debug_module import debug_module_config_t
 import pytest
-from base import get_rtl_files, get_inc_dirs
-from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
-from cocotb_tools.pytest.hdl import HDL
 from elftools.elf.elffile import ELFFile
 import numpy as np
 
@@ -140,27 +136,14 @@ def compare(state, rvfi_msg, log) -> bool:
              f"{hex(state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF)} != {hex(rvfi_msg.rd_wdata)}."
         )
 
-@pytest.fixture
-def cosim_fixture(hdl: HDL) -> HDL:
-    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO", "--timing"]
-    if WAVES:
-        build_args += ["--trace-fst", "--trace-structs"]
-    if RVFI:
-        build_args += ["-DRVFI"]
-    if RVFI_TRACE:
-        build_args += ["-DRVFI_TRACE"]
-    if ASSERTIONS:
-        build_args += ["-DASSERTIONS"]
-    hdl.toplevel="rvj1_cosim_top"
-    hdl.build(
-        sources    = get_rtl_files(),
-        includes   = get_inc_dirs(),
-        build_args = build_args,
-        waves      = False
-    )
-    return hdl
+ELF_LIST_FILE = os.getenv(
+    "ELF_LIST_FILE", 
+    default="/foss/designs/rvj1/tb/cocotb/elf_files.list"
+)
+with open(ELF_LIST_FILE, 'r') as f:
+    ELF_FILES = f.read().splitlines()
 
-@pytest.mark.parametrize("elf_file", ('/foss/designs/rvj1/tb/cosim/dut.elf',))
+@pytest.mark.parametrize("elf_file", ELF_FILES)
 def test_cosim_runner(cosim_fixture, elf_file):
     elf_name = elf_file.split("/")[-1].split('.')[0]
     now = datetime.datetime.now()
@@ -216,4 +199,3 @@ def get_exit_addr(elf_file, exit_symbol='write_tohost') -> int:
                     return exit_addr
 
     raise KeyError(f"Symbol '{exit_symbol}' not found")
-

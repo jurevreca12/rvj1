@@ -1,4 +1,3 @@
-from base import get_rtl_files, get_inc_dirs
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
@@ -9,10 +8,6 @@ from rvj1.request import IfuJmpInitiator
 from rvj1.response import IfuToDecMonitor, DecoderResponder
 from rvj1.sequence import ifu_jmp_to_addr, dec_backpressure_seq
 from rvj1.transaction import InstrAddrResponse
-import os
-
-from base import WAVES, RVFI, RVFI_TRACE, ASSERTIONS
-from cocotb_tools.runner import get_runner
 
 class IfuTB(BaseBench):
     def __init__(self, dut):
@@ -152,30 +147,11 @@ async def response_error(tb: IfuTB, log):
     await RisingEdge(tb.dec_ready_i)
     await ClockCycles(tb.clk, 10)
 
-if __name__ == "__main__":
-    sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
-    if WAVES:
-        build_args += ["--trace-fst"]
-    if RVFI:
-        build_args += [f"-DRVFI"]
-    if RVFI_TRACE:
-        build_args += [f"-DRVFI_TRACE"]
-    if ASSERTIONS:
-        build_args += [f"-DASSERTIONS"]
-    runner = get_runner(sim)
-    runner.build(
-        sources=get_rtl_files(),
-        includes=get_inc_dirs(),
-        build_args=build_args,
-        hdl_toplevel="ifu_mem_test_top",
-        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-        always=True,
-        waves=False,
-    )
-    runner.test(
-        hdl_toplevel="ifu_mem_test_top", 
+
+def test_ifu(ifu_fixture):
+    ifu_fixture.test(
+        toplevel=ifu_fixture.toplevel,
         test_module="test_ifu",
-        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"]
+        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"],
     )
   

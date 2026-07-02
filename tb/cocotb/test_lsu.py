@@ -1,5 +1,3 @@
-import os
-from base import get_rtl_files, get_inc_dirs, WAVES, RVFI, RVFI_TRACE, ASSERTIONS, get_runner
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
@@ -161,28 +159,28 @@ async def bus_error(tb: LsuTB, log, cmd):
 
 
 
-if __name__ == "__main__":
-    sim = os.getenv("SIM", default="verilator")
-    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
-    if WAVES:
-        build_args += ["--trace-fst"]
-    if RVFI:
-        build_args += [f"-DRVFI"]
-    if RVFI_TRACE:
-        build_args += [f"-DRVFI_TRACE"]
-    if ASSERTIONS:
-        build_args += [f"-DASSERTIONS"]
-    runner = get_runner(sim)
-    runner.build(
-        sources=get_rtl_files(),
-        includes=get_inc_dirs(),
-        build_args=build_args,
-        hdl_toplevel="lsu_mem_test_top",
-        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-        always=True,
-        waves=False,
-    )
-    runner.test(
-        hdl_toplevel="lsu_mem_test_top", 
-        test_module="test_lsu"
-    )
+#if __name__ == "__main__":
+#    sim = os.getenv("SIM", default="verilator")
+#    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
+#    if WAVES:
+#        build_args += ["--trace-fst"]
+#    if RVFI:
+#        build_args += [f"-DRVFI"]
+#    if RVFI_TRACE:
+#        build_args += [f"-DRVFI_TRACE"]
+#    if ASSERTIONS:
+#        build_args += [f"-DASSERTIONS"]
+#    runner = get_runner(sim)
+#    runner.build(
+#        sources=get_rtl_files(),
+#        includes=get_inc_dirs(),
+#        build_args=build_args,
+#        hdl_toplevel="lsu_mem_test_top",
+#        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
+#        always=True,
+#        waves=False,
+#    )
+#    runner.test(
+#        hdl_toplevel="lsu_mem_test_top", 
+#        test_module="test_lsu"
+#    )

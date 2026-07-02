@@ -4,15 +4,11 @@ import datetime
 from riscvmodel.program import Program
 from riscvmodel.model import Model, State
 from riscvmodel.variant import RV32I
-from base import get_rtl_files, get_inc_dirs, WAVES, RVFI, RVFI_TRACE, ASSERTIONS
 from rvtests import RV32I_TESTS
 from sdexttests import SDEXT_TESTS
 import pytest
-from cocotb_tools.pytest.hdl import HDL
-import cocotb
-from cocotb.triggers import ValueChange, ClockCycles, RisingEdge
+from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb.clock import Clock
-from cocotb_tools.runner import get_runner
 
 TIMEOUT_CLOCKS = 1000
 
@@ -53,36 +49,6 @@ async def run_rvj1(dut):
             f"Register {regnum} should contain the value {regval}, not {dut.dut.regfile_inst.regfile[regnum].value}."
         )
 
-
-
-@pytest.fixture
-def top_test_fixture(hdl: HDL) -> HDL:
-    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
-    if WAVES:
-        build_args += ["--trace-fst", "--trace-structs"]
-    if RVFI:
-        build_args += [f"-DRVFI"]
-    if RVFI_TRACE:
-        build_args += [f"-DRVFI_TRACE"]
-    if ASSERTIONS:
-        build_args += [f"-DASSERTIONS"]
-    hdl.toplevel = "rvj1_test_top"
-    hdl.build(
-        sources = get_rtl_files(),
-        includes = get_inc_dirs(),
-        build_args = build_args,
-        parameters = {
-            "IRAM_BASE_ADDR": 0x8000_0000, 
-            "IRAM_WORD_SIZE": (1 << 8),
-            "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
-            "DRAM_WORD_SIZE": (1 << 8),
-            "DmRomAddr": 0x8000_0050,
-        },
-        waves = False,
-    )
-    return hdl
-
-
 @pytest.mark.parametrize("asm_test_name", list(RV32I_TESTS.keys()) + list(SDEXT_TESTS.keys()))
 def test_simple_runner(top_test_fixture, asm_test_name):
     if asm_test_name[0:5] == "sdext":
@@ -111,7 +77,6 @@ def test_simple_runner(top_test_fixture, asm_test_name):
         plusargs=[f"+MEM_INIT_FILE0={hex_file_fp.name}"],
         env=extraenv
     )
-
 
 def gen_hex(program: Program) -> str:
     hex_str = ""
