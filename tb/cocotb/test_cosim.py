@@ -113,10 +113,12 @@ async def test_cosim(
         try:
             compare(hart0.state, rvfi_msg, log)
         except AssertionError as e:
-            log.error(f"Step and compare error at spike address: {hex(hart0.state.pc)}. Error message: {e}.")
-            log.info("Running 10 clock cycles and then ending simulation.")
+            tb.log.error("Step and compare failed")
+            tb.log.error("Spike PC: %s", hex(hart0.state.pc))
+            tb.log.error("RVFI message: %s", rvfi_msg)
+            tb.log.info("Running 10 additional clock cycles before terminating...")
             await ClockCycles(tb.clk, 10)
-            raise AssertionError(e)
+            raise
 
     #while True:
     #    if state == NORM:
@@ -178,8 +180,8 @@ def elf2hex(elf_file) -> str:
             if segment['p_type'] == 'PT_LOAD':
                 addr = segment['p_paddr']
                 assert addr >= 0x8000_0000
-                rel_addr = addr - 0x8000_0000
-                hex_str += f"@{rel_addr:08x}\n"
+                rel_word_addr = int((addr - 0x8000_0000) / 4)
+                hex_str += f"@{rel_word_addr:08x}\n"
                 data = list(map(lambda d: f"{d:02x}", segment.data()))
                 arr = np.array(data)
                 narr = arr.reshape(-1, 4)

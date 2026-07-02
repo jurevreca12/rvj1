@@ -2,7 +2,8 @@
 module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   parameter  string INIT_FILE="",
   parameter  int    INIT_FILE_BIN=0,
-  parameter  int    MEM_SIZE_WORDS=92097152
+  parameter  int    MEM_SIZE_WORDS=200000000
+                                  
   ) (
   input  logic  clk,
   input  logic  rstn,
@@ -195,7 +196,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .sub_obi_r_chans       (obi_r_chans_sub),
     .sub_obi_rready_signals(obi_rready_signals_sub),
 
-    .addr_map_i            ( address_map )
+    .addr_map_i            (address_map)
   );
 
   obi_ram #(
