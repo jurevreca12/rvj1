@@ -9,19 +9,26 @@ export RISCV_OBJCOPY
 export SPIKE_PATH
 
 MAKEFILE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-TARGET_DIR    := $(abspath $(MAKEFILE_DIR)/../riscv-dv-cfg/)
+CFG_DIR       := $(abspath $(MAKEFILE_DIR)/../riscv-dv-cfg/)
 
-RISCV_DV_RUN  := PYTHONPATH=${RISCV_DV}/pygen:$PYTHONPATH python ${RISCV_DV}/run.py
-RISCV_DV_ARGS := --custom_target $(TARGET_DIR) \
+RISCV_ISA  := rv32i_zicsr_zifencei
+RISCV_PRIV := m
+
+
+RISCV_DV_RUN  := PYTHONPATH=${RISCV_DV}/pygen:${PYTHONPATH} python ${RISCV_DV}/run.py
+RISCV_DV_ARGS := --custom_target ${CFG_DIR} \
                  --target rv32i \
                  --mabi ilp32\
                  --seed 42 \
-                 --exp \
                  --iterations 1 \
                  --batch_size 1 \
-                 --isa rv32i_zicsr \
+                 --isa rv32i_zicsr_zifencei \
                  --simulator pyflow \
                  --gen_timeout 1800 \
+		 --iss spike \
+		 --iss_yaml ${CFG_DIR}/iss.yaml \
+		 --steps gen \
+		 -v \
                  --verbose
 
 TESTS         ?= riscv_arithmetic_basic_test \
@@ -44,7 +51,8 @@ TEST_DIRS     := $(abspath $(patsubst %,$(MAKEFILE_DIR)/%_out,$(TESTS)) )
 all: $(TEST_DIRS)
 
 $(TEST_DIRS):
-	$(RISCV_DV_RUN) $(RISCV_DV_ARGS) --output $@ --test $(patsubst %_out,%,$(notdir $@)) >$@_err.log 2>&1
+	$(RISCV_DV_RUN) $(RISCV_DV_ARGS) --output $@ --test $(patsubst %_out,%,$(notdir $@)) #>$@_err.log 2>&1
 
 clean:
 	rm -rf riscv_*out/
+	rm -f *err.log

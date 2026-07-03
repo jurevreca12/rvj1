@@ -56,6 +56,7 @@ RUN cd /foss/tools/ && \
     pip install -e .
 ENV RISCV_DV=/foss/tools/riscv-dv
 
+USER developer
 RUN pip install --force-reinstall pytest && \
     pip install pytest-xdist
 
