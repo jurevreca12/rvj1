@@ -504,7 +504,7 @@ module rvj1_top import rvj1_pkg::*; #(
     end
   end
   always_ff @(posedge clk_i) begin
-    if (instr_retiring) begin
+    if (instr_retiring | synhr_trap) begin
       retired_stage                <= mem_wb_stage;
       retired_stage.rd_addr        <= (wpc_we                    ) ? wpc_addr : '0;
       retired_stage.rd_wdata       <= (wpc_we && (wpc_addr != '0)) ? wpc_data : '0;
@@ -525,7 +525,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (1'b1),
-    .in   (instr_retiring),
+    .in   (instr_retiring | synhr_trap),
     .out  (rvfi_valid)
   );
   cntr #(
