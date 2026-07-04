@@ -3,14 +3,15 @@ USER root
 RUN apt update && \
     apt install -y --only-upgrade python3-pip && \
     apt install -y python3-dev \
-                   boolector
+                   boolector \
+                   netcat-openbsd
 
 RUN useradd -m -u 1000 developer
 USER developer
 
 RUN pip install  "cython<3.0.0" wheel && \
     pip install  "PyYAML==5.2" --no-build-isolation && \ 
-    pip install vcs_versioning pyelftools && \
+    pip install vcs_versioning pyelftools pexpect && \
     pip install git+https://github.com/jurevreca12/forastero.git@f546470 \
                 git+https://github.com/riscv-software-src/riscv-config@54171f2 \
                 git+https://github.com/riscv-software-src/riscv-isac@777d2b4 \
@@ -18,6 +19,8 @@ RUN pip install  "cython<3.0.0" wheel && \
                 git+https://github.com/jurevreca12/pyspike.git@7c92846 \
                 git+https://github.com/jurevreca12/riscv-python-model@24daba0 && \
     pip install git+https://github.com/cocotb/cocotb.git@c463647 # installed separetly - version conflict
+RUN pip install --force-reinstall pytest && \
+    pip install pytest-xdist
 
 USER root
 RUN curl -L https://github.com/sifive/elf2hex/archive/refs/tags/v20.08.00.00.tar.gz -o elf2hex.tar.gz && \
@@ -56,8 +59,18 @@ RUN cd /foss/tools/ && \
     pip install -e .
 ENV RISCV_DV=/foss/tools/riscv-dv
 
-USER developer
-RUN pip install --force-reinstall pytest && \
-    pip install pytest-xdist
+
+RUN git clone https://github.com/riscv-collab/riscv-openocd --recurse-submodules && \
+    cd riscv-openocd && \
+    git checkout eb01c63 && \
+    git submodule update && \
+    mkdir /foss/tools/riscv-openocd/ && \
+    ./bootstrap && \
+    ./configure --prefix=/foss/tools/riscv-openocd/ --enable-internal-jimtcl && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf riscv-openocd && \
+    ln -s /foss/tools/riscv-openocd/bin/openocd /foss/tools/bin/openocd
 
 WORKDIR /foss/designs/rvj1

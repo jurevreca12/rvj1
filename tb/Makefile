@@ -1,11 +1,13 @@
-.PHONY: all riscof cocotb clean
+.PHONY: all riscof debug cocotb clean
 
 SHELL = /bin/bash
 
 # Tools
-RISCOF ?= riscof
-PYTEST ?= pytest
-BENDER ?= bender
+RISCOF    ?= riscof
+PYTEST    ?= pytest
+PYTHON    ?= python
+BENDER    ?= bender
+VERILATOR ?= verilator
 
 # GNU
 XLEN         ?= 32
@@ -16,10 +18,10 @@ RISCV_VMARCH ?= rv32i_zicsr
 export XLEN ABI RISCV_PREFIX RISCV_MARCH RISCV_VMARCH
 
 
-BENDER_ARGS := --keep-excluded-incdirs \
-               -t rtl \
-			   -t sim \
-			   -t tech_cells_generic_exclude_deprecated
+BENDER_ARGS  := --keep-excluded-incdirs \
+                -t rtl \
+			    -t sim \
+			    -t tech_cells_generic_exclude_deprecated
 
 JOBS 		:= $(shell /foss/designs/rvj1/scripts/half_nproc.sh)
 PYTEST_ARGS ?= -n $(JOBS)
@@ -28,8 +30,10 @@ PYTEST_ARGS ?= -n $(JOBS)
 MKFILE_PATH 	     := $(abspath $(lastword $(MAKEFILE_LIST)))
 TB_DIR               := $(dir $(MKFILE_PATH))
 COCOTB_DIR           := $(abspath $(TB_DIR)/cocotb)
-RV_TEST_DIR          := $(abspath $(TB_DIR)/riscv-tests)
-RV_TEST_BENCH_DIR    := $(abspath $(RV_TEST_DIR)/benchmarks)
+RV_TESTS_DIR         := $(abspath $(TB_DIR)/riscv-tests)
+
+# General stuff
+SOURCES_FILE := $(abspath $(TB_DIR)/sources.f)
 
 # RISCOF
 RISCOF_CFG_DIR       := $(abspath $(TB_DIR)/riscof-plugin)
@@ -85,6 +89,8 @@ RISCOF_TARGETS := $(RISCOF_WORK_DIR) \
                   $(REF_LOGS)
 
 # RISCV-TESTS
+RV_TESTS_BENCH_DIR := $(abspath $(RV_TESTS_DIR)/benchmarks)
+RV_TESTS_DEBUG_DIR := $(abspath $(RV_TESTS_DIR)/debug)
 RV_TESTS ?= median \
             qsort \
             rsort \
@@ -92,11 +98,24 @@ RV_TESTS ?= median \
             vvadd \
             memcpy \
             multiply 
-RV_TESTS_BIN_NAMES := $(addsuffix .riscv, $(RV_TESTS))
-RV_TESTS_BINS      := $(addprefix $(RV_TEST_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
+RV_TESTS_BIN_NAMES    := $(addsuffix .riscv, $(RV_TESTS))
+RV_TESTS_BINS         := $(addprefix $(RV_TESTS_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
+RV_TESTS_DEBUG_TARGET := $(TB_DIR)/support/rvj1_dbg_sim.py
+DEBUG_TOP             := rvj1_debug_top 
+DEBUG_VERILATOR_DIR   := $(TB_DIR)/debug_sim_model/
+DEBUG_VERILATOR_BIN   := $(DEBUG_VERILATOR_DIR)/V$(DEBUG_TOP)
+DBG_MODULE_DIR		  := $(shell bender path riscv-dbg)
+REMOTE_BITBANG_DIR    := $(DBG_MODULE_DIR)/tb/remote_bitbang/
+REMOTE_BITBANG_LIB    := $(REMOTE_BITBANG_DIR)/librbs.so
+VERILATOR_LDFLAGS     := -L$(REMOTE_BITBANG_DIR) -Wl,--enable-new-dtags -Wl,-rpath,remote_bitbang -lrbs
+VERILATOR_ARGS        := --timescale 1ns/1ps --binary -Wno-fatal -Wno-style 
+ifdef VERILATOR_DEBUG
+VERILATOR_ARGS        += --trace-fst --trace-structs --trace-params -DRVFI
+endif
+VERILATOR_ARGS        += --top $(DEBUG_TOP) -f $(SOURCES_FILE) --Mdir $(DEBUG_VERILATOR_DIR)
+VERILATOR_ARGS        += -LDFLAGS "$(VERILATOR_LDFLAGS)" $(DBG_MODULE_DIR)/tb/SimJTAG.sv
 
 # COCOTB
-SOURCES_FILE  := $(abspath $(COCOTB_DIR)/sources.f)
 SIM           ?= verilator
 TOPLEVEL_LANG ?= verilog
 COMPILE_ARGS  += $(addprefix -D ,$(DEFINES))
@@ -116,7 +135,16 @@ $(ELF_LIST_FILE):
 	sed -i -e 's/ /\n/g' $(ELF_LIST_FILE)
 
 $(RV_TESTS_BINS):
-	make -C $(RV_TEST_BENCH_DIR) -f $(RV_TEST_BENCH_DIR)/Makefile $(patsubst $(RV_TEST_BENCH_DIR)/%,%,$@)
+	make -C $(RV_TESTS_BENCH_DIR) -f $(RV_TESTS_BENCH_DIR)/Makefile $(patsubst $(RV_TESTS_BENCH_DIR)/%,%,$@)
+
+$(REMOTE_BITBANG_LIB):
+	make -C $(REMOTE_BITBANG_DIR) -f $(REMOTE_BITBANG_DIR)/Makefile
+
+$(DEBUG_VERILATOR_BIN): $(SOURCES_FILE) $(REMOTE_BITBANG_LIB)
+	$(VERILATOR) $(VERILATOR_ARGS)
+
+debug: $(DEBUG_VERILATOR_BIN)
+	LD_LIBRARY_PATH=$(REMOTE_BITBANG_LIB) $(PYTHON) $(RV_TESTS_DEBUG_DIR)/gdbserver.py --seed 42 $(RV_TESTS_DEBUG_TARGET) S1
 
 cocotb: $(SOURCES_FILE) $(ELF_LIST_FILE) $(ELF_LIST)
 	cd $(COCOTB_DIR) && ELF_LIST_FILE=$(ELF_LIST_FILE) $(PYTEST) $(PYTEST_ARGS)
@@ -133,5 +161,5 @@ clean:
 	rm -rf cocotb/sim_build
 	rm -rf cocotb/__pycache__
 	rm -f cocotb/results.xml
-	rm -f cocotb/test_elf_files.list
-	rm -f cocotb/sources.f
+	rm -f $(ELF_LIST_FILE)
+	rm -f $(SOURCES_FILE)

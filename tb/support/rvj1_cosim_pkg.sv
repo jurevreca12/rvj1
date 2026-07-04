@@ -89,4 +89,19 @@ package rvj1_cosim_pkg;
 
   `TYPEDEF_XBAR_CONNECTIVITY(Connectivity, NumSubordinates, NumManagers, {{2'b11}, {2'b11}, {2'b11}})
 
+  typedef struct packed {
+    bit [ 3:0] version;
+    bit [15:0] part_num;
+    bit [10:0] manufacturer;
+    bit        _one;
+  } jtag_idcode_t;
+
+
+  localparam jtag_idcode_t JtagIdCode = '{
+    version: 4'h0,
+    part_num: 16'hC0C5,
+    manufacturer: 11'h6d9,
+    _one: 1
+  };
+
 endpackage

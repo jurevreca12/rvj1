@@ -9,3 +9,7 @@ riscv-dv/riscv*_out/
 riscv-dv/riscv*_out_err.log
 riscv-dv-tests/
 riescued/
+*.fst
+debug_sim_model/
+logs/*
+sources.f

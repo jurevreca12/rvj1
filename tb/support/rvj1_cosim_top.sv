@@ -1,34 +1,32 @@
 
 module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
-  parameter  string INIT_FILE="",
-  parameter  int    INIT_FILE_BIN=0,
-  parameter  int    MEM_SIZE_WORDS=200000000
+  parameter  string       INIT_FILE      = "",
+  parameter  int          INIT_FILE_BIN  = 0,
+  parameter  int          MEM_SIZE_WORDS = 200000000,
+  parameter  int unsigned JTAG_VPI_PORT  = 9999
                                   
   ) (
   input  logic  clk,
   input  logic  rstn,
+
+  input  logic        sim_jtag_tck,
+  input  logic        sim_jtag_tms,
+  input  logic        sim_jtag_tdi,
+  input  logic        sim_jtag_trstn,
+  output logic        sim_jtag_tdo,
   
   input  logic          irq_external_i,
   input  logic          irq_timer_i,
   input  logic          irq_sw_i,
   input  logic          irq_lcofi_i,
   input  logic [15:0]   irq_platform_i,
-  input  logic          irq_nmi_i,
-  
-  input  logic          dmi_rstn_i,
-  input  logic          dmi_req_valid_i,
-  output logic          dmi_req_ready_o,
-  input  dm::dmi_req_t  dmi_req_i,
-  output logic          dmi_resp_valid_o,
-  input  logic          dmi_resp_ready_i,
-  output dm::dmi_resp_t dmi_resp_o
+  input  logic          irq_nmi_i
 
   // RISC-V Formal Interface
   `ifdef RVFI
   ,`RVFI_OUTPUTS
   `endif
 );
-
 
   logic [IdWidth-1:0]   obi_instr_aid;
   logic                 obi_instr_areq;
@@ -61,6 +59,13 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   logic                 debug_req;
   logic                 ndmreset;
   logic                 hwsw_rstn;
+  logic                 dmi_rst_n;
+  logic                 dmi_req_valid;
+  logic                 dmi_req_ready;
+  dm::dmi_req_t         dmi_req;
+  logic                 dmi_resp_valid;
+  logic                 dmi_resp_ready;
+  dm::dmi_resp_t        dmi_resp;
 
   localparam dm::hartinfo_t HartInfo = '{
     zero0: '0,
@@ -86,7 +91,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
 
   addr_map_t address_map [xbar_cfg.NoMaps];
   assign address_map[0] = '{idx: 0,   base: 32'h8000_0000, mask: 32'hffff_4000}; 
-  assign address_map[6] = '{idx: 6,   base: 32'h0000_0000, mask: 32'hfff4_0000};
+  assign address_map[1] = '{idx: 1,   base: 32'h0000_0000, mask: 32'hfff4_0000};
 
   rvj1_obi #(
     .BootAddr (BootAddr),
@@ -260,20 +265,38 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .master_err_i      (obi_r_chans_mgr[XbarMgrDbg].obi_rerr),
     .master_other_err_i(1'b0),
 
-    .dmi_rst_ni        (dmi_rstn_i),
-    .dmi_req_valid_i   (dmi_req_valid_i),
-    .dmi_req_ready_o   (dmi_req_ready_o),
-    .dmi_req_i         (dmi_req_i),
+    .dmi_rst_ni        (dmi_rst_n),
+    .dmi_req_valid_i   (dmi_req_valid),
+    .dmi_req_ready_o   (dmi_req_ready),
+    .dmi_req_i         (dmi_req),
 
-    .dmi_resp_valid_o  (dmi_resp_valid_o),
-    .dmi_resp_ready_i  (dmi_resp_ready_i),
-    .dmi_resp_o        (dmi_resp_o)
+    .dmi_resp_valid_o  (dmi_resp_valid),
+    .dmi_resp_ready_i  (dmi_resp_ready),
+    .dmi_resp_o        (dmi_resp)
   );
 
+  dmi_jtag #(
+    .IdcodeValue(JtagIdCode)
+  ) dmi_jtag_inst (
+    .clk_i  (clk),
+    .rst_ni (rstn),
+    .testmode_i (1'b0),
 
-  // Handle the clock signal
-  /*always #1 clk = ~clk;
-  initial begin
-    clk = 1'b0;
-  end*/
+    .dmi_rst_no      (dmi_rst_n),
+    .dmi_req_o       (dmi_req),
+    .dmi_req_valid_o (dmi_req_valid),
+    .dmi_req_ready_i (dmi_req_ready),
+
+    .dmi_resp_i      (dmi_resp),
+    .dmi_resp_ready_o(dmi_resp_ready),
+    .dmi_resp_valid_i(dmi_resp_valid),
+
+    .tck_i           (sim_jtag_tck),
+    .td_i            (sim_jtag_tdi),
+    .td_o            (sim_jtag_tdo),
+    .tms_i           (sim_jtag_tms),
+    .trst_ni         (sim_jtag_trstn),
+    .tdo_oe_o        ()
+  );
+
 endmodule
