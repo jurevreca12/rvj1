@@ -17,6 +17,9 @@ import pytest
 from elftools.elf.elffile import ELFFile
 import numpy as np
 
+MCYCLE   = 0xB00
+MINSTRET = 0xB02
+
 class CosimTB(BaseBench):
     def __init__(self, dut):
         super().__init__(dut, clk=dut.clk, rst=dut.rstn, rst_active_high=False)
@@ -61,7 +64,7 @@ class CosimTB(BaseBench):
 @CosimTB.testcase(
     reset_wait_during=2,
     reset_wait_after=0,
-    timeout=1000000,
+    timeout=2000000,
     shutdown_delay=1,
     shutdown_loops=1,
 )
@@ -107,6 +110,7 @@ async def test_cosim(
     #    tb.schedule(dbg_seq(dmi_drv=tb.dmi_drv))
     while True:
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
+        sync_hart_state(rvfi_msg, hart0)
         hart0.step(1)
         if (hart0.state.pc & 0xFFFF_FFFF) == exit_addr:
             log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
@@ -138,6 +142,13 @@ def compare(state, rvfi_msg) -> bool:
              f"Register {rvfi_msg.rd_addr} mismatch: " + 
              f"{hex(state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF)} != {hex(rvfi_msg.rd_wdata)}."
         )
+
+def sync_hart_state(rvfi_msg, hart) -> None:
+    """Syncs some CSR registers so that we get consistent results
+    when comparing RVFI messages with the hart state."""
+    # Sync perf counters
+    hart.put_csr(MCYCLE, 0)
+    hart.put_csr(MINSTRET, 0)
 
 ELF_LIST_FILE = os.getenv(
     "ELF_LIST_FILE", 

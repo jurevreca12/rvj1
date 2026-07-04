@@ -475,6 +475,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
       eLOAD: begin
         stall_ex_o = 1'b1;
+        stall_mem_wb_o = lsu_busy;
         if (load_exception) begin
           state_next        = eRUN;
           pc_next           = csr_mtvec_value[31:2];

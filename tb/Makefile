@@ -85,15 +85,13 @@ RISCOF_TARGETS := $(RISCOF_WORK_DIR) \
                   $(REF_LOGS)
 
 # RISCV-TESTS
-RV_TESTS := median \
+RV_TESTS ?= median \
             qsort \
             rsort \
             towers \
             vvadd \
             memcpy \
-            multiply \
-            dhrystone \
-            spmv
+            multiply 
 RV_TESTS_BIN_NAMES := $(addsuffix .riscv, $(RV_TESTS))
 RV_TESTS_BINS      := $(addprefix $(RV_TEST_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
 

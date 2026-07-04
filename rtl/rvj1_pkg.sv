@@ -139,6 +139,11 @@ package rvj1_pkg;
     parameter logic [11:0] CSR_DSCRATCH0_ADDR  = 12'h7B2;
     parameter logic [11:0] CSR_DSCRATCH1_ADDR  = 12'h7B3;   
 
+    parameter logic [11:0] CSR_MCYCLE_ADDR      = 12'hB00;
+    parameter logic [11:0] CSR_MCYCLEH_ADDR     = 12'hB80;
+    parameter logic [11:0] CSR_MINSTRET_ADDR    = 12'hB02;
+    parameter logic [11:0] CSR_MINSTRETH_ADDR   = 12'hB82;
+
     parameter logic [1:0]      CSR_MISA_MXLEN = 2'b01; // XLEN == 32
     parameter logic [XLEN-1:0] CSR_MISA_VALUE = (
           (0 << 0)   // A - Atomic extension

@@ -236,7 +236,11 @@ module rvj1_csr import rvj1_pkg::*; #(
     (csr_addr_r_i == CSR_DCSR_ADDR)       ||
     (csr_addr_r_i == CSR_DPC_ADDR)        ||
     (csr_addr_r_i == CSR_DSCRATCH0_ADDR)  ||
-    (csr_addr_r_i == CSR_DSCRATCH1_ADDR)
+    (csr_addr_r_i == CSR_DSCRATCH1_ADDR)  ||
+    (csr_addr_r_i == CSR_MCYCLE_ADDR)     ||
+    (csr_addr_r_i == CSR_MCYCLEH_ADDR)    ||
+    (csr_addr_r_i == CSR_MINSTRET_ADDR)   ||
+    (csr_addr_r_i == CSR_MINSTRETH_ADDR)
   );
    // Read logic
   always_comb begin
@@ -274,6 +278,12 @@ module rvj1_csr import rvj1_pkg::*; #(
         CSR_DPC_ADDR:        csr_value = csr_dpc_value;
         CSR_DSCRATCH0_ADDR:  csr_value = csr_dscratch0_value;
         CSR_DSCRATCH1_ADDR:  csr_value = csr_dscratch1_value;
+
+        // Machine Counter CSRs
+        CSR_MCYCLE_ADDR:     csr_value = '0;
+        CSR_MCYCLEH_ADDR:    csr_value = '0;
+        CSR_MINSTRET_ADDR:   csr_value = '0;
+        CSR_MINSTRETH_ADDR:  csr_value = '0;
         default :            csr_value = '0;
       endcase
     end
