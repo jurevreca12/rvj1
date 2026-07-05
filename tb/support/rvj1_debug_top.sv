@@ -10,6 +10,12 @@ module rvj1_debug_top();
   integer unsigned i;
 
   logic [31:0] sim_jtag_exit;
+  logic        sim_jtag_tck;
+  logic        sim_jtag_tms;
+  logic        sim_jtag_tdi;
+  logic        sim_jtag_trstn;
+  logic        sim_jtag_tdo;
+  
 
   rvj1_cosim_top #(
     .INIT_FILE     (INIT_FILE),

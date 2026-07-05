@@ -90,7 +90,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   logic       obi_rready_signals_sub [NumSubordinates];
 
   addr_map_t address_map [xbar_cfg.NoMaps];
-  assign address_map[0] = '{idx: 0,   base: 32'h8000_0000, mask: 32'hffff_4000}; 
+  assign address_map[0] = '{idx: 0,   base: 32'h8000_0000, mask: 32'hfff8_0000}; 
   assign address_map[1] = '{idx: 1,   base: 32'h0000_0000, mask: 32'hfff4_0000};
 
   rvj1_obi #(

@@ -125,11 +125,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic dret_insn;
   logic mret_insn;
   logic illegal_csr_insn;
-  logic ebreak_todbg, ebreak_todbg_r, dret_fromdbg, dret_fromdbg_r;
-  logic ebreak_totrp, ebreak_totrp_r;
+  logic ebreak_todbg;
+  logic ext_dbg_req;
+  logic dret_fromdbg;
+  logic ebreak_totrp;
   logic step_todrain;
-  logic step_todbg, step_todbg_r;
-  logic ext_dbg_req_r;
+  logic step_todbg;
   logic enter_debug;
   logic cancel_retire;
   logic dbg_mode, dbg_mode_next;
@@ -204,7 +205,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign exc_exec_stage        = (ecall_insn | illegal_insn | ebreak_totrp | instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
   assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
-  assign exception             = exc_exec_stage_r || exc_mem_wb_stage;
+  assign exception             = ~dbg_mode & (exc_exec_stage_r | exc_mem_wb_stage);
   `ifdef RVFI
   assign exception_o = exception;
   `endif
@@ -252,10 +253,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   * Debug
   *************************************/
   assign ebreak_todbg = ebreak_insn & (dcsr_q.ebreakm | dbg_mode);
-  assign ebreak_totrp = ebreak_insn & ~dbg_mode & ~dcsr_q.ebreakm;
-  assign step_todrain = dcsr_q.step & ~dbg_mode & ~drain & control_i; 
-  assign step_todbg   = dcsr_q.step & drain & instr_will_retire_r;
-  assign enter_debug  = ~dbg_mode & (ext_dbg_req_i | ebreak_todbg | step_todbg);
+  assign ebreak_totrp = ~dbg_mode & ebreak_insn & ~dcsr_q.ebreakm;
+  assign step_todrain = ~dbg_mode & dcsr_q.step & ~drain & control_i; 
+  assign step_todbg   = ~dbg_mode & dcsr_q.step & drain & instr_will_retire_r;
+  assign ext_dbg_req  = ~dbg_mode & ext_dbg_req_i;
+  assign enter_debug  = ext_dbg_req | step_todbg | ebreak_todbg;
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
@@ -518,23 +520,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   register drain_reg     (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(drain_next),       .out(drain));
   register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o),       .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));
-  register ebreak_todbg_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_todbg), .out(ebreak_todbg_r)
-  );
-  register dret_fromdbg_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dret_fromdbg), .out(dret_fromdbg_r)
-  );
   register ebreak_insn_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_insn), .out(ebreak_insn_r)
-  );
-  register ext_dbg_req_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ext_dbg_req_i), .out(ext_dbg_req_r)
-  );
-  register step_todbg_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(step_todbg), .out(step_todbg_r)
-  );
-  register ebreak_totrp_reg (
-    .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(ebreak_totrp), .out(ebreak_totrp_r)
   );
   register exc_exec_stage_reg (
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(exc_exec_stage), .out(exc_exec_stage_r)
