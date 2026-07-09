@@ -126,17 +126,19 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic mret_insn;
   logic illegal_csr_insn;
   logic ebreak_todbg;
+  logic ebreak_indbg;
   logic ext_dbg_req;
-  logic dret_fromdbg;
   logic ebreak_totrp;
   logic step_todrain;
   logic step_todbg;
   logic enter_debug;
+  logic reenter_debug;
   logic cancel_retire;
   logic dbg_mode, dbg_mode_next;
   logic drain, drain_next;
   logic [2:0]  dcsr_cause;
   logic [XLEN-3:0] dpc_next;
+  logic goto_dbg, goto_dbg_next;
 
   logic illegal_insn;
   logic instr_fetch_error;
@@ -252,12 +254,15 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   * Debug
   *************************************/
-  assign ebreak_todbg = ebreak_insn & (dcsr_q.ebreakm | dbg_mode);
-  assign ebreak_totrp = ~dbg_mode & ebreak_insn & ~dcsr_q.ebreakm;
-  assign step_todrain = ~dbg_mode & dcsr_q.step & ~drain & control_i; 
-  assign step_todbg   = ~dbg_mode & dcsr_q.step & drain & instr_will_retire_r;
-  assign ext_dbg_req  = ~dbg_mode & ext_dbg_req_i;
-  assign enter_debug  = ext_dbg_req | step_todbg | ebreak_todbg;
+  assign ebreak_todbg  = ~dbg_mode & ebreak_insn &  dcsr_q.ebreakm;
+  assign ebreak_totrp  = ~dbg_mode & ebreak_insn & ~dcsr_q.ebreakm;
+  assign ebreak_indbg  =  dbg_mode & ebreak_insn;
+  assign step_todbg    = ~dbg_mode & dcsr_q.step & drain & instr_retiring_o;
+  assign ext_dbg_req   = ~dbg_mode & ext_dbg_req_i;
+  assign enter_debug   = ext_dbg_req | step_todbg | ebreak_todbg | goto_dbg;
+  assign reenter_debug = ebreak_indbg;
+  assign step_todrain  = ~dbg_mode & dcsr_q.step & ~drain & control_i;
+  
   always_comb begin
     dcsr_cause = '0;
     dpc_next = '0;
@@ -267,6 +272,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     end else if (step_todbg) begin
       dcsr_cause = DCSR_CAUSE_STEP;
       dpc_next   = pc + 1'b1;
+    end else if (goto_dbg) begin // step after a jump insn
+      dcsr_cause = DCSR_CAUSE_STEP;
+      dpc_next   = pc;
     end else if (ext_dbg_req_i) begin 
       dcsr_cause = DCSR_CAUSE_HALTREQ;
       dpc_next   = pc;
@@ -361,6 +369,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     dbg_mode_next    = dbg_mode;
     loaded           = 1'b0;
     drain_next       = 1'b0;
+    goto_dbg_next    = 1'b0;
 
     csr_exc_write    = 1'b0;
     csr_exc_mcause   = '0;
@@ -383,7 +392,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       eRUN: begin
         stall_ex_o     = raw_hazard | lsu_busy | exception;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = exception | mret_insn | enter_debug | dret_insn;
+        flush_ex_o     = exception | mret_insn | enter_debug | reenter_debug | dret_insn;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
@@ -425,16 +434,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_mret_restore = 1'b1;
         end
 
-        if (enter_debug) begin
+        if (enter_debug | reenter_debug) begin
           state_next       = eRUN;
           jmp_addr_valid_o = 1'b1;
           jmp_addr_o       = DmRomAddr[31:2];
           pc_next          = DmRomAddr[31:2];
           pc_mod           = 1'b1;
           dbg_mode_next    = 1'b1;
-          csr_dbg_write    = 1'b1;
+          csr_dbg_write    = enter_debug;
           csr_dbg_cause    = dcsr_cause;
-          csr_dbg_dpc      = dpc_next; 
+          csr_dbg_dpc      = dpc_next;
           drain_next       = 1'b0;
         end
 
@@ -457,11 +466,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         state_next       = eRUN;
         stall_ex_o       = 1'b1;
         flush_ex_o       = 1'b1;
-        jmp_addr_valid_o = 1'b1;
+        jmp_addr_valid_o = ~step_todbg;
         flush_mem_wb_o   = 1'b1;
         jmp_addr_o       = alu_res_r_i[31:2];
         pc_next          = alu_res_r_i[31:2];
         pc_mod           = 1'b1;
+        goto_dbg_next    = step_todbg;
         if (exc_jmp_addr_misalign) begin
           pc_next           = csr_mtvec_value[31:2];
           pc_mod            = 1'b1;
@@ -476,8 +486,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eLOAD: begin
-        stall_ex_o = 1'b1;
+        stall_ex_o     = 1'b1;
         stall_mem_wb_o = lsu_busy;
+        goto_dbg_next  = step_todbg | goto_dbg; // keep high if already high
+        drain_next     = drain;
         if (load_exception) begin
           state_next        = eRUN;
           pc_next           = csr_mtvec_value[31:2];
@@ -517,6 +529,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (state)
   );
   register dbg_mode_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(dbg_mode_next),    .out(dbg_mode));
+  register goto_dbg_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(goto_dbg_next),    .out(goto_dbg)); 
   register drain_reg     (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(drain_next),       .out(drain));
   register stall_ex_reg  (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(stall_ex_o),       .out(stall_ex_o_r));
   register csr_stall_reg (.clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(csr_write_hazard), .out(csr_write_hazard_r));

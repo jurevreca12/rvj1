@@ -59,7 +59,7 @@ module rvj1_debug_top();
 
 
   always_comb begin: jtag_exit_handler
-    if (sim_jtag_exit != '0) begin
+    if ((sim_jtag_exit != '0) && rstn) begin
       $display("SimJTAG requested exit. Ending simulation.");
       $finish(2);
     end
@@ -70,7 +70,7 @@ module rvj1_debug_top();
 
   initial begin
   $display("Starting debug simulation of RVJ1");
-  $dumpfile("dump.fst");
+  $dumpfile("dump.vcd");
   $dumpvars();
   clk = 1'b0;
   rstn = 1'b0;
@@ -85,5 +85,4 @@ module rvj1_debug_top();
 
   $finish;
   end
-
 endmodule

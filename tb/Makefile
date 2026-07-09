@@ -98,22 +98,33 @@ RV_TESTS ?= median \
             vvadd \
             memcpy \
             multiply 
-RV_TESTS_BIN_NAMES    := $(addsuffix .riscv, $(RV_TESTS))
-RV_TESTS_BINS         := $(addprefix $(RV_TESTS_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
-RV_TESTS_DEBUG_TARGET := $(TB_DIR)/support/rvj1_dbg_sim.py
-DEBUG_TOP             := rvj1_debug_top 
-DEBUG_VERILATOR_DIR   := $(TB_DIR)/debug_sim_model/
-DEBUG_VERILATOR_BIN   := $(DEBUG_VERILATOR_DIR)/V$(DEBUG_TOP)
-DBG_MODULE_DIR		  := $(shell bender path riscv-dbg)
-REMOTE_BITBANG_DIR    := $(DBG_MODULE_DIR)/tb/remote_bitbang/
-REMOTE_BITBANG_LIB    := $(REMOTE_BITBANG_DIR)/librbs.so
-VERILATOR_LDFLAGS     := -L$(REMOTE_BITBANG_DIR) -Wl,--enable-new-dtags -Wl,-rpath,remote_bitbang -lrbs
-VERILATOR_ARGS        := --timescale 1ns/1ps --binary -Wno-fatal -Wno-style 
+RV_TESTS_BIN_NAMES       := $(addsuffix .riscv, $(RV_TESTS))
+RV_TESTS_BINS            := $(addprefix $(RV_TESTS_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
+RV_TESTS_DEBUG_TARGET    := $(TB_DIR)/support/rvj1_dbg_sim.py
+DEBUG_TOP                := rvj1_debug_top 
+DEBUG_VERILATOR_DIR      := $(TB_DIR)/debug_sim_model/
+DEBUG_VERILATOR_BIN      := $(DEBUG_VERILATOR_DIR)/V$(DEBUG_TOP)
+DBG_MODULE_DIR		     := $(shell bender path riscv-dbg)
+REMOTE_BITBANG_DIR       := $(DBG_MODULE_DIR)/tb/remote_bitbang/
+REMOTE_BITBANG_LIB       := $(REMOTE_BITBANG_DIR)/librbs.so
+VERILATOR_LDFLAGS        := -L$(REMOTE_BITBANG_DIR) -Wl,--enable-new-dtags -Wl,-rpath,remote_bitbang -lrbs
+VERILATOR_ARGS           := --timescale 1ns/1ps --binary -Wno-fatal -Wno-style 
 ifdef VERILATOR_DEBUG
-VERILATOR_ARGS        += --trace-fst --trace-structs --trace-params -DRVFI
+VERILATOR_ARGS           += --trace --trace-structs --trace-params -DRVFI
 endif
-VERILATOR_ARGS        += --top $(DEBUG_TOP) -f $(SOURCES_FILE) --Mdir $(DEBUG_VERILATOR_DIR)
-VERILATOR_ARGS        += -LDFLAGS "$(VERILATOR_LDFLAGS)" $(DBG_MODULE_DIR)/tb/SimJTAG.sv
+VERILATOR_ARGS           += --top $(DEBUG_TOP) -f $(SOURCES_FILE) --Mdir $(DEBUG_VERILATOR_DIR)
+VERILATOR_ARGS           += -LDFLAGS "$(VERILATOR_LDFLAGS)" $(DBG_MODULE_DIR)/tb/SimJTAG.sv
+define NL
+
+
+endef
+DEBUG_TARGET_TIMEOUT     ?= 200
+EXCLUDE_TESTS_FILE       := $(TB_DIR)/support/rvj1_exclude_debug_tests.yaml
+GDBSERVER_ARGS		     := --seed 42 \
+					   	    --32 \
+					   	    --hart 0 \
+							--exclude-tests $(EXCLUDE_TESTS_FILE)\
+					   	    --target-timeout $(DEBUG_TARGET_TIMEOUT)
 
 # COCOTB
 SIM           ?= verilator
@@ -143,8 +154,9 @@ $(REMOTE_BITBANG_LIB):
 $(DEBUG_VERILATOR_BIN): $(SOURCES_FILE) $(REMOTE_BITBANG_LIB)
 	$(VERILATOR) $(VERILATOR_ARGS)
 
+
 debug: $(DEBUG_VERILATOR_BIN)
-	LD_LIBRARY_PATH=$(REMOTE_BITBANG_LIB) $(PYTHON) $(RV_TESTS_DEBUG_DIR)/gdbserver.py --seed 42 $(RV_TESTS_DEBUG_TARGET) S1
+	LD_LIBRARY_PATH=$(REMOTE_BITBANG_LIB) $(PYTHON) $(RV_TESTS_DEBUG_DIR)/gdbserver.py $(GDBSERVER_ARGS) $(RV_TESTS_DEBUG_TARGET)
 
 cocotb: $(SOURCES_FILE) $(ELF_LIST_FILE) $(ELF_LIST)
 	cd $(COCOTB_DIR) && ELF_LIST_FILE=$(ELF_LIST_FILE) $(PYTEST) $(PYTEST_ARGS)
@@ -163,3 +175,4 @@ clean:
 	rm -f cocotb/results.xml
 	rm -f $(ELF_LIST_FILE)
 	rm -f $(SOURCES_FILE)
+	rm -rf $(DEBUG_VERILATOR_DIR)

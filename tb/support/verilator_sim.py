@@ -5,6 +5,7 @@ import time
 import os
 import sys
 import re
+from testlib import TestLibError
 
 class VerilatorSim:
     # pylint: disable-next=consider-using-with
@@ -52,10 +53,10 @@ class VerilatorSim:
                     raise TestLibError(
                         "Timed out waiting for Verilator to listen for JTAG vpi")
 
-   # def __del__(self):
-   #     try:
-   #         #self.process.terminate()
-   #         #self.process.wait()
-   #     except OSError:
-   #         pass
+    def __del__(self):
+        try:
+            self.process.terminate()
+            self.process.wait()
+        except OSError:
+            pass
 

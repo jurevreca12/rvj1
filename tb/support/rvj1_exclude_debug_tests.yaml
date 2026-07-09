@@ -1,0 +1,9 @@
+all:
+  - Semihosting
+  - SemihostingFileio
+  - Hwbp1
+  - Hwbp2
+  - TooManyHwbp
+  - InterruptTest
+  - ItriggerTest
+  - IcountTest
