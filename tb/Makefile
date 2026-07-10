@@ -8,6 +8,7 @@ PYTEST    ?= pytest
 PYTHON    ?= python
 BENDER    ?= bender
 VERILATOR ?= verilator
+RVGEN     ?= rvgen
 
 # GNU
 XLEN         ?= 32
@@ -15,6 +16,7 @@ ABI          ?= ilp32
 RISCV_PREFIX ?= riscv64-unknown-elf-
 RISCV_MARCH  ?= rv32i_zicsr
 RISCV_VMARCH ?= rv32i_zicsr
+RISCV_GCC    ?= $(RISCV_PREFIX)gcc
 export XLEN ABI RISCV_PREFIX RISCV_MARCH RISCV_VMARCH
 
 
@@ -126,13 +128,28 @@ GDBSERVER_ARGS		     := --seed 42 \
 							--exclude-tests $(EXCLUDE_TESTS_FILE)\
 					   	    --target-timeout $(DEBUG_TARGET_TIMEOUT)
 
+# RVGEN
+RVGEN_OUT_DIR   := $(TB_DIR)/rvgen_tests/
+RVGEN_NUM_ITER  ?= 10
+INDICES := $(shell seq 0 $$(( $(RVGEN_NUM_ITER) - 1 )))
+RVGEN_ASM_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .S,$(INDICES)))
+RVGEN_ELF_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .elf,$(INDICES)))
+RVGEN_ARGS      := --target rv32i \
+				   --test riscv_rand_instr_test \
+				   --steps gen \
+				   --output $(RVGEN_OUT_DIR) \
+				   --start_seed 42 \
+				   -i $(RVGEN_NUM_ITER)
+RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
+RISCV_GCC_ARGS    := -o0 -march=rv32i_zicsr -static -mcmodel=medany -fvisibility=hidden \
+                     -mabi=ilp32 -nostdlib -nostartfiles -T $(RISCV_LINK_SCRIPT)
 # COCOTB
 SIM           ?= verilator
 TOPLEVEL_LANG ?= verilog
 COMPILE_ARGS  += $(addprefix -D ,$(DEFINES))
 COMPILE_ARGS  += -f $(SOURCES_FILE)
 ELF_LIST_FILE := $(abspath $(COCOTB_DIR)/test_elf_files.list)
-ELF_LIST      := $(DUT_ELFS) $(RV_TESTS_BINS)
+ELF_LIST      := $(DUT_ELFS) $(RV_TESTS_BINS) $(RVGEN_ELF_FILES)
 SKIP_TESTS    := \
 	$(RISCOF_WORK_DIR)/rv32i_m/privilege/src/misalign1-cjr-01.S/dut/my.elf \
 	$(RISCOF_WORK_DIR)/rv32i_m/privilege/src/misalign1-cjalr-01.S/dut/my.elf
@@ -147,6 +164,15 @@ $(ELF_LIST_FILE):
 
 $(RV_TESTS_BINS):
 	make -C $(RV_TESTS_BENCH_DIR) -f $(RV_TESTS_BENCH_DIR)/Makefile $(patsubst $(RV_TESTS_BENCH_DIR)/%,%,$@)
+
+$(RVGEN_ASM_FILES) &:
+	$(RVGEN) $(RVGEN_ARGS)
+	touch $(RVGEN_OUT_DIR)/asm_test/user_define.h
+	touch $(RVGEN_OUT_DIR)/asm_test/user_init.s
+
+
+%.elf: %.S
+	$(RISCV_GCC) $(RISCV_GCC_ARGS) -o $@ $<
 
 $(REMOTE_BITBANG_LIB):
 	make -C $(REMOTE_BITBANG_DIR) -f $(REMOTE_BITBANG_DIR)/Makefile
@@ -176,3 +202,4 @@ clean:
 	rm -f $(ELF_LIST_FILE)
 	rm -f $(SOURCES_FILE)
 	rm -rf $(DEBUG_VERILATOR_DIR)
+	rm RVJ1Sim_*

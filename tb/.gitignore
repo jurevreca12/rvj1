@@ -14,3 +14,6 @@ debug_sim_model/
 logs/*
 sources.f
 RVJ1Sim_*
+rvgen_tests/
+user_define.h
+user_init.s

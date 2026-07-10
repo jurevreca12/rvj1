@@ -66,18 +66,19 @@ async def irq_rand_seq(
     irq_drv: IrqDriver,
     min_latency = 100,
     max_latency = 1000,
+    likelyhood = 0.98
 ):
-    async with ctx.lock(irq_drv):
-        while True:
-            await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
+    while True:
+        await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
+        async with ctx.lock(irq_drv):
             irq_drv.enqueue(
                 IrqRequest(
-                    external = ctx.random.random() > 0.9,
-                    timer    = ctx.random.random() > 0.9,
-                    sw       = ctx.random.random() > 0.9,
-                    lcofi    = ctx.random.random() > 0.9,
-                    platform = ctx.random.getrandbits(16) * (ctx.random.random() > 0.9),
-                    nmi      = ctx.random.random() > 0.9
+                    external = ctx.random.random() > likelyhood,
+                    timer    = ctx.random.random() > likelyhood,
+                    sw       = ctx.random.random() > likelyhood,
+                    lcofi    = ctx.random.random() > likelyhood,
+                    platform = ctx.random.getrandbits(16) * (ctx.random.random() > likelyhood),
+                    nmi      = ctx.random.random() > likelyhood
                 )
             )
             await irq_drv.wait_for(DriverEvent.PRE_DRIVE)

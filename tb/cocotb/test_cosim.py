@@ -23,9 +23,8 @@ MINSTRET = 0xB02
 class CosimTB(BaseBench):
     def __init__(self, dut):
         super().__init__(dut, clk=dut.clk, rst=dut.rstn, rst_active_high=False)
-        irq_io   = IrqIO   (dut, "irq",  IORole.RESPONDER, io_style=io_suffix_style)
-        self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst))
-        # debug_io = DebugIO(dut, "ext",  IORole.INITIATOR, io_style=io_suffix_style)
+        irq_io   = IrqIO(dut, "irq",  IORole.RESPONDER, io_style=io_suffix_style)
+        self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst, blocking=False), scoreboard=False)
         rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_plain_style)
         self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst), scoreboard=False)
 
@@ -65,16 +64,16 @@ class CosimTB(BaseBench):
     reset_wait_during=2,
     reset_wait_after=0,
     timeout=2000000,
-    shutdown_delay=1,
+    shutdown_delay=2000,
     shutdown_loops=1,
 )
 @CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/new.dtb")
 @CosimTB.parameter("start_pc", int, 0x8000_0000)
-@CosimTB.parameter("generate_irqs", bool, [False,])
+@CosimTB.parameter("generate_irqs", bool, [True,])
 async def test_cosim(
-    tb: CosimTB, 
-    log, 
-    generate_irqs, 
+    tb: CosimTB,
+    log,
+    generate_irqs,
     dtb_file,
     start_pc,
 ):
@@ -105,14 +104,12 @@ async def test_cosim(
         f"After 5 steps PC should be {hex(start_pc)}, not {hex(hart0.state.pc)}."
     )
     if generate_irqs:
-        tb.schedule(irq_rand_seq(irq_drv=tb.irq_drv))
-    #if generate_dbg:
-    #    tb.schedule(dbg_seq(dmi_drv=tb.dmi_drv))
+        tb.schedule(irq_rand_seq(irq_drv=tb.irq_drv), blocking=False)
     while True:
         rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
         sync_hart_state(rvfi_msg, hart0)
         hart0.step(1)
-        if (hart0.state.pc & 0xFFFF_FFFF) == exit_addr:
+        if rvfi_msg.pc_rdata == exit_addr:
             log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
             break
         try:
@@ -124,13 +121,6 @@ async def test_cosim(
             tb.log.info("Running 10 additional clock cycles before terminating...")
             await ClockCycles(tb.clk, 10)
             raise
-
-    #while True:
-    #    if state == NORM:
-    #        rvfi_msg = await tb.rvfi_mon.wait_for(MonitorEvent.CAPTURE)
-    #        compare()
-    #    elif state == DBG:
-    #        await tb.dmi_mon()?
 
 
 def compare(state, rvfi_msg) -> bool:
