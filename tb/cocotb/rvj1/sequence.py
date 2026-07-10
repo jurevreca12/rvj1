@@ -65,8 +65,8 @@ async def irq_rand_seq(
     ctx: SeqContext, 
     irq_drv: IrqDriver,
     min_latency = 100,
-    max_latency = 1000,
-    likelyhood = 0.98
+    max_latency = 500,
+    likelyhood = 0.9
 ):
     while True:
         await ClockCycles(ctx.clk, ctx.random.randint(min_latency, max_latency))
