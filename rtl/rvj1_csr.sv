@@ -30,7 +30,7 @@ module rvj1_csr import rvj1_pkg::*; #(
   input  logic [RALEN-1:0] regdest_r_i,
 
   input  logic             csr_exc_write_i,
-  input  logic [5:0]       csr_exc_mcause_i,
+  input  logic [6:0]       csr_exc_mcause_i,
   input  logic [XLEN-3:0]  csr_exc_mepc_i,
   input  logic [XLEN-1:0]  csr_exc_mtval_i,
   input  logic             csr_mret_restore_i,
@@ -45,12 +45,15 @@ module rvj1_csr import rvj1_pkg::*; #(
   output logic             nonexist_csr_access_o, 
   output logic             debug_csr_access_err_o,
 
+  output miep_reg_t        mip_o,
+  output miep_reg_t        mie_o,
+  output mstatus_reg_t     mstatus_o,
+
   input  logic             irq_external_i,
   input  logic             irq_timer_i,
   input  logic             irq_sw_i,
   input  logic             irq_lcofi_i,
   input  logic [15:0]      irq_platform_i,
-  input  logic             irq_nmi_i,
 
 
   output dcsr_reg_t        dcsr_o,
@@ -79,11 +82,9 @@ module rvj1_csr import rvj1_pkg::*; #(
   //     +------+
   mstatus_reg_t    mstatus_d, mstatus_q;
   miep_reg_t       mie_d, mie_q;
-  miep_reg_t       mip_d, mip_q;
-  assign mie_q = '0; // TODO
-  logic [XLEN-3:0] mtvec_d, mtvec_q; // only direct mode supported
+  mtvec_reg_t      mtvec_d, mtvec_q; // only direct mode supported
   logic [XLEN-3:0] mepc_d, mepc_q;
-  logic [5:0]      mcause_d, mcause_q; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
+  logic [6:0]      mcause_d, mcause_q; // 1 bit for IRQ/EXC, 5 bits-code=>log2(19)=4.24
   logic [XLEN-1:0] mtval_d, mtval_q;
   logic [XLEN-1:0] mscratch_d, mscratch_q;
   dcsr_reg_t       dcsr_d, dcsr_q;
@@ -91,14 +92,14 @@ module rvj1_csr import rvj1_pkg::*; #(
   logic [XLEN-1:0] dscratch0_d, dscratch0_q;
   logic [XLEN-1:0] dscratch1_d, dscratch1_q;
   logic dcsr_ce, dpc_ce, dscratch0_ce, dscratch1_ce;
-  logic mstatus_ce, mie_ce, mip_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
+  logic mstatus_ce, mie_ce, mtvec_ce, mepc_ce, mcause_ce, mtval_ce, mscratch_ce;
   logic csr_valid_write;
   logic csr_valid_read;
 
   // full output values of registers
   logic [XLEN-1:0] csr_mstatus_value, csr_mstatus_masked;
   logic [XLEN-1:0] csr_mie_value, csr_mie_masked;
-  logic [XLEN-1:0] csr_mip_value, csr_mip_masked;
+  logic [XLEN-1:0] csr_mip_value;
   logic [XLEN-1:0] csr_mtvec_value, csr_mtvec_masked;
   logic [XLEN-1:0] csr_mepc_value, csr_mepc_masked;
   logic [XLEN-1:0] csr_mcause_value, csr_mcause_masked;
@@ -134,7 +135,15 @@ module rvj1_csr import rvj1_pkg::*; #(
   assign csr_dpc_value_o   = csr_dpc_value;
   assign csr_mepc_value_o  = csr_mepc_value;
   assign csr_mtvec_value_o = csr_mtvec_value;
-
+  assign mip_o             = '{
+    msi:irq_sw_i,
+    mti:irq_timer_i,
+    mei:irq_external_i,
+    lcofi:irq_lcofi_i,
+    irqs:irq_platform_i
+  };
+  assign mie_o             = mie_q;
+  assign mstatus_o         = mstatus_q;
 
 
   /*************************************
@@ -156,16 +165,16 @@ module rvj1_csr import rvj1_pkg::*; #(
     | 32'b0
   );
   assign csr_mip_value = (
-      ({31'b0, mip_q.msi}   << CSR_MIEP_MSI_BIT)
-    | ({31'b0, mip_q.mti}   << CSR_MIEP_MTI_BIT)
-    | ({31'b0, mip_q.mei}   << CSR_MIEP_MEI_BIT)
-    | ({31'b0, mip_q.lcofi} << CSR_MIEP_LCOFI_BIT)
-    | ({16'b0, mip_q.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
+      ({31'b0, mip_o.msi}   << CSR_MIEP_MSI_BIT)
+    | ({31'b0, mip_o.mti}   << CSR_MIEP_MTI_BIT)
+    | ({31'b0, mip_o.mei}   << CSR_MIEP_MEI_BIT)
+    | ({31'b0, mip_o.lcofi} << CSR_MIEP_LCOFI_BIT)
+    | ({16'b0, mip_o.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
     | 32'b0
   );
   assign csr_mepc_value     = {mepc_q, 2'b00}; // IALIGN=32
-  assign csr_mtvec_value    = {mtvec_q, 2'b00}; // direct mode only! (no vector irqs)
-  assign csr_mcause_value   = {mcause_q[5], 26'b0, mcause_q[4:0]};
+  assign csr_mtvec_value    = {mtvec_q.base, 1'b0, mtvec_q.mode}; 
+  assign csr_mcause_value   = {mcause_q[6], 25'b0, mcause_q[5:0]};
   assign csr_mtval_value    = mtval_q;
   assign csr_mscratch_value = mscratch_q;
   assign csr_dcsr_value     = (
@@ -319,6 +328,9 @@ module rvj1_csr import rvj1_pkg::*; #(
     dscratch0_ce = 1'b0;
     dscratch1_d = dscratch1_q;
     dscratch1_ce = 1'b0;
+    csr_mie_masked = '0;
+    mie_d = mie_q;
+    mie_ce = 1'b0;
     if (csr_valid_write) begin
       case (csr_addr_r_i)
         CSR_MSTATUS_ADDR: begin
@@ -335,7 +347,8 @@ module rvj1_csr import rvj1_pkg::*; #(
         end
         CSR_MTVEC_ADDR: begin
           csr_mtvec_masked = csr_mask_op(alu_res_r_i, csr_mtvec_value, csr_cmd_r_i);
-          mtvec_d          = csr_mtvec_masked[31:2];
+          mtvec_d.base     = csr_mtvec_masked[31:2];
+          mtvec_d.mode     = csr_mtvec_masked[0];
           mtvec_ce         = 1'b1;
         end
         CSR_MEPC_ADDR: begin
@@ -345,13 +358,22 @@ module rvj1_csr import rvj1_pkg::*; #(
         end
         CSR_MCAUSE_ADDR: begin
           csr_mcause_masked = csr_mask_op(alu_res_r_i, csr_mcause_value, csr_cmd_r_i);
-          mcause_d          = {csr_mcause_masked[31], csr_mcause_masked[4:0]};
+          mcause_d          = {csr_mcause_masked[31], csr_mcause_masked[5:0]};
           mcause_ce         = 1'b1;
         end
         CSR_MTVAL_ADDR: begin
           csr_mtval_masked = csr_mask_op(alu_res_r_i, csr_mtval_value, csr_cmd_r_i);
           mtval_d          = csr_mtval_masked;
           mtval_ce         = 1'b1;
+        end
+        CSR_MIE_ADDR: begin
+          csr_mie_masked = csr_mask_op(alu_res_r_i, csr_mie_value, csr_cmd_r_i);
+          mie_d.irqs     = csr_mie_masked[XLEN-1:CSR_MIEP_PLATFORM_IRQS_BIT];
+          mie_d.lcofi    = csr_mie_masked[CSR_MIEP_LCOFI_BIT];
+          mie_d.mei      = csr_mie_masked[CSR_MIEP_MEI_BIT];
+          mie_d.msi      = csr_mie_masked[CSR_MIEP_MSI_BIT];
+          mie_d.mti      = csr_mie_masked[CSR_MIEP_MTI_BIT];
+          mie_ce         = 1'b1;
         end
         CSR_DCSR_ADDR: begin
           csr_dcsr_masked = csr_mask_op(alu_res_r_i, csr_dcsr_value, csr_cmd_r_i);
@@ -406,31 +428,22 @@ module rvj1_csr import rvj1_pkg::*; #(
   `ifdef ASSERTIONS
     `ASSERT_SINGLE_CYCLE_HOLD(mstatus_ce);
     `ASSERT_SINGLE_CYCLE_HOLD(mie_ce);
-    `ASSERT_SINGLE_CYCLE_HOLD(mip_ce);
     `ASSERT_SINGLE_CYCLE_HOLD(mtval_ce);
     `ASSERT_SINGLE_CYCLE_HOLD(mcause_ce);
     `ASSERT_SINGLE_CYCLE_HOLD(mepc_ce);
     `ASSERT_SINGLE_CYCLE_HOLD(mscratch_ce);
   `endif
 
-  assign mip_d = '{
-    msi:irq_sw_i,
-    mti:irq_timer_i,
-    mei:irq_external_i,
-    lcofi:irq_lcofi_i,
-    irqs:irq_platform_i
-  };
 
-  // REGISTER STORAGE
   register #(
     .DTYPE(miep_reg_t),
-    .RESET_VALUE(0)
-  ) csr_mip_reg (
-    .clk (clk_i),
-    .rstn(rstn_i),
-    .ce  (1'b1),
-    .in  (mip_d),
-    .out (mip_q)
+    .RESET_VALUE('0)
+  ) csr_mie_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (mie_ce),
+    .in   (mie_d),
+    .out  (mie_q)
   );
 
   register #(
@@ -456,7 +469,7 @@ module rvj1_csr import rvj1_pkg::*; #(
   );
 
   register #(
-    .DTYPE(logic [XLEN-3:0]),
+    .DTYPE(mtvec_reg_t),
     .RESET_VALUE(0)
   ) csr_mtvec_reg (
     .clk (clk_i),
@@ -478,7 +491,7 @@ module rvj1_csr import rvj1_pkg::*; #(
   );
 
    register #(
-    .DTYPE(logic [5:0]),
+    .DTYPE(logic [6:0]),
     .RESET_VALUE(0)
    ) csr_mcause_reg (
     .clk (clk_i),
@@ -565,18 +578,13 @@ module rvj1_csr import rvj1_pkg::*; #(
 
     assign rvfi_csr_rmask.mip = '1;
     assign rvfi_csr_rdata.mip = csr_mip_value;
-    assign rvfi_csr_wmask.mip = mip_ce ? '1 : '0;
-    assign rvfi_csr_wdata.mip = ({31'b0, mie_d.msi}   << CSR_MIEP_MSI_BIT)
-                              | ({31'b0, mie_d.mti}   << CSR_MIEP_MTI_BIT)
-                              | ({31'b0, mie_d.mei}   << CSR_MIEP_MEI_BIT)
-                              | ({31'b0, mie_d.lcofi} << CSR_MIEP_LCOFI_BIT)
-                              | ({16'b0, mie_d.irqs}  << CSR_MIEP_PLATFORM_IRQS_BIT)
-                              | 32'b0;
-
+    assign rvfi_csr_wmask.mip = '0; // TODO
+    assign rvfi_csr_wdata.mip = '0;
+  
     assign rvfi_csr_rmask.mtvec = '1;
     assign rvfi_csr_rdata.mtvec = csr_mtvec_value;
     assign rvfi_csr_wmask.mtvec = mtvec_ce ? '1 : '0;
-    assign rvfi_csr_wdata.mtvec = {mtvec_d, 2'b00};
+    assign rvfi_csr_wdata.mtvec = {mtvec_d.base, 1'b0, mtvec_d.mode};
 
     assign rvfi_csr_rmask.mepc = '1;
     assign rvfi_csr_rdata.mepc = csr_mepc_value;
@@ -586,7 +594,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     assign rvfi_csr_rmask.mcause = '1;
     assign rvfi_csr_rdata.mcause = csr_mcause_value;
     assign rvfi_csr_wmask.mcause = mcause_ce ? '1 : '0;
-    assign rvfi_csr_wdata.mcause = {mcause_d[5], 26'b0, mcause_d[4:0]};
+    assign rvfi_csr_wdata.mcause = {mcause_d[6], 26'b0, mcause_d[5:0]};
 
     assign rvfi_csr_rmask.mtval = '1;
     assign rvfi_csr_rdata.mtval = csr_mtval_value;

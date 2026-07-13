@@ -77,7 +77,7 @@ class CosimTB(BaseBench):
     shutdown_delay=2000,
     shutdown_loops=1,
 )
-@CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/new.dtb")
+@CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/cosim.dtb")
 @CosimTB.parameter("start_pc", int, 0x8000_0000)
 @CosimTB.parameter("generate_irqs", bool, [True,])
 async def test_cosim(
@@ -122,6 +122,8 @@ async def test_cosim(
         if rvfi_msg.pc_rdata == exit_addr:
             log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
             break
+        #if rvfi_msg.pc_rdata >= 0x8000_3000:
+        #    import pdb; pdb.set_trace()
         try:
             compare(hart0, rvfi_msg)
         except AssertionError as e:
@@ -143,10 +145,10 @@ def compare(hart, rvfi_msg) -> bool:
              f"{hex(hart.state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF)} != {hex(rvfi_msg.rd_wdata)}."
         )
     for csr,addr in CSRS:
-        if getattr(rvfi_msg, f'csr_{csr}_rmask') != 0:
-            assert (hart.get_csr(addr) & 0xFFFF_FFFF) == getattr(rvfi_msg, f'csr_{csr}_rdata'), (
+        if getattr(rvfi_msg, f'csr_{csr}_wmask') != 0:
+            assert (hart.get_csr(addr) & 0xFFFF_FFFF) == getattr(rvfi_msg, f'csr_{csr}_wdata'), (
                 f"CSR register {csr} mismatch: " +
-                f"{hex((hart.get_csr(addr) & 0xFFFF_FFFF))} != {hex(getattr(rvfi_msg, f'csr_{csr}_rdata'))}"
+                f"{hex((hart.get_csr(addr) & 0xFFFF_FFFF))} != {hex(getattr(rvfi_msg, f'csr_{csr}_wdata'))}"
             )
 
 def sync_hart_state(rvfi_msg, hart) -> None:
@@ -155,7 +157,10 @@ def sync_hart_state(rvfi_msg, hart) -> None:
     # Sync perf counters
     hart.put_csr(MCYCLE, 0)
     hart.put_csr(MINSTRET, 0)
-    hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, rvfi_msg.csr_mip_rdata)
+    if rvfi_msg.intr:
+        hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, rvfi_msg.csr_mip_rdata)
+        hart.step(1)
+        hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, 0x0)
 
 ELF_LIST_FILE = os.getenv(
     "ELF_LIST_FILE", 

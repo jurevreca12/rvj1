@@ -135,9 +135,11 @@ INDICES := $(shell seq 0 $$(( $(RVGEN_NUM_ITER) - 1 )))
 RVGEN_ASM_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .S,$(INDICES)))
 RVGEN_ELF_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .elf,$(INDICES)))
 RVGEN_ARGS      := --target rv32i \
+				   --mabi ilp32 \
 				   --test riscv_rand_instr_test \
 				   --steps gen \
 				   --output $(RVGEN_OUT_DIR) \
+				   --gen_opts '+enable_interrupt=1 +enable_timer_irq=1' \
 				   --start_seed 42 \
 				   -i $(RVGEN_NUM_ITER)
 RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
@@ -202,4 +204,4 @@ clean:
 	rm -f $(ELF_LIST_FILE)
 	rm -f $(SOURCES_FILE)
 	rm -rf $(DEBUG_VERILATOR_DIR)
-	rm RVJ1Sim_*
+	rm -f RVJ1Sim_*

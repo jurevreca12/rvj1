@@ -211,21 +211,47 @@ package rvj1_pkg;
     } mstatus_reg_t;
 
     typedef struct packed {
+        logic [XLEN-3:0] base;
+        logic            mode; // 0/1 = direct/vectored
+    } mtvec_reg_t;
+
+    typedef struct packed {
         logic       step;
         logic       nmip;
         logic [2:0] cause;
         logic       ebreakm;
     } dcsr_reg_t;
 
-    parameter logic [5:0] MCAUSE_INSTR_ADDR_MISALIGNED = 6'b0_00000; // 0
-    parameter logic [5:0] MCAUSE_INSTR_ACCESS_FAULT    = 6'b0_00001; // 1
-    parameter logic [5:0] MCAUSE_ILLEGAL_INSTRUCTION   = 6'b0_00010; // 2
-    parameter logic [5:0] MCAUSE_BREAKPOINT            = 6'b0_00011; // 3
-    parameter logic [5:0] MCAUSE_LOAD_ADDR_MISALIGNED  = 6'b0_00100; // 4
-    parameter logic [5:0] MCAUSE_LOAD_ACCESS_FAULT     = 6'b0_00101; // 5
-    parameter logic [5:0] MCAUSE_STORE_ADDR_MISALINGED = 6'b0_00110; // 6
-    parameter logic [5:0] MCAUSE_STORE_ACCESS_FAULT    = 6'b0_00111; // 7
-    parameter logic [5:0] MCAUSE_ECALL_FROM_M_MODE     = 6'b0_01011; // 11
+    parameter logic [6:0] MCAUSE_INSTR_ADDR_MISALIGNED = 7'b0000000; // 0
+    parameter logic [6:0] MCAUSE_INSTR_ACCESS_FAULT    = 7'b0000001; // 1
+    parameter logic [6:0] MCAUSE_ILLEGAL_INSTRUCTION   = 7'b0000010; // 2
+    parameter logic [6:0] MCAUSE_BREAKPOINT            = 7'b0000011; // 3
+    parameter logic [6:0] MCAUSE_LOAD_ADDR_MISALIGNED  = 7'b0000100; // 4
+    parameter logic [6:0] MCAUSE_LOAD_ACCESS_FAULT     = 7'b0000101; // 5
+    parameter logic [6:0] MCAUSE_STORE_ADDR_MISALINGED = 7'b0000110; // 6
+    parameter logic [6:0] MCAUSE_STORE_ACCESS_FAULT    = 7'b0000111; // 7
+    parameter logic [6:0] MCAUSE_ECALL_FROM_M_MODE     = 7'b0001011; // 11
+
+    parameter logic [6:0] MCAUSE_EXT_IRQ     = {1'b1, 6'd11};
+    parameter logic [6:0] MCAUSE_LCOFI_IRQ   = {1'b1, 6'd13};
+    parameter logic [6:0] MCAUSE_TIM_IRQ     = {1'b1, 6'd7};
+    parameter logic [6:0] MCAUSE_SW_IRQ      = {1'b1, 6'd3};
+    parameter logic [6:0] MCAUSE_PLATFORM_0  = {1'b1, 6'd16};
+    parameter logic [6:0] MCAUSE_PLATFORM_1  = {1'b1, 6'd17};
+    parameter logic [6:0] MCAUSE_PLATFORM_2  = {1'b1, 6'd18};
+    parameter logic [6:0] MCAUSE_PLATFORM_3  = {1'b1, 6'd19};
+    parameter logic [6:0] MCAUSE_PLATFORM_4  = {1'b1, 6'd20};
+    parameter logic [6:0] MCAUSE_PLATFORM_5  = {1'b1, 6'd21};
+    parameter logic [6:0] MCAUSE_PLATFORM_6  = {1'b1, 6'd22};
+    parameter logic [6:0] MCAUSE_PLATFORM_7  = {1'b1, 6'd23};
+    parameter logic [6:0] MCAUSE_PLATFORM_8  = {1'b1, 6'd24};
+    parameter logic [6:0] MCAUSE_PLATFORM_9  = {1'b1, 6'd25};
+    parameter logic [6:0] MCAUSE_PLATFORM_10 = {1'b1, 6'd26};
+    parameter logic [6:0] MCAUSE_PLATFORM_11 = {1'b1, 6'd27};
+    parameter logic [6:0] MCAUSE_PLATFORM_12 = {1'b1, 6'd28};
+    parameter logic [6:0] MCAUSE_PLATFORM_13 = {1'b1, 6'd29};
+    parameter logic [6:0] MCAUSE_PLATFORM_14 = {1'b1, 6'd30};
+    parameter logic [6:0] MCAUSE_PLATFORM_15 = {1'b1, 6'd31};
 
     `ifdef RVFI
     typedef struct packed {

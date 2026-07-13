@@ -111,6 +111,7 @@ module rvj1_top import rvj1_pkg::*; #(
   branch_ctrl_e     ctrl_branch_type;
   logic             jump;
   logic             synhr_trap;
+  logic             interrupt;
   logic             fetch_error;
 
   // EXECUTE
@@ -171,6 +172,7 @@ module rvj1_top import rvj1_pkg::*; #(
 
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
+  logic            late_jump;
   `endif
 
   /****************************************
@@ -425,6 +427,8 @@ module rvj1_top import rvj1_pkg::*; #(
     .rvfi_csr_wdata         (rvfi_csr_wdata),
     .rvfi_csr_wmask         (rvfi_csr_wmask),
     .exception_o            (synhr_trap),
+    .interrupt_o            (interrupt),
+    .late_jump_o            (late_jump),
     `endif
     .irq_external_i         (irq_external_i),
     .irq_timer_i            (irq_timer_i),
@@ -441,11 +445,12 @@ module rvj1_top import rvj1_pkg::*; #(
   *********************************************/
   `ifdef RVFI
   logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue;
-  logic first_insn_of_trap;
+  logic first_insn_of_irq;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
   logic [3:0]  strobe_sig;
   logic [31:0] lsu_wdata_mod;
   logic use_rpb, use_rpa;
+  logic [31:0] mip_val;
 
   assign valid_issue  = instr_issued && ~stall_ex;
   assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
@@ -499,8 +504,10 @@ module rvj1_top import rvj1_pkg::*; #(
       mem_wb_stage.lsu_addr       <= mem_issue   ? alu_res    : '0;
       mem_wb_stage.lsu_strobe     <= mem_issue   ? strobe_sig : '0;
       mem_wb_stage.lsu_wdata      <= store_issue ? regs2_data : '0;
-      mem_wb_stage.jmp_addr_valid <= jmp_addr_valid;
-      mem_wb_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+      if (jmp_addr_valid & ~late_jump) begin
+        mem_wb_stage.jmp_addr_valid <= jmp_addr_valid;
+        mem_wb_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+      end
     end
   end
   always_ff @(posedge clk_i) begin
@@ -514,7 +521,7 @@ module rvj1_top import rvj1_pkg::*; #(
       retired_stage.csr_wdata      <= rvfi_csr_wdata;
       retired_stage.csr_wmask      <= rvfi_csr_wmask;
       retired_stage.lsu_rdata      <= lsu_wb_valid   ? wpc_data          : '0;
-      if (jmp_addr_valid) begin
+      if (jmp_addr_valid & late_jump) begin
         retired_stage.jmp_addr_valid <= jmp_addr_valid;
         retired_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
       end
@@ -540,9 +547,18 @@ module rvj1_top import rvj1_pkg::*; #(
   register next_insn_is_trap_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
-    .ce   (rvfi_valid),
-    .in   (retired_stage.trap),
-    .out  (first_insn_of_trap)
+    .ce   (rvfi_valid | interrupt),
+    .in   (interrupt),
+    .out  (first_insn_of_irq)
+  );
+  register #(
+    .DTYPE(logic [31:0])
+  ) mip_save_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (rvfi_valid | interrupt),
+    .in   (rvfi_csr_rdata.mip),
+    .out  (mip_val)
   );
   byte_select_write bsw (
     .data(retired_stage.lsu_wdata),
@@ -553,7 +569,7 @@ module rvj1_top import rvj1_pkg::*; #(
   assign rvfi_insn      = retired_stage.instr;
   assign rvfi_trap      = retired_stage.trap;
   assign rvfi_halt      = 1'b0;
-  assign rvfi_intr      = first_insn_of_trap;
+  assign rvfi_intr      = first_insn_of_irq;
   assign rvfi_mode      = 2'b11; // M-mode only
   assign rvfi_ixl       = 2'b01; // MXL = 32
   assign rvfi_rs1_addr  = retired_stage.rs1_addr;
@@ -572,12 +588,16 @@ module rvj1_top import rvj1_pkg::*; #(
 
   `RVFI_STAGE_CONN(mstatus);
   `RVFI_STAGE_CONN(mie);
-  `RVFI_STAGE_CONN(mip);
+  //`RVFI_STAGE_CONN(mip);
   `RVFI_STAGE_CONN(mtvec);
   `RVFI_STAGE_CONN(mepc);
   `RVFI_STAGE_CONN(mcause);
   `RVFI_STAGE_CONN(mtval);
   `RVFI_STAGE_CONN(mscratch);
+  assign rvfi_csr_mip_rmask = '1;
+  assign rvfi_csr_mip_rdata = mip_val;
+  assign rvfi_csr_mip_wmask = '0;
+  assign rvfi_csr_mip_wdata = '0;
 
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (

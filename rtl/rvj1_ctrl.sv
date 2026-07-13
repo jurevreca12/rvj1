@@ -93,7 +93,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output rvfi_csr_t rvfi_csr_wdata,
   output rvfi_csr_t rvfi_csr_wmask,
 
-  output logic exception_o
+  output logic exception_o,
+  output logic interrupt_o,
+  output logic late_jump_o
  `endif
 );
   //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
@@ -104,6 +106,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     eLOAD
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
+
+  function automatic logic [XLEN-3:0] get_irq_addr(
+    input logic [XLEN-3:0] base, input logic mode, input logic [5:0] cause
+  );
+    logic [5:0]      masked_cause    = {6{mode}} & cause;
+    logic [XLEN-3:0] vec_mode_addend = {24'b0, masked_cause};
+    return base + vec_mode_addend;
+  endfunction
 
   // Other defintions
   logic rf_a_hazard;
@@ -144,7 +154,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic instr_fetch_error;
   logic stall_ex_o_r;
   logic csr_mod_insns;
-  logic [5:0] exc_cause, exc_cause_r;
+  logic [6:0] exc_cause, exc_cause_r;
   logic illegal_csr_write;
   logic nonexist_csr_access; 
   logic debug_csr_access_err;
@@ -152,11 +162,12 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic load_insn;
   logic ctrl_jump;
   logic load_exception;
+  logic interrupt_taken;
 
   logic [XLEN-1:0]  exc_mtval;
 
   logic             csr_exc_write;
-  logic [5:0]       csr_exc_mcause;
+  logic [6:0]       csr_exc_mcause;
   logic [XLEN-3:0]  csr_exc_mepc;
   logic [XLEN-1:0]  csr_exc_mtval;
   logic             csr_mret_restore;
@@ -168,6 +179,17 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic [XLEN-1:0] csr_dpc_value;
   logic [XLEN-1:0] csr_mepc_value;
   logic [XLEN-1:0] csr_mtvec_value;
+  miep_reg_t       mip;
+  miep_reg_t       mie;
+  mstatus_reg_t    mstatus;
+
+  logic        irq;
+  logic        irq_sw;
+  logic        irq_tim;
+  logic        irq_ext;
+  logic        irq_lcofi;
+  logic [15:0] irq_platform;
+  logic [6:0]  irq_cause;
 
   /*************************************
   * Hazard Detection logic
@@ -210,6 +232,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign exception             = ~dbg_mode & (exc_exec_stage_r | exc_mem_wb_stage);
   `ifdef RVFI
   assign exception_o = exception;
+  assign interrupt_o = interrupt_taken;
   `endif
 
   always_comb begin
@@ -244,6 +267,61 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     `ASSERT_SINGLE_CYCLE_HOLD(illegal_csr_insn);
     `ASSERT_SINGLE_CYCLE_HOLD(instr_fetch_error);
   `endif
+
+  /*************************************
+  * Interrupts
+  *************************************/
+  assign irq_sw       = mstatus.mie       & mie.msi   & mip.msi;
+  assign irq_tim      = mstatus.mie       & mie.mti   & mip.mti;
+  assign irq_ext      = mstatus.mie       & mie.mei   & mip.mei;
+  assign irq_lcofi    = mstatus.mie       & mie.lcofi & mip.lcofi;
+  assign irq_platform = {16{mstatus.mie}} & (mie.irqs & mip.irqs);
+  assign irq          = irq_sw | irq_tim | irq_ext | irq_lcofi | (|irq_platform);
+
+  always_comb begin
+    // RV-priv-spec p.44
+    irq_cause = 6'b0;
+    if      (irq_ext)
+      irq_cause = MCAUSE_EXT_IRQ;
+    else if (irq_sw)
+      irq_cause = MCAUSE_SW_IRQ;
+    else if (irq_tim)
+      irq_cause = MCAUSE_TIM_IRQ;
+    else if (irq_lcofi)
+      irq_cause = MCAUSE_LCOFI_IRQ;
+    else if (irq_platform[0])
+      irq_cause = MCAUSE_PLATFORM_0;
+    else if (irq_platform[1])
+      irq_cause = MCAUSE_PLATFORM_1;
+    else if (irq_platform[2])
+      irq_cause = MCAUSE_PLATFORM_2;
+    else if (irq_platform[3])
+      irq_cause = MCAUSE_PLATFORM_3;
+    else if (irq_platform[4])
+      irq_cause = MCAUSE_PLATFORM_4;
+    else if (irq_platform[5])
+      irq_cause = MCAUSE_PLATFORM_5;
+    else if (irq_platform[6])
+      irq_cause = MCAUSE_PLATFORM_6;
+    else if (irq_platform[7])
+      irq_cause = MCAUSE_PLATFORM_7;
+    else if (irq_platform[8])
+      irq_cause = MCAUSE_PLATFORM_8;
+    else if (irq_platform[9])
+      irq_cause = MCAUSE_PLATFORM_9;
+    else if (irq_platform[10])
+      irq_cause = MCAUSE_PLATFORM_10;
+    else if (irq_platform[11])
+      irq_cause = MCAUSE_PLATFORM_11;
+    else if (irq_platform[12])
+      irq_cause = MCAUSE_PLATFORM_12;
+    else if (irq_platform[13])
+      irq_cause = MCAUSE_PLATFORM_13;
+    else if (irq_platform[14])
+      irq_cause = MCAUSE_PLATFORM_14;
+    else if (irq_platform[15])
+      irq_cause = MCAUSE_PLATFORM_15;
+  end
 
   /*************************************
   * Retiring
@@ -331,12 +409,15 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .nonexist_csr_access_o   (nonexist_csr_access), 
     .debug_csr_access_err_o  (debug_csr_access_err),
 
+    .mip_o                   (mip),
+    .mie_o                   (mie),
+    .mstatus_o               (mstatus),
+
     .irq_external_i,
     .irq_timer_i,
     .irq_sw_i,
     .irq_lcofi_i,
     .irq_platform_i,
-    .irq_nmi_i,
 
     .dcsr_o                  (dcsr_q),
     .csr_dpc_value_o         (csr_dpc_value),
@@ -379,6 +460,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     csr_dbg_write    = 1'b0;
     csr_dbg_cause    = '0;
     csr_dbg_dpc      = '0;
+    interrupt_taken  = 1'b0;
+    `ifdef RVFI
+    late_jump_o = 1'b0;
+    `endif
 
     unique case (state)
       eRESET: begin
@@ -390,9 +475,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
       end
 
       eRUN: begin
-        stall_ex_o     = raw_hazard | lsu_busy | exception;
+        stall_ex_o     = raw_hazard | lsu_busy | exception | irq;
         stall_mem_wb_o = lsu_busy;
-        flush_ex_o     = exception | mret_insn | enter_debug | reenter_debug | dret_insn;
+        flush_ex_o     = exception | mret_insn | enter_debug | reenter_debug | dret_insn | irq;
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
@@ -460,6 +545,17 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           pc_next          = csr_dpc_value[31:2];
           pc_mod           = 1'b1;
         end
+
+        if (irq) begin
+          jmp_addr_valid_o = 1'b1;
+          jmp_addr_o       = get_irq_addr(csr_mtvec_value[31:2], csr_mtvec_value[0], irq_cause);
+          pc_next          = get_irq_addr(csr_mtvec_value[31:2], csr_mtvec_value[0], irq_cause);
+          pc_mod           = 1'b1;
+          csr_exc_write    = 1'b1;
+          csr_exc_mcause   = irq_cause;
+          csr_exc_mepc     = pc;
+          interrupt_taken  = 1'b1;
+        end
       end
 
       eJUMP: begin
@@ -467,6 +563,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         stall_ex_o       = 1'b1;
         flush_ex_o       = 1'b1;
         jmp_addr_valid_o = ~step_todbg;
+        `ifdef RVFI
+        late_jump_o = jmp_addr_valid_o;
+        `endif
         flush_mem_wb_o   = 1'b1;
         jmp_addr_o       = alu_res_r_i[31:2];
         pc_next          = alu_res_r_i[31:2];
@@ -496,6 +595,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           pc_mod            = 1'b1;
           jmp_addr_o        = csr_mtvec_value[31:2];
           jmp_addr_valid_o  = 1'b1;
+          `ifdef RVFI
+          late_jump_o = jmp_addr_valid_o;
+          `endif
           stop_jmp_write_o  = 1'b1;
           csr_exc_write     = 1'b1;
           csr_exc_mcause    = exc_cause;
@@ -557,7 +659,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (pc),
     .out  (pc_r)
   );
-  register #(.DTYPE(logic [5:0])) exc_cause_reg (
+  register #(.DTYPE(logic [6:0])) exc_cause_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
     .ce   (1'b1),
