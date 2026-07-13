@@ -154,7 +154,7 @@ module rvj1_top import rvj1_pkg::*; #(
   logic             csr_wb;
   logic [XLEN-1:0]  csr_value;
   logic [RALEN-1:0] csr_regdest;
-  logic             stop_jmp_write;
+  logic             stop_write;
   logic             illegal_instr;
 
   `ifdef RVFI
@@ -173,7 +173,7 @@ module rvj1_top import rvj1_pkg::*; #(
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
   logic            late_jump;
-  logic            late_csr_mod_o;
+  logic            late_csr_mod;
   `endif
 
   /****************************************
@@ -359,8 +359,8 @@ module rvj1_top import rvj1_pkg::*; #(
   end
   assign wpc_we = (lsu_wb_valid ||
                   (alu_write_rf_r  && ~stall_mem_wb) ||
-                  (jump_r && ~stop_jmp_write) ||
-                   csr_wb);
+                  (jump_r) ||
+                   csr_wb) && ~stop_write;
 
   `ifdef ASSERTIONS
     always_ff @(posedge clk_i)
@@ -403,7 +403,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .pc_o                   (pc),
     .flush_ex_o             (flush_ex),
     .flush_mem_wb_o         (flush_mem_wb),
-    .stop_jmp_write_o       (stop_jmp_write),
+    .stop_write_o           (stop_write),
     .jmp_addr_valid_o       (jmp_addr_valid),
     .jmp_addr_o             (jmp_addr),
     .csr_valid_r_i          (csr_valid_r),
@@ -447,12 +447,12 @@ module rvj1_top import rvj1_pkg::*; #(
   *********************************************/
   `ifdef RVFI
   logic valid_issue, simple_issue, branch_issue, load_issue, store_issue, mem_issue;
-  logic first_insn_of_irq;
+  logic interrupt_r;
   rvfi_stage_info_t exec_stage_comb, mem_wb_stage, retired_stage;
   logic [3:0]  strobe_sig;
   logic [31:0] lsu_wdata_mod;
   logic use_rpb, use_rpa;
-  logic [31:0] mip_val;
+  logic [31:0] mip_r;
 
   assign valid_issue  = instr_issued && ~stall_ex;
   assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
@@ -487,11 +487,29 @@ module rvj1_top import rvj1_pkg::*; #(
     exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
     exec_stage_comb.rd_wdata       = '0;
     exec_stage_comb.trap           = 1'b0;
+    exec_stage_comb.intr           = interrupt | interrupt_r;
+    exec_stage_comb.mip            = interrupt ? rvfi_csr_rdata.mip : mip_r;
     exec_stage_comb.csr_rdata      = '0;
     exec_stage_comb.csr_rmask      = '0;
     exec_stage_comb.csr_wdata      = '0;
     exec_stage_comb.csr_wmask      = '0;
   end
+  register next_insn_is_trap_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (valid_issue | interrupt),
+    .in   (interrupt),
+    .out  (interrupt_r)
+  );
+  register #(
+    .DTYPE(logic [31:0])
+  ) mip_save_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (valid_issue | interrupt),
+    .in   (rvfi_csr_rdata.mip),
+    .out  (mip_r)
+  );
 
   // Store instructions use expected values in the RVFI. This is because they are
   // retired (from the point of view of the core) immediately. Howver, RVFI if needs
@@ -554,22 +572,6 @@ module rvj1_top import rvj1_pkg::*; #(
     .ce   (rvfi_valid),
     .count(rvfi_order)
   );
-  register next_insn_is_trap_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (rvfi_valid | interrupt),
-    .in   (interrupt),
-    .out  (first_insn_of_irq)
-  );
-  register #(
-    .DTYPE(logic [31:0])
-  ) mip_save_reg (
-    .clk  (clk_i),
-    .rstn (rstn_i),
-    .ce   (rvfi_valid | interrupt),
-    .in   (rvfi_csr_rdata.mip),
-    .out  (mip_val)
-  );
   byte_select_write bsw (
     .data(retired_stage.lsu_wdata),
     .cmd(retired_stage.lsu_cmd),
@@ -579,7 +581,7 @@ module rvj1_top import rvj1_pkg::*; #(
   assign rvfi_insn      = retired_stage.instr;
   assign rvfi_trap      = retired_stage.trap;
   assign rvfi_halt      = 1'b0;
-  assign rvfi_intr      = first_insn_of_irq;
+  assign rvfi_intr      = retired_stage.intr;
   assign rvfi_mode      = 2'b11; // M-mode only
   assign rvfi_ixl       = 2'b01; // MXL = 32
   assign rvfi_rs1_addr  = retired_stage.rs1_addr;
@@ -605,7 +607,7 @@ module rvj1_top import rvj1_pkg::*; #(
   `RVFI_STAGE_CONN(mtval);
   `RVFI_STAGE_CONN(mscratch);
   assign rvfi_csr_mip_rmask = '1;
-  assign rvfi_csr_mip_rdata = mip_val;
+  assign rvfi_csr_mip_rdata = retired_stage.mip;
   assign rvfi_csr_mip_wmask = '0;
   assign rvfi_csr_mip_wdata = '0;
 

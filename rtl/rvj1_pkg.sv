@@ -284,6 +284,8 @@ package rvj1_pkg;
         logic [XLEN-1:0] jmp_addr;
         logic [XLEN-1:0] rd_wdata;
         logic            trap;
+        logic            intr;
+        logic [XLEN-1:0] mip;
         rvfi_csr_t       csr_rdata;
         rvfi_csr_t       csr_rmask;
         rvfi_csr_t       csr_wdata;

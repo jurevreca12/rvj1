@@ -594,7 +594,7 @@ module rvj1_csr import rvj1_pkg::*; #(
     assign rvfi_csr_rmask.mcause = '1;
     assign rvfi_csr_rdata.mcause = csr_mcause_value;
     assign rvfi_csr_wmask.mcause = mcause_ce ? '1 : '0;
-    assign rvfi_csr_wdata.mcause = {mcause_d[6], 26'b0, mcause_d[5:0]};
+    assign rvfi_csr_wdata.mcause = {mcause_d[6], 25'b0, mcause_d[5:0]};
 
     assign rvfi_csr_rmask.mtval = '1;
     assign rvfi_csr_rdata.mtval = csr_mtval_value;

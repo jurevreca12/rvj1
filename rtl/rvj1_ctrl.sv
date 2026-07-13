@@ -80,7 +80,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   output logic             stall_mem_wb_o,
   output logic             flush_ex_o,
   output logic             flush_mem_wb_o,
-  output logic             stop_jmp_write_o,
+  output logic             stop_write_o,
 
   output logic [XLEN-1:0]  pc_o,
 
@@ -162,8 +162,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic rf_a_reg_match, rf_b_reg_match;
   logic load_insn;
   logic ctrl_jump;
+  logic instr_issued;
   logic load_exception;
   logic interrupt_taken;
+  logic jmp_addr_valid_r;
 
   logic [XLEN-1:0]  exc_mtval;
 
@@ -447,7 +449,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     stall_mem_wb_o   = 1'b0;
     flush_ex_o       = 1'b0;
     flush_mem_wb_o   = 1'b0;
-    stop_jmp_write_o = 1'b0;
+    stop_write_o     = 1'b0;
     dbg_mode_next    = dbg_mode;
     loaded           = 1'b0;
     drain_next       = 1'b0;
@@ -509,6 +511,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_exc_write    = 1'b1;
           csr_exc_mcause   = exc_exec_stage_r  ? exc_cause_r : exc_cause;
           csr_exc_mepc     = exc_mem_wb_stage2 ? pc          : pc_r;
+          `ifdef RVFI
+          late_jump_o      = exc_exec_stage_r;
+          `endif
           csr_exc_mtval    = exc_mtval;
           cancel_retire    = 1'b1;
         end
@@ -548,7 +553,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           pc_mod           = 1'b1;
         end
 
-        if (irq) begin
+        // IFU can't handle two consequtive jmp_valids. so we delay the
+        // irq by a clock cycle
+        if (irq & ~jmp_addr_valid_r) begin
           jmp_addr_valid_o = 1'b1;
           jmp_addr_o       = get_irq_addr(csr_mtvec_value[31:2], csr_mtvec_value[0], irq_cause);
           pc_next          = get_irq_addr(csr_mtvec_value[31:2], csr_mtvec_value[0], irq_cause);
@@ -578,7 +585,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           pc_mod            = 1'b1;
           jmp_addr_o        = csr_mtvec_value[31:2];
           jmp_addr_valid_o  = 1'b1;
-          stop_jmp_write_o  = 1'b1;
+          stop_write_o      = 1'b1;
           csr_exc_write     = 1'b1;
           csr_exc_mcause    = exc_cause_r;
           csr_exc_mepc      = pc_r;
@@ -603,7 +610,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           `ifdef RVFI
           late_jump_o = jmp_addr_valid_o;
           `endif
-          stop_jmp_write_o  = 1'b1;
+          stop_write_o      = 1'b1;
           csr_exc_write     = 1'b1;
           csr_exc_mcause    = exc_cause;
           csr_exc_mepc      = pc;
@@ -680,6 +687,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .ce  (~stall_mem_wb_o),
     .in  (instr_will_retire),
     .out (instr_will_retire_r)
+  );
+  register jmp_addr_valid_regg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (1'b1),
+    .in   (jmp_addr_valid_o),
+    .out  (jmp_addr_valid_r)
   );
   
 endmodule
