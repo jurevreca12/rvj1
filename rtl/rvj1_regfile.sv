@@ -38,7 +38,7 @@ module rvj1_regfile import rvj1_pkg::*; (
 ******************************/
   // Write to the registers (register x0 should always be zero)
   integer i;
-  always_ff @(posedge clk_i) begin
+  always_ff @(posedge clk_i or negedge rstn_i) begin
     if (rstn_i == 1'b0) begin
       for (i = 0; i < NREG; i = i + 1) regfile[i] <= 32'b0;
     end else begin

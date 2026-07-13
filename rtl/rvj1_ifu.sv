@@ -178,7 +178,8 @@ module rvj1_ifu import rvj1_pkg::*; (
         .DTYPE(logic [IDLEN-1:0])
     ) next_id_buff (
         .clk  (clk_i),
-        .rstn (rstn_i && ~jmp_addr_valid_i),
+        .rstn (rstn_i),
+        .clear(jmp_addr_valid_i),
 
         .input_valid  (instr_req_fire),
         .input_ready  (act_id_buff_inp_ready),

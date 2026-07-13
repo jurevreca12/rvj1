@@ -2,7 +2,7 @@ import os
 import pytest
 from cocotb_tools.pytest.hdl import HDL
 
-DEF_SOURCES_FILE = os.path.join(os.path.dirname(__file__), "sources.f")
+DEF_SOURCES_FILE = os.path.join(os.path.dirname(__file__), "..", "sources.f")
 
 WAVES        = os.getenv("WAVES",        default=False)
 RVFI         = os.getenv("RVFI",         default=True)

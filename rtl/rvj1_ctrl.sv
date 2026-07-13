@@ -681,12 +681,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .in   (exc_cause),
     .out  (exc_cause_r)
   );
-  register insn_retire_reg (
-    .clk (clk_i),
-    .rstn(rstn_i && ~cancel_retire),
-    .ce  (~stall_mem_wb_o),
-    .in  (instr_will_retire),
-    .out (instr_will_retire_r)
+  register_wclear insn_retire_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .clear(cancel_retire),
+    .ce   (~stall_mem_wb_o),
+    .in   (instr_will_retire),
+    .out  (instr_will_retire_r)
   );
   register jmp_addr_valid_regg (
     .clk  (clk_i),

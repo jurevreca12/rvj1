@@ -211,7 +211,8 @@ module rvj1_top import rvj1_pkg::*; #(
   ****************************************/
   rvj1_dec decoder_inst(
     .clk_i               (clk_i),
-    .rstn_i              (rstn_i && ~flush_ex),
+    .rstn_i              (rstn_i),
+    .clear               (flush_ex),
     .ifu_instr_i         (fetched_instr),
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
@@ -272,12 +273,13 @@ module rvj1_top import rvj1_pkg::*; #(
     .res_o  (alu_res)
   );
 
-  register #(
+  register_wclear #(
     .DTYPE  (logic [(RALEN + XLEN + XLEN + 1 + $bits(lsu_ctrl_e) + $bits(branch_ctrl_e) + 1  + 1 + 1 + 1 + 12 + $bits(csr_cmd_t))-1:0]),
     .RESET_VALUE (0)
   ) ex_mem_wb_stage_reg(
     .clk  (clk_i),
-    .rstn (rstn_i && ~flush_mem_wb),
+    .rstn (rstn_i),
+    .clear(flush_mem_wb),
     .ce   (control && ~stall_mem_wb),
     .in   ({regdest,   alu_res,   regs2_data,   lsu_ctrl_valid & ~stall_ex,   lsu_ctrl, ctrl_branch_type,
             alu_write_rf & ~stall_ex,   jump & ~stall_ex,   csr_valid & ~stall_ex, ctrl_branch & ~stall_ex,  csr_addr,   csr_cmd}),

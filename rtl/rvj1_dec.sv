@@ -17,6 +17,8 @@ module rvj1_dec import rvj1_pkg::*;
   input logic clk_i,
   input logic rstn_i,
 
+  input logic clear,
+
   input  logic [XLEN-1:0] ifu_instr_i,       // Instructions coming in from memory/cache
   input  logic            ifu_valid_i,
   output logic            ifu_ready_o,       // Ready for instructions.
@@ -309,13 +311,16 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
 assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE) && ~illegal_instr_o;
 assign update_output = ifu_fire ||  (state != eDEC_FIRST_CYCLE && ~stall_i);
-assign reset_output  = ~rstn_i  || (~update_output && ~stall_i);
-always_ff @(posedge clk_i) begin
-  if (~rstn_i)
-    instr_buff <= 32'h0000_0000;
-  else if (ifu_fire)
-    instr_buff <= ifu_instr_i;
-end
+assign reset_output  = ~rstn_i  || clear || (~update_output && ~stall_i);
+register #(
+  .DTYPE(logic [31:0])
+) instr_buff_reg (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+  .ce   (ifu_fire), 
+  .in   (ifu_instr_i),
+  .out  (instr_buff)
+);
 
 `ifdef RVFI
 assign instr_exec_o = instr_buff;
@@ -324,7 +329,7 @@ assign instr_exec_o = instr_buff;
 /*************************************
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
-always_ff @(posedge clk_i) begin
+always_ff @(posedge clk_i or negedge rstn_i) begin
   if (reset_output) begin
     rf_addr_a_o         <= 5'b00000;
     rf_addr_b_o         <= 5'b00000;

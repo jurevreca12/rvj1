@@ -40,7 +40,7 @@ class CosimTB(BaseBench):
 
     async def initialise(self) -> None:
         """Initialise the DUT's I/O"""
-        self.rst.value = 0
+        self.rst.value = 1
         for comp in self._components.values():
             comp.io.initialise(IORole.opposite(comp.io.role))
 
@@ -53,7 +53,7 @@ class CosimTB(BaseBench):
         :param wait_after:  Clock cycles to wait after lowering reset (defaults to 1)
         """
         # Drive reset high
-        self.rst.value = 0
+        self.rst.value = 1
         # Initialise I/O
         if init:
             await self.initialise()
@@ -61,18 +61,19 @@ class CosimTB(BaseBench):
         if wait_during > 0:
             await ClockCycles(self.clk, wait_during)
         # Drop reset
-        self.rst.value = 1
+        self.rst.value = 0
         # Wait for a bit
         if wait_after > 0:
             self.info(f"Waiting for {wait_after} cycles")
             await ClockCycles(self.clk, wait_after)
+        self.rst.value = 1
  
 
 
 
 @CosimTB.testcase(
     reset_wait_during=2,
-    reset_wait_after=0,
+    reset_wait_after=2,
     timeout=2000000,
     shutdown_delay=2000,
     shutdown_loops=1,

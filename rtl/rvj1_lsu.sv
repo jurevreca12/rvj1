@@ -271,12 +271,16 @@ always_comb begin
   state_next = req_full  ? eLSU_STALL : state_next;
   state_next = req_ready ? eLSU_RUN   : state_next;
 end
-always_ff @(posedge clk_i) begin
-  if (~rstn_i)
-    state <= eLSU_RUN;
-  else
-    state <= state_next;
-end
+register #(
+  .DTYPE(lsu_state_e),
+  .RESET_VALUE(eLSU_RUN)
+) state_reg (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+  .ce   (1'b1),
+  .in   (state_next),
+  .out  (state)
+);
 
 `ifdef ASSERTIONS
   // There should be no response without a request.
