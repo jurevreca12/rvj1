@@ -512,7 +512,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_exc_mcause   = exc_exec_stage_r  ? exc_cause_r : exc_cause;
           csr_exc_mepc     = exc_mem_wb_stage2 ? pc          : pc_r;
           `ifdef RVFI
-          late_jump_o      = exc_exec_stage_r;
+          late_jump_o      = exc_exec_stage_r | exc_mem_wb_stage;
           `endif
           csr_exc_mtval    = exc_mtval;
           cancel_retire    = 1'b1;
