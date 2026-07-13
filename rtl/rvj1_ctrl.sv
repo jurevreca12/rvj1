@@ -95,7 +95,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   output logic exception_o,
   output logic interrupt_o,
-  output logic late_jump_o
+  output logic late_jump_o,
+  output logic late_csr_mod_o
  `endif
 );
   //`STATIC_ASSERT(DmRomAddr[1:0] == 2'b00);
@@ -463,6 +464,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     interrupt_taken  = 1'b0;
     `ifdef RVFI
     late_jump_o = 1'b0;
+    late_csr_mod_o = 1'b0;
     `endif
 
     unique case (state)
@@ -581,6 +583,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_exc_mcause    = exc_cause_r;
           csr_exc_mepc      = pc_r;
           csr_exc_mtval     = exc_mtval;
+          `ifdef RVFI
+          late_csr_mod_o = 1'b1;
+          `endif
         end
       end
 
@@ -603,6 +608,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
           csr_exc_mcause    = exc_cause;
           csr_exc_mepc      = pc;
           csr_exc_mtval     = exc_mtval;
+          `ifdef RVFI
+          late_csr_mod_o = 1'b1;
+          `endif
           flush_ex_o        = 1'b1;
           flush_mem_wb_o    = 1'b1;
         end
