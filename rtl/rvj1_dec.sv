@@ -311,7 +311,7 @@ assign imm_j_type  = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'
 assign ifu_fire      = ifu_ready_o && ifu_valid_i;
 assign ifu_ready_o   = ~stall_i && ~(state != eDEC_FIRST_CYCLE) && ~illegal_instr_o;
 assign update_output = ifu_fire ||  (state != eDEC_FIRST_CYCLE && ~stall_i);
-assign reset_output  = ~rstn_i  || clear || (~update_output && ~stall_i);
+assign reset_output  = clear || (~update_output && ~stall_i);
 register #(
   .DTYPE(logic [31:0])
 ) instr_buff_reg (
@@ -330,7 +330,35 @@ assign instr_exec_o = instr_buff;
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff @(posedge clk_i or negedge rstn_i) begin
-  if (reset_output) begin
+  if (rstn_i) begin
+    rf_addr_a_o         <= 5'b00000;
+    rf_addr_b_o         <= 5'b00000;
+    alu_sel_o           <= ALU_OP_ADD;
+    rpa_or_pc_o         <= 1'b0;
+    rpb_or_imm_o        <= 1'b0;
+    alu_write_rf_o      <= 1'b0;
+    regdest_o           <= 5'b00000;
+    immediate_o         <= 32'h0000_0000;
+    lsu_ctrl_valid_o    <= 1'b0;
+    lsu_ctrl_o          <= LSU_NO_CMD;
+    ctrl_jump_o         <= 1'b0;
+    ctrl_branch_o       <= 1'b0;
+    ctrl_branch_type_o  <= BRANCH_EQ;
+    state               <= eDEC_FIRST_CYCLE;
+    instr_issued_o      <= 1'b0;
+    instr_will_retire_o <= 1'b0;
+    control_o           <= 1'b0;
+    csr_valid_o         <= 1'b0;
+    csr_addr_o          <= 12'b0;
+    csr_cmd_o           <= CSRNO;
+    ecall_insn_o        <= 1'b0;
+    mret_insn_o         <= 1'b0;
+    illegal_instr_o     <= 1'b0;
+    ebreak_insn_o       <= 1'b0;
+    dret_insn_o         <= 1'b0;
+    fetch_error_o       <= 1'b0;
+  end
+  else if (reset_output) begin
     rf_addr_a_o         <= 5'b00000;
     rf_addr_b_o         <= 5'b00000;
     alu_sel_o           <= ALU_OP_ADD;
