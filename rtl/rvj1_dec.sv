@@ -330,7 +330,7 @@ assign instr_exec_o = instr_buff;
 * DECODER - SYNCHRONOUS LOGIC
 *************************************/
 always_ff @(posedge clk_i or negedge rstn_i) begin
-  if (rstn_i) begin
+  if (~rstn_i) begin
     rf_addr_a_o         <= 5'b00000;
     rf_addr_b_o         <= 5'b00000;
     alu_sel_o           <= ALU_OP_ADD;
