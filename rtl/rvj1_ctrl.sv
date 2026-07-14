@@ -274,11 +274,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   /*************************************
   * Interrupts
   *************************************/
-  assign irq_sw       = mstatus.mie       & mie.msi   & mip.msi;
-  assign irq_tim      = mstatus.mie       & mie.mti   & mip.mti;
-  assign irq_ext      = mstatus.mie       & mie.mei   & mip.mei;
-  assign irq_lcofi    = mstatus.mie       & mie.lcofi & mip.lcofi;
-  assign irq_platform = {16{mstatus.mie}} & (mie.irqs & mip.irqs);
+  assign irq_sw       = ~dbg_mode       & mstatus.mie       & mie.msi   & mip.msi;
+  assign irq_tim      = ~dbg_mode       & mstatus.mie       & mie.mti   & mip.mti;
+  assign irq_ext      = ~dbg_mode       & mstatus.mie       & mie.mei   & mip.mei;
+  assign irq_lcofi    = ~dbg_mode       & mstatus.mie       & mie.lcofi & mip.lcofi;
+  assign irq_platform = {16{~dbg_mode}} & {16{mstatus.mie}} & (mie.irqs & mip.irqs);
   assign irq          = irq_sw | irq_tim | irq_ext | irq_lcofi | (|irq_platform);
 
   always_comb begin
