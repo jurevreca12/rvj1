@@ -161,6 +161,7 @@ module rvj1_ifu import rvj1_pkg::*; (
     ) act_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
+        .clear (1'b0),
 
         .input_valid  (instr_req_fire),
         .input_ready  (act_req_buff_inp_ready),
@@ -215,6 +216,7 @@ module rvj1_ifu import rvj1_pkg::*; (
     ) rsp_buff (
     .clk  (clk_i),
     .rstn (rstn_i),
+    .clear(1'b0),
 
     .input_valid  (instr_rsp_fire),
     .input_ready  (rsp_buff_inp_ready),
