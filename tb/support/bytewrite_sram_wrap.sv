@@ -100,6 +100,7 @@ module bytewrite_sram_wrap #(
     ) dram_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
+        .clear(1'b0),
 
         .input_valid  (data_req_valid_i),
         .input_ready  (data_req_ready_o),
@@ -119,6 +120,7 @@ module bytewrite_sram_wrap #(
     ) iram_req_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
+        .clear(1'b0),
 
         .input_valid  (instr_req_valid_i),
         .input_ready  (instr_req_ready_o),
@@ -176,6 +178,7 @@ module bytewrite_sram_wrap #(
     ) dram_rsp_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
+        .clear(1'b0),
 
         .input_valid  (dram_req_fire_r),
         .input_ready  (),
@@ -194,6 +197,7 @@ module bytewrite_sram_wrap #(
     ) iram_rsp_buff (
         .clk  (clk_i),
         .rstn (rstn_i),
+        .clear(1'b0),
 
         .input_valid  (iram_req_fire_r),
         .input_ready  (),

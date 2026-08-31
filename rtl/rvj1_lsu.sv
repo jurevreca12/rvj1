@@ -154,6 +154,7 @@ skidbuffer #(
 ) request_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
+  .clear(1'b0),
 
   .input_valid  (lsu_valid_i && lsu_ready_o && ~addr_misaligned),
   .input_ready  (req_buff_inp_ready),
@@ -194,6 +195,7 @@ skidbuffer #(
 ) act_req_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
+  .clear(1'b0),
 
   .input_valid  (data_req_fire),
   .input_ready  (act_req_buff_inp_ready),
@@ -211,6 +213,7 @@ skidbuffer #(
 ) response_buffer (
   .clk  (clk_i),
   .rstn (rstn_i),
+  .clear(1'b0),
 
   .input_valid  (data_rsp_fire),
   .input_ready  (resp_buff_ready),

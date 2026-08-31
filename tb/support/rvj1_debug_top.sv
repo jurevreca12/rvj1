@@ -38,6 +38,12 @@ module rvj1_debug_top();
     .irq_lcofi_i    (1'b0),
     .irq_platform_i ('0),
     .irq_nmi_i      (1'b0)
+
+    // verilator lint_off REDEFMACRO
+    `ifdef RVFI
+    ,`RVFI_CONN
+    `endif
+    // verilator lint_on REDEFMACRO
   );
 
   SimJTAG #(

@@ -109,9 +109,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   rvj1_fsm_e state, state_next;
 
   function automatic logic [XLEN-3:0] get_irq_addr(
-    input logic [XLEN-3:0] base, input logic mode, input logic [5:0] cause
+    input logic [XLEN-3:0] base, input logic mode, input logic [6:0] cause
   );
-    logic [5:0]      masked_cause    = {6{mode}} & cause;
+    // assert(cause[6] == 1);
+    logic [5:0]      masked_cause    = {6{mode}} & cause[5:0];
     logic [XLEN-3:0] vec_mode_addend = {24'b0, masked_cause};
     return base + vec_mode_addend;
   endfunction
@@ -239,7 +240,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   `endif
 
   always_comb begin
-    exc_cause = 6'b0;
+    exc_cause = 7'b0;
     if (ecall_insn)
       exc_cause = MCAUSE_ECALL_FROM_M_MODE;
     else if (instr_fetch_error)
@@ -283,7 +284,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   always_comb begin
     // RV-priv-spec p.44
-    irq_cause = 6'b0;
+    irq_cause = 7'b0;
     if      (irq_ext)
       irq_cause = MCAUSE_EXT_IRQ;
     else if (irq_sw)
