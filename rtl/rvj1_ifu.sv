@@ -162,7 +162,6 @@ module rvj1_ifu import rvj1_pkg::*; (
         .clk  (clk_i),
         .rstn (rstn_i),
         .clear(1'b0),
-
         .input_valid  (instr_req_fire),
         .input_ready  (act_req_buff_inp_ready),
         .input_data   ({eSTROBE_FULL, instr_req_id_o}),

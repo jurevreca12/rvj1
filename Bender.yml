@@ -4,7 +4,7 @@ package:
     - "Jure Vreča <jure.vreca@ijs.si>"
 
 dependencies:
-  std-lib:    { git: "https://github.com/jurevreca12/std-lib.git",     rev: de7f5c8 }
+  std-lib:    { git: "https://github.com/jurevreca12/std-lib.git",     rev: 854b660 }
   mapped2obi: { git: "https://github.com/jurevreca12/mapped2obi.git",  rev: 06411af }
   riscv-dbg:  { git: "https://github.com/pulp-platform/riscv-dbg.git", rev: 1cd764a, target: sim}
   obi:        { git: "https://github.com/jurevreca12/obi.git",         rev: b189044, target: sim}
