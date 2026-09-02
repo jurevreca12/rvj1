@@ -64,13 +64,13 @@ module fifo_comp #(
     if (~rstn_i) begin
       write_ptr <= '0;
     end
-    else if (write_fire) begin
-      write_ptr <= write_ptr_next;
-      err_write_ptr <= err_write_ptr_next;
-    end
     else if (flush_i) begin
       write_ptr <= '0;
       err_write_ptr <= '0;
+    end
+    else if (write_fire) begin
+      write_ptr <= write_ptr_next;
+      err_write_ptr <= err_write_ptr_next;
     end
   end
 
@@ -78,13 +78,13 @@ module fifo_comp #(
   always_ff @(posedge clk_i or negedge rstn_i) begin
     if (~rstn_i) begin
       read_ptr <= '0;
-    end else if (read_fire) begin
-      read_ptr <= read_ptr_next;
-      err_read_ptr <= err_read_ptr_next;
     end else if (flush_i) begin
       read_ptr <= '0;
       err_read_ptr <= '0;
-    end
+    end else if (read_fire) begin
+      read_ptr <= read_ptr_next;
+      err_read_ptr <= err_read_ptr_next;
+    end 
   end
 
   // Parcel counter
