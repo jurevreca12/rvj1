@@ -15,14 +15,18 @@
 
 /* verilator lint_off IMPORTSTAR */
 module rvj1_top import rvj1_pkg::*; #(
-  parameter int unsigned BootAddr   = 32'h8000_0000,
-  parameter int unsigned DmRomAddr  = 32'h0000_0000,
-  parameter int unsigned DmExcAddr  = 32'h0000_0000,
-  parameter int unsigned MVendorId  = 32'h0000_0000,
-  parameter int unsigned MArchId    = 32'h0000_0000,
-  parameter int unsigned MImpId     = 32'h0000_0000,
-  parameter int unsigned MHartId    = 32'h0000_0000,
-  parameter int unsigned MConfigPtr = 32'h0000_0000
+  parameter bit CompressedEnabled       = 1'b1,
+  parameter int unsigned BootAddr       = 32'h8000_0000,
+  parameter int unsigned DmRomAddr      = 32'h0000_0000,
+  parameter int unsigned DmExcAddr      = 32'h0000_0000,
+  parameter int unsigned MVendorId      = 32'h0000_0000,
+  parameter int unsigned MArchId        = 32'h0000_0000,
+  parameter int unsigned MImpId         = 32'h0000_0000,
+  parameter int unsigned MHartId        = 32'h0000_0000,
+  parameter int unsigned MConfigPtr     = 32'h0000_0000,
+  localparam int unsigned EfAddrWidth   = CompressedEnabled ? (XLEN - 1) : (XLEN - 2), // Effective Address Width
+  localparam int unsigned AddrExtraBits = CompressedEnabled ? 1 : 2                                              
+
 )
 (
   input  logic              clk_i,
@@ -81,8 +85,10 @@ module rvj1_top import rvj1_pkg::*; #(
   // IF/DEC
   logic             fetched_instr_valid;
   logic [XLEN-1:0]  fetched_instr;
+  logic [XLEN-1:0]  fetched_org_instr;
   logic             fetched_instr_ready;
   logic             fetched_instr_error;
+  logic             fetched_compr;
 
   // DEC/EX
   logic             control;
@@ -145,17 +151,18 @@ module rvj1_top import rvj1_pkg::*; #(
   logic             lsu_wb_valid;
 
   // CONTROL SIGNALS
-  logic             instr_retiring;
-  logic             jmp_addr_valid;
-  logic [XLEN-3:0]  jmp_addr;
-  logic             lsu_ready;
-  logic             flush_ex;
-  logic             flush_mem_wb;
-  logic             csr_wb;
-  logic [XLEN-1:0]  csr_value;
-  logic [RALEN-1:0] csr_regdest;
-  logic             stop_write;
-  logic             illegal_instr;
+  logic                    instr_retiring;
+  logic                    jmp_addr_valid;
+  logic [EfAddrWidth-1:0]  jmp_addr;
+  logic                    lsu_ready;
+  logic                    flush_ex;
+  logic                    flush_mem_wb;
+  logic                    csr_wb;
+  logic [XLEN-1:0]         csr_value;
+  logic [RALEN-1:0]        csr_regdest;
+  logic                    stop_write;
+  logic                    illegal_instr;
+  logic                    compr;
 
   `ifdef RVFI
   rvfi_csr_t        rvfi_csr_rdata;
@@ -172,6 +179,7 @@ module rvj1_top import rvj1_pkg::*; #(
 
   `ifdef RVFI
   logic [XLEN-1:0] instr_exec;
+  logic [XLEN-1:0] org_instr;
   logic            late_jump;
   logic            late_csr_mod;
   `endif
@@ -179,32 +187,69 @@ module rvj1_top import rvj1_pkg::*; #(
   /****************************************
   * INSTRUCTION FETCH STAGE
   ****************************************/
-  rvj1_ifu ifu_inst(
-    .clk_i              (clk_i),
-    .rstn_i             (rstn_i),
-    .instr_req_addr_o   (instr_req_addr_o),
-    .instr_req_data_o   (instr_req_data_o),
-    .instr_req_strobe_o (instr_req_strobe_o),
-    .instr_req_write_o  (instr_req_write_o),
-    .instr_req_id_o     (instr_req_id_o),
-    .instr_req_valid_o  (instr_req_valid_o),
-    .instr_req_ready_i  (instr_req_ready_i),
+  generate
+    if (CompressedEnabled) begin : rvc_ifu_gen
+      rvj1_ifu_rvc ifu_inst_rvc(
+        .clk_i              (clk_i),
+        .rstn_i             (rstn_i),
+        .instr_req_addr_o   (instr_req_addr_o),
+        .instr_req_data_o   (instr_req_data_o),
+        .instr_req_strobe_o (instr_req_strobe_o),
+        .instr_req_write_o  (instr_req_write_o),
+        .instr_req_id_o     (instr_req_id_o),
+        .instr_req_valid_o  (instr_req_valid_o),
+        .instr_req_ready_i  (instr_req_ready_i),
 
-    .instr_rsp_data_i   (instr_rsp_data_i),
-    .instr_rsp_error_i  (instr_rsp_error_i),
-    .instr_rsp_id_i     (instr_rsp_id_i),
-    .instr_rsp_valid_i  (instr_rsp_valid_i),
-    .instr_rsp_ready_o  (instr_rsp_ready_o),
+        .instr_rsp_data_i   (instr_rsp_data_i),
+        .instr_rsp_error_i  (instr_rsp_error_i),
+        .instr_rsp_id_i     (instr_rsp_id_i),
+        .instr_rsp_valid_i  (instr_rsp_valid_i),
+        .instr_rsp_ready_o  (instr_rsp_ready_o),
 
-    .dec_instr_o        (fetched_instr),
-    .dec_valid_o        (fetched_instr_valid),
-    .dec_ready_i        (fetched_instr_ready),
-    .dec_error_o        (fetched_instr_error),
+        .dec_instr_o        (fetched_instr),
+        .dec_valid_o        (fetched_instr_valid),
+        .dec_ready_i        (fetched_instr_ready),
+        .dec_error_o        (fetched_instr_error),
+        .dec_compr_o        (fetched_compr),
+        `ifdef RVFI
+        .dec_org_instr_o    (fetched_org_instr),
+        `endif
 
-    .jmp_addr_valid_i   (jmp_addr_valid),
-    .jmp_addr_i         (jmp_addr)
-  );
+        .jmp_addr_valid_i   (jmp_addr_valid),
+        .jmp_addr_i         (jmp_addr)
+      );
+    end else begin : rv32_ifu_gen
+      rvj1_ifu ifu_inst(
+        .clk_i              (clk_i),
+        .rstn_i             (rstn_i),
+        .instr_req_addr_o   (instr_req_addr_o),
+        .instr_req_data_o   (instr_req_data_o),
+        .instr_req_strobe_o (instr_req_strobe_o),
+        .instr_req_write_o  (instr_req_write_o),
+        .instr_req_id_o     (instr_req_id_o),
+        .instr_req_valid_o  (instr_req_valid_o),
+        .instr_req_ready_i  (instr_req_ready_i),
 
+        .instr_rsp_data_i   (instr_rsp_data_i),
+        .instr_rsp_error_i  (instr_rsp_error_i),
+        .instr_rsp_id_i     (instr_rsp_id_i),
+        .instr_rsp_valid_i  (instr_rsp_valid_i),
+        .instr_rsp_ready_o  (instr_rsp_ready_o),
+
+        .dec_instr_o        (fetched_instr),
+        .dec_valid_o        (fetched_instr_valid),
+        .dec_ready_i        (fetched_instr_ready),
+        .dec_error_o        (fetched_instr_error),
+        .dec_compr_o        (fetched_compr),
+        `ifdef RVFI
+        .dec_org_instr_o    (fetched_org_instr),
+        `endif
+
+        .jmp_addr_valid_i   (jmp_addr_valid),
+        .jmp_addr_i         (jmp_addr)
+      );
+    end
+  endgenerate
 
   /****************************************
   * INSTRUCTION DECODE STAGE
@@ -217,14 +262,20 @@ module rvj1_top import rvj1_pkg::*; #(
     .ifu_valid_i         (fetched_instr_valid),
     .ifu_ready_o         (fetched_instr_ready),
     .ifu_error_i         (fetched_instr_error),
+    .ifu_compr_i         (fetched_compr),
+    `ifdef RVFI
+    .ifu_org_instr_i     (fetched_org_instr),
+    `endif
     .stall_i             (stall_ex),
     .instr_issued_o      (instr_issued),
     .instr_will_retire_o (instr_will_retire),
     .control_o           (control),
     .illegal_instr_o     (illegal_instr),
     .fetch_error_o       (fetch_error),
+    .compr_o             (compr),
     `ifdef RVFI
     .instr_exec_o        (instr_exec),
+    .org_instr_o         (org_instr),
     `endif
     .rf_addr_a_o         (rf_addr_a),
     .rf_addr_b_o         (rf_addr_b),
@@ -373,6 +424,7 @@ module rvj1_top import rvj1_pkg::*; #(
   * CONTROLLER
   *********************************************/
   rvj1_ctrl #(
+    .CompressedEnabled (CompressedEnabled),
     .BootAddr  (BootAddr),
     .DmRomAddr (DmRomAddr),
     .MVendorId (MVendorId),
@@ -399,6 +451,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .control_i              (control),
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
+    .compr_instr_i          (compr),
     .instr_retiring_o       (instr_retiring),
     .stall_ex_o             (stall_ex),
     .stall_mem_wb_o         (stall_mem_wb),
@@ -472,6 +525,7 @@ module rvj1_top import rvj1_pkg::*; #(
   assign use_rpb = ((~rpb_or_imm) || store_issue); // store issue uses immediate and rpb
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
+    exec_stage_comb.org_instr      = org_instr;
     exec_stage_comb.rs1_addr       = use_rpa ? rf_addr_a : '0;
     exec_stage_comb.rs2_addr       = use_rpb ? rf_addr_b : '0;
     exec_stage_comb.rs1_rdata      = use_rpa ? regs1_data : '0;
@@ -482,11 +536,11 @@ module rvj1_top import rvj1_pkg::*; #(
     exec_stage_comb.lsu_cmd_valid  = lsu_ctrl_valid;
     exec_stage_comb.lsu_cmd        = lsu_ctrl;
     exec_stage_comb.lsu_strobe     = 4'b0;
-    exec_stage_comb.lsu_addr       =  {alu_res[31:2], 2'b00};
+    exec_stage_comb.lsu_addr       = {alu_res[31:AddrExtraBits], {AddrExtraBits{1'b0}}};
     exec_stage_comb.lsu_rdata      = 32'b0;
     exec_stage_comb.lsu_wdata      = 32'b0;
     exec_stage_comb.jmp_addr_valid = 1'b0;
-    exec_stage_comb.jmp_addr       =  {alu_res[31:2], 2'b00};
+    exec_stage_comb.jmp_addr       =  {alu_res[31:AddrExtraBits], {AddrExtraBits{1'b0}}};
     exec_stage_comb.rd_wdata       = '0;
     exec_stage_comb.trap           = 1'b0;
     exec_stage_comb.intr           = interrupt | interrupt_r;
@@ -528,7 +582,7 @@ module rvj1_top import rvj1_pkg::*; #(
       mem_wb_stage.lsu_wdata      <= store_issue ? regs2_data : '0;
       if (jmp_addr_valid & ~late_jump) begin
         mem_wb_stage.jmp_addr_valid <= jmp_addr_valid;
-        mem_wb_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+        mem_wb_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, {AddrExtraBits{1'b0}}} : '0;
       end
       if (~late_csr_mod) begin
         mem_wb_stage.csr_rdata      <= rvfi_csr_rdata;
@@ -553,7 +607,7 @@ module rvj1_top import rvj1_pkg::*; #(
       retired_stage.lsu_rdata      <= lsu_wb_valid   ? wpc_data          : '0;
       if (jmp_addr_valid & late_jump) begin
         retired_stage.jmp_addr_valid <= jmp_addr_valid;
-        retired_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, 2'b00} : '0;
+        retired_stage.jmp_addr       <= jmp_addr_valid ? {jmp_addr, {AddrExtraBits{1'b0}}} : '0;
       end
     end
   end
@@ -594,7 +648,7 @@ module rvj1_top import rvj1_pkg::*; #(
   assign rvfi_rd_wdata  = retired_stage.rd_wdata;
   assign rvfi_pc_rdata  = retired_stage.pc_rdata;
   assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
-  assign rvfi_mem_addr  = {retired_stage.lsu_addr[31:2], 2'b00};
+  assign rvfi_mem_addr  = {retired_stage.lsu_addr[31:AddrExtraBits], {AddrExtraBits{1'b0}}};
   assign rvfi_mem_rmask = is_write_cmd(retired_stage.lsu_cmd) ? '0 : retired_stage.lsu_strobe;
   assign rvfi_mem_wmask = is_write_cmd(retired_stage.lsu_cmd) ? retired_stage.lsu_strobe : '0;
   assign rvfi_mem_rdata = retired_stage.lsu_rdata;
@@ -616,6 +670,7 @@ module rvj1_top import rvj1_pkg::*; #(
   `ifdef RVFI_TRACE
     rvfi_trace trace_mod (
       .clk (clk_i),
+      .org_insn (retired_stage.org_instr),
       `RVFI_CONN
     );
   `endif // RVFI_TRACE

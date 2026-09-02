@@ -15,6 +15,8 @@ export_include_dirs:
 sources:
     - rtl/alu/compare/less_than_sign_Nb.sv
     - rtl/alu/compare/less_than_unsign_Nb.sv
+    - rtl/fifo_comp.sv
+    - rtl/rvc_decomp.sv
     - rtl/rvj1_pkg.sv
     - rtl/rvfi_trace.sv
     - rtl/rvj1_alu.sv
@@ -23,6 +25,7 @@ sources:
     - rtl/rvj1_csr.sv
     - rtl/rvj1_dec.sv
     - rtl/rvj1_ifu.sv
+    - rtl/rvj1_ifu_rvc.sv
     - rtl/rvj1_lsu.sv
     - rtl/rvj1_regfile.sv
     - rtl/rvj1_top.sv

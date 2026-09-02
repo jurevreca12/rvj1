@@ -68,8 +68,7 @@ module bytewrite_sram_wrap #(
     } mem_rsp_t;
 
     mem_req_t dram_req;
-    mem_rsp_t dram_rsp;
-    logic dram_req_valid, dram_req_ready, dram_req_fire, dram_req_fire_r;
+    logic dram_req_valid, dram_req_fire, dram_req_fire_r;
     logic dram_addr_valid;
     logic dram_rsp_err;
     logic [IDLEN-1:0] dram_rsp_id;
@@ -77,12 +76,12 @@ module bytewrite_sram_wrap #(
 
     mem_req_t iram_req;
     logic iram_req_valid, iram_req_fire, iram_req_fire_r;
-    logic iram_rsp_valid;
     logic iram_addr_valid;
     logic iram_req_err;
     logic iram_rsp_err;
     logic [IDLEN-1:0] iram_rsp_id;
     logic [XLEN-1:0] iram_rsp_data;
+    logic supported_strobe;
 
     assign iram_addr_valid = ((iram_req.addr >= IMEM_BASE_ADDR) &&
                               (iram_req.addr  < IMemEndAddr) &&
@@ -93,7 +92,8 @@ module bytewrite_sram_wrap #(
                               (dram_req.addr[1:0] == 2'b00));
     assign dram_req_fire = dram_req_valid && data_rsp_ready_i;
     assign iram_req_fire = iram_req_valid && instr_rsp_ready_i;
-    assign iram_req_err = (~iram_addr_valid) || (iram_req.strobe != 4'b1111) || (iram_req.write);
+    assign supported_strobe = (iram_req.strobe == 4'b1111) || (iram_req.strobe == 4'b1100);
+    assign iram_req_err = (~iram_addr_valid) || (~supported_strobe) || iram_req.write;
 
     skidbuffer #(
         .DTYPE(mem_req_t)

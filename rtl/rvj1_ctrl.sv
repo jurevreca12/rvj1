@@ -15,13 +15,17 @@
 
 /* verilator lint_off IMPORTSTAR */
 module rvj1_ctrl import rvj1_pkg::*; #(
+  parameter bit CompressedEnabled = 1'b1,
   parameter int unsigned BootAddr   = 32'h8000_0000,
   parameter int unsigned DmRomAddr  = 32'h0000_0000,
   parameter int unsigned MVendorId  = 32'h0000_0000,
   parameter int unsigned MArchId    = 32'h0000_0000,
   parameter int unsigned MImpId     = 32'h0000_0000,
   parameter int unsigned MHartId    = 32'h0000_0000,
-  parameter int unsigned MConfigPtr = 32'h0000_0000
+  parameter int unsigned MConfigPtr = 32'h0000_0000,
+  localparam int unsigned EfAddrWidth   = CompressedEnabled ? (XLEN - 1) : (XLEN - 2), // Effective Address Width
+  localparam int unsigned AddrExtraBits = CompressedEnabled ? 1 : 2                                              
+
 )
 (
   input logic clk_i,
@@ -46,6 +50,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             control_i,
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
+
+  input logic              compr_instr_i,
 
   // MEM/WB - Stage
   input  logic [RALEN-1:0] regdest_r_i,
@@ -84,8 +90,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   output logic [XLEN-1:0]  pc_o,
 
-  output logic             jmp_addr_valid_o,
-  output logic [XLEN-3:0]  jmp_addr_o
+  output logic                    jmp_addr_valid_o,
+  output logic [EfAddrWidth-1:0]  jmp_addr_o
 
   `ifdef RVFI
   ,output rvfi_csr_t rvfi_csr_rdata,
@@ -108,13 +114,28 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   } rvj1_fsm_e;
   rvj1_fsm_e state, state_next;
 
-  function automatic logic [XLEN-3:0] get_irq_addr(
+  function automatic logic [EfAddrWidth-1:0] get_irq_addr(
     input logic [XLEN-3:0] base, input logic mode, input logic [6:0] cause
   );
     // assert(cause[6] == 1);
     logic [5:0]      masked_cause    = {6{mode}} & cause[5:0];
     logic [XLEN-3:0] vec_mode_addend = {24'b0, masked_cause};
     return base + vec_mode_addend;
+  endfunction
+
+  function automatic logic [EfAddrWidth-1:0] next_pc(
+    input logic [EfAddrWidth-1:0] curr_pc, input logic compressed
+  );
+    logic [EfAddrWidth-1:0] next_pc_calc;
+    if (CompressedEnabled) begin
+      if (compressed)
+        next_pc_calc = curr_pc + 1; 
+      else
+        next_pc_calc = curr_pc + 2;
+    end else begin
+      next_pc_calc = curr_pc + 1;
+    end
+    return next_pc_calc;
   endfunction
 
   // Other defintions
@@ -130,7 +151,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic exc_mem_wb_stage, exc_mem_wb_stage2;
   logic instr_will_retire, instr_will_retire_r;
   logic pc_mod;
-  logic [XLEN-3:0] pc, pc_r, pc_next;
+  logic [EfAddrWidth-1:0] pc, pc_r, pc_next;
   logic exc_jmp_addr_misalign;
   logic ecall_insn;
   logic ebreak_insn, ebreak_insn_r;
@@ -149,7 +170,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic dbg_mode, dbg_mode_next;
   logic drain, drain_next;
   logic [2:0]  dcsr_cause;
-  logic [XLEN-3:0] dpc_next;
+  logic [EfAddrWidth-1:0] dpc_next;
   logic goto_dbg, goto_dbg_next;
 
   logic illegal_insn;
@@ -170,14 +191,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
   logic [XLEN-1:0]  exc_mtval;
 
-  logic             csr_exc_write;
-  logic [6:0]       csr_exc_mcause;
-  logic [XLEN-3:0]  csr_exc_mepc;
-  logic [XLEN-1:0]  csr_exc_mtval;
-  logic             csr_mret_restore;
-  logic             csr_dbg_write;
-  logic [2:0]       csr_dbg_cause;
-  logic [XLEN-3:0]  csr_dbg_dpc;
+  logic                    csr_exc_write;
+  logic [6:0]              csr_exc_mcause;
+  logic [EfAddrWidth-1:0]  csr_exc_mepc;
+  logic [XLEN-1:0]         csr_exc_mtval;
+  logic                    csr_mret_restore;
+  logic                    csr_dbg_write;
+  logic [2:0]              csr_dbg_cause;
+  logic [EfAddrWidth-1:0]  csr_dbg_dpc;
 
   dcsr_reg_t dcsr_q;
   logic [XLEN-1:0] csr_dpc_value;
@@ -229,7 +250,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
   assign load_exception        = exc_lsu_addr_unalign | exc_lsu_access_fault;
-  assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP);
+  generate
+    if (CompressedEnabled) begin
+      assign exc_jmp_addr_misalign = 1'b0;
+    end else begin
+      assign exc_jmp_addr_misalign = alu_res_r_i[1] && (state == eJUMP);
+    end
+  endgenerate 
   assign exc_exec_stage        = (ecall_insn | illegal_insn | ebreak_totrp | instr_fetch_error);
   assign exc_mem_wb_stage      = (exc_lsu_access_fault || illegal_csr_insn || exc_jmp_addr_misalign || exc_lsu_addr_unalign);
   assign exc_mem_wb_stage2     = (exc_lsu_access_fault || load_addr_misaligned_i);
@@ -373,15 +400,16 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     else if (exc_lsu_addr_unalign || exc_jmp_addr_misalign)
       exc_mtval = alu_res_r_i;
     else if (ebreak_insn_r)
-      exc_mtval = {pc_r, 2'b00};
+      exc_mtval = {pc_r, {AddrExtraBits{1'b0}}};
   end
 
-  assign pc_o = {pc, 2'b00};
+  assign pc_o = {pc, {AddrExtraBits{1'b0}}};
 
   /*************************************
   * CSR
   *************************************/
   rvj1_csr #(
+    .CompressedEnabled(CompressedEnabled),
     .MVendorId  (MVendorId),
     .MArchId    (MArchId),
     .MImpId     (MImpId),
@@ -473,10 +501,10 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     unique case (state)
       eRESET: begin
         state_next       = eRUN;
-        pc_next          = BootAddr[31:2];
+        pc_next          = BootAddr[31:AddrExtraBits];
         pc_mod           = 1'b1;
         jmp_addr_valid_o = 1'b1;
-        jmp_addr_o       = BootAddr[31:2];
+        jmp_addr_o       = BootAddr[31:AddrExtraBits];
       end
 
       eRUN: begin
@@ -486,7 +514,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         flush_mem_wb_o = flush_ex_o | (~control_i & ~stall_ex_o); // flush reg stage if nothing new
 
         if (instr_will_retire) begin
-          pc_next = pc + 1; 
+          pc_next = next_pc(pc, compr_instr_i);
           pc_mod  = 1'b1;
         end
 
@@ -495,7 +523,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         end
 
         if (ctrl_jump) begin 
-          pc_next    = pc + 1; // gives us pc + 4 on JAL & JALR
+          pc_next    = next_pc(pc, compr_instr_i); // gives us pc + 4 on JAL & JALR
           pc_mod     = 1'b1;
           state_next = eJUMP;
         end
@@ -506,8 +534,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
 
         if (exception) begin
           jmp_addr_valid_o = 1'b1;
-          jmp_addr_o       = csr_mtvec_value[31:2];
-          pc_next          = csr_mtvec_value[31:2];
+          jmp_addr_o       = csr_mtvec_value[31:AddrExtraBits];
+          pc_next          = csr_mtvec_value[31:AddrExtraBits];
           pc_mod           = 1'b1;
           csr_exc_write    = 1'b1;
           csr_exc_mcause   = exc_exec_stage_r  ? exc_cause_r : exc_cause;
@@ -521,8 +549,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         
         if (mret_insn) begin
           jmp_addr_valid_o = 1'b1;
-          jmp_addr_o       = csr_mepc_value[31:2];
-          pc_next          = csr_mepc_value[31:2];
+          jmp_addr_o       = csr_mepc_value[31:AddrExtraBits];
+          pc_next          = csr_mepc_value[31:AddrExtraBits];
           pc_mod           = 1'b1;
           csr_mret_restore = 1'b1;
         end
@@ -530,8 +558,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         if (enter_debug | reenter_debug) begin
           state_next       = eRUN;
           jmp_addr_valid_o = 1'b1;
-          jmp_addr_o       = DmRomAddr[31:2];
-          pc_next          = DmRomAddr[31:2];
+          jmp_addr_o       = DmRomAddr[31:AddrExtraBits];
+          pc_next          = DmRomAddr[31:AddrExtraBits];
           pc_mod           = 1'b1;
           dbg_mode_next    = 1'b1;
           csr_dbg_write    = enter_debug;
@@ -549,8 +577,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         if (dret_insn) begin
           dbg_mode_next    = 1'b0;
           jmp_addr_valid_o = 1'b1;
-          jmp_addr_o       = csr_dpc_value[31:2];
-          pc_next          = csr_dpc_value[31:2];
+          jmp_addr_o       = csr_dpc_value[31:AddrExtraBits];
+          pc_next          = csr_dpc_value[31:AddrExtraBits];
           pc_mod           = 1'b1;
         end
 
@@ -577,14 +605,14 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         late_jump_o = jmp_addr_valid_o;
         `endif
         flush_mem_wb_o   = 1'b1;
-        jmp_addr_o       = alu_res_r_i[31:2];
-        pc_next          = alu_res_r_i[31:2];
+        jmp_addr_o       = alu_res_r_i[31:AddrExtraBits];
+        pc_next          = alu_res_r_i[31:AddrExtraBits];
         pc_mod           = 1'b1;
         goto_dbg_next    = step_todbg;
         if (exc_jmp_addr_misalign) begin
-          pc_next           = csr_mtvec_value[31:2];
+          pc_next           = csr_mtvec_value[31:AddrExtraBits];
           pc_mod            = 1'b1;
-          jmp_addr_o        = csr_mtvec_value[31:2];
+          jmp_addr_o        = csr_mtvec_value[31:AddrExtraBits];
           jmp_addr_valid_o  = 1'b1;
           stop_write_o      = 1'b1;
           csr_exc_write     = 1'b1;
@@ -604,9 +632,9 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         drain_next     = drain;
         if (load_exception) begin
           state_next        = eRUN;
-          pc_next           = csr_mtvec_value[31:2];
+          pc_next           = csr_mtvec_value[31:AddrExtraBits];
           pc_mod            = 1'b1;
-          jmp_addr_o        = csr_mtvec_value[31:2];
+          jmp_addr_o        = csr_mtvec_value[31:AddrExtraBits];
           jmp_addr_valid_o  = 1'b1;
           `ifdef RVFI
           late_jump_o = jmp_addr_valid_o;
@@ -625,7 +653,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         else if (lsu_wb_i) begin
           loaded = 1'b1;
           state_next = eRUN;
-          pc_next = pc + 1; 
+          pc_next = next_pc(pc, compr_instr_i); 
           pc_mod  = 1'b1;
           flush_mem_wb_o = 1'b1;
         end
@@ -658,7 +686,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .clk(clk_i), .rstn(rstn_i), .ce(1'b1), .in(exc_exec_stage), .out(exc_exec_stage_r)
   );
   register #(
-    .DTYPE(logic [XLEN-3:0])
+    .DTYPE(logic [EfAddrWidth-1:0])
   ) pc_reg (
     .clk  (clk_i),
     .rstn (rstn_i),
@@ -667,7 +695,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .out  (pc)
   );
   register #(
-    .DTYPE(logic [XLEN-3:0])
+    .DTYPE(logic [EfAddrWidth-1:0])
   ) pc_r_reg (
     .clk  (clk_i),
     .rstn (rstn_i),

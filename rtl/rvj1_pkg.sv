@@ -145,23 +145,6 @@ package rvj1_pkg;
     parameter logic [11:0] CSR_MINSTRETH_ADDR   = 12'hB82;
 
     parameter logic [1:0]      CSR_MISA_MXLEN = 2'b01; // XLEN == 32
-    parameter logic [XLEN-1:0] CSR_MISA_VALUE = (
-          (0 << 0)   // A - Atomic extension
-        | (0 << 1)   // B - Bit Manipulation
-        | (0 << 2)   // C - Compressed extension
-        | (0 << 3)   // D - Double precison floats
-        | (0 << 4)   // E - RV32E/64E base
-        | (0 << 5)   // F - Single precision floats
-        | (0 << 7)   // H - Hypervison extension
-        | (1 << 8)   // I - RV32I/64I base ISA
-        | (0 << 12)  // M - Integer Multiply/Divide extension
-        | (0 << 16)  // Q - Quad-precison floats
-        | (0 << 18)  // S - Supervison mode implemented
-        | (0 << 20)  // U - User mode implemented
-        | (0 << 23)  // X - Non-standard extensions present
-        | (CSR_MISA_MXLEN << 30)
-        | 32'b0
-    );
     parameter logic [XLEN-1:0] CSR_MSTATUSH_VALUE   = '0;
     parameter logic [XLEN-1:0] CSR_MEDELEG_VALUE    = '0;
     parameter logic [XLEN-1:0] CSR_MEDELEGH_VALUE   = '0;
@@ -267,6 +250,7 @@ package rvj1_pkg;
 
     typedef struct packed {
         logic [XLEN-1:0] instr;
+        logic [XLEN-1:0] org_instr;
         logic [4:0]      rs1_addr;
         logic [4:0]      rs2_addr;
         logic [XLEN-1:0] rs1_rdata;
@@ -308,6 +292,26 @@ package rvj1_pkg;
             default:              ret = 32'h0000_0000;
         endcase
         return ret;
+    endfunction
+
+    function automatic logic [XLEN-1:0] csr_misa_value(input bit compressed_enabled);
+        return (
+              (0 << 0)   // A - Atomic extension
+            | (0 << 1)   // B - Bit Manipulation
+            | ((compressed_enabled ? 1 : 0) << 2)   // C - Compressed extension
+            | (0 << 3)   // D - Double precison floats
+            | (0 << 4)   // E - RV32E/64E base
+            | (0 << 5)   // F - Single precision floats
+            | (0 << 7)   // H - Hypervison extension
+            | (1 << 8)   // I - RV32I/64I base ISA
+            | (0 << 12)  // M - Integer Multiply/Divide extension
+            | (0 << 16)  // Q - Quad-precison floats
+            | (0 << 18)  // S - Supervison mode implemented
+            | (0 << 20)  // U - User mode implemented
+            | (0 << 23)  // X - Non-standard extensions present
+            | (CSR_MISA_MXLEN << 30)
+            | 32'b0
+        );
     endfunction
 
 endpackage

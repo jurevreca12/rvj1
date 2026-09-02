@@ -2,6 +2,9 @@
 
 SHELL = /bin/bash
 
+# Configuration
+COMPRESSED ?= 0
+
 # Tools
 RISCOF    ?= riscof
 PYTEST    ?= pytest
@@ -47,7 +50,11 @@ RISCV_TESTS_I_DIR    := $(abspath $(RISCV_RV32I_TEST_DIR)/I/src)
 RISCV_TESTS_PRIV_DIR := $(abspath $(RISCV_RV32I_TEST_DIR)/privilege/src)
 RISCV_TESTS_HINT_DIR := $(abspath $(RISCV_RV32I_TEST_DIR)/hints/src)
 RISCOF_ARGS  ?= -v info
-RISCOF_CFG 	 := $(abspath $(RISCOF_CFG_DIR)/config.ini)
+ifeq ($(COMPRESSED), 1)
+    RISCOF_CFG := $(abspath $(RISCOF_CFG_DIR)/config_comp.ini)
+else
+    RISCOF_CFG := $(abspath $(RISCOF_CFG_DIR)/config.ini)
+endif 
 RISCOF_ENV   := $(abspath $(RISCV_TEST_SUITE_DIR)/env)
 
 RISCOF_DB        := $(abspath $(RISCOF_WORK_DIR)/database.yml)
@@ -190,7 +197,7 @@ cocotb: $(SOURCES_FILE) $(ELF_LIST_FILE) $(ELF_LIST)
 	cd $(COCOTB_DIR) && ELF_LIST_FILE=$(ELF_LIST_FILE) $(PYTEST) $(PYTEST_ARGS)
 
 $(RISCOF_TARGETS) &:
-	$(RISCOF) $(RISCOF_ARGS) run --config=$(RISCOF_CFG) --suite=$(RISCV_TEST_SUITE_DIR) --env=$(RISCOF_ENV)
+	RVJ1_COMPRESSED=$(COMPRESSED) $(RISCOF) $(RISCOF_ARGS) run --config=$(RISCOF_CFG) --suite=$(RISCV_TEST_SUITE_DIR) --env=$(RISCOF_ENV)
 
 riscof: $(RISCOF_TARGETS)
 

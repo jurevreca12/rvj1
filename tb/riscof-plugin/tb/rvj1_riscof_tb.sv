@@ -2,6 +2,7 @@
 `include "rvfi_macros.svh"
 
 module rvj1_riscof_tb import rvj1_pkg::*; ();
+  parameter bit CompressedEnabled = 1'b0;
   parameter int MEM_SIZE_WORDS = 1 << 19;
   parameter int TIMEOUT        = 1000000;
   parameter string INSTR_MEM_INIT_FILE = "text.hex";
@@ -105,7 +106,9 @@ module rvj1_riscof_tb import rvj1_pkg::*; ();
       .data_rsp_ready_i  (data_rsp_ready)
   );
 
-  rvj1_top dut(
+  rvj1_top #(
+    .CompressedEnabled (CompressedEnabled)
+  )dut(
     .clk_i       (clk),
     .rstn_i      (rstn),
 

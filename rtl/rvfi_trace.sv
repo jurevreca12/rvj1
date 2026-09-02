@@ -21,6 +21,7 @@ module rvfi_trace import rvj1_pkg::*; #(
 )
 (
     input logic clk,
+    input logic [XLEN-1:0] org_insn, // used mainly for compressed instructions
     `RVFI_INPUTS
 );
     int file_handle;
@@ -47,13 +48,16 @@ module rvfi_trace import rvj1_pkg::*; #(
 
     function automatic void log_insn_commit();
         // Based on spikes "commit_log_print_insn" in execute.cc
-        string commit_str;
-        $fwrite(file_handle, "core%4d:%2d 0x%8h (0x%8h)",
+        $fwrite(file_handle, "core%4d:%2d 0x%8h",
             CORE_ID,
             rvfi_mode,
-            rvfi_pc_rdata,
-            rvfi_insn
+            rvfi_pc_rdata
         );
+        if (org_insn[1:0] == 2'b11)
+            $fwrite(file_handle, " (0x%8h)", org_insn);
+        else
+            $fwrite(file_handle, " (0x%4h)", org_insn[15:0]);
+            
         if (reg_write)
             log_reg_write();
         if (mem_load)
