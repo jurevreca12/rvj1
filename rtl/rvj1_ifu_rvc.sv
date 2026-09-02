@@ -86,7 +86,6 @@ module rvj1_ifu_rvc import rvj1_pkg::*;(
         logic [IDLEN-1:0] id;
         logic [XLEN-1:0]  data;
         logic             error;
-        ifu_strobe_e      strobe;
     } ifu_rsp_t;
 
     typedef enum logic [1:0] {
@@ -114,7 +113,6 @@ module rvj1_ifu_rvc import rvj1_pkg::*;(
 
     logic id_match;
 
-    ifu_strobe_e      next_strobe;
     ifu_strobe_e      rsp_strobe;
     logic [IDLEN-1:0] next_id;
     logic [IDLEN-1:0] next_exp_id;
@@ -190,7 +188,7 @@ module rvj1_ifu_rvc import rvj1_pkg::*;(
 
         .output_valid (act_req_buff_out_valid),
         .output_ready (consume_rsp),
-        .output_data  ({next_strobe, next_id}),
+        .output_data  ({rsp_strobe, next_id}),
 
         // verilator lint_off PINCONNECTEMPTY
         .empty        (),
@@ -240,18 +238,18 @@ module rvj1_ifu_rvc import rvj1_pkg::*;(
     ) rsp_buff (
     .clk  (clk_i),
     .rstn (rstn_i),
+    .clear(1'b0),
 
     .input_valid  (instr_rsp_fire),
     .input_ready  (rsp_buff_inp_ready),
-    .input_data   ({next_strobe, instr_rsp_data_i, instr_rsp_error_i, instr_rsp_id_i}),
+    .input_data   ({instr_rsp_data_i, instr_rsp_error_i, instr_rsp_id_i}),
 
     .output_valid (rsp_buff_out_valid),
     .output_ready (consume_rsp),
-    .output_data  ({rsp_strobe, rsp_data, rsp_err, rsp_id}),
+    .output_data  ({rsp_data, rsp_err, rsp_id}),
 
     // verilator lint_off PINCONNECTEMPTY
-    .empty        (),
-    .clear        ()
+    .empty        ()
     // verilator lint_on PINCONNECTEMPTY
     );
 
