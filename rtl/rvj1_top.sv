@@ -449,6 +449,7 @@ module rvj1_top import rvj1_pkg::*; #(
     .alu_res_r_i            (alu_res_r),
     .branch_cond_met_i      (branch_cond_met),
     .control_i              (control),
+    .instr_issued_i         (instr_issued),
     .instr_fetch_error_i    (fetch_error),
     .instr_will_retire_i    (instr_will_retire),
     .compr_instr_i          (compr),
@@ -508,6 +509,7 @@ module rvj1_top import rvj1_pkg::*; #(
   logic [31:0] lsu_wdata_mod;
   logic use_rpb, use_rpa;
   logic [31:0] mip_r;
+  logic [31:0] retired_next_addr;
 
   assign valid_issue  = instr_issued && ~stall_ex;
   assign simple_issue = valid_issue  && instr_will_retire                   && ~lsu_ctrl_valid;
@@ -526,6 +528,7 @@ module rvj1_top import rvj1_pkg::*; #(
   always_comb begin
     exec_stage_comb.instr          = instr_exec;
     exec_stage_comb.org_instr      = org_instr;
+    exec_stage_comb.compr          = compr;
     exec_stage_comb.rs1_addr       = use_rpa ? rf_addr_a : '0;
     exec_stage_comb.rs2_addr       = use_rpb ? rf_addr_b : '0;
     exec_stage_comb.rs1_rdata      = use_rpa ? regs1_data : '0;
@@ -611,6 +614,7 @@ module rvj1_top import rvj1_pkg::*; #(
       end
     end
   end
+  assign retired_next_addr = retired_stage.pc_rdata + (retired_stage.compr ? 2 : 4);
 
   register insn_retired_reg (
     .clk  (clk_i),
@@ -647,7 +651,7 @@ module rvj1_top import rvj1_pkg::*; #(
   assign rvfi_rd_addr   = retired_stage.rd_addr;
   assign rvfi_rd_wdata  = retired_stage.rd_wdata;
   assign rvfi_pc_rdata  = retired_stage.pc_rdata;
-  assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_stage.pc_rdata + 4);
+  assign rvfi_pc_wdata  = retired_stage.jmp_addr_valid ? retired_stage.jmp_addr : (retired_next_addr);
   assign rvfi_mem_addr  = {retired_stage.lsu_addr[31:AddrExtraBits], {AddrExtraBits{1'b0}}};
   assign rvfi_mem_rmask = is_write_cmd(retired_stage.lsu_cmd) ? '0 : retired_stage.lsu_strobe;
   assign rvfi_mem_wmask = is_write_cmd(retired_stage.lsu_cmd) ? retired_stage.lsu_strobe : '0;

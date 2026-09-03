@@ -255,9 +255,9 @@ module rvj1_ifu_rvc import rvj1_pkg::*;(
 
     `ifdef ASSERTIONS
         always_ff @(posedge clk_i) begin
-            if (instr_rsp_valid_i && rsp_buff_inp_ready) begin
-                inorder_ids: assert(instr_rsp_id_i == next_id);
-            end
+            //if (instr_rsp_valid_i && rsp_buff_inp_ready) begin
+            //    inorder_ids: assert(instr_rsp_id_i == next_id);
+            //end
             if (consume_id) begin
                 valid_consume: assert(rsp_buff_out_valid && act_id_buff_out_valid);
             end

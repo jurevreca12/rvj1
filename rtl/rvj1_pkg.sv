@@ -251,6 +251,7 @@ package rvj1_pkg;
     typedef struct packed {
         logic [XLEN-1:0] instr;
         logic [XLEN-1:0] org_instr;
+        logic            compr;
         logic [4:0]      rs1_addr;
         logic [4:0]      rs2_addr;
         logic [XLEN-1:0] rs1_rdata;

@@ -48,6 +48,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   input  logic             illegal_insn_i,
 
   input  logic             control_i,
+  input  logic             instr_issued_i,
   input  logic             instr_fetch_error_i,
   input  logic             instr_will_retire_i,
 
@@ -118,9 +119,11 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     input logic [XLEN-3:0] base, input logic mode, input logic [6:0] cause
   );
     // assert(cause[6] == 1);
+    logic [XLEN-1:0] full_base = {base, 2'b00};
     logic [5:0]      masked_cause    = {6{mode}} & cause[5:0];
     logic [XLEN-3:0] vec_mode_addend = {24'b0, masked_cause};
-    return base + vec_mode_addend;
+    logic [XLEN-1:0] vec_addr = full_base + {vec_mode_addend, 2'b00};
+    return vec_addr[XLEN-1:AddrExtraBits];
   endfunction
 
   function automatic logic [EfAddrWidth-1:0] next_pc(
@@ -188,6 +191,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   logic load_exception;
   logic interrupt_taken;
   logic jmp_addr_valid_r;
+  logic compr_instr_r;
 
   logic [XLEN-1:0]  exc_mtval;
 
@@ -245,7 +249,8 @@ module rvj1_ctrl import rvj1_pkg::*; #(
   assign illegal_insn      = illegal_insn_i      && ~stall_ex_o;
   assign instr_fetch_error = instr_fetch_error_i && ~stall_ex_o;
   assign ctrl_jump         = ctrl_jump_i         && ~stall_ex_o;
-  
+  assign instr_issued      = instr_issued_i      && ~stall_ex_o;
+
   assign illegal_csr_insn      = nonexist_csr_access || illegal_csr_write || debug_csr_access_err;
   assign exc_lsu_addr_unalign  = load_addr_misaligned_i || store_addr_misaligned_i;
   assign exc_lsu_access_fault  = load_access_fault_i || store_access_fault_i;  // TODO: store_acess_fault should be routed to an IRQ
@@ -653,7 +658,7 @@ module rvj1_ctrl import rvj1_pkg::*; #(
         else if (lsu_wb_i) begin
           loaded = 1'b1;
           state_next = eRUN;
-          pc_next = next_pc(pc, compr_instr_i); 
+          pc_next = next_pc(pc, compr_instr_r); 
           pc_mod  = 1'b1;
           flush_mem_wb_o = 1'b1;
         end
@@ -702,6 +707,13 @@ module rvj1_ctrl import rvj1_pkg::*; #(
     .ce   (pc_mod),
     .in   (pc),
     .out  (pc_r)
+  );
+  register compr_insn_reg (
+    .clk  (clk_i),
+    .rstn (rstn_i),
+    .ce   (instr_issued),
+    .in   (compr_instr_i),
+    .out  (compr_instr_r)
   );
   register #(.DTYPE(logic [6:0])) exc_cause_reg (
     .clk  (clk_i),

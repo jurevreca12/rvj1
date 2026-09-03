@@ -9,9 +9,11 @@ from sdexttests import SDEXT_TESTS
 import pytest
 from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb.clock import Clock
+import cocotb
 
 TIMEOUT_CLOCKS = 1000
 
+@cocotb.test()
 async def run_rvj1(dut):
     # Get expected result
     expects = {0: 0}

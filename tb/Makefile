@@ -17,8 +17,8 @@ RVGEN     ?= rvgen
 XLEN         ?= 32
 ABI          ?= ilp32
 RISCV_PREFIX ?= riscv64-unknown-elf-
-RISCV_MARCH  ?= rv32i_zicsr
-RISCV_VMARCH ?= rv32i_zicsr
+RISCV_MARCH  ?= rv32ic_zicsr
+RISCV_VMARCH ?= rv32ic_zicsr
 RISCV_GCC    ?= $(RISCV_PREFIX)gcc
 export XLEN ABI RISCV_PREFIX RISCV_MARCH RISCV_VMARCH
 
@@ -141,7 +141,14 @@ RVGEN_NUM_ITER  ?= 10
 INDICES := $(shell seq 0 $$(( $(RVGEN_NUM_ITER) - 1 )))
 RVGEN_ASM_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .S,$(INDICES)))
 RVGEN_ELF_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .elf,$(INDICES)))
-RVGEN_ARGS      := --target rv32i \
+ifeq ($(COMPRESSED), 1)
+    RVGEN_TARGET := rv32i
+	RVGEN_MARCH := rv32ic_zicsr
+else
+    RVGEN_TARGET := rv32ic
+	RVGEN_MARCH := rv32ic_zicsr
+endif 
+RVGEN_ARGS      := --target $(RVGEN_TARGET) \
 				   --mabi ilp32 \
 				   --test riscv_rand_instr_test \
 				   --steps gen \
@@ -150,7 +157,7 @@ RVGEN_ARGS      := --target rv32i \
 				   --start_seed 42 \
 				   -i $(RVGEN_NUM_ITER)
 RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
-RISCV_GCC_ARGS    := -o0 -march=rv32i_zicsr -static -mcmodel=medany -fvisibility=hidden \
+RISCV_GCC_ARGS    := -o0 -march=$(RVGEN_MARCH) -static -mcmodel=medany -fvisibility=hidden \
                      -mabi=ilp32 -nostdlib -nostartfiles -T $(RISCV_LINK_SCRIPT)
 # COCOTB
 SIM           ?= verilator
@@ -201,7 +208,7 @@ $(RISCOF_TARGETS) &:
 
 riscof: $(RISCOF_TARGETS)
 
-all: riscof cocotb
+all: riscof cocotb $(RVGEN_ASM_FILES)
 
 clean:
 	rm -rf riscof_work/

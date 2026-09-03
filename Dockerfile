@@ -73,4 +73,6 @@ RUN git clone https://github.com/riscv-collab/riscv-openocd --recurse-submodules
     rm -rf riscv-openocd && \
     ln -s /foss/tools/riscv-openocd/bin/openocd /foss/tools/bin/openocd
 
+RUN pip install rvgen
+
 WORKDIR /foss/designs/rvj1
