@@ -113,7 +113,7 @@ module fifo_comp #(
   end
 
   // Input data
-  always_ff @(posedge clk_i or negedge rstn_i) begin
+  always_ff @(posedge clk_i) begin
     if (write_fire) begin
       if (~half_strobe_i) begin
         mem[write_ptr    ] <= write_data_i[15:0];
@@ -124,7 +124,7 @@ module fifo_comp #(
     end
   end
 
-  always_ff @(posedge clk_i or negedge rstn_i) begin
+  always_ff @(posedge clk_i) begin
     if (write_fire) begin
       err_mem[err_write_ptr    ] <= input_err_i;
       err_mem[err_write_ptr + 1] <= input_err_i;
