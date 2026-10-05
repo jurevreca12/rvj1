@@ -185,6 +185,7 @@ assign data_req_fire = data_req_valid_o && data_req_ready_i;
   cntr #(.WORD_WIDTH(IDLEN)) data_id_counter (
       .clk  (clk_i),
       .rstn (rstn_i),
+      .clear(1'b0),
       .ce   (data_req_fire),
       .count(data_req_id_o)
   );

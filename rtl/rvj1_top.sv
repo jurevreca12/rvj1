@@ -571,6 +571,7 @@ module rvj1_top import rvj1_pkg::*; #(
   ) rvfi_order_cnt (
     .clk  (clk_i),
     .rstn (rstn_i),
+    .clear(1'b0),
     .ce   (rvfi_valid),
     .count(rvfi_order)
   );
