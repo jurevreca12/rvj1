@@ -34,10 +34,10 @@ lint-verilator:
 			  --top-module rvj1_top
 
 devcontainer-up:                                        
-	devcontainer up --workspace-folder $(ROOT_DIR)      
+	devcontainer up --workspace-folder $(MKFILE_DIR)      
                                                         
 devcontainer-exec:                                      
-	devcontainer exec --workspace-folder $(ROOT_DIR)bash
+	devcontainer exec --workspace-folder $(MKFILE_DIR) bash
 
 
 clean:
