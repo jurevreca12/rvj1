@@ -1,9 +1,10 @@
 
 module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
-  parameter  string       INIT_FILE      = "",
-  parameter  int          INIT_FILE_BIN  = 0,
-  parameter  int          MEM_SIZE_WORDS = 200000000,
-  parameter  int unsigned JTAG_VPI_PORT  = 9999
+  parameter bit          CompressedEnabled = 1'b1,  
+  parameter string       INIT_FILE         = "",
+  parameter int          INIT_FILE_BIN     = 0,
+  parameter int          MEM_SIZE_WORDS    = 200000000,
+  parameter int unsigned JTAG_VPI_PORT     = 9999
                                   
   ) (
   input  logic  clk,
@@ -94,6 +95,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   assign address_map[1] = '{idx: 1,   base: 32'h0000_0000, mask: 32'hfff4_0000};
 
   rvj1_obi #(
+    .CompressedEnabled(CompressedEnabled),
     .BootAddr (BootAddr),
     .DmRomAddr(DmRomAddr),
     .MVendorId(MVendorId),

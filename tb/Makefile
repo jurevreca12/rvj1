@@ -28,7 +28,7 @@ BENDER_ARGS  := --keep-excluded-incdirs \
 			    -t sim \
 			    -t tech_cells_generic_exclude_deprecated
 
-JOBS 		:= $(shell /foss/designs/rvj1/scripts/half_nproc.sh)
+JOBS 		:= $(shell /workspaces/rvj1/scripts/half_nproc.sh)
 PYTEST_ARGS ?= -n $(JOBS)
 
 # Directories

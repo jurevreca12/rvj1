@@ -13,14 +13,15 @@
 
 /* verilator lint_off IMPORTSTAR */
 module rvj1_obi import rvj1_pkg::*; #(
-  parameter int unsigned BootAddr   = 32'h8000_0000,
-  parameter int unsigned DmRomAddr  = 32'h0000_0000,
-  parameter int unsigned DmExcAddr  = 32'h0000_0000,
-  parameter int unsigned MVendorId  = 32'h0000_0000,
-  parameter int unsigned MArchId    = 32'h0000_0000,
-  parameter int unsigned MImpId     = 32'h0000_0000,
-  parameter int unsigned MHartId    = 32'h0000_0000,
-  parameter int unsigned MConfigPtr = 32'h0000_0000
+  parameter bit          CompressedEnabled = 1'b1,
+  parameter int unsigned BootAddr          = 32'h8000_0000,
+  parameter int unsigned DmRomAddr         = 32'h0000_0000,
+  parameter int unsigned DmExcAddr         = 32'h0000_0000,
+  parameter int unsigned MVendorId         = 32'h0000_0000,
+  parameter int unsigned MArchId           = 32'h0000_0000,
+  parameter int unsigned MImpId            = 32'h0000_0000,
+  parameter int unsigned MHartId           = 32'h0000_0000,
+  parameter int unsigned MConfigPtr        = 32'h0000_0000
 )
 (
   input  logic                   clk_i,
