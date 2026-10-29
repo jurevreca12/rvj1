@@ -8,3 +8,4 @@ venv/
 .bender/
 Bender.lock
 files.f
+.vscode/
