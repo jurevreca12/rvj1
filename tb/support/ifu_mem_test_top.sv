@@ -43,6 +43,8 @@ module ifu_mem_test_top import rvj1_pkg::*; #(
     logic              instr_rsp_valid;
     logic              instr_rsp_ready;
 
+    logic              dec_compr;
+
     rvj1_ifu ifu_inst(
         .clk_i  (clk_i),
         .rstn_i (rstn_i),
@@ -65,7 +67,7 @@ module ifu_mem_test_top import rvj1_pkg::*; #(
         .dec_valid_o       (dec_valid_o),
         .dec_ready_i       (dec_ready_i),
         .dec_error_o       (dec_error_o),
-
+        .dec_compr_o       (dec_compr_o),
         .jmp_addr_valid_i  (jmp_addr_valid_i),
         .jmp_addr_i        (jmp_addr_i[31:2])
     );

@@ -136,6 +136,7 @@ class rvj1(pluginTemplate):
                 for inc_dir in src_pkg['include_dirs']:
                     inc_dirs.append(Path(inc_dir))
             inc_args = [f' -I{str(inc_dir)} ' for inc_dir in inc_dirs]
+            rvj1_comp = os.environ.get('RVJ1_COMPRESSED', 0)
             verilator_args = (
                 " --timescale 1ns/1ps "
                 + " --binary "
@@ -149,6 +150,7 @@ class rvj1(pluginTemplate):
                 + f" -GINSTR_MEM_INIT_FILE=\\\"{testentry['work_dir']}/text.hex\\\" "
                 + f" -GDATA_MEM_INIT_FILE=\\\"{testentry['work_dir']}/data.hex\\\" "
                 + f' -GSIGNATURE_FILE=\\"{sig_file}\\" '
+                + f' -GCompressedEnabled={rvj1_comp}'
             )
 
             # if the user wants to disable running the tests and only compile the tests

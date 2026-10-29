@@ -63,6 +63,10 @@ module rvj1_ifu import rvj1_pkg::*; (
   output logic            dec_valid_o,
   input  logic            dec_ready_i,  // Decoder ready to accept new instruction (stall)
   output logic            dec_error_o,  // signal a instruction fetch error on next insn
+  output logic            dec_compr_o, // was compressed?
+  `ifdef RVFI
+  output logic [XLEN-1:0] dec_org_instr_o, // the original instruction (before decompression)
+  `endif
 
   input logic             jmp_addr_valid_i, // change PC to jmp_addr_i
   input logic [XLEN-3:0]  jmp_addr_i        // The jump address
@@ -231,7 +235,10 @@ module rvj1_ifu import rvj1_pkg::*; (
     .empty        ()
     // verilator lint_on PINCONNECTEMPTY
     );
-
+    `ifdef RVFI
+    assign dec_org_instr_o = dec_instr_o; // this is the regular ifu, see rvj1_ifu_rvc.sv for the compressed version
+    `endif
+    
     `ifdef ASSERTIONS
         always_ff @(posedge clk_i) begin
             /*if (instr_rsp_fire) begin
@@ -254,6 +261,7 @@ module rvj1_ifu import rvj1_pkg::*; (
     assign consume_id = consume_rsp && id_match && act_id_buff_out_valid;
     assign dec_valid_o = consume_id;
     assign dec_fire = dec_ready_i && dec_valid_o;
+    assign dec_compr_o = 1'b0; // this is the regular ifu, see rvj1_ifu_rvc.sv for the compressed version
 
     /*************************************
     * Finite State Machine (FSM)

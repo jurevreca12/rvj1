@@ -93,7 +93,7 @@ async def test_cosim(
     exit_addr = int(os.environ.get("EXIT_ADDR"))
     # Setup simulator
     sim_cfg = cfg_t(
-        isa="rv32i_zicsr",
+        isa="rv32ic_zicsr",
         priv="m",
         mem_layout=[mem_cfg_t(0x8000_0000, 0x1000_0000)],
         start_pc=start_pc
@@ -123,8 +123,6 @@ async def test_cosim(
         if rvfi_msg.pc_rdata == exit_addr:
             log.info(f"Reached exit address {hex(exit_addr)}, ending simulation.")
             break
-        #if rvfi_msg.pc_rdata >= 0x8000_3000:
-        #    import pdb; pdb.set_trace()
         try:
             compare(hart0, rvfi_msg)
         except AssertionError as e:
@@ -138,7 +136,7 @@ async def test_cosim(
 
 def compare(hart, rvfi_msg) -> bool:
     assert (hart.state.pc & 0xFFFF_FFFF) == rvfi_msg.pc_wdata, (
-        f"PC mismatch: {hex(hart.state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_wdata)}."
+        f"PC mismatch, spike_pc != rvfi_msg.pc_wdata: {hex(hart.state.pc & 0xFFFF_FFFF)} != {hex(rvfi_msg.pc_wdata)}."
     )
     if rvfi_msg.rd_addr > 0:
         assert (hart.state.XPR[rvfi_msg.rd_addr] & 0xFFFF_FFFF) == rvfi_msg.rd_wdata, (

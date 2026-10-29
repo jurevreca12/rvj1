@@ -23,6 +23,10 @@ module rvj1_dec import rvj1_pkg::*;
   input  logic            ifu_valid_i,
   output logic            ifu_ready_o,       // Ready for instructions.
   input  logic            ifu_error_i,       // Fetch error
+  input  logic            ifu_compr_i,
+  `ifdef RVFI
+  input  logic [XLEN-1:0] ifu_org_instr_i,   // Original instruction (before decompression)
+  `endif
 
   input  logic            stall_i,
   output logic            instr_issued_o,
@@ -30,9 +34,11 @@ module rvj1_dec import rvj1_pkg::*;
   output logic            control_o, // signals that controls signals have been activated
   output logic            illegal_instr_o,
   output logic            fetch_error_o,
+  output logic            compr_o,
 
   `ifdef RVFI
   output logic [XLEN-1:0] instr_exec_o, // the word of the instruction currently being executed
+  output logic [XLEN-1:0] org_instr_o,  // the original instruction (before decompression)
   `endif
 
   // OUTGOING CONTROL SIGNALS
@@ -323,7 +329,24 @@ register #(
 );
 
 `ifdef RVFI
-assign instr_exec_o = instr_buff;
+register #(
+  .DTYPE(logic [31:0])
+) dec_instr_buff (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+  .ce   (ifu_fire), 
+  .in   (ifu_instr_i),
+  .out  (instr_exec_o)
+);
+register #(
+  .DTYPE(logic [31:0])
+) org_instr_buff (
+  .clk  (clk_i),
+  .rstn (rstn_i),
+  .ce   (ifu_fire), 
+  .in   (ifu_org_instr_i),
+  .out  (org_instr_o)
+);
 `endif
 
 /*************************************
@@ -413,6 +436,7 @@ always_ff @(posedge clk_i or negedge rstn_i) begin
     ebreak_insn_o       <= ebreak_insn;
     dret_insn_o         <= dret_insn;
     fetch_error_o       <= ifu_error_i;
+    compr_o             <= (state == eDEC_SECOND_CYCLE) ? compr_o : ifu_compr_i;
   end
 end
 
