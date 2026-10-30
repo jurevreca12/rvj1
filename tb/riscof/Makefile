@@ -63,6 +63,8 @@ $(TARGETS_RV32IC) &: $(CFG_RV32IC)
 
 rv32i: $(TARGETS_RV32I) 
 rv32ic: $(TARGETS_RV32IC) 
+all: rv32i rv32ic
 
 clean:
-	rm -rf riscof_work/
+	rm -rf $(RV32I_WORK_DIR)
+	rm -rf $(RV32IC_WORK_DIR)

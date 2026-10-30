@@ -1,4 +1,4 @@
-.PHONY: all riscof debug cocotb clean
+.PHONY: all bender riscof debug cocotb clean
 
 SHELL = /bin/bash
 
@@ -36,9 +36,11 @@ MKFILE_PATH 	     := $(abspath $(lastword $(MAKEFILE_LIST)))
 TB_DIR               := $(dir $(MKFILE_PATH))
 COCOTB_DIR           := $(abspath $(TB_DIR)/cocotb)
 RV_TESTS_DIR         := $(abspath $(TB_DIR)/riscv-tests)
+ROOT_DIR             := $(abspath $(TB_DIR)/..)
 
 # General stuff
 SOURCES_FILE := $(abspath $(TB_DIR)/sources.f)
+BENDER_YAML  := $(abspath $(ROOT_DIR)/Bender.yml)
 
 # RISCOF
 RISCOF_CFG_DIR       := $(abspath $(TB_DIR)/riscof-plugin)
@@ -171,7 +173,7 @@ SKIP_TESTS    := \
 	$(RISCOF_WORK_DIR)/rv32i_m/privilege/src/misalign1-cjalr-01.S/dut/my.elf
 ELF_LIST      := $(filter-out $(SKIP_TESTS),$(ELF_LIST))
 
-$(SOURCES_FILE):
+$(SOURCES_FILE): $(BENDER_YAML)
 	$(BENDER) script flist-plus $(BENDER_ARGS) > $(SOURCES_FILE)
 
 $(ELF_LIST_FILE):
@@ -205,6 +207,8 @@ cocotb: $(SOURCES_FILE) $(ELF_LIST_FILE) $(ELF_LIST)
 
 $(RISCOF_TARGETS) &:
 	RVJ1_COMPRESSED=$(COMPRESSED) $(RISCOF) $(RISCOF_ARGS) run --config=$(RISCOF_CFG) --suite=$(RISCV_TEST_SUITE_DIR) --env=$(RISCOF_ENV)
+
+bender: $(SOURCES_FILE)
 
 riscof: $(RISCOF_TARGETS)
 
