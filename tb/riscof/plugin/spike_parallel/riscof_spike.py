@@ -7,6 +7,7 @@ from riscof.pluginTemplate import pluginTemplate
 
 logger = logging.getLogger()
 
+JOBS = os.getenv("JOBS", str(int(os.cpu_count() - 2)))
 
 class spike(pluginTemplate):
     __model__ = "spike"
@@ -19,7 +20,6 @@ class spike(pluginTemplate):
 
         config = kwargs.get("config")
         self.dut_exe = os.path.join(config["PATH"] if "PATH" in config else "", "spike")
-        self.num_jobs = str(config["jobs"] if "jobs" in config else 1)
         if config is None:
             logger.error("Please enter input file paths in configuration.")
             raise SystemExit
@@ -110,7 +110,7 @@ class spike(pluginTemplate):
         make = utils.makeUtil(
             makefilePath=os.path.join(self.work_dir, "Makefile." + self.name[:-1])
         )
-        make.makeCommand = self.make + " -j" + self.num_jobs
+        make.makeCommand = self.make + " -k -j" + JOBS
         for file in testList:
             testentry = testList[file]
             test = testentry["test_path"]

@@ -10,7 +10,7 @@ from riscof.pluginTemplate import pluginTemplate
 logger = logging.getLogger()
 
 SOURCES_FILE = os.environ["SOURCES_FILE"]
-
+JOBS         = os.getenv("JOBS", str(int(os.cpu_count() - 2)))
 
 class rvj1(pluginTemplate):
     __model__ = "rvj1"
@@ -23,7 +23,6 @@ class rvj1(pluginTemplate):
             print("Please enter input file paths in configuration.")
             raise SystemExit(1)
 
-        self.num_jobs = str(int(os.cpu_count() / 2))
         self.pluginpath = os.path.abspath(config["pluginpath"])
         self.isa_spec = os.path.abspath(config["ispec"])
         self.platform_spec = os.path.abspath(config["pspec"])
@@ -88,7 +87,7 @@ class rvj1(pluginTemplate):
         make = utils.makeUtil(
             makefilePath=os.path.join(self.work_dir, "Makefile." + self.name[:-1])
         )
-        make.makeCommand = "make -j" + self.num_jobs
+        make.makeCommand = "make -k -j" + JOBS
         for testname in testList:
             testentry = testList[testname]
             test_file = testentry["test_path"]
