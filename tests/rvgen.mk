@@ -6,8 +6,8 @@ INDICES := $(shell seq 0 $$(( $(RVGEN_NUM_ITER) - 1 )))
 RVGEN_ASM_FILES := $(addprefix $(BUILD_TEST_RVGEN_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .S,$(INDICES)))
 RVGEN_ELF_FILES := $(addprefix $(BUILD_TEST_RVGEN_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .elf,$(INDICES)))
 
-RVGEN_USER_DEFINE_FILE := $(RVGEN_DIR)/user_define.h
-RVGEN_USER_INIT_FILE   := $(RVGEN_DIR)/user_init.s
+RVGEN_USER_DEFINE_FILE := $(TEST_RVGEN_DIR)/user_define.h
+RVGEN_USER_INIT_FILE   := $(TEST_RVGEN_DIR)/user_init.s
 
 RVGEN_ARGS := \
 	--target $(call gnu2rvgen,$(ISA)) \
@@ -22,7 +22,7 @@ RVGEN_ARGS := \
 RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
 RISCV_GCC_ARGS    := \
 	-o0 \
-	-I $(RVGEN_DIR) \
+	-I $(TEST_RVGEN_DIR) \
 	-march=$(ISA) \
 	-mabi=$(MABI) \
 	-static \

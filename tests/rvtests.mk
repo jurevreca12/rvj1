@@ -8,7 +8,7 @@ RV_TESTS ?= median \
             memcpy \
             multiply 
 
-BENCH_DIR         := $(abspath $(RVTESTS_DIR)/benchmarks)
+BENCH_DIR         := $(abspath $(TEST_RVTESTS_DIR)/benchmarks)
 
 BIN_NAMES         := $(addsuffix .riscv, $(RV_TESTS))
 BIN_NAMES_ELF     := $(addsuffix .elf, $(RV_TESTS))
