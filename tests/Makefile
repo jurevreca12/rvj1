@@ -25,17 +25,6 @@ ROOT_DIR             := $(abspath $(TB_DIR)/..)
 
 
 # RISCV-TESTS
-RV_TESTS_BENCH_DIR := $(abspath $(RV_TESTS_DIR)/benchmarks)
-RV_TESTS_DEBUG_DIR := $(abspath $(RV_TESTS_DIR)/debug)
-RV_TESTS ?= median \
-            qsort \
-            rsort \
-            towers \
-            vvadd \
-            memcpy \
-            multiply 
-RV_TESTS_BIN_NAMES       := $(addsuffix .riscv, $(RV_TESTS))
-RV_TESTS_BINS            := $(addprefix $(RV_TESTS_BENCH_DIR)/, $(RV_TESTS_BIN_NAMES))
 RV_TESTS_DEBUG_TARGET    := $(TB_DIR)/support/rvj1_dbg_sim.py
 DEBUG_TOP                := rvj1_debug_top 
 DEBUG_VERILATOR_DIR      := $(TB_DIR)/debug_sim_model/
@@ -62,27 +51,7 @@ GDBSERVER_ARGS		     := --seed 42 \
 							--exclude-tests $(EXCLUDE_TESTS_FILE)\
 					   	    --target-timeout $(DEBUG_TARGET_TIMEOUT)
 
-# RVGEN
-RVGEN_OUT_DIR   := $(TB_DIR)/rvgen_tests/
-RVGEN_NUM_ITER  ?= 10
-INDICES := $(shell seq 0 $$(( $(RVGEN_NUM_ITER) - 1 )))
-RVGEN_ASM_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .S,$(INDICES)))
-RVGEN_ELF_FILES := $(addprefix $(RVGEN_OUT_DIR)/asm_test/riscv_rand_instr_test_,$(addsuffix .elf,$(INDICES)))
-ifeq ($(COMPRESSED), 1)
-    RVGEN_TARGET := rv32i
-	RVGEN_MARCH := rv32ic_zicsr
-else
-    RVGEN_TARGET := rv32ic
-	RVGEN_MARCH := rv32ic_zicsr
-endif 
-RVGEN_ARGS      := --target $(RVGEN_TARGET) \
-				   --mabi ilp32 \
-				   --test riscv_rand_instr_test \
-				   --steps gen \
-				   --output $(RVGEN_OUT_DIR) \
-				   --gen_opts '+enable_interrupt=1 +enable_timer_irq=1' \
-				   --start_seed 42 \
-				   -i $(RVGEN_NUM_ITER)
+
 RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
 RISCV_GCC_ARGS    := -o0 -march=$(RVGEN_MARCH) -static -mcmodel=medany -fvisibility=hidden \
                      -mabi=ilp32 -nostdlib -nostartfiles -T $(RISCV_LINK_SCRIPT)

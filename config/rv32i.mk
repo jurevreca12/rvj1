@@ -1,2 +1,3 @@
 XLEN := 32
-ISA  := RV32IZicsr
+ISA  := rv32i_zicsr # GNU style arch string
+MABI := ilp32
