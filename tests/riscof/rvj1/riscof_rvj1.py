@@ -11,6 +11,7 @@ logger = logging.getLogger()
 
 SOURCES_FILE = os.environ["SOURCES_FILE"]
 JOBS         = os.getenv("JOBS", str(int(os.cpu_count() - 2)))
+SCRIPTS_DIR  = os.environ["SCRIPTS_DIR"]
 
 class rvj1(pluginTemplate):
     __model__ = "rvj1"
@@ -36,7 +37,6 @@ class rvj1(pluginTemplate):
     def initialise(self, suite, work_dir, archtest_env):
         self.work_dir = work_dir
         self.suite_dir = suite
-        self.tb_dir = os.path.join("/workspaces", "rvj1", "tb", "support")  # The location of the testbench
         self.scripts_dir = os.path.join("/workspaces", "rvj1", "scripts")
         self.elf2hex = os.path.join(self.scripts_dir, "elf2hex")
 

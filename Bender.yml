@@ -33,12 +33,12 @@ sources:
 
     - target: sim
       files:
-            - tb/support/bytewrite_sram_1w1r.sv
-            - tb/support/bytewrite_sram_wrap.sv
-            - tb/support/ifu_mem_test_top.sv
-            - tb/support/lsu_mem_test_top.sv
-            - tb/support/rvj1_test_top.sv
-            - tb/support/rvj1_cosim_pkg.sv
-            - tb/support/rvj1_cosim_top.sv
-            - tb/support/rvj1_debug_top.sv
-            - tb/support/rvj1_riscof_tb.sv
+            - tb/bytewrite_sram_1w1r.sv
+            - tb/bytewrite_sram_wrap.sv
+            - tb/ifu_mem_test_top.sv
+            - tb/lsu_mem_test_top.sv
+            - tb/rvj1_test_top.sv
+            - tb/rvj1_cosim_pkg.sv
+            - tb/rvj1_cosim_top.sv
+            - tb/rvj1_debug_top.sv
+            - tb/rvj1_riscof_tb.sv

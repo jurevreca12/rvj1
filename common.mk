@@ -14,6 +14,7 @@ MKFILE_PATH         := $(abspath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR            := $(dir $(MKFILE_PATH))
 TEST_DIR            := $(abspath $(ROOT_DIR)/tests)
 TB_DIR              := $(abspath $(ROOT_DIR)/tb)
+SCRIPTS_DIR         := $(abspath $(ROOT_DIR)/scripts)
 TEST_RVTESTS_DIR    := $(abspath $(TEST_DIR)/riscv-tests)
 TEST_RISCOF_DIR     := $(abspath $(TEST_DIR)/riscof)
 TEST_RVGEN_DIR 	    := $(abspath $(TEST_DIR)/rvgen)
@@ -44,7 +45,7 @@ RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
 BENDER_SIM_ARGS := \
 	--keep-excluded-incdirs \
-    -t rtl \
+	-t rtl \
 	-t sim \
 	-t tech_cells_generic_exclude_deprecated
 
