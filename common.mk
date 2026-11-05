@@ -32,6 +32,7 @@ BUILD_TEST_DIR         := $(abspath $(BUILD_DIR)/tests)
 BUILD_TEST_RVTESTS_DIR := $(abspath $(BUILD_TEST_DIR)/riscv-tests)
 BUILD_TEST_RISCOF_DIR  := $(abspath $(BUILD_TEST_DIR)/riscof)
 BUILD_TEST_RVGEN_DIR   := $(abspath $(BUILD_TEST_DIR)/rvgen)
+BUILD_TEST_COCOTB_DIR  := $(abspath $(BUILD_TEST_DIR)/cocotb)
 BUILD_CONFIG_DIR       := $(abspath $(BUILD_DIR)/config)
 BUILD_CONFIG_SIM_FLIST := $(abspath $(BUILD_CONFIG_DIR)/sim_sources.flist)
 # GNU
