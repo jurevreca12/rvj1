@@ -1,5 +1,5 @@
 SHELL = /bin/bash
-MAKEFLAGS = --warn-undefined-variables
+MAKEFLAGS += --warn-undefined-variables
 
 # Tools
 RISCOF    ?= riscof
@@ -18,7 +18,7 @@ TEST_RVTESTS_DIR    := $(abspath $(TEST_DIR)/riscv-tests)
 TEST_RISCOF_DIR     := $(abspath $(TEST_DIR)/riscof)
 TEST_RVGEN_DIR 	    := $(abspath $(TEST_DIR)/rvgen)
 TEST_RISCV_ARCH_DIR := $(abspath $(TEST_DIR)/riscv-arch-test)
-BENDER_YAML_FILE 	:= $(abspath $(ROOT_DIR)/Bender.yml)
+BENDER_YAML_FILE    := $(abspath $(ROOT_DIR)/Bender.yml)
 
 # Configuration
 CONFIG ?= rv32i
