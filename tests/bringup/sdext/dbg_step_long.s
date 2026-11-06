@@ -3,7 +3,7 @@
 # This test specifically tests longer lasting instructions like store/load.                     
     .section .text
     .globl _start
-_start.
+_start:
     lui  x28, 0x80000       # 0x8000_0000            
     addi x28, x28, 0x400    # 0x8000_0004            
     addi x1, x0, 1          # 0x8000_0008            

@@ -3,7 +3,7 @@
 
     .section .text
     .globl _start
-_start.
+_start:
     addi x1, x1, 1    # 0x8000_0000
     bne  x0, x1, -4   # 0x8000_0004
     nop               # 0x8000_0008

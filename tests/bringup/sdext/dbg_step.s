@@ -2,7 +2,7 @@
 # a counter is incremented. This signals if the CPU is correctly stepping through instructions.
     .section .text
     .globl _start
-_start.
+_start:
     lui   x28, 0x80000      # 0x8000_0000              
     addi  x28, x28, 0x20    # 0x8000_0004              
     csrrw x0, x28, mtvec    # 0x8000_0008              
