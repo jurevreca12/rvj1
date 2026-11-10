@@ -19,7 +19,7 @@ RVGEN_ARGS := \
 	--start_seed $(RVGEN_START_SEED) \
 	-i $(RVGEN_NUM_ITER)
 
-RISCV_LINK_SCRIPT := $(TB_DIR)/support/rvgen.ld
+RISCV_LINK_SCRIPT := $(SCRIPTS_DIR)/rvgen.ld
 RISCV_GCC_ARGS    := \
 	-o0 \
 	-I $(TEST_RVGEN_DIR) \

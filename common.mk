@@ -19,6 +19,7 @@ TEST_RVTESTS_DIR    := $(abspath $(TEST_DIR)/riscv-tests)
 TEST_RISCOF_DIR     := $(abspath $(TEST_DIR)/riscof)
 TEST_RVGEN_DIR 	    := $(abspath $(TEST_DIR)/rvgen)
 TEST_RISCV_ARCH_DIR := $(abspath $(TEST_DIR)/riscv-arch-test)
+TEST_BRINGUP_DIR    := $(abspath $(TEST_DIR)/bringup)
 BENDER_YAML_FILE    := $(abspath $(ROOT_DIR)/Bender.yml)
 
 # Configuration
@@ -33,8 +34,10 @@ BUILD_TEST_RVTESTS_DIR := $(abspath $(BUILD_TEST_DIR)/riscv-tests)
 BUILD_TEST_RISCOF_DIR  := $(abspath $(BUILD_TEST_DIR)/riscof)
 BUILD_TEST_RVGEN_DIR   := $(abspath $(BUILD_TEST_DIR)/rvgen)
 BUILD_TEST_COCOTB_DIR  := $(abspath $(BUILD_TEST_DIR)/cocotb)
+BUILD_TEST_BRINGUP_DIR := $(abspath $(BUILD_TEST_DIR)/bringup)
 BUILD_CONFIG_DIR       := $(abspath $(BUILD_DIR)/config)
 BUILD_CONFIG_SIM_FLIST := $(abspath $(BUILD_CONFIG_DIR)/sim_sources.flist)
+
 # GNU
 RISCV_PREFIX  ?= riscv64-unknown-elf-
 RISCV_MARCH   ?= $(ISA)
@@ -42,8 +45,8 @@ RISCV_VMARCH  ?= $(ISA)
 RISCV_GCC     ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
-# Filelists
 
+# Filelists
 BENDER_SIM_ARGS := \
 	--keep-excluded-incdirs \
 	-t rtl \

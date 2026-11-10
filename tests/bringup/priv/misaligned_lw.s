@@ -9,32 +9,33 @@ _start:
     addi  x2, x2, 0x402
     lui   x1, 0xDEADC
     addi  x1, x1, 0x0DE
-    sb    x2, x1, 3
+    sb    x1, 3(x2)
     srli  x1, x1, 8
-    sb    x2, x1, 2
+    sb    x1, 2(x1)
     srli  x1, x1, 8
-    sb    x2, x1, 1
+    sb    x1, 1(x1)
     srli  x1, x1, 8
-    sb    x2, x1, 0
-    lw    x3, x2, 0
-    jal   x0, 0x48
+    sb    x1, (x2)
+    lw    x3, (x2)
+    jal   x0, cleanup
     csrrs x4, mstatus, x0
     csrrs x5, mepc, x0
     addi  x5, x5, 4
     csrrw x0, mepc, x5
     csrrw x6, mtval, x0
-    lbu   x7, x6, 0
+    lbu   x7, (x6)
     slli  x7, x7, 8
-    lbu   x8, x6, 1
+    lbu   x8, 1(x6)
     xor   x7, x7, x8
     slli  x7, x7, 8
-    lbu   x8, x6, 2
+    lbu   x8, 2(x6)
     xor   x7, x7, x8
     slli  x7, x7, 8
-    lbu   x8, x6, 3
+    lbu   x8, 3(x6)
     xor   x7, x7, x8
     mret
     addi  x9, x0, 1
+cleanup:
     nop
     nop
     nop

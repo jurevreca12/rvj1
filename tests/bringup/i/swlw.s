@@ -4,9 +4,9 @@ _start:
     lui  x2, 0xDEADC
     addi x2, x2, 0x0DE
     la   x1, _data
-    sw   x1, x2, 0
-    lw   x3, x1, 0
-    lw   x4, x1, 0
+    sw   x2, (x1)
+    lw   x3, (x1)
+    lw   x4, (x1)
     addi x31, x0, 1
 _end:
     j _end

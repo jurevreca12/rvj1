@@ -5,7 +5,7 @@
 _start:
     lui   x28, 0x80000      # 0x8000_0000              
     addi  x28, x28, 0x20    # 0x8000_0004              
-    csrrw x0, x28, mtvec    # 0x8000_0008              
+    csrw  mtvec, x28        # 0x8000_0008              
     addi  x1, x0, 1         # 0x8000_000c              
     addi  x2, x0, 2         # 0x8000_0010              
     addi  x3, x0, 3         # 0x8000_0014              
@@ -23,8 +23,8 @@ _start:
     nop                     # 0x8000_0044              
     nop                     # 0x8000_0048              
     nop                     # 0x8000_004c              
-    addi x6, x6, 1          # 0x8000_0050 <--          
-    csrrsi x0, 0x4, dcsr    # 0x8000_0054   | step = 1 
+    addi  x6, x6, 1         # 0x8000_0050 <--          
+    csrsi dcsr, 0x4         # 0x8000_0054   | step = 1 
     dret                    # 0x8000_0058   |          
     nop                                     
     nop                                     

@@ -3,20 +3,21 @@
     .section .text
     .globl _start
 _start:
-    csrrs x1, mstatus, x0
+    csrr  x1, mstatus
     lui   x28, 0x80000
     addi  x28, x28, 0x20
-    csrrw x0, mtvec, x28
-    crrsi x0, mstatus, 0x8
-    csrrs x2, x0, mstatus
+    csrw  mtvec, x28
+    csrsi mstatus, 0x8
+    csrr  x2, mstatus
     ecall
-    jal   x10, 0x18
-    csrrs x3, mstatus, x0
-    csrrs x30, mepc, x0
+    jal   x10, cleanup
+    csrr  x3, mstatus
+    csrr  x30, mepc
     addi  x30, x30, 4
-    csrrw x0, mepc, x30
+    csrw  mepc, x30
     mret
-    csrrs x4, x0, mstatus
+cleanup:
+    csrr  x4, mstatus
     nop
     nop
     nop

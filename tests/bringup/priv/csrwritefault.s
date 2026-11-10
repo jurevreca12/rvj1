@@ -7,7 +7,7 @@ _start:
     csrrw x0, mtvec, x28
     csrrw x1, 0x0, x0
     addi  x2, x0, 2
-    jal   x10, 0x2c
+    jal   x10, cleanup
     addi  x3, x0, 3
     addi  x4, x0, 4
     addi  x5, x0, 5
@@ -18,6 +18,7 @@ _start:
     csrrw x0, mepc, x30
     csrrs x29, mcause, x0
     mret
+cleanup:
     nop
     nop
     nop

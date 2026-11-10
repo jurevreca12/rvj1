@@ -4,17 +4,17 @@ _start:
     lui  x2, 0xDEADC
     addi x2, x2, 0x0DE
     la   x1, _data
-    sb   x1, x2, 0
+    sb   x2, (x1)
     srli x2, x2, 8
-    sb   x1, x2, 1
+    sb   x2, 1(x1)
     srli x2, x2, 8
-    sb   x1, x2, 2
+    sb   x2, 2(x1)
     srli x2, x2, 8
-    sb   x1, x2, 3
-    lb   x3, x1, 0
-    lb   x4, x1, 1
-    lb   x5, x1, 2
-    lb   x6, x1, 3
+    sb   x2, 3(x1)
+    lb   x3, (x1)
+    lb   x4, 1(x1)
+    lb   x5, 2(x1)
+    lb   x6, 3(x1)
     addi x31, x0, 1
 _end:
     j _end
