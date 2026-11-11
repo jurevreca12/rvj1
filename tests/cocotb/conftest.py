@@ -1,85 +1,195 @@
 import os
+from subprocess import run
+from pathlib import Path
 import pytest
 from cocotb_tools.pytest.hdl import HDL
+from util import (get_make_var, 
+                  get_valid_configs, 
+                  get_config_var,
+                  get_buildargs,
+                  get_parameters,
+                  gen_bender_flist,
+                  run_make)
 
-DEF_SOURCES_FILE = os.path.join(os.path.dirname(__file__), "..", "sources.f")
 
-WAVES        = os.getenv("WAVES",        default=False)
-RVFI         = os.getenv("RVFI",         default=True)
-RVFI_TRACE   = os.getenv("RVFI_TRACE",   default=False)
-ASSERTIONS   = os.getenv("ASSERTIONS",   default=True)
-SOURCES_FILE = os.getenv("SOURCES_FILE", default=DEF_SOURCES_FILE)
+ROOT_DIR   = get_make_var("ROOT_DIR")
+CONFIGS    = get_valid_configs()
 
-DEFAULT_ARGS = [
-    "-Wno-fatal", 
-    "--no-stop-fail", 
-    "-Wno-REDEFMACRO",
-    "-f", SOURCES_FILE,
-]
+ELF_GROUP_DIRS = {
+    "regcmp": ["bringup"],
+    "cosim": ["rvgen", "rvtests"],
+}
 
-def proc_env_args(build_args):
-    if WAVES:
-        build_args += ["--trace-fst", "--trace-structs"]
-    if RVFI:
-        build_args += [f"-DRVFI"]
-    if RVFI_TRACE:
-        build_args += [f"-DRVFI_TRACE"]
-    if ASSERTIONS:
-        build_args += [f"-DASSERTIONS"]
-    return build_args
+WAVES      = os.getenv("WAVES",        default=False)
+RVFI       = os.getenv("RVFI",         default=True)
+RVFI_TRACE = os.getenv("RVFI_TRACE",   default=False)
+ASSERTIONS = os.getenv("ASSERTIONS",   default=True)
 
-@pytest.fixture
-def top_test_fixture(hdl: HDL) -> HDL:
-    build_args = DEFAULT_ARGS
-    build_args = proc_env_args(build_args)
-    hdl.toplevel = "rvj1_test_top"
-    hdl.build(
-        build_args = build_args,
-        parameters = {
-            "IRAM_BASE_ADDR": 0x8000_0000, 
-            "IRAM_WORD_SIZE": (1 << 8),
-            "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
-            "DRAM_WORD_SIZE": (1 << 8),
-            "DmRomAddr": 0x8000_0050,
+def pytest_addoption(parser):
+    parser.addoption(
+        "--config",
+        action="append",
+        default=None,
+        help="Run a config; repeat for several. Default: all discovered configs.",
+    )
+    parser.addoption(
+        "--elf",
+        action="append",
+        default=None,
+        help="Run this ELF instead of discovering ELFs; may be repeated",
+    )
+
+
+def pytest_generate_tests(metafunc):
+    if "elf" not in metafunc.fixturenames:
+        return
+
+    marker = metafunc.definition.get_closest_marker("elf_group")
+    if marker is None or not marker.args:
+        raise pytest.UsageError(
+            f"{metafunc.definition.name} needs @pytest.mark.elf_group('regcmp' or 'cosim')"
+        )
+
+    group = marker.args[0]
+    if group not in ELF_GROUP_DIRS:
+        raise pytest.UsageError(f"Unknown ELF group: {group}")
+
+    requested_configs = metafunc.config.getoption("--config")
+    configs = requested_configs if requested_configs else CONFIGS
+
+    unknown = set(configs) - set(CONFIGS)
+    if unknown:
+        raise pytest.UsageError(f"Unknown config(s): {', '.join(sorted(unknown))}")
+
+    explicit_elfs = metafunc.config.getoption("--elf")
+    cases = []
+
+    for config in configs:
+        if explicit_elfs:
+            elfs = [Path(p).expanduser().resolve() for p in explicit_elfs]
+        else:
+            config_build = os.path.abspath(
+                os.path.join(ROOT_DIR, "build", config, "tests")
+            )
+            for directory in ELF_GROUP_DIRS[group]:
+                mf = os.path.abspath(
+                    os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
+                )
+                out=run_make(makefile=mf, config=config, target="all")
+            elfs  = sorted(
+                elf 
+                for directory in ELF_GROUP_DIRS[group]
+                for elf in Path(os.path.join(config_build, directory)).rglob("*.elf")
+            )
+        missing = [elf for elf in elfs if not elf.is_file()]
+        if missing:
+            raise pytest.UsageError(
+                f"Missing ELF(s): {', '.join(str(p) for p in missing)}"
+            )
+        if not elfs:
+            raise pytest.UsageError(
+                f"No ELFs found for group {group!r}, config {config!r}"
+            )
+
+        for elf in elfs:
+            cases.append((config, elf))
+
+    ids = [f"{config}-{elf.stem}" for config, elf in cases]
+
+    # Each row pairs exactly one config with one ELF.
+    # The config value is passed to cpu_fixture via request.param.
+    metafunc.parametrize(
+        ("cpu_fixture", "elf"),
+        cases,
+        indirect=["cpu_fixture"],
+        ids=ids,
+        scope="session"
+    )
+
+@pytest.fixture(scope="session")
+def cpu_fixture(request, hdl_session: HDL) -> HDL:
+    config = request.param
+    build_dir = os.path.join(
+        ROOT_DIR, 'build', config, 'cocotb', 'sim_build' 
+    )
+    os.makedirs(build_dir, exist_ok=True)
+
+    # Call bender make for this config, to make sure the flist file exists
+    gen_bender_flist(config)
+
+    # How to handle gate-level sim?
+    hdl_session.build(
+        always=False,
+        library=f"{config}_top",
+        sources=[],  # flist
+        includes=[], # flist
+        defines={
+            'RVFI': int(RVFI),
+            'RVFI_TRACE': int(RVFI_TRACE),
+            'ASSERTIONS': int(ASSERTIONS)
         },
-        waves = False,
+        toplevel=get_config_var("TOP_SIM", config),
+        build_args=get_buildargs(config, WAVES, hdl_session.simulator),
+        parameters=get_parameters(config),
+        build_dir=str(build_dir),
+        verbose=False,
+        waves=False, # use buildargs for waveform gen (to get fst)
     )
-    return hdl
+    return hdl_session
 
-@pytest.fixture
-def cosim_fixture(hdl: HDL) -> HDL:
-    build_args = DEFAULT_ARGS
-    build_args += ["--timing"]
-    build_args = proc_env_args(build_args)
-    hdl.toplevel="rvj1_cosim_top"
-    hdl.build(
-        build_args = build_args,
-        waves      = False
-    )
-    return hdl
 
-@pytest.fixture
-def ifu_fixture(hdl: HDL) -> HDL:
-    build_args = DEFAULT_ARGS
-    build_args = proc_env_args(build_args)
-    hdl.toplevel = "ifu_mem_test_top"
-    hdl.build(
-        build_args = build_args,
-        parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-        always=True,
-        waves = False,
-    )
-    return hdl
+# @pytest.fixture(scope="session")
+# def top_test_fixture(hdl: HDL) -> HDL:
+#     build_args = DEFAULT_ARGS
+#     build_args = proc_env_args(build_args)
+#     hdl.toplevel = "rvj1_test_top"
+#     hdl.build(
+#         build_args = build_args,
+#         parameters = {
+#             "IRAM_BASE_ADDR": 0x8000_0000, 
+#             "IRAM_WORD_SIZE": (1 << 8),
+#             "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
+#             "DRAM_WORD_SIZE": (1 << 8),
+#             "DmRomAddr": 0x8000_0050,
+#         },
+#         waves = False,
+#     )
+#     return hdl
 
-@pytest.fixture
-def lsu_fixture(hdl: HDL) -> HDL:
-    build_args = DEFAULT_ARGS
-    build_args = proc_env_args(build_args)
-    hdl.toplevel = "lsu_mem_test_top"
-    hdl.build(
-        build_args = build_args,
-        parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-        always=True,
-        waves = False,
-    )
-    return hdl
+# @pytest.fixture
+# def cosim_fixture(hdl: HDL) -> HDL:
+#     build_args = DEFAULT_ARGS
+#     build_args += ["--timing"]
+#     build_args = proc_env_args(build_args)
+#     hdl.toplevel="rvj1_cosim_top"
+#     hdl.build(
+#         build_args = build_args,
+#         waves      = False
+#     )
+#     return hdl
+
+# @pytest.fixture
+# def ifu_fixture(hdl: HDL) -> HDL:
+#     build_args = DEFAULT_ARGS
+#     build_args = proc_env_args(build_args)
+#     hdl.toplevel = "ifu_mem_test_top"
+#     hdl.build(
+#         build_args = build_args,
+#         parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
+#         always=True,
+#         waves = False,
+#     )
+#     return hdl
+
+# @pytest.fixture
+# def lsu_fixture(hdl: HDL) -> HDL:
+#     build_args = DEFAULT_ARGS
+#     build_args = proc_env_args(build_args)
+#     hdl.toplevel = "lsu_mem_test_top"
+#     hdl.build(
+#         build_args = build_args,
+#         parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
+#         always=True,
+#         waves = False,
+#     )
+#     return hdl

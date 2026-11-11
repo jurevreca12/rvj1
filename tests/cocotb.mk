@@ -1,4 +1,5 @@
-include ../common.mk
+THIS_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+include $(THIS_MAKEFILE_DIR)/../common.mk
 
 # See https://docs.cocotb.org/en/v2.0.0/building.html
 

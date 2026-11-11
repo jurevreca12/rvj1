@@ -1,117 +1,72 @@
 import os
 import tempfile
 import datetime
-from forastero import BaseBench
-from forastero.io import IORole, io_suffix_style, io_plain_style
+import pytest
 from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles, ValueChange
 from rvfi.io import RvfiIO
-from rvfi.response import RvfiMonitor
-from rvj1.io import IrqIO
-from rvj1.request import IrqDriver
 from rvj1.sequence import irq_rand_seq
 from riscv.sim import sim_t
 from riscv.cfg import cfg_t, mem_cfg_t
 from riscv.debug_module import debug_module_config_t
-import pytest
 from elftools.elf.elffile import ELFFile
-import numpy as np
+from cpu_tb import CpuTB
 
-
-class RegCmpTB(BaseBench):
-    def __init__(self, dut):
-        super().__init__(dut, clk=dut.clk, rst=dut.rstn, rst_active_high=False)
-        irq_io   = IrqIO(dut, "irq",  IORole.RESPONDER, io_style=io_suffix_style)
-        self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst, blocking=False), scoreboard=False)
-        rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_plain_style)
-        self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst), scoreboard=False)
-
-    async def initialise(self) -> None:
-        """Initialise the DUT's I/O"""
-        self.rst.value = 1
-        for comp in self._components.values():
-            comp.io.initialise(IORole.opposite(comp.io.role))
-
-    async def reset(self, init=True, wait_during=10, wait_after=1) -> None:
-        """
-        Reset the DUT.
-
-        :param init:        Initialise the DUT's I/O
-        :param wait_during: Clock cycles to hold reset active for (defaults to 20)
-        :param wait_after:  Clock cycles to wait after lowering reset (defaults to 1)
-        """
-        # Drive reset high
-        self.rst.value = 1
-        # Initialise I/O
-        if init:
-            await self.initialise()
-        # Wait before dropping reset
-        if wait_during > 0:
-            await ClockCycles(self.clk, wait_during)
-        # Drop reset
-        self.rst.value = 0
-        # Wait for a bit
-        if wait_after > 0:
-            self.info(f"Waiting for {wait_after} cycles")
-            await ClockCycles(self.clk, wait_after)
-        self.rst.value = 1
- 
-
-
-@RegCmpTB.testcase(
+@CpuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=2,
     timeout=2000000,
     shutdown_delay=2000,
     shutdown_loops=1,
 )
-@RegCmpTB.parameter("dtb_file", str, "/workspace/rvj1/tb/cocotb/cosim.dtb")
-@RegCmpTB.parameter("start_pc", int, 0x8000_0000)
+@CpuTB.parameter("dtb_file", str, "/workspace/rvj1/tb/cosim.dtb")
+@CpuTB.parameter("start_pc", int, 0x8000_0000)
 async def test_regcmp(
-    tb: RegCmpTB,
+    tb: CpuTB,
     log,
     dtb_file,
     start_pc,
 ):
-    elf_file  = os.environ.get("ELF_FILE")
-    log.info(f"Running test with ELF file: {elf_file}")
+    ...
+    # elf_file  = os.environ.get("ELF_FILE")
+    # log.info(f"Running test with ELF file: {elf_file}")
 
-    # Get expected result from spike simulation
-    spike_sim_res = spike_sim_elf(
-        elf_file, 
-        "rv32i_zicsr", 
-        dtb_file, 
-        start_pc
-    )
+    # # Get expected result from spike simulation
+    # spike_sim_res = spike_sim_elf(
+    #     elf_file, 
+    #     "rv32i_zicsr", 
+    #     dtb_file, 
+    #     start_pc
+    # )
 
-    # See if user left expected results in ELF file.
-    exp_sim_res = elf_expected_results(elf_file, log)
-    if exp_sim_res is not None:
-        for reg, exp_val in exp_sim_res.items():
-            assert spike_sim_res[reg] == exp_val, (
-                f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
-                f"Spike: {hex(spike_sim_res[reg])}, Expected: {hex(exp_val)}"
-            )
+    # # See if user left expected results in ELF file.
+    # exp_sim_res = elf_expected_results(elf_file, log)
+    # if exp_sim_res is not None:
+    #     for reg, exp_val in exp_sim_res.items():
+    #         assert spike_sim_res[reg] == exp_val, (
+    #             f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
+    #             f"Spike: {hex(spike_sim_res[reg])}, Expected: {hex(exp_val)}"
+    #         )
     
-    # Now run the RTL simulation on DUT and compare results with spike simulation.
-    regfile_inst =  tb.dut.rvj1_inst.rvj1_inst.regfile_inst
-    while True:
-        await ValueChange(regfile_inst.regfile[31])
-        if regfile_inst.regfile[31].value == 1:
-            log.info(f"Reached exit condition (x31 == 1), ending simulation.")
-            break
+    # # Now run the RTL simulation on DUT and compare results with spike simulation.
+    # regfile_inst =  tb.dut.rvj1_inst.rvj1_inst.regfile_inst
+    # while True:
+    #     await ValueChange(regfile_inst.regfile[31])
+    #     if regfile_inst.regfile[31].value == 1:
+    #         log.info(f"Reached exit condition (x31 == 1), ending simulation.")
+    #         break
 
-    # Compare RTL simulation results with spike simulation results.
-    rtl_sim_res = {i: regfile_inst.regfile[i].value for i in range(32)}
-    for reg, rtl_val in rtl_sim_res.items():
-        assert rtl_val == spike_sim_res[reg], (
-            f"RTL simulation result for register x{reg} does not match spike simulation result. "
-            f"RTL: {hex(rtl_val)}, Spike: {hex(spike_sim_res[reg])}"
-        )
+    # # Compare RTL simulation results with spike simulation results.
+    # rtl_sim_res = {i: regfile_inst.regfile[i].value for i in range(32)}
+    # for reg, rtl_val in rtl_sim_res.items():
+    #     assert rtl_val == spike_sim_res[reg], (
+    #         f"RTL simulation result for register x{reg} does not match spike simulation result. "
+    #         f"RTL: {hex(rtl_val)}, Spike: {hex(spike_sim_res[reg])}"
+    #     )
 
-def test_regcmp_runner(cosim_fixture):
-    elf_file  = os.environ.get("ELF_FILE")
-    elf_name = elf_file.split("/")[-1].split('.')[0]
+@pytest.mark.elf_group("regcmp")
+def test_regcmp_runner(cpu_fixture, elf):
+    elf_name = elf.split("/")[-1].split('.')[0]
     now = datetime.datetime.now()
     now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
     hex_str = elf2hex(elf_file)

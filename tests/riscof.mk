@@ -1,4 +1,5 @@
-include ../common.mk
+THIS_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+include $(THIS_MAKEFILE_DIR)/../common.mk
 
 RISCV_TEST_SUITE_DIR 	 := $(abspath $(TEST_RISCV_ARCH_DIR)/riscv-test-suite)
 RISCV_TEST_SUITE_ENV_DIR := $(abspath $(TEST_RISCV_ARCH_DIR)/riscv-test-suite/env/)

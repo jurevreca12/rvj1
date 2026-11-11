@@ -1,21 +1,15 @@
 import os
+import pytest
 import tempfile
 import datetime
-from forastero import BaseBench
-from forastero.io import IORole, io_suffix_style, io_plain_style
 from forastero.monitor import MonitorEvent
 from cocotb.triggers import ClockCycles
-from rvfi.io import RvfiIO
-from rvfi.response import RvfiMonitor
-from rvj1.io import IrqIO
-from rvj1.request import IrqDriver
 from rvj1.sequence import irq_rand_seq
 from riscv.sim import sim_t
 from riscv.cfg import cfg_t, mem_cfg_t
 from riscv.debug_module import debug_module_config_t
-import pytest
 from elftools.elf.elffile import ELFFile
-import numpy as np
+from cpu_tb import CpuTB
 
 MCYCLE   = 0xB00
 MINSTRET = 0xB02
@@ -30,59 +24,18 @@ CSRS = [
     ("mip",     0x344) 
 ]
 
-class CosimTB(BaseBench):
-    def __init__(self, dut):
-        super().__init__(dut, clk=dut.clk, rst=dut.rstn, rst_active_high=False)
-        irq_io   = IrqIO(dut, "irq",  IORole.RESPONDER, io_style=io_suffix_style)
-        self.register("irq_drv", IrqDriver(self, irq_io, self.clk, self.rst, blocking=False), scoreboard=False)
-        rvfi_io  = RvfiIO (dut, "rvfi", IORole.INITIATOR, io_style=io_plain_style)
-        self.register("rvfi_mon", RvfiMonitor(self, rvfi_io, self.clk, self.rst), scoreboard=False)
-
-    async def initialise(self) -> None:
-        """Initialise the DUT's I/O"""
-        self.rst.value = 1
-        for comp in self._components.values():
-            comp.io.initialise(IORole.opposite(comp.io.role))
-
-    async def reset(self, init=True, wait_during=10, wait_after=1) -> None:
-        """
-        Reset the DUT.
-
-        :param init:        Initialise the DUT's I/O
-        :param wait_during: Clock cycles to hold reset active for (defaults to 20)
-        :param wait_after:  Clock cycles to wait after lowering reset (defaults to 1)
-        """
-        # Drive reset high
-        self.rst.value = 1
-        # Initialise I/O
-        if init:
-            await self.initialise()
-        # Wait before dropping reset
-        if wait_during > 0:
-            await ClockCycles(self.clk, wait_during)
-        # Drop reset
-        self.rst.value = 0
-        # Wait for a bit
-        if wait_after > 0:
-            self.info(f"Waiting for {wait_after} cycles")
-            await ClockCycles(self.clk, wait_after)
-        self.rst.value = 1
- 
-
-
-
-@CosimTB.testcase(
+@CpuTB.testcase(
     reset_wait_during=2,
     reset_wait_after=2,
     timeout=2000000,
     shutdown_delay=2000,
     shutdown_loops=1,
 )
-@CosimTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/cosim.dtb")
-@CosimTB.parameter("start_pc", int, 0x8000_0000)
-@CosimTB.parameter("generate_irqs", bool, [True,])
+@CpuTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/cosim.dtb")
+@CpuTB.parameter("start_pc", int, 0x8000_0000)
+@CpuTB.parameter("generate_irqs", bool, [True,])
 async def test_cosim(
-    tb: CosimTB,
+    tb: CpuTB,
     log,
     generate_irqs,
     dtb_file,
@@ -161,16 +114,9 @@ def sync_hart_state(rvfi_msg, hart) -> None:
         hart.step(1)
         hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, 0x0)
 
-ELF_LIST_FILE = os.getenv(
-    "ELF_LIST_FILE", 
-    default="/foss/designs/rvj1/tb/cocotb/test_elf_files.list"
-)
-with open(ELF_LIST_FILE, 'r') as f:
-    ELF_FILES = f.read().splitlines()
-
-@pytest.mark.parametrize("elf_file", ELF_FILES)
-def test_cosim_runner(cosim_fixture, elf_file):
-    elf_name = elf_file.split("/")[-1].split('.')[0]
+@pytest.mark.elf_group("cosim")
+def test_cosim_runner(cpu_fixture, elf):
+    elf_name = elf.split("/")[-1].split('.')[0]
     now = datetime.datetime.now()
     now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
     hex_str = elf2hex(elf_file)
@@ -186,8 +132,8 @@ def test_cosim_runner(cosim_fixture, elf_file):
         print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hex_file.write(hex_str)
 
-    cosim_fixture.test(
-        toplevel=cosim_fixture.toplevel,
+    cpu_fixture.test(
+        toplevel=cpu_fixture.toplevel,
         test_module="test_cosim",
         plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
         env={"ELF_FILE": elf_file, "EXIT_ADDR": str(exit_addr)}

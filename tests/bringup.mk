@@ -1,4 +1,5 @@
-include ../common.mk
+THIS_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+include $(THIS_MAKEFILE_DIR)/../common.mk
 
 BRINGUP_SOURCES := $(shell find $(TEST_BRINGUP_DIR) -type f -name '*.s' | sed 's|^\./||')
 BRINGUP_ELFS    := $(patsubst $(TEST_BRINGUP_DIR)/%.s,$(BUILD_TEST_BRINGUP_DIR)/%.elf,$(BRINGUP_SOURCES))

@@ -15,6 +15,7 @@ ROOT_DIR            := $(dir $(MKFILE_PATH))
 TEST_DIR            := $(abspath $(ROOT_DIR)/tests)
 TB_DIR              := $(abspath $(ROOT_DIR)/tb)
 SCRIPTS_DIR         := $(abspath $(ROOT_DIR)/scripts)
+CONFIG_DIR          := $(abspath $(ROOT_DIR)/config)
 TEST_RVTESTS_DIR    := $(abspath $(TEST_DIR)/riscv-tests)
 TEST_RISCOF_DIR     := $(abspath $(TEST_DIR)/riscof)
 TEST_RVGEN_DIR 	    := $(abspath $(TEST_DIR)/rvgen)
@@ -24,7 +25,7 @@ BENDER_YAML_FILE    := $(abspath $(ROOT_DIR)/Bender.yml)
 
 # Configuration
 CONFIG ?= rv32i
-CONFIG_MK := $(ROOT_DIR)/config/$(CONFIG).mk
+CONFIG_MK := $(CONFIG_DIR)/$(CONFIG).mk
 include $(CONFIG_MK)
 
 # Build directories and files
@@ -45,6 +46,7 @@ RISCV_VMARCH  ?= $(ISA)
 RISCV_GCC     ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
+.PHONY: sim_flist
 
 # Filelists
 BENDER_SIM_ARGS := \
@@ -56,6 +58,8 @@ BENDER_SIM_ARGS := \
 $(BUILD_CONFIG_SIM_FLIST): $(BENDER_YAML_FILE)
 	mkdir -p $(BUILD_CONFIG_DIR)
 	$(BENDER) script flist-plus $(BENDER_SIM_ARGS) > $(BUILD_CONFIG_SIM_FLIST)
+
+sim_flist: $(BUILD_CONFIG_SIM_FLIST)
 
 # HELPER FUNCTIONS
 
