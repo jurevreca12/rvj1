@@ -11,13 +11,12 @@ from util import (get_make_var,
                   gen_bender_flist,
                   run_make)
 
-
 ROOT_DIR   = get_make_var("ROOT_DIR")
 CONFIGS    = get_valid_configs()
 
 ELF_GROUP_DIRS = {
     "regcmp": ["bringup"],
-    "cosim": ["rvgen", "rvtests"],
+    "cosim": ["rvgen", "riscv-tests"],
 }
 
 WAVES      = os.getenv("WAVES",        default=False)
@@ -63,25 +62,26 @@ def pytest_generate_tests(metafunc):
 
     explicit_elfs = metafunc.config.getoption("--elf")
     cases = []
+    grouped_cases = []
 
     for config in configs:
+        for directory in ELF_GROUP_DIRS[group]:
+            mf = os.path.abspath(
+                os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
+            )
+            run_make(makefile=mf, config=config, target="all")
         if explicit_elfs:
-            elfs = [Path(p).expanduser().resolve() for p in explicit_elfs]
+            elfs = [('explicit', Path(p).expanduser().resolve()) for p in explicit_elfs]
         else:
             config_build = os.path.abspath(
                 os.path.join(ROOT_DIR, "build", config, "tests")
             )
-            for directory in ELF_GROUP_DIRS[group]:
-                mf = os.path.abspath(
-                    os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
-                )
-                out=run_make(makefile=mf, config=config, target="all")
             elfs  = sorted(
-                elf 
+                (directory, elf)
                 for directory in ELF_GROUP_DIRS[group]
                 for elf in Path(os.path.join(config_build, directory)).rglob("*.elf")
             )
-        missing = [elf for elf in elfs if not elf.is_file()]
+        missing = [elf[1] for elf in elfs if not elf[1].is_file()]
         if missing:
             raise pytest.UsageError(
                 f"Missing ELF(s): {', '.join(str(p) for p in missing)}"
@@ -92,9 +92,10 @@ def pytest_generate_tests(metafunc):
             )
 
         for elf in elfs:
-            cases.append((config, elf))
+            grouped_cases.append((config, elf[0], elf[1]))
+            cases.append((config, elf[1]))
 
-    ids = [f"{config}-{elf.stem}" for config, elf in cases]
+    ids = [f"{config}-{test_dir}-{elf.stem}" for config, test_dir, elf in grouped_cases]
 
     # Each row pairs exactly one config with one ELF.
     # The config value is passed to cpu_fixture via request.param.
@@ -105,6 +106,27 @@ def pytest_generate_tests(metafunc):
         ids=ids,
         scope="session"
     )
+
+def pytest_collection_modifyitems(items):
+    order0 = {
+        "test_regcmp_runner": 0,
+        "test_cosim_runner": 1,
+    }
+    order1 = {
+        "bringup": 0,
+        "rvgen": 1,
+        "riscv-tests": 2,
+        "explicit": 3
+    }
+    orders = [order0, order1]
+    for order in orders:
+        items.sort(
+            key=lambda item: (
+                order.get(item.originalname or item.name.split("[")[0], 99),
+                item.nodeid,
+            )
+        )
+
 
 @pytest.fixture(scope="session")
 def cpu_fixture(request, hdl_session: HDL) -> HDL:
