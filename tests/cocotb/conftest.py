@@ -2,7 +2,7 @@ import os
 from subprocess import run
 from pathlib import Path
 import pytest
-from cocotb_tools.pytest.hdl import HDL
+from cocotb_tools._pytest.hdl import HDL
 from util import elf2hex
 from util import get_exit_addr
 from util import (get_make_var, 
@@ -165,15 +165,16 @@ def cpu_fixture(request, hdl_session: HDL) -> HDL:
 
 def elf_runner(cpu_fixture, elf, test_module):
     hex_file = elf2hex(elf)
-    test_dir = Path(cpu_fixture.cpu_build_dir).parent.joinpath(
+    results_xml_dir = Path(cpu_fixture.cpu_build_dir).parent.joinpath(
         elf.relative_to(Path(cpu_fixture.cpu_build_dir).parent.parent)
-    )
+    ).joinpath('results.xml')
     cpu_fixture.test(
         toplevel=cpu_fixture.cpu_toplevel,
         test_module=test_module,
         plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
         build_dir=cpu_fixture.cpu_build_dir,
-        test_dir=test_dir,
+        test_dir=get_make_var("TEST_COCOTB_DIR"),
+        results_xml=results_xml,
         env={"ELF_FILE": elf}
     )
 

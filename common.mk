@@ -21,6 +21,7 @@ TEST_RISCOF_DIR     := $(abspath $(TEST_DIR)/riscof)
 TEST_RVGEN_DIR 	    := $(abspath $(TEST_DIR)/rvgen)
 TEST_RISCV_ARCH_DIR := $(abspath $(TEST_DIR)/riscv-arch-test)
 TEST_BRINGUP_DIR    := $(abspath $(TEST_DIR)/bringup)
+TEST_COCOTB_DIR     := $(abspath $(TEST_DIR)/cocotb)
 BENDER_YAML_FILE    := $(abspath $(ROOT_DIR)/Bender.yml)
 
 # Configuration

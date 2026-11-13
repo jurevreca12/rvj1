@@ -40,6 +40,7 @@ async def test_regcmp(
 
     # See if user left expected results in ELF file.
     exp_sim_res = elf_expected_results(elf_file, log)
+    import pdb; pdb.set_trace()
     if exp_sim_res is not None:
         for reg, exp_val in exp_sim_res.items():
             assert spike_sim_res[reg] == exp_val, (
