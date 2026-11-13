@@ -156,25 +156,3 @@ def elf2hex(elf_file) -> str:
                 for word in narr:
                     hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
     return bytes(hex_str, 'utf-8')
-
-def get_exit_addr(elf_file) -> int:
-    "Based on the elf file determines the exit address"
-    with open(elf_file, 'rb') as f:
-        elf = ELFFile(f)
-        for section in elf.iter_sections():
-            if section.name == ".symtab":
-                exit_symbol = get_exit_symbol(sym_section=section)
-                if exit_symbol:
-                    exit_addr = exit_symbol[0]["st_value"]
-                    return exit_addr
-
-    raise KeyError(f"Symbol '{exit_symbol}' not found")
-
-def get_exit_symbol(sym_section) -> str:
-    "Based on the elf file determines the exit symbol"
-    candidates = ["write_tohost", "tohost_exit"]
-    for candidate in candidates:
-        exit_symbol = sym_section.get_symbol_by_name(candidate)
-        if exit_symbol:
-            return exit_symbol
-    raise KeyError("No exit symbol found in ELF file")

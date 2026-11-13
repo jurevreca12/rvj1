@@ -1,4 +1,4 @@
-package rvj1_cosim_pkg;
+package rvj1_sim_pkg;
   `include "obi_typedef.svh"
 
   localparam logic [6:0]  MVendorIdOffset = 7'h2;

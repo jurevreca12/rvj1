@@ -3,6 +3,8 @@ from subprocess import run
 from pathlib import Path
 import pytest
 from cocotb_tools.pytest.hdl import HDL
+from util import elf2hex
+from util import get_exit_addr
 from util import (get_make_var, 
                   get_valid_configs, 
                   get_config_var,
@@ -10,6 +12,7 @@ from util import (get_make_var,
                   get_parameters,
                   gen_bender_flist,
                   run_make)
+
 
 ROOT_DIR   = get_make_var("ROOT_DIR")
 CONFIGS    = get_valid_configs()
@@ -135,7 +138,6 @@ def cpu_fixture(request, hdl_session: HDL) -> HDL:
         ROOT_DIR, 'build', config, 'cocotb', 'sim_build' 
     )
     os.makedirs(build_dir, exist_ok=True)
-
     # Call bender make for this config, to make sure the flist file exists
     gen_bender_flist(config)
 
@@ -156,9 +158,24 @@ def cpu_fixture(request, hdl_session: HDL) -> HDL:
         build_dir=str(build_dir),
         verbose=False,
         waves=False, # use buildargs for waveform gen (to get fst)
-    )
+)
+    hdl_session.cpu_build_dir = build_dir
+    hdl_session.cpu_toplevel = get_config_var("TOP_SIM", config)
     return hdl_session
 
+def elf_runner(cpu_fixture, elf, test_module):
+    hex_file = elf2hex(elf)
+    test_dir = Path(cpu_fixture.cpu_build_dir).parent.joinpath(
+        elf.relative_to(Path(cpu_fixture.cpu_build_dir).parent.parent)
+    )
+    cpu_fixture.test(
+        toplevel=cpu_fixture.cpu_toplevel,
+        test_module=test_module,
+        plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
+        build_dir=cpu_fixture.cpu_build_dir,
+        test_dir=test_dir,
+        env={"ELF_FILE": elf}
+    )
 
 # @pytest.fixture(scope="session")
 # def top_test_fixture(hdl: HDL) -> HDL:

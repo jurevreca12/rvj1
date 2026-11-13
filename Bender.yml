@@ -38,7 +38,7 @@ sources:
             - tb/ifu_mem_test_top.sv
             - tb/lsu_mem_test_top.sv
             - tb/rvj1_test_top.sv
-            - tb/rvj1_cosim_pkg.sv
-            - tb/rvj1_cosim_top.sv
+            - tb/rvj1_sim_pkg.sv
+            - tb/rvj1_sim_top.sv
             - tb/rvj1_debug_top.sv
             - tb/rvj1_riscof_tb.sv

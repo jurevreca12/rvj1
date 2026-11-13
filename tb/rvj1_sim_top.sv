@@ -1,10 +1,9 @@
 
-module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
+module rvj1_sim_top import rvj1_sim_pkg::*; #(
   parameter bit          CompressedEnabled = 1'b1,  
   parameter string       INIT_FILE         = "",
   parameter int          INIT_FILE_BIN     = 0,
-  parameter int          MEM_SIZE_WORDS    = 200000000,
-  parameter int unsigned JTAG_VPI_PORT     = 9999
+  parameter int          MEM_SIZE_WORDS    = 200000000
                                   
   ) (
   input  logic  clk,
@@ -59,7 +58,6 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
 
   logic                 debug_req;
   logic                 ndmreset;
-  logic                 hwsw_rstn;
   logic                 dmi_rst_n;
   logic                 dmi_req_valid;
   logic                 dmi_req_ready;
@@ -78,7 +76,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
   };
   dm::hartinfo_t hartinfo = HartInfo;
 
-  assign hwsw_rstn = rstn && ~ndmreset;
+  //assign hwsw_rstn = rstn && ~ndmreset;
 
   mgr_obi_a_t obi_a_chans_mgr        [NumManagers];
   logic       obi_agnt_signals_mgr   [NumManagers];
@@ -104,7 +102,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .MHartId  (MHartId)
   ) rvj1_inst (
     .clk_i          (clk),
-    .rstn_i         (hwsw_rstn),
+    .rstn_i         (rstn),
 
     .instr_aid_o    (obi_instr_aid),
     .instr_areq_o   (obi_instr_areq),
@@ -191,7 +189,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .CONNECTIVITY(Connectivity)
   ) xbar (
     .clk_i            (clk),
-    .rstn_i           (hwsw_rstn),
+    .rstn_i           (rstn),
 
     .mgr_obi_a_chans       (obi_a_chans_mgr),
     .mgr_obi_agnt_signals  (obi_agnt_signals_mgr),
@@ -213,7 +211,7 @@ module rvj1_cosim_top import rvj1_cosim_pkg::*; #(
     .IDLEN         (xbar_cfg.IdWidth + 2)
   ) mem (
     .clk_i  (clk),
-    .rstn_i (hwsw_rstn),
+    .rstn_i (rstn),
 
     .obi_aid_i    (obi_a_chans_sub[XbarSbrMem].obi_aid),
     .obi_areq_i   (obi_a_chans_sub[XbarSbrMem].obi_areq),

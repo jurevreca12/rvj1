@@ -1,6 +1,8 @@
 import os
 import re
 from subprocess import run
+from elftools.elf.elffile import ELFFile
+import numpy as np
 
 DEFAULT_ARGS = [
      "-Wno-fatal", 
@@ -83,3 +85,50 @@ def gen_bender_flist(config):
         )
     except Exception as e:
         print(f"Failed to build sim flist for config {config}. Output: {output}.")
+
+def elf2hex(elf_file) -> str:
+    "Transforms .elf file to hex and writes it to hex_file"
+    hex_str=""
+    with open(elf_file, 'rb') as f:
+        elf = ELFFile(f)
+        for segment in elf.iter_segments():
+            if segment['p_type'] == 'PT_LOAD':
+                addr = segment['p_paddr']
+                assert addr >= 0x8000_0000
+                rel_word_addr = int((addr - 0x8000_0000) / 4)
+                hex_str += f"@{rel_word_addr:08x}\n"
+                data = list(map(lambda d: f"{d:02x}", segment.data()))
+                if len(data) % 4 != 0:
+                    nzeros = 4 - (len(data) % 4)
+                    for _ in range(nzeros):
+                        data.append('00')
+                arr = np.array(data)
+                narr = arr.reshape(-1, 4)
+                for word in narr:
+                    hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
+    with open(elf_file.with_suffix('.hex'), 'w') as hex_file:
+        hex_file.write(hex_str)
+    return elf_file.with_suffix('.hex')
+
+def get_exit_addr(elf_file) -> int:
+    "Based on the elf file determines the exit address"
+    with open(elf_file, 'rb') as f:
+        elf = ELFFile(f)
+        for section in elf.iter_sections():
+            if section.name == ".symtab":
+                exit_symbol = get_exit_symbol(sym_section=section)
+                if exit_symbol:
+                    exit_addr = exit_symbol[0]["st_value"]
+                    return exit_addr
+
+    raise KeyError(f"Symbol '{exit_symbol}' not found")
+
+def get_exit_symbol(sym_section) -> str:
+    "Based on the elf file determines the exit symbol"
+    candidates = ["write_tohost", "tohost_exit"]
+    for candidate in candidates:
+        exit_symbol = sym_section.get_symbol_by_name(candidate)
+        if exit_symbol:
+            return exit_symbol
+    raise KeyError("No exit symbol found in ELF file")
+
