@@ -1,6 +1,6 @@
 
 module rvj1_sim_top import rvj1_sim_pkg::*; #(
-  parameter bit          CompressedEnabled = 1'b1,  
+  parameter bit          CompressedEnabled = 1'b0,  
   parameter string       INIT_FILE         = "",
   parameter int          INIT_FILE_BIN     = 0,
   parameter int          MEM_SIZE_WORDS    = 200000000
@@ -89,8 +89,8 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
   logic       obi_rready_signals_sub [NumSubordinates];
 
   addr_map_t address_map [xbar_cfg.NoMaps];
-  assign address_map[0] = '{idx: 0,   base: 32'h8000_0000, mask: 32'hfff8_0000}; 
-  assign address_map[1] = '{idx: 1,   base: 32'h0000_0000, mask: 32'hfff4_0000};
+  assign address_map[XbarSbrMem] = '{idx: 0, base: 32'h8000_0000, mask: 32'hfff8_0000}; 
+  assign address_map[XbarSbrDbg] = '{idx: 1, base: 32'h0000_0000, mask: 32'hfff4_0000};
 
   rvj1_obi #(
     .CompressedEnabled(CompressedEnabled),
@@ -298,5 +298,9 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
     .trst_ni         (sim_jtag_trstn),
     .tdo_oe_o        ()
   );
+
+  initial begin
+    $display("---------------- %d ------------", MEM_SIZE_WORDS);
+  end
 
 endmodule

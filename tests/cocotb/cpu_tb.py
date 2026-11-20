@@ -1,8 +1,10 @@
 from forastero import BaseBench
 from forastero.io import IORole, io_suffix_style, io_plain_style
+from cocotb.triggers import ClockCycles
 from rvfi.response import RvfiMonitor
 from rvj1.io import IrqIO
 from rvj1.request import IrqDriver
+from rvfi.io import RvfiIO
 
 class CpuTB(BaseBench):
     def __init__(self, dut):

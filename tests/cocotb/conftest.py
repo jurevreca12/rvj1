@@ -1,8 +1,8 @@
 import os
+from typing import Callable, Any
 from subprocess import run
 from pathlib import Path
 import pytest
-from cocotb_tools._pytest.hdl import HDL
 from util import elf2hex
 from util import get_exit_addr
 from util import (get_make_var, 
@@ -12,7 +12,10 @@ from util import (get_make_var,
                   get_parameters,
                   gen_bender_flist,
                   run_make)
-
+from pytest import FixtureRequest, Module
+from cocotb.handle import SimHandleBase
+from cocotb_tools._pytest.fixtures import dut
+from cocotb_tools.runner import get_runner
 
 ROOT_DIR   = get_make_var("ROOT_DIR")
 CONFIGS    = get_valid_configs()
@@ -103,17 +106,17 @@ def pytest_generate_tests(metafunc):
     # Each row pairs exactly one config with one ELF.
     # The config value is passed to cpu_fixture via request.param.
     metafunc.parametrize(
-        ("cpu_fixture", "elf"),
+        ("cpu_build", "elf"),
         cases,
-        indirect=["cpu_fixture"],
+        indirect=["cpu_build"],
         ids=ids,
         scope="session"
     )
 
 def pytest_collection_modifyitems(items):
     order0 = {
-        "test_regcmp_runner": 0,
-        "test_cosim_runner": 1,
+        "regcmp": 0,
+        "cosim": 1,
     }
     order1 = {
         "bringup": 0,
@@ -132,7 +135,7 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(scope="session")
-def cpu_fixture(request, hdl_session: HDL) -> HDL:
+def cpu_build(request: FixtureRequest):
     config = request.param
     build_dir = os.path.join(
         ROOT_DIR, 'build', config, 'cocotb', 'sim_build' 
@@ -141,10 +144,12 @@ def cpu_fixture(request, hdl_session: HDL) -> HDL:
     # Call bender make for this config, to make sure the flist file exists
     gen_bender_flist(config)
 
-    # How to handle gate-level sim?
-    hdl_session.build(
+    option = request.config.option
+    runner = get_runner('verilator')
+
+    hdl_toplevel = get_config_var("TOP_SIM", config)
+    runner.build(
         always=False,
-        library=f"{config}_top",
         sources=[],  # flist
         includes=[], # flist
         defines={
@@ -152,84 +157,30 @@ def cpu_fixture(request, hdl_session: HDL) -> HDL:
             'RVFI_TRACE': int(RVFI_TRACE),
             'ASSERTIONS': int(ASSERTIONS)
         },
-        toplevel=get_config_var("TOP_SIM", config),
-        build_args=get_buildargs(config, WAVES, hdl_session.simulator),
+        hdl_toplevel=hdl_toplevel,
+        build_args=get_buildargs(config, WAVES, 'verilator'),
         parameters=get_parameters(config),
         build_dir=str(build_dir),
         verbose=False,
         waves=False, # use buildargs for waveform gen (to get fst)
-)
-    hdl_session.cpu_build_dir = build_dir
-    hdl_session.cpu_toplevel = get_config_var("TOP_SIM", config)
-    return hdl_session
-
-def elf_runner(cpu_fixture, elf, test_module):
-    hex_file = elf2hex(elf)
-    results_xml_dir = Path(cpu_fixture.cpu_build_dir).parent.joinpath(
-        elf.relative_to(Path(cpu_fixture.cpu_build_dir).parent.parent)
-    ).joinpath('results.xml')
-    cpu_fixture.test(
-        toplevel=cpu_fixture.cpu_toplevel,
-        test_module=test_module,
-        plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
-        build_dir=cpu_fixture.cpu_build_dir,
-        test_dir=get_make_var("TEST_COCOTB_DIR"),
-        results_xml=results_xml,
-        env={"ELF_FILE": elf}
     )
+    return (runner, hdl_toplevel, build_dir)
 
-# @pytest.fixture(scope="session")
-# def top_test_fixture(hdl: HDL) -> HDL:
-#     build_args = DEFAULT_ARGS
-#     build_args = proc_env_args(build_args)
-#     hdl.toplevel = "rvj1_test_top"
-#     hdl.build(
-#         build_args = build_args,
-#         parameters = {
-#             "IRAM_BASE_ADDR": 0x8000_0000, 
-#             "IRAM_WORD_SIZE": (1 << 8),
-#             "DRAM_BASE_ADDR": (0x8000_0000 + ((1 << 8) * 4)),
-#             "DRAM_WORD_SIZE": (1 << 8),
-#             "DmRomAddr": 0x8000_0050,
-#         },
-#         waves = False,
-#     )
-#     return hdl
-
-# @pytest.fixture
-# def cosim_fixture(hdl: HDL) -> HDL:
-#     build_args = DEFAULT_ARGS
-#     build_args += ["--timing"]
-#     build_args = proc_env_args(build_args)
-#     hdl.toplevel="rvj1_cosim_top"
-#     hdl.build(
-#         build_args = build_args,
-#         waves      = False
-#     )
-#     return hdl
-
-# @pytest.fixture
-# def ifu_fixture(hdl: HDL) -> HDL:
-#     build_args = DEFAULT_ARGS
-#     build_args = proc_env_args(build_args)
-#     hdl.toplevel = "ifu_mem_test_top"
-#     hdl.build(
-#         build_args = build_args,
-#         parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-#         always=True,
-#         waves = False,
-#     )
-#     return hdl
-
-# @pytest.fixture
-# def lsu_fixture(hdl: HDL) -> HDL:
-#     build_args = DEFAULT_ARGS
-#     build_args = proc_env_args(build_args)
-#     hdl.toplevel = "lsu_mem_test_top"
-#     hdl.build(
-#         build_args = build_args,
-#         parameters = {"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-#         always=True,
-#         waves = False,
-#     )
-#     return hdl
+@pytest.fixture()
+def cpu_fixture(request: FixtureRequest, cpu_build, elf) -> Callable[[], Any] | SimHandleBase:
+    (runner, hdl_toplevel, build_dir) = cpu_build
+    hex_file = elf2hex(elf)
+    # results_xml = Path(build_dir).parent.joinpath(
+    #    elf.relative_to(Path(build_dir).parent.parent)
+    # ).joinpath('results.xml')
+    return lambda: runner.test(
+        hdl_toplevel=hdl_toplevel,
+        hdl_toplevel_lang='verilog',
+        test_module="test_regcmp",
+        plusargs=[f"+MEM_INIT_FILE={str(hex_file)}"],
+        build_dir=build_dir,
+        test_dir=get_make_var("TEST_COCOTB_DIR"),
+        #results_xml=results_xml,
+        extra_env={"ELF_FILE": elf},
+        verbose=True
+    )

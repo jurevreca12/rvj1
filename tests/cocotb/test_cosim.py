@@ -31,9 +31,9 @@ CSRS = [
     shutdown_delay=2000,
     shutdown_loops=1,
 )
-@CpuTB.parameter("dtb_file", str, "/foss/designs/rvj1/tb/cocotb/cosim.dtb")
-@CpuTB.parameter("start_pc", int, 0x8000_0000)
-@CpuTB.parameter("generate_irqs", bool, [True,])
+@pytest.mark.parametrize("dtb_file", ["/foss/designs/rvj1/tb/cocotb/cosim.dtb",])
+@pytest.mark.parametrize("start_pc", [0x8000_0000,])
+@pytest.mark.parametrize("generate_irqs", [True,])
 async def test_cosim(
     tb: CpuTB,
     log,

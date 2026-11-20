@@ -1,3 +1,4 @@
+import pytest
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
@@ -97,7 +98,7 @@ async def basic_write_read_word(tb: LsuTB, log):
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@LsuTB.parameter("burst_len", bool, [4, 6, 9])
+@pytest.mark.parametrize("burst_len", [4, 6, 9])
 async def burst_write_read_word(tb: LsuTB, log, burst_len):
     def gen_wr_req(i: int) -> LsuRequest:
         return LsuRequest(
@@ -133,7 +134,7 @@ async def burst_write_read_word(tb: LsuTB, log, burst_len):
     shutdown_delay=1,
     shutdown_loops=1,
 )
-@LsuTB.parameter("cmd", bool, [LsuCmd.STORE_WORD, LsuCmd.LOAD_WORD])
+@pytest.mark.parametrize("cmd", [LsuCmd.STORE_WORD, LsuCmd.LOAD_WORD])
 async def bus_error(tb: LsuTB, log, cmd):
     tb.schedule(
         lsu_drive_seq(

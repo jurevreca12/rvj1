@@ -2,7 +2,7 @@
 {
 	"name": "IIC-OSIC-TOOLS",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "jurevreca12/iic-osic-tools-plus:0.13",
+	"image": "jurevreca12/iic-osic-tools-plus:0.16",
 	"pullPolicy": "ifNotPresent",
 	"runArgs": [
 		"--volume=/dev:/dev",
@@ -29,5 +29,5 @@
 	}
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+	//"remoteUser": "root"
 }

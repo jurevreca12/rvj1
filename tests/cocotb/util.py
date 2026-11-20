@@ -66,8 +66,8 @@ def get_buildargs(config, WAVES=False, sim='verilator'):
     buildargs = DEFAULT_ARGS
     buildargs += ["-f", f"{root_dir}/build/{config}/config/sim_sources.flist"]
     if WAVES:
-        if sim == verilator:
-            buildargs += ['--trace-fst', '--trace-structs']
+        if sim == "verilator":
+            buildargs += ['--trace', '--trace-structs']
     return  buildargs
 
 def get_parameters(config):
