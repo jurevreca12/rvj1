@@ -76,8 +76,6 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
   };
   dm::hartinfo_t hartinfo = HartInfo;
 
-  //assign hwsw_rstn = rstn && ~ndmreset;
-
   mgr_obi_a_t obi_a_chans_mgr        [NumManagers];
   logic       obi_agnt_signals_mgr   [NumManagers];
   mgr_obi_r_t obi_r_chans_mgr        [NumManagers];
@@ -299,8 +297,5 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
     .tdo_oe_o        ()
   );
 
-  initial begin
-    $display("---------------- %d ------------", MEM_SIZE_WORDS);
-  end
 
 endmodule

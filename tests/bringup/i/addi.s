@@ -9,5 +9,5 @@ _end:
     j _end
     .section .data
     .section .rodata
-    .ascii "{1: 0, 2: 0, 3: 1, 4: 0, 5: 0x8000_0000, 6: 1}"
+    .ascii "{1: 2, 2: 1}"
 

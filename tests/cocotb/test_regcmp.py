@@ -4,7 +4,7 @@ import tempfile
 import datetime
 import pytest
 from forastero.monitor import MonitorEvent
-from cocotb.triggers import ClockCycles, ValueChange
+from cocotb.triggers import ClockCycles, ValueChange, with_timeout
 from rvfi.io import RvfiIO
 from rvj1.sequence import irq_rand_seq
 from riscv.sim import sim_t
@@ -45,31 +45,32 @@ async def test_regcmp(
         log
     )
 
-    # See if user left expected results in ELF file.
+    # get expected results in ELF file.
     exp_sim_res = elf_expected_results(elf, log)
-    if exp_sim_res is not None:
-        for reg, exp_val in exp_sim_res.items():
-            spike_val = (spike_sim_res[reg] & 0xFFFF_FFFF)
-            assert spike_val == exp_val, (
-                f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
-                f"Spike: {hex(spike_val)}, Expected: {hex(exp_val)}"
-            )
+    for reg, exp_val in exp_sim_res.items():
+        spike_val = (spike_sim_res[reg] & 0xFFFF_FFFF)
+        assert spike_val == exp_val, (
+            f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
+            f"Spike: {hex(spike_val)}, Expected: {hex(exp_val)}"
+        )
 
     # Now run the RTL simulation on DUT and compare results with spike simulation.
     regfile_inst = tb.dut.rvj1_inst.rvj1_inst.regfile_inst
-    while True:
-        import pdb; pdb.set_trace()
-        await ClockCycles(tb.clk, 1) #ValueChange(regfile_inst.regfile[31])
-        if regfile_inst.regfile[31].value == 1:
-            log.info(f"Reached exit condition (x31 == 1), ending RTL simulation.")
-            break
+    await with_timeout(
+        ValueChange(regfile_inst.regfile[31]),
+        1000,
+        "ns"
+    )
+    if regfile_inst.regfile[31].value == 1:
+        log.info(f"Reached exit condition (x31 == 1), ending RTL simulation.")
 
     # Compare RTL simulation results with spike simulation results.
     rtl_sim_res = {i: regfile_inst.regfile[i].value for i in range(32)}
-    for reg, rtl_val in rtl_sim_res.items():
-        assert rtl_val == spike_sim_res[reg], (
-            f"RTL simulation result for register x{reg} does not match spike simulation result. "
-            f"RTL: {hex(rtl_val)}, Spike: {hex(spike_sim_res[reg])}"
+    for reg, exp_val in exp_sim_res.items():
+        rtl_val = rtl_sim_res[reg]
+        assert rtl_val == exp_val, (
+            f"RTL simulation result for register x{reg} does not match expected simulation result. "
+            f"RTL: {hex(rtl_val)}, Expected: {hex(exp_val)}"
         )
 
 
@@ -117,8 +118,8 @@ def elf_expected_results(elf_file, log) -> dict | None:
                 exp_results = ast.literal_eval(section.data().decode('ascii'))
                 return exp_results
             except Exception as e:
-                log.warning(f"Failed to parse expected results from .rodata section: {e}")
+                log.warning(f"Failed to parse expected results from .rodata section:")
+                raise e
         else:
-            log.warning(f"No expected results found in ELF file: {elf_file}")  
-    return None
+            raise ValueError(f"No expected results found in ELF file: {elf_file}")  
 
