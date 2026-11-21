@@ -43,6 +43,7 @@ def pytest_addoption(parser):
         default=None,
         help="Run this ELF instead of discovering ELFs; may be repeated",
     )
+    parser.addoption("--case", action="append", default=[])
 
 
 def pytest_generate_tests(metafunc):
@@ -55,9 +56,9 @@ def pytest_generate_tests(metafunc):
             f"{metafunc.definition.name} needs @pytest.mark.elf_group('regcmp' or 'cosim')"
         )
 
-    group = marker.args[0]
-    if group not in ELF_GROUP_DIRS:
-        raise pytest.UsageError(f"Unknown ELF group: {group}")
+    elf_group = marker.args[0]
+    if elf_group not in ELF_GROUP_DIRS:
+        raise pytest.UsageError(f"Unknown ELF group: {elf_group}")
 
     requested_configs = metafunc.config.getoption("--config")
     configs = requested_configs if requested_configs else CONFIGS
@@ -67,11 +68,10 @@ def pytest_generate_tests(metafunc):
         raise pytest.UsageError(f"Unknown config(s): {', '.join(sorted(unknown))}")
 
     explicit_elfs = metafunc.config.getoption("--elf")
-    cases = []
-    grouped_cases = []
+    rows = []
 
     for config in configs:
-        for directory in ELF_GROUP_DIRS[group]:
+        for directory in ELF_GROUP_DIRS[elf_group]:
             mf = os.path.abspath(
                 os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
             )
@@ -84,7 +84,7 @@ def pytest_generate_tests(metafunc):
             )
             elfs  = sorted(
                 (directory, elf)
-                for directory in ELF_GROUP_DIRS[group]
+                for directory in ELF_GROUP_DIRS[elf_group]
                 for elf in Path(os.path.join(config_build, directory)).rglob("*.elf")
             )
         missing = [elf[1] for elf in elfs if not elf[1].is_file()]
@@ -94,44 +94,56 @@ def pytest_generate_tests(metafunc):
             )
         if not elfs:
             raise pytest.UsageError(
-                f"No ELFs found for group {group!r}, config {config!r}"
+                f"No ELFs found for elf group {elf_group!r}, config {config!r}"
             )
-
-        for elf in elfs:
-            grouped_cases.append((config, elf[0], elf[1]))
-            cases.append((config, elf[1]))
-
-    ids = [f"{config}-{test_dir}-{elf.stem}" for config, test_dir, elf in grouped_cases]
+        for directory, elf in elfs:
+            rows.append(
+                pytest.param(
+                    config,
+                    elf,
+                    id=f"{config}-{directory}-{elf.stem}",
+                )
+            )
 
     # Each row pairs exactly one config with one ELF.
     # The config value is passed to cpu_fixture via request.param.
     metafunc.parametrize(
         ("cpu_build", "elf"),
-        cases,
+        rows,
         indirect=["cpu_build"],
-        ids=ids,
         scope="session"
     )
 
-def pytest_collection_modifyitems(items):
-    order0 = {
-        "regcmp": 0,
-        "cosim": 1,
-    }
-    order1 = {
-        "bringup": 0,
-        "rvgen": 1,
-        "riscv-tests": 2,
-        "explicit": 3
-    }
-    orders = [order0, order1]
-    for order in orders:
-        items.sort(
-            key=lambda item: (
-                order.get(item.originalname or item.name.split("[")[0], 99),
-                item.nodeid,
-            )
-        )
+def pytest_collection_modifyitems(config, items):
+    cases = config.getoption("--case")
+    if cases:
+        selected = [
+            item for item in items
+            if any(item.nodeid.endswith(f"[{case}]") for case in cases)
+        ]
+        deselected = [item for item in items if item not in selected]
+
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+            items[:] = selected
+    # order0 = {
+    #     "regcmp": 0,
+    #     "cosim": 1,
+    # }
+    # order1 = {
+    #     "bringup": 0,
+    #     "rvgen": 1,
+    #     "riscv-tests": 2,
+    #     "explicit": 3
+    # }
+    # orders = [order0, order1]
+    # for order in orders:
+    #     items.sort(
+    #         key=lambda item: (
+    #             order.get(item.originalname or item.name.split("[")[0], 99),
+    #             item.nodeid,
+    #         )
+    #     )
 
 
 @pytest.fixture(scope="session")
@@ -167,16 +179,24 @@ def cpu_build(request: FixtureRequest):
     return (runner, hdl_toplevel, build_dir)
 
 @pytest.fixture()
-def cpu_fixture(request: FixtureRequest, cpu_build, elf) -> Callable[[], Any] | SimHandleBase:
+def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHandleBase:
     (runner, hdl_toplevel, build_dir) = cpu_build
+    config = request.node.callspec.params["cpu_build"]
+    elf = request.node.callspec.params["elf"]
+    import re
+    case_id = f"{config}-bringup-{elf.stem}"
+    test_filter = rf".*{re.escape(case_id)}\]$"
     hex_file = elf2hex(elf)
     # results_xml = Path(build_dir).parent.joinpath(
     #    elf.relative_to(Path(build_dir).parent.parent)
     # ).joinpath('results.xml')
+    #import pdb; pdb.set_trace()
+    #return case_id
     return lambda: runner.test(
         hdl_toplevel=hdl_toplevel,
         hdl_toplevel_lang='verilog',
         test_module="test_regcmp",
+        test_filter=test_filter,
         plusargs=[f"+MEM_INIT_FILE={str(hex_file)}"],
         build_dir=build_dir,
         test_dir=get_make_var("TEST_COCOTB_DIR"),
