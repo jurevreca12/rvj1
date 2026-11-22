@@ -14,10 +14,9 @@ _end:
     j _end
     .section .data
 _data: 
-    .word 0x0
     .section .rodata
     .ascii "{
-            1: 0x80000400,
+            1: 0x8000002c,
             2: 0x0000dead,
             3: 0x0000c0de,
             4: 0x0000dead,
