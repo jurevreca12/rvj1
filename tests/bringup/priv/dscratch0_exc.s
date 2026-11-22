@@ -14,3 +14,6 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{1: 1, 2: 2, 3: 3, 4: 0, 5:5}"

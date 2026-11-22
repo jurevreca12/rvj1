@@ -11,3 +11,6 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "2: EXP_MISA_VAL"

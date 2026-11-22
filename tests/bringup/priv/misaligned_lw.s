@@ -42,3 +42,6 @@ cleanup:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{0:0, 5: 0x8000003c, 6: 0x80000402, 7: 0xDEADC0DE, 9: 0}"
