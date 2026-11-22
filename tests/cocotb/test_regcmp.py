@@ -17,25 +17,30 @@ from elftools.elf.elffile import ELFFile
 DTB_FILE = "/workspaces/rvj1/tests/cocotb/cosim.dtb"
 START_PC = 0x8000_0000
 
+ELF_FILES=(
+    "/workspaces/rvj1/build/rv32i/tests/bringup/i/add.elf",
+    "/workspaces/rvj1/build/rv32i/tests/bringup/i/addi.elf",
+    "/workspaces/rvj1/build/rv32i/tests/bringup/i/andi.elf",
+    "/workspaces/rvj1/build/rv32i/tests/bringup/i/srl.elf",
+)
 
-
-#@CpuTB.testcase(
-#    reset_wait_during=2,
-#    reset_wait_after=2,
-#    timeout=2000000,
-#    shutdown_delay=2000,
-#    shutdown_loops=1,
-#    fixture="cpu_fixture"
-#)
+@CpuTB.testcase(
+   reset_wait_during=2,
+   reset_wait_after=2,
+   timeout=2000000,
+   shutdown_delay=2000,
+   shutdown_loops=1,
+   fixture="cpu_fixture"
+)
 @pytest.mark.cocotb
 @pytest.mark.elf_group("regcmp")
-async def test_regcmp( # async
- #   tb: CpuTB,
+async def test_regcmp(
+    tb: CpuTB,
     cpu_fixture,
     elf,
-#    log
+    log
 ):
-    print(f"Running test on {cpu_fixture} with ELF file:{elf}") # log.infoq
+    log.info(f"Running test on {cpu_fixture} with ELF file:{elf}")
 
     # # Get expected result from spike simulation
     # spike_sim_res = spike_sim_elf(

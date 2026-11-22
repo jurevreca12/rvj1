@@ -16,6 +16,7 @@ from pytest import FixtureRequest, Module
 from cocotb.handle import SimHandleBase
 from cocotb_tools._pytest.fixtures import dut
 from cocotb_tools.runner import get_runner
+import cocotb
 
 ROOT_DIR   = get_make_var("ROOT_DIR")
 CONFIGS    = get_valid_configs()
@@ -96,6 +97,10 @@ def pytest_generate_tests(metafunc):
             raise pytest.UsageError(
                 f"No ELFs found for elf group {elf_group!r}, config {config!r}"
             )
+        if cocotb.is_simulation:
+            #from remote_pdb import RemotePdb; rpdb = RemotePdb("127.0.0.1", 4000)
+            #rpdb.set_trace()
+            elfs = [("bringup", Path(os.environ["ELF_FILE"]))]
         for directory, elf in elfs:
             rows.append(
                 pytest.param(
@@ -104,7 +109,9 @@ def pytest_generate_tests(metafunc):
                     id=f"{config}-{directory}-{elf.stem}",
                 )
             )
-
+    #if cocotb.is_simulation:
+    #    from remote_pdb import RemotePdb; rpdb = RemotePdb("127.0.0.1", 4000)
+    #    rpdb.set_trace()
     # Each row pairs exactly one config with one ELF.
     # The config value is passed to cpu_fixture via request.param.
     metafunc.parametrize(
@@ -126,24 +133,24 @@ def pytest_collection_modifyitems(config, items):
         if deselected:
             config.hook.pytest_deselected(items=deselected)
             items[:] = selected
-    # order0 = {
-    #     "regcmp": 0,
-    #     "cosim": 1,
-    # }
-    # order1 = {
-    #     "bringup": 0,
-    #     "rvgen": 1,
-    #     "riscv-tests": 2,
-    #     "explicit": 3
-    # }
-    # orders = [order0, order1]
-    # for order in orders:
-    #     items.sort(
-    #         key=lambda item: (
-    #             order.get(item.originalname or item.name.split("[")[0], 99),
-    #             item.nodeid,
-    #         )
-    #     )
+    order0 = {
+        "regcmp": 0,
+        "cosim": 1,
+    }
+    order1 = {
+        "bringup": 0,
+        "rvgen": 1,
+        "riscv-tests": 2,
+        "explicit": 3
+    }
+    orders = [order0, order1]
+    for order in orders:
+        items.sort(
+            key=lambda item: (
+                order.get(item.originalname or item.name.split("[")[0], 99),
+                item.nodeid,
+            )
+        )
 
 
 @pytest.fixture(scope="session")
@@ -156,12 +163,12 @@ def cpu_build(request: FixtureRequest):
     # Call bender make for this config, to make sure the flist file exists
     gen_bender_flist(config)
 
-    option = request.config.option
     runner = get_runner('verilator')
 
     hdl_toplevel = get_config_var("TOP_SIM", config)
+    #import pdb; pdb.set_trace()
     runner.build(
-        always=False,
+        always=True,
         sources=[],  # flist
         includes=[], # flist
         defines={
@@ -183,20 +190,13 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
     (runner, hdl_toplevel, build_dir) = cpu_build
     config = request.node.callspec.params["cpu_build"]
     elf = request.node.callspec.params["elf"]
-    import re
-    case_id = f"{config}-bringup-{elf.stem}"
-    test_filter = rf".*{re.escape(case_id)}\]$"
     hex_file = elf2hex(elf)
-    # results_xml = Path(build_dir).parent.joinpath(
-    #    elf.relative_to(Path(build_dir).parent.parent)
-    # ).joinpath('results.xml')
+    #return str(cpu_build)
     #import pdb; pdb.set_trace()
-    #return case_id
     return lambda: runner.test(
         hdl_toplevel=hdl_toplevel,
         hdl_toplevel_lang='verilog',
         test_module="test_regcmp",
-        test_filter=test_filter,
         plusargs=[f"+MEM_INIT_FILE={str(hex_file)}"],
         build_dir=build_dir,
         test_dir=get_make_var("TEST_COCOTB_DIR"),
