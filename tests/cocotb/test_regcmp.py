@@ -14,7 +14,7 @@ from cpu_tb import CpuTB
 import cocotb
 from elftools.elf.elffile import ELFFile
 
-DTB_FILE = "/workspaces/rvj1/tests/cocotb/cosim.dtb"
+DTB_FILE = "/workspaces/rvj1/tests/cocotb/cosim-rv32i.dtb"
 START_PC = 0x8000_0000
 
 ELF_FILES=(
@@ -105,8 +105,10 @@ def spike_sim_elf(elf_file, isa, dtb_file, start_pc, log) -> dict:
     assert (hart0.state.pc & 0xFFFF_FFFF) == start_pc, (
         f"After 5 steps PC should be {hex(start_pc)}, not {hex(hart0.state.pc)}."
     )
+    #log.warning(f"misa = {hex(hart0.get_csr(0x301))}")
     while True:
         hart0.step(1)
+        #log.warning(f"pc = {hex(hart0.state.pc)}, x5 = {hex(hart0.state.XPR[5])}")
         if hart0.state.XPR[31] == 1:
             log.info(f"Reached exit condition (x31 == 1), ending spike simulation.")
             break

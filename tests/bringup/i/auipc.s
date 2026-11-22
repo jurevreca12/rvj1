@@ -11,9 +11,4 @@ _end:
     j _end
     .section .data
     .section .rodata
-    .ascii "{
-            1:  0x8000_0000, 
-            2:  0x8000_0000 + 4   + (1 << 12), 
-            3: (0x8000_0000 + 8   + 0x8000_0000) & 0xFFFF_FFFF, 
-            4: (0x8000_0000 + 0xC + 0xffff_f000) & 0xFFFF_FFFF
-    }"
+    .ascii "{1: 0x8000_0000, 2: 0x8000_1004, 3: 0x8, 4: 0x7ffff00c}"
