@@ -15,3 +15,6 @@ target:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{0:0, 1: 1, 2:0, 3: 0, 5:0x80000010, 6:0x80000016, 7:1}"

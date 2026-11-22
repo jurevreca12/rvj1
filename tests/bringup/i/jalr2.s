@@ -12,3 +12,14 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{
+            1: 0x80000000,
+            3: 3,
+            10: 0x8000000c,
+            4: 0,
+            5: 0,
+            6: 6,
+            7: 7,
+        }

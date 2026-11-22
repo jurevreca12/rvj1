@@ -8,3 +8,11 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{
+            1: 0xfebed000, 
+            2: 0xed000000, 
+            3: 0xfafb4000, 
+            4: 0xed000000
+        }"

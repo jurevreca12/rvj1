@@ -24,3 +24,6 @@ br4:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{0: 0, 1: 1, 2: 2, 3: 3, 4: 0, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 3}"

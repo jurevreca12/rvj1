@@ -7,3 +7,6 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{1: 0x7FF, 2: 0x7FF, 3: 0xfffff800}"

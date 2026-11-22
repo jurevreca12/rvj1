@@ -18,6 +18,16 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
-
     .section .data
-_data: .word 0x0
+_data: 
+    .word 0x0
+    .section .rodata
+    .ascii "{
+            1: 0x80000400,
+            2: 0x000000de,
+            3: 0xffffffde,
+            4: 0xffffffc0,
+            5: 0xffffffad,
+            6: 0xffffffde,
+            31: 0x1
+        }"

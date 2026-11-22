@@ -15,3 +15,16 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
+    .section .data
+    .section .rodata
+    .ascii "{
+            1: 0xfebed123,
+            2: 0xdeadb234,
+            3: 0x000004d2,
+            4: 0xfebff337, 
+            5: 0xfebff337,
+            6: 0xfebed123,
+            7: 0xdeadb6f6,
+            8: 0xfebff337,
+            9: 0xfebed5f3
+        }"

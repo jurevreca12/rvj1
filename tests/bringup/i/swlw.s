@@ -10,6 +10,14 @@ _start:
     addi x31, x0, 1
 _end:
     j _end
-
     .section .data
-_data: .word 0x0
+_data: 
+    .word 0x0
+    .section .rodata
+    .ascii "{
+            1: 0x80000400,
+            2: 0xdeadc0de,
+            3: 0xdeadc0de,
+            4: 0xdeadc0de,
+            31: 0x1
+        }"

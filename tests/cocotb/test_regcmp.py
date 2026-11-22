@@ -42,42 +42,42 @@ async def test_regcmp(
 ):
     log.info(f"Running test on {cpu_fixture} with ELF file:{elf}")
 
-    # # Get expected result from spike simulation
-    # spike_sim_res = spike_sim_elf(
-    #     elf, 
-    #     "rv32i_zicsr", 
-    #     DTB_FILE, 
-    #     START_PC,
-    #     log
-    # )
+    # Get expected result from spike simulation
+    spike_sim_res = spike_sim_elf(
+        elf, 
+        "rv32i_zicsr", 
+        DTB_FILE, 
+        START_PC,
+        log
+    )
 
-    # # get expected results in ELF file.
-    # exp_sim_res = elf_expected_results(elf, log)
-    # for reg, exp_val in exp_sim_res.items():
-    #     spike_val = (spike_sim_res[reg] & 0xFFFF_FFFF)
-    #     assert spike_val == exp_val, (
-    #         f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
-    #         f"Spike: {hex(spike_val)}, Expected: {hex(exp_val)}"
-    #     )
+    # get expected results in ELF file.
+    exp_sim_res = elf_expected_results(elf, log)
+    for reg, exp_val in exp_sim_res.items():
+        spike_val = (spike_sim_res[reg] & 0xFFFF_FFFF)
+        assert spike_val == exp_val, (
+            f"Spike simulation result for register x{reg} does not match expected value from ELF file. "
+            f"Spike: {hex(spike_val)}, Expected: {hex(exp_val)}"
+        )
 
-    # # Now run the RTL simulation on DUT and compare results with spike simulation.
-    # regfile_inst = tb.dut.rvj1_inst.rvj1_inst.regfile_inst
-    # await with_timeout(
-    #     ValueChange(regfile_inst.regfile[31]),
-    #     1000,
-    #     "ns"
-    # )
-    # if regfile_inst.regfile[31].value == 1:
-    #     log.info(f"Reached exit condition (x31 == 1), ending RTL simulation.")
+    # Now run the RTL simulation on DUT and compare results with spike simulation.
+    regfile_inst = tb.dut.rvj1_inst.rvj1_inst.regfile_inst
+    await with_timeout(
+        ValueChange(regfile_inst.regfile[31]),
+        1000,
+        "ns"
+    )
+    if regfile_inst.regfile[31].value == 1:
+        log.info(f"Reached exit condition (x31 == 1), ending RTL simulation.")
 
-    # # Compare RTL simulation results with spike simulation results.
-    # rtl_sim_res = {i: regfile_inst.regfile[i].value for i in range(32)}
-    # for reg, exp_val in exp_sim_res.items():
-    #     rtl_val = rtl_sim_res[reg]
-    #     assert rtl_val == exp_val, (
-    #         f"RTL simulation result for register x{reg} does not match expected simulation result. "
-    #         f"RTL: {hex(rtl_val)}, Expected: {hex(exp_val)}"
-    #     )
+    # Compare RTL simulation results with spike simulation results.
+    rtl_sim_res = {i: regfile_inst.regfile[i].value for i in range(32)}
+    for reg, exp_val in exp_sim_res.items():
+        rtl_val = rtl_sim_res[reg]
+        assert rtl_val == exp_val, (
+            f"RTL simulation result for register x{reg} does not match expected simulation result. "
+            f"RTL: {hex(rtl_val)}, Expected: {hex(exp_val)}"
+        )
 
 
 def spike_sim_elf(elf_file, isa, dtb_file, start_pc, log) -> dict:
