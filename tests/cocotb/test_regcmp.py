@@ -40,7 +40,6 @@ async def test_regcmp(
     # Get expected result from spike simulation
     spike_sim_res = spike_sim_elf(
         elf, 
-        "rv32i_zicsr", 
         os.environ['DTB_FILE'], 
         START_PC,
         log
@@ -75,11 +74,10 @@ async def test_regcmp(
         )
 
 
-def spike_sim_elf(elf_file, isa, dtb_file, start_pc, log) -> dict:
+def spike_sim_elf(elf_file, dtb_file, start_pc, log) -> dict:
     "Simulates the elf file using spike and returns the final register state."
     # Setup simulator
     sim_cfg = cfg_t(
-        isa=isa,
         priv="m",
         mem_layout=[mem_cfg_t(0x8000_0000, 0x1000_0000)],
         start_pc=start_pc
@@ -126,9 +124,5 @@ def elf_expected_results(elf_file, log) -> dict | None:
                 raise e
         else:
             raise ValueError(f"No expected results found in ELF file: {elf_file}")  
-        for reg, val in exp_results.items():
-            if (type(val) == str) and val == "EXP_MISA_VAL":
-                exp_results[reg] = 0x4000_0100
-
         return exp_results
 

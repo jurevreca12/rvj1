@@ -23,7 +23,6 @@ _data:
     .word 0x0
     .section .rodata
     .ascii "{
-            1: 0x80000044,
             2: 0x000000de,
             3: 0xffffffde,
             4: 0xffffffc0,

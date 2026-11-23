@@ -14,7 +14,6 @@ _end:
 _data: 
     .section .rodata
     .ascii "{
-            1: 0x80000024,
             2: 0xdeadc0de,
             3: 0xdeadc0de,
             4: 0xdeadc0de,

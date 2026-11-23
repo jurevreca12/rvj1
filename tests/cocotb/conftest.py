@@ -24,6 +24,9 @@ ELF_GROUP_DIRS = {
     "regcmp": ["bringup"],
     "cosim": ["rvgen", "riscv-tests"],
 }
+SKIP_LIST = (
+    "rv32ic-bringup-misaligned_jal", # C extension has no misaligned jumps
+)
 
 WAVES      = os.getenv("WAVES",        default=False)
 RVFI       = os.getenv("RVFI",         default=True)
@@ -102,6 +105,8 @@ def pytest_generate_tests(metafunc):
                 f"No ELFs found for elf group {elf_group!r}, config {config!r}"
             )
         for directory, elf in elfs:
+            if f"{config}-{directory}-{elf.stem}" in SKIP_LIST:
+                continue
             rows.append(
                 pytest.param(
                     config,
