@@ -11,6 +11,8 @@ from riscv.debug_module import debug_module_config_t
 from elftools.elf.elffile import ELFFile
 from cpu_tb import CpuTB
 
+START_PC = 0x8000_0000
+
 MCYCLE   = 0xB00
 MINSTRET = 0xB02
 MIP      = 0x344
@@ -30,42 +32,40 @@ CSRS = [
     timeout=2000000,
     shutdown_delay=2000,
     shutdown_loops=1,
+    fixture="cpu_fixture"
 )
-@pytest.mark.parametrize("dtb_file", ["/foss/designs/rvj1/tb/cocotb/cosim.dtb",])
-@pytest.mark.parametrize("start_pc", [0x8000_0000,])
-@pytest.mark.parametrize("generate_irqs", [True,])
+@pytest.mark.cocotb
+@pytest.mark.elf_group("cosim")
 async def test_cosim(
     tb: CpuTB,
-    log,
-    generate_irqs,
-    dtb_file,
-    start_pc,
+    cpu_fixture,
+    elf,
+    log
 ):
-    elf_file  = os.environ.get("ELF_FILE")
-    log.info(f"Running test with ELF file: {elf_file}")
+    generate_irqs = False
+    log.info(f"Running test with ELF file: {elf}")
     exit_addr = int(os.environ.get("EXIT_ADDR"))
     # Setup simulator
     sim_cfg = cfg_t(
-        isa="rv32ic_zicsr",
         priv="m",
         mem_layout=[mem_cfg_t(0x8000_0000, 0x1000_0000)],
-        start_pc=start_pc
+        start_pc=START_PC
     )
     spike = sim_t(
         cfg = sim_cfg,
         halted = False,
         dtb_discovery = True,
         plugin_device_factories = [],
-        args = [elf_file,],
-        dtb_file = dtb_file,
+        args = [str(elf),],
+        dtb_file = os.environ['DTB_FILE'],
         dm_config = debug_module_config_t()
     )
     hart0 = spike.get_core(0)
     spike.start() # Initialize simulation (load ELF, setup boot rom)
     hart0.reset()
     hart0.step(5) # Get out of trampoline
-    assert (hart0.state.pc & 0xFFFF_FFFF) == start_pc, (
-        f"After 5 steps PC should be {hex(start_pc)}, not {hex(hart0.state.pc)}."
+    assert (hart0.state.pc & 0xFFFF_FFFF) == START_PC, (
+        f"After 5 steps PC should be {hex(START_PC)}, not {hex(hart0.state.pc)}."
     )
     if generate_irqs:
         tb.schedule(irq_rand_seq(irq_drv=tb.irq_drv), blocking=False)
@@ -113,46 +113,3 @@ def sync_hart_state(rvfi_msg, hart) -> None:
         hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, rvfi_msg.csr_mip_rdata)
         hart.step(1)
         hart.state.mip.backdoor_write_with_mask(0xFFFF_FFFF, 0x0)
-
-@pytest.mark.elf_group("cosim")
-def test_cosim_runner(cpu_fixture, elf):
-    elf_name = elf.split("/")[-1].split('.')[0]
-    now = datetime.datetime.now()
-    now = now.strftime("%Y_%b_%d_%A_%I_%M_%S")
-    hex_str = elf2hex(elf_file)
-    exit_addr = get_exit_addr(elf_file)
-    print(f"Using  the exit address: {hex(exit_addr)}")
-    with tempfile.NamedTemporaryFile(
-      prefix=f"{elf_name}_{now}", 
-      suffix=".hex", 
-      dir=tempfile.gettempdir(), 
-      delete=False) as hex_file:
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-        print(f"Writting HEX to file: {hex_file.name}.")
-        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-        hex_file.write(hex_str)
-
-    cpu_fixture.test(
-        toplevel=cpu_fixture.toplevel,
-        test_module="test_cosim",
-        plusargs=[f"+MEM_INIT_FILE={hex_file.name}"],
-        env={"ELF_FILE": elf_file, "EXIT_ADDR": str(exit_addr)}
-    )
-
-def elf2hex(elf_file) -> str:
-    "Transforms .elf file to hex and writes it to hex_file"
-    hex_str=""
-    with open(elf_file, 'rb') as f:
-        elf = ELFFile(f)
-        for segment in elf.iter_segments():
-            if segment['p_type'] == 'PT_LOAD':
-                addr = segment['p_paddr']
-                assert addr >= 0x8000_0000
-                rel_word_addr = int((addr - 0x8000_0000) / 4)
-                hex_str += f"@{rel_word_addr:08x}\n"
-                data = list(map(lambda d: f"{d:02x}", segment.data()))
-                arr = np.array(data)
-                narr = arr.reshape(-1, 4)
-                for word in narr:
-                    hex_str += word[3] + word[2] + word[1] + word[0] + "\n"
-    return bytes(hex_str, 'utf-8')

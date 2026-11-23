@@ -198,17 +198,20 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
     config = request.node.callspec.params["cpu_build"]
     elf = request.node.callspec.params["elf"]
     hex_file = elf2hex(elf)
+    exit_addr = get_exit_addr(elf)
+    print(f"Using  the exit address: {hex(exit_addr)}")
     return lambda: runner.test(
         hdl_toplevel=hdl_toplevel,
         hdl_toplevel_lang='verilog',
-        test_module="test_regcmp",
+        test_module=request.module.__name__,
         plusargs=[f"+MEM_INIT_FILE={str(hex_file)}"],
         build_dir=build_dir,
         test_dir=get_make_var("TEST_COCOTB_DIR"),
         #results_xml=results_xml,
         extra_env={
             "ELF_FILE": elf,
-            "DTB_FILE": f"/workspaces/rvj1/build/{config}/config/sim.dtb"
+            "DTB_FILE": f"/workspaces/rvj1/build/{config}/config/sim.dtb",
+            "EXIT_ADDR": str(exit_addr),
         },
         verbose=True
     )
