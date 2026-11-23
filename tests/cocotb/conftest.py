@@ -9,7 +9,6 @@ from util import (get_make_var,
                   get_valid_configs, 
                   get_config_var,
                   get_buildargs,
-                  get_parameters,
                   gen_bender_flist,
                   run_make)
 from pytest import FixtureRequest, Module
@@ -72,6 +71,11 @@ def pytest_generate_tests(metafunc):
     rows = []
 
     for config in configs:
+        run_make(
+            makefile="/workspaces/rvj1/common.mk",
+            config=config,
+            target="devtreeblob"
+        )
         for directory in ELF_GROUP_DIRS[elf_group]:
             mf = os.path.abspath(
                 os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
@@ -97,10 +101,6 @@ def pytest_generate_tests(metafunc):
             raise pytest.UsageError(
                 f"No ELFs found for elf group {elf_group!r}, config {config!r}"
             )
-        if cocotb.is_simulation:
-            #from remote_pdb import RemotePdb; rpdb = RemotePdb("127.0.0.1", 4000)
-            #rpdb.set_trace()
-            elfs = [("bringup", Path(os.environ["ELF_FILE"]))]
         for directory, elf in elfs:
             rows.append(
                 pytest.param(
@@ -109,9 +109,10 @@ def pytest_generate_tests(metafunc):
                     id=f"{config}-{directory}-{elf.stem}",
                 )
             )
-    #if cocotb.is_simulation:
-    #    from remote_pdb import RemotePdb; rpdb = RemotePdb("127.0.0.1", 4000)
-    #    rpdb.set_trace()
+    if cocotb.is_simulation:
+        current_elf = Path(os.environ["ELF_FILE"])
+        rows = list(filter(lambda row: (row.values[1] == current_elf), rows))
+
     # Each row pairs exactly one config with one ELF.
     # The config value is passed to cpu_fixture via request.param.
     metafunc.parametrize(
@@ -166,7 +167,6 @@ def cpu_build(request: FixtureRequest):
     runner = get_runner('verilator')
 
     hdl_toplevel = get_config_var("TOP_SIM", config)
-    #import pdb; pdb.set_trace()
     runner.build(
         always=True,
         sources=[],  # flist
@@ -178,7 +178,9 @@ def cpu_build(request: FixtureRequest):
         },
         hdl_toplevel=hdl_toplevel,
         build_args=get_buildargs(config, WAVES, 'verilator'),
-        parameters=get_parameters(config),
+        parameters={
+            'CompressedEnabled': int('c' in config)
+        },
         build_dir=str(build_dir),
         verbose=False,
         waves=False, # use buildargs for waveform gen (to get fst)
@@ -191,8 +193,6 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
     config = request.node.callspec.params["cpu_build"]
     elf = request.node.callspec.params["elf"]
     hex_file = elf2hex(elf)
-    #return str(cpu_build)
-    #import pdb; pdb.set_trace()
     return lambda: runner.test(
         hdl_toplevel=hdl_toplevel,
         hdl_toplevel_lang='verilog',
@@ -201,6 +201,9 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
         build_dir=build_dir,
         test_dir=get_make_var("TEST_COCOTB_DIR"),
         #results_xml=results_xml,
-        extra_env={"ELF_FILE": elf},
+        extra_env={
+            "ELF_FILE": elf,
+            "DTB_FILE": f"/workspaces/rvj1/build/{config}/config/sim.dtb"
+        },
         verbose=True
     )

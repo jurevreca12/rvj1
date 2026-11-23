@@ -8,6 +8,7 @@ PYTHON    ?= python
 BENDER    ?= bender
 VERILATOR ?= verilator
 RVGEN     ?= rvgen
+DTC       ?= dtc
 
 # Sources
 MKFILE_PATH         := $(abspath $(lastword $(MAKEFILE_LIST)))
@@ -39,6 +40,10 @@ BUILD_TEST_COCOTB_DIR  := $(abspath $(BUILD_TEST_DIR)/cocotb)
 BUILD_TEST_BRINGUP_DIR := $(abspath $(BUILD_TEST_DIR)/bringup)
 BUILD_CONFIG_DIR       := $(abspath $(BUILD_DIR)/config)
 BUILD_CONFIG_SIM_FLIST := $(abspath $(BUILD_CONFIG_DIR)/sim_sources.flist)
+BUILD_CONFIG_DTB       := $(abspath $(BUILD_CONFIG_DIR)/sim.dtb)
+
+
+SCRIPTS_DTS            := $(abspath $(SCRIPTS_DIR)/$(CONFIG).dts)
 
 # GNU
 RISCV_PREFIX  ?= riscv64-unknown-elf-
@@ -47,7 +52,7 @@ RISCV_VMARCH  ?= $(ISA)
 RISCV_GCC     ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
-.PHONY: sim_flist
+.PHONY: sim_flist devtreeblob
 
 # Filelists
 BENDER_SIM_ARGS := -t rtl -t sim 
@@ -57,6 +62,12 @@ $(BUILD_CONFIG_SIM_FLIST): $(BENDER_YAML_FILE)
 	$(BENDER) script flist-plus $(BENDER_SIM_ARGS) > $(BUILD_CONFIG_SIM_FLIST)
 
 sim_flist: $(BUILD_CONFIG_SIM_FLIST)
+
+# Device Tree Blobs
+$(BUILD_CONFIG_DTB): $(SCRIPTS_DTS)
+	$(DTC) -o $(BUILD_CONFIG_DTB) $(SCRIPTS_DTS)
+	
+devtreeblob: $(BUILD_CONFIG_DTB)
 
 # HELPER FUNCTIONS
 

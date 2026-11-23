@@ -70,9 +70,6 @@ def get_buildargs(config, WAVES=False, sim='verilator'):
             buildargs += ['--trace', '--trace-structs']
     return  buildargs
 
-def get_parameters(config):
-    # TODO
-    return {}
 
 def gen_bender_flist(config):
     env = os.environ.copy()

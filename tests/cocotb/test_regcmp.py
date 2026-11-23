@@ -14,7 +14,7 @@ from cpu_tb import CpuTB
 import cocotb
 from elftools.elf.elffile import ELFFile
 
-DTB_FILE = "/workspaces/rvj1/tests/cocotb/cosim-rv32i.dtb"
+
 START_PC = 0x8000_0000
 SPIKE_TIMEOUT = 1000
 
@@ -41,7 +41,7 @@ async def test_regcmp(
     spike_sim_res = spike_sim_elf(
         elf, 
         "rv32i_zicsr", 
-        DTB_FILE, 
+        os.environ['DTB_FILE'], 
         START_PC,
         log
     )
