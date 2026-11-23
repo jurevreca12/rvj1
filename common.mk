@@ -50,11 +50,7 @@ RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 .PHONY: sim_flist
 
 # Filelists
-BENDER_SIM_ARGS := \
-	--keep-excluded-incdirs \
-	-t rtl \
-	-t sim \
-	-t tech_cells_generic_exclude_deprecated
+BENDER_SIM_ARGS := -t rtl -t sim 
 
 $(BUILD_CONFIG_SIM_FLIST): $(BENDER_YAML_FILE)
 	mkdir -p $(BUILD_CONFIG_DIR)

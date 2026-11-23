@@ -16,21 +16,11 @@ package rvj1_sim_pkg;
   localparam int unsigned NBytes    = (DataWidth / 8);
   localparam int unsigned IdWidth   = 4;
 
-  localparam dm::hartinfo_t HartInfo = '{
-    zero0: '0,
-    zero1: '0,
-    nscratch: 2,
-    dataaccess: 1'b1,
-    datasize: dm::DataCount,
-    dataaddr: dm::DataAddr
-  };
-
   localparam int unsigned NumManagers     = 3;
-  localparam int unsigned NumSubordinates = 2;
+  localparam int unsigned NumSubordinates = 1;
 
   typedef enum int {
-    XbarSbrMem   = 0,
-    XbarSbrDbg   = 1
+    XbarSbrMem   = 0
   } xbar_sub_e;
 
   typedef enum int {
@@ -45,8 +35,8 @@ package rvj1_sim_pkg;
     NumManagers, NumSubordinates, AddrWidth, DataWidth, IdWidth
   );
 
-  localparam bit unsigned [xbar_cfg.Subordinates-1:0] UseSrFifoMask = 2'b11;
-  localparam int unsigned SrFifoDepth [xbar_cfg.Subordinates] = '{4,4};
+  localparam bit unsigned [xbar_cfg.Subordinates-1:0] UseSrFifoMask = 1'b1;
+  localparam int unsigned SrFifoDepth [xbar_cfg.Subordinates] = '{4};
 
   typedef struct packed {
         logic [xbar_cfg.IdWidth-1:0]          obi_aid;

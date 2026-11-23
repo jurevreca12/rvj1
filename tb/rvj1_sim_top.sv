@@ -8,12 +8,6 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
   ) (
   input  logic  clk,
   input  logic  rstn,
-
-  input  logic        sim_jtag_tck,
-  input  logic        sim_jtag_tms,
-  input  logic        sim_jtag_tdi,
-  input  logic        sim_jtag_trstn,
-  output logic        sim_jtag_tdo,
   
   input  logic          irq_external_i,
   input  logic          irq_timer_i,
@@ -57,24 +51,6 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
   logic                 obi_data_rerr;
 
   logic                 debug_req;
-  logic                 ndmreset;
-  logic                 dmi_rst_n;
-  logic                 dmi_req_valid;
-  logic                 dmi_req_ready;
-  dm::dmi_req_t         dmi_req;
-  logic                 dmi_resp_valid;
-  logic                 dmi_resp_ready;
-  dm::dmi_resp_t        dmi_resp;
-
-  localparam dm::hartinfo_t HartInfo = '{
-    zero0: '0,
-    zero1: '0,
-    nscratch: 2,
-    dataaccess: 1'b1,
-    datasize: dm::DataCount,
-    dataaddr: dm::DataAddr
-  };
-  dm::hartinfo_t hartinfo = HartInfo;
 
   mgr_obi_a_t obi_a_chans_mgr        [NumManagers];
   logic       obi_agnt_signals_mgr   [NumManagers];
@@ -88,7 +64,6 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
 
   addr_map_t address_map [xbar_cfg.NoMaps];
   assign address_map[XbarSbrMem] = '{idx: 0, base: 32'h8000_0000, mask: 32'hfff8_0000}; 
-  assign address_map[XbarSbrDbg] = '{idx: 1, base: 32'h0000_0000, mask: 32'hfff4_0000};
 
   rvj1_obi #(
     .CompressedEnabled(CompressedEnabled),
@@ -223,78 +198,6 @@ module rvj1_sim_top import rvj1_sim_pkg::*; #(
     .obi_rvalid_o (obi_r_chans_sub[XbarSbrMem].obi_rvalid),
     .obi_rready_i (obi_rready_signals_sub[XbarSbrMem]),
     .obi_rdata_o  (obi_r_chans_sub[XbarSbrMem].obi_rdata)
-  );
-
-  dm_obi_top #(
-    .NrHarts  (1),
-    .BusWidth (DataWidth),
-    .IdWidth  (xbar_cfg.IdWidth + 2),
-    .DmBaseAddress('0)
-  ) dm_obi_top_inst (
-    .clk_i       (clk),
-    .rst_ni      (rstn),
-    .testmode_i  (1'b0),
-    .ndmreset_o  (ndmreset),
-    .dmactive_o  (),
-
-    .debug_req_o   (debug_req),
-    .unavailable_i (1'b0),
-    .hartinfo_i    (hartinfo),
-
-    .slave_req_i       (obi_a_chans_sub[XbarSbrDbg].obi_areq),
-    .slave_we_i        (obi_a_chans_sub[XbarSbrDbg].obi_awe),
-    .slave_addr_i      (obi_a_chans_sub[XbarSbrDbg].obi_aadr),
-    .slave_be_i        (obi_a_chans_sub[XbarSbrDbg].obi_abe),
-    .slave_wdata_i     (obi_a_chans_sub[XbarSbrDbg].obi_awdata),
-    .slave_aid_i       (obi_a_chans_sub[XbarSbrDbg].obi_aid),
-    .slave_gnt_o       (obi_agnt_signals_sub[XbarSbrDbg]),
-    .slave_rvalid_o    (obi_r_chans_sub[XbarSbrDbg].obi_rvalid),
-    .slave_rdata_o     (obi_r_chans_sub[XbarSbrDbg].obi_rdata),
-    .slave_rid_o       (obi_r_chans_sub[XbarSbrDbg].obi_rid),
-
-    .master_req_o      (obi_a_chans_mgr[XbarMgrDbg].obi_areq),
-    .master_addr_o     (obi_a_chans_mgr[XbarMgrDbg].obi_aadr),
-    .master_we_o       (obi_a_chans_mgr[XbarMgrDbg].obi_awe),
-    .master_be_o       (obi_a_chans_mgr[XbarMgrDbg].obi_abe),
-    .master_wdata_o    (obi_a_chans_mgr[XbarMgrDbg].obi_awdata),
-    .master_gnt_i      (obi_agnt_signals_mgr[XbarMgrDbg]),
-    .master_rvalid_i   (obi_r_chans_mgr[XbarMgrDbg].obi_rvalid),
-    .master_rdata_i    (obi_r_chans_mgr[XbarMgrDbg].obi_rdata),
-    .master_err_i      (obi_r_chans_mgr[XbarMgrDbg].obi_rerr),
-    .master_other_err_i(1'b0),
-
-    .dmi_rst_ni        (dmi_rst_n),
-    .dmi_req_valid_i   (dmi_req_valid),
-    .dmi_req_ready_o   (dmi_req_ready),
-    .dmi_req_i         (dmi_req),
-
-    .dmi_resp_valid_o  (dmi_resp_valid),
-    .dmi_resp_ready_i  (dmi_resp_ready),
-    .dmi_resp_o        (dmi_resp)
-  );
-
-  dmi_jtag #(
-    .IdcodeValue(JtagIdCode)
-  ) dmi_jtag_inst (
-    .clk_i  (clk),
-    .rst_ni (rstn),
-    .testmode_i (1'b0),
-
-    .dmi_rst_no      (dmi_rst_n),
-    .dmi_req_o       (dmi_req),
-    .dmi_req_valid_o (dmi_req_valid),
-    .dmi_req_ready_i (dmi_req_ready),
-
-    .dmi_resp_i      (dmi_resp),
-    .dmi_resp_ready_o(dmi_resp_ready),
-    .dmi_resp_valid_i(dmi_resp_valid),
-
-    .tck_i           (sim_jtag_tck),
-    .td_i            (sim_jtag_tdi),
-    .td_o            (sim_jtag_tdo),
-    .tms_i           (sim_jtag_tms),
-    .trst_ni         (sim_jtag_trstn),
-    .tdo_oe_o        ()
   );
 
 

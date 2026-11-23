@@ -6,7 +6,6 @@ package:
 dependencies:
   std-lib:    { git: "https://github.com/jurevreca12/std-lib.git",     rev: 0153ae5 }
   mapped2obi: { git: "https://github.com/jurevreca12/mapped2obi.git",  rev: 06411af }
-  riscv-dbg:  { git: "https://github.com/pulp-platform/riscv-dbg.git", rev: 1cd764a, target: sim}
   obi:        { git: "https://github.com/jurevreca12/obi.git",         rev: 3393b58, target: sim}
 
 export_include_dirs:
@@ -40,5 +39,4 @@ sources:
             - tb/rvj1_test_top.sv
             - tb/rvj1_sim_pkg.sv
             - tb/rvj1_sim_top.sv
-            - tb/rvj1_debug_top.sv
             - tb/rvj1_riscof_tb.sv

@@ -16,13 +16,8 @@ from elftools.elf.elffile import ELFFile
 
 DTB_FILE = "/workspaces/rvj1/tests/cocotb/cosim-rv32i.dtb"
 START_PC = 0x8000_0000
+SPIKE_TIMEOUT = 1000
 
-ELF_FILES=(
-    "/workspaces/rvj1/build/rv32i/tests/bringup/i/add.elf",
-    "/workspaces/rvj1/build/rv32i/tests/bringup/i/addi.elf",
-    "/workspaces/rvj1/build/rv32i/tests/bringup/i/andi.elf",
-    "/workspaces/rvj1/build/rv32i/tests/bringup/i/srl.elf",
-)
 
 @CpuTB.testcase(
    reset_wait_during=2,
@@ -105,11 +100,15 @@ def spike_sim_elf(elf_file, isa, dtb_file, start_pc, log) -> dict:
     assert (hart0.state.pc & 0xFFFF_FFFF) == start_pc, (
         f"After 5 steps PC should be {hex(start_pc)}, not {hex(hart0.state.pc)}."
     )
-    while True:
+    for i in range(SPIKE_TIMEOUT):
         hart0.step(1)
         if hart0.state.XPR[31] == 1:
             log.info(f"Reached exit condition (x31 == 1), ending spike simulation.")
             break
+    else:
+        raise RuntimeError(
+            f"Spike failed to terminate after {SPIKE_TIMEOUT} steps on elf file: {elf_file}."
+        )
     return hart0.state.XPR
 
 
