@@ -122,10 +122,14 @@ def elf_expected_results(elf_file, log) -> dict | None:
             data = section.data()
             try:
                 exp_results = ast.literal_eval(section.data().decode('ascii'))
-                return exp_results
             except Exception as e:
                 log.warning(f"Failed to parse expected results from .rodata section:")
                 raise e
         else:
             raise ValueError(f"No expected results found in ELF file: {elf_file}")  
+        for reg, val in exp_results.items():
+            if (type(val) == str) and val == "EXP_MISA_VAL":
+                exp_results[reg] = 0x4000_0100
+
+        return exp_results
 

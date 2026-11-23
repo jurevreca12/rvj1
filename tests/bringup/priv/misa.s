@@ -13,4 +13,4 @@ _end:
     j _end
     .section .data
     .section .rodata
-    .ascii "2: EXP_MISA_VAL"
+    .ascii "{2: 'EXP_MISA_VAL'}"

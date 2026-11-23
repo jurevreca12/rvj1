@@ -99,6 +99,7 @@ module rvj1_obi import rvj1_pkg::*; #(
   logic                   data_rsp_ready;
 
   rvj1_top #(
+    .CompressedEnabled(CompressedEnabled),
     .BootAddr(BootAddr),
     .DmRomAddr(DmRomAddr),
     .DmExcAddr(DmExcAddr),

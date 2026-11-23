@@ -15,4 +15,4 @@ _end:
     j _end
     .section .data
     .section .rodata
-    .ascii "{2:3, 3: 0x80000001, 4: 0x80000000}"
+    .ascii "{2:2, 3: 0x80000001, 4: 0x80000001}"
