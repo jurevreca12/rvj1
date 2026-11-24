@@ -10,16 +10,16 @@ DEFAULT_ARGS = [
      "-Wno-REDEFMACRO"
 ]
 
-COMMON_MK = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../common.mk")
+MAIN_MK = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../Makefile")
 )
-if not os.path.exists(COMMON_MK):
-    raise FileNotFoundError(f"Could not find makefile: {COMMON_MK}")
+if not os.path.exists(MAIN_MK):
+    raise FileNotFoundError(f"Could not find makefile: {MAIN_MK}")
 
-def get_make_var(var_name, makefile=COMMON_MK):
+def get_make_var(var_name, makefile=MAIN_MK):
     try:
         output = run(
-            ["make", "-f", COMMON_MK, "-p", var_name],
+            ["make", "-f", MAIN_MK, "-p", var_name],
             capture_output=True
         ).stdout.decode('ascii')
     except Exception as e:
@@ -27,21 +27,24 @@ def get_make_var(var_name, makefile=COMMON_MK):
     pattern = rf"^{re.escape(var_name)}\s*:?=\s*(.*)$"
     res = re.search(pattern, output, re.MULTILINE)
     if res is None:
-        raise ValueError(f"Variable {var_name} not found in {COMMON_MK}.")
+        raise ValueError(f"Variable {var_name} not found in {MAIN_MK}.")
     return res.groups()[0]
 
 def run_make(makefile, config, target="all"):
     env = os.environ.copy()
-    env["CONFIG"] = config
-    try:
-        output = run(
-            ["make", "-f", str(makefile), target],
-            env=env,
-            capture_output=True
-        ).stdout.decode('ascii')
-    except Exception as e:
-        print(f"Make error: {output}. Exception: {e}")
-    return output
+    if config:
+        env["CONFIG"] = config
+    make_cmd =  ["make", "-f", str(makefile), target]
+    output = run(
+        make_cmd,
+        env=env,
+        capture_output=True
+    )
+    if output.returncode != 0:
+        raise RuntimeError(
+            f"Failed to run make command: {str(make_cmd)}. Got output: {output.stderr.decode('ascii')}."
+        )
+    return output.stdout.decode('ascii')
 
 CONFIG_DIR = get_make_var("CONFIG_DIR")
 if not os.path.exists(CONFIG_DIR):
@@ -64,7 +67,10 @@ def get_valid_configs():
 def get_buildargs(config, WAVES=False, sim='verilator'):
     root_dir =  get_make_var("ROOT_DIR")
     buildargs = DEFAULT_ARGS
-    buildargs += ["-f", f"{root_dir}/build/{config}/config/sim_sources.flist"]
+    if config in get_valid_configs():
+        buildargs += ["-f", f"{root_dir}/build/{config}/config/sim_sources.flist"]
+    else:
+        buildargs += ["-f", f"{root_dir}/build/{config}/sim_sources.flist"]
     if WAVES:
         if sim == "verilator":
             buildargs += ['--trace', '--trace-structs']
@@ -72,16 +78,11 @@ def get_buildargs(config, WAVES=False, sim='verilator'):
 
 
 def gen_bender_flist(config):
-    env = os.environ.copy()
-    env["CONFIG"] = config
-    try:
-        output = run(
-            ["make", "-f", COMMON_MK, "sim_flist"],
-            env=env,
-            capture_output=True,
-        )
-    except Exception as e:
-        print(f"Failed to build sim flist for config {config}. Output: {output}.")
+    if config in get_valid_configs():
+        run_make(makefile=MAIN_MK, config=config, target="sim_flist")
+    else:
+        run_make(makefile=MAIN_MK, config=None, target=f"sim_flist_{config}")
+
 
 def elf2hex(elf_file) -> str:
     "Transforms .elf file to hex and writes it to hex_file"
@@ -122,7 +123,7 @@ def get_exit_addr(elf_file) -> int:
 
 def get_exit_symbol(sym_section) -> str:
     "Based on the elf file determines the exit symbol"
-    candidates = ["write_tohost", "tohost_exit"]
+    candidates = ["write_tohost", "tohost_exit", "_end"]
     for candidate in candidates:
         exit_symbol = sym_section.get_symbol_by_name(candidate)
         if exit_symbol:

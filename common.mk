@@ -42,6 +42,10 @@ BUILD_CONFIG_DIR       := $(abspath $(BUILD_DIR)/config)
 BUILD_CONFIG_SIM_FLIST := $(abspath $(BUILD_CONFIG_DIR)/sim_sources.flist)
 BUILD_CONFIG_DTB       := $(abspath $(BUILD_CONFIG_DIR)/sim.dtb)
 
+BUILD_IFU_DIR          := $(abspath $(ROOT_DIR)/build/rvj1_ifu)
+BUILD_IFU_RVC_DIR      := $(abspath $(ROOT_DIR)/build/rvj1_ifu_rvc)
+BUILD_IFU_SIM_FLIST    := $(abspath $(BUILD_IFU_DIR)/sim_sources.flist)
+BUILD_IFU_RVC_SIM_FLIST:= $(abspath $(BUILD_IFU_RVC_DIR)/sim_sources.flist)
 
 SCRIPTS_DTS            := $(abspath $(SCRIPTS_DIR)/$(CONFIG).dts)
 
@@ -52,25 +56,9 @@ RISCV_VMARCH  ?= $(ISA)
 RISCV_GCC     ?= $(RISCV_PREFIX)gcc
 RISCV_OBJDUMP ?= $(RISCV_PREFIX)objdump
 
-.PHONY: sim_flist devtreeblob
 
-# Filelists
-BENDER_SIM_ARGS := -t rtl -t sim 
-
-$(BUILD_CONFIG_SIM_FLIST): $(BENDER_YAML_FILE)
-	mkdir -p $(BUILD_CONFIG_DIR)
-	$(BENDER) script flist-plus $(BENDER_SIM_ARGS) > $(BUILD_CONFIG_SIM_FLIST)
-
-sim_flist: $(BUILD_CONFIG_SIM_FLIST)
-
-# Device Tree Blobs
-$(BUILD_CONFIG_DTB): $(SCRIPTS_DTS)
-	$(DTC) -o $(BUILD_CONFIG_DTB) $(SCRIPTS_DTS)
-	
-devtreeblob: $(BUILD_CONFIG_DTB)
 
 # HELPER FUNCTIONS
-
 # Convert GNU style arch string to rvgen style arch string
 define gnu2rvgen
 $(patsubst %_zicsr,%,$(1))

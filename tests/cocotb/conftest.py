@@ -149,14 +149,22 @@ def pytest_collection_modifyitems(config, items):
         "riscv-tests": 2,
         "explicit": 3
     }
-    orders = [order0, order1]
+    order2 = {
+        "rvj1_ifu" : 0,
+        "rvj1_ifu_rvc": 1
+    }
+    orders = (order0, order1, order2)
     for order in orders:
         items.sort(
             key=lambda item: (
                 order.get(item.originalname or item.name.split("[")[0], 99),
                 item.nodeid,
             )
-        )
+        )   
+def pytest_collection_finish(session):
+    print("\nFinal collected items:")
+    for item in session.items:
+        print(" ", item.nodeid)
 
 
 @pytest.fixture(scope="session")
@@ -213,5 +221,45 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
             "DTB_FILE": f"/workspaces/rvj1/build/{config}/config/sim.dtb",
             "EXIT_ADDR": str(exit_addr),
         },
+        verbose=True
+    )
+
+
+@pytest.fixture(scope="session", params=["rvj1_ifu", "rvj1_ifu_rvc"])
+def ifu_build(request):
+    build_dir = os.path.join(
+        ROOT_DIR, 'build', request.param, 'sim_build' 
+    )
+    os.makedirs(build_dir, exist_ok=True)
+    config = request.param
+    is_compressed = int(config == "rvj1_ifu_rvc")
+    # Call bender make to make sure the flist file exists
+    gen_bender_flist(config)
+    runner = get_runner('verilator')
+    runner.build(
+        hdl_toplevel = "ifu_mem_test_top",
+        build_args = get_buildargs(config),
+        parameters = {
+            "CompressedEnabled" : is_compressed,
+            "BASE_ADDR": 0x8000_0000, 
+            "MEM_SIZE_WORDS": 64
+        },
+        build_dir=build_dir,
+        always=True,
+        waves = False,
+    )
+    return (runner, request.param, build_dir)
+
+@pytest.fixture()
+def ifu_fixture(request: FixtureRequest, ifu_build) -> Callable[[], Any] | SimHandleBase:
+    (runner, hdl_toplevel, build_dir) = ifu_build
+    return lambda: runner.test(
+        hdl_toplevel="ifu_mem_test_top",
+        hdl_toplevel_lang='verilog',
+        test_module=request.module.__name__,
+        plusargs=[f"+MEM_INIT_FILE=/workspaces/rvj1/tests/cocotb/ifu_test_mem.hex"],
+        build_dir=build_dir,
+        test_dir=get_make_var("TEST_COCOTB_DIR"),
+        #results_xml=results_xml,
         verbose=True
     )

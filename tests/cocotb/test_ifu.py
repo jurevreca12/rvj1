@@ -1,3 +1,4 @@
+import pytest
 from forastero.io import IORole, io_suffix_style
 from forastero import BaseBench
 from forastero.monitor import MonitorEvent
@@ -92,9 +93,9 @@ class IfuTB(BaseBench):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=2,
-
+    fixture="ifu_fixture"
 )
-async def smoke(tb: IfuTB, log):
+async def smoke(ifu_fixture, tb: IfuTB, log):
     await ClockCycles(tb.clk, 10)
 
 
@@ -104,9 +105,9 @@ async def smoke(tb: IfuTB, log):
     timeout=1000,
     shutdown_delay=1,
     shutdown_loops=2,
-
+    fixture="ifu_fixture"
 )
-async def linear_run(tb: IfuTB, log):
+async def linear_run(ifu_fixture, tb: IfuTB, log):
     log.info("Scheduling random backpressure on the decoder interface.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
@@ -119,9 +120,9 @@ async def linear_run(tb: IfuTB, log):
     timeout=1000,
     shutdown_delay=1,
     shutdown_loops=2,
-
+    fixture="ifu_fixture"
 )
-async def run_and_jump(tb: IfuTB, log):
+async def run_and_jump(ifu_fixture, tb: IfuTB, log):
     log.info("Scheduling random backpressure on the decoder interface.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
@@ -136,9 +137,10 @@ async def run_and_jump(tb: IfuTB, log):
     reset_wait_after=0,
     timeout=1000,
     shutdown_delay=0,
-    shutdown_loops=0
+    shutdown_loops=0,
+    fixture="ifu_fixture"
 )
-async def response_error(tb: IfuTB, log):
+async def response_error(ifu_fixture, tb: IfuTB, log):
     log.info("Scheduling random backpressure on the decoder interface.")
     tb.schedule(dec_backpressure_seq(dec=tb.dec_resp_drv), blocking=False)
     log.info("Using the jump interface to set the IFU (boot) address.")
@@ -147,11 +149,3 @@ async def response_error(tb: IfuTB, log):
     await RisingEdge(tb.dec_ready_i)
     await ClockCycles(tb.clk, 10)
 
-
-def test_ifu(ifu_fixture):
-    ifu_fixture.test(
-        toplevel=ifu_fixture.toplevel,
-        test_module="test_ifu",
-        plusargs=["+MEM_INIT_FILE0=/foss/designs/rvj1/tb/cocotb/ifu_test_mem.hex"],
-    )
-  

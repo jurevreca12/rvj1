@@ -32,7 +32,6 @@ sources:
 
     - target: sim
       files:
-            - tb/bytewrite_sram_1w1r.sv
             - tb/bytewrite_sram_wrap.sv
             - tb/ifu_mem_test_top.sv
             - tb/lsu_mem_test_top.sv

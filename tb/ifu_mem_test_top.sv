@@ -13,6 +13,7 @@
 
 /* verilator lint_off IMPORTSTAR */
 module ifu_mem_test_top import rvj1_pkg::*; #(
+    parameter bit CompressedEnabled = 1'b0,
     parameter int BASE_ADDR = 32'h8000_0000,
     parameter int MEM_SIZE_WORDS = 1 << 10
 ) (
@@ -45,72 +46,85 @@ module ifu_mem_test_top import rvj1_pkg::*; #(
 
     logic              dec_compr;
 
-    rvj1_ifu ifu_inst(
-        .clk_i  (clk_i),
-        .rstn_i (rstn_i),
+    generate 
+        if (CompressedEnabled) begin
+            rvj1_ifu_rvc ifu_inst(
+                .clk_i  (clk_i),
+                .rstn_i (rstn_i),
 
-        .instr_req_addr_o   (instr_req_addr),
-        .instr_req_data_o   (instr_req_data),
-        .instr_req_strobe_o (instr_req_strobe),
-        .instr_req_write_o  (instr_req_write),
-        .instr_req_id_o     (instr_req_id),
-        .instr_req_valid_o  (instr_req_valid),
-        .instr_req_ready_i  (instr_req_ready),
+                .instr_req_addr_o   (instr_req_addr),
+                .instr_req_data_o   (instr_req_data),
+                .instr_req_strobe_o (instr_req_strobe),
+                .instr_req_write_o  (instr_req_write),
+                .instr_req_id_o     (instr_req_id),
+                .instr_req_valid_o  (instr_req_valid),
+                .instr_req_ready_i  (instr_req_ready),
 
-        .instr_rsp_data_i   (instr_rsp_data),
-        .instr_rsp_error_i  (instr_rsp_error),
-        .instr_rsp_id_i     (instr_rsp_id),
-        .instr_rsp_valid_i  (instr_rsp_valid),
-        .instr_rsp_ready_o  (instr_rsp_ready),
+                .instr_rsp_data_i   (instr_rsp_data),
+                .instr_rsp_error_i  (instr_rsp_error),
+                .instr_rsp_id_i     (instr_rsp_id),
+                .instr_rsp_valid_i  (instr_rsp_valid),
+                .instr_rsp_ready_o  (instr_rsp_ready),
 
-        .dec_instr_o       (dec_instr_o),
-        .dec_valid_o       (dec_valid_o),
-        .dec_ready_i       (dec_ready_i),
-        .dec_error_o       (dec_error_o),
-        .dec_compr_o       (dec_compr_o),
-        .jmp_addr_valid_i  (jmp_addr_valid_i),
-        .jmp_addr_i        (jmp_addr_i[31:2])
-    );
+                .dec_instr_o       (dec_instr_o),
+                .dec_valid_o       (dec_valid_o),
+                .dec_ready_i       (dec_ready_i),
+                .dec_error_o       (dec_error_o),
+                .dec_compr_o       (dec_compr),
+                .jmp_addr_valid_i  (jmp_addr_valid_i),
+                .jmp_addr_i        (jmp_addr_i[31:1])
+            );
+        end else begin
+            rvj1_ifu ifu_inst(
+                .clk_i  (clk_i),
+                .rstn_i (rstn_i),
+
+                .instr_req_addr_o   (instr_req_addr),
+                .instr_req_data_o   (instr_req_data),
+                .instr_req_strobe_o (instr_req_strobe),
+                .instr_req_write_o  (instr_req_write),
+                .instr_req_id_o     (instr_req_id),
+                .instr_req_valid_o  (instr_req_valid),
+                .instr_req_ready_i  (instr_req_ready),
+
+                .instr_rsp_data_i   (instr_rsp_data),
+                .instr_rsp_error_i  (instr_rsp_error),
+                .instr_rsp_id_i     (instr_rsp_id),
+                .instr_rsp_valid_i  (instr_rsp_valid),
+                .instr_rsp_ready_o  (instr_rsp_ready),
+
+                .dec_instr_o       (dec_instr_o),
+                .dec_valid_o       (dec_valid_o),
+                .dec_ready_i       (dec_ready_i),
+                .dec_error_o       (dec_error_o),
+                .dec_compr_o       (dec_compr),         
+                .jmp_addr_valid_i  (jmp_addr_valid_i),
+                .jmp_addr_i        (jmp_addr_i[31:2])
+            );
+        end
+    endgenerate
 
     bytewrite_sram_wrap #(
-      .IMEM_BASE_ADDR(BASE_ADDR),
-      .DMEM_BASE_ADDR(BASE_ADDR + MEM_SIZE_WORDS),
-      .IMEM_SIZE_WORDS(MEM_SIZE_WORDS),
-      .DMEM_SIZE_WORDS(0),
+      .MEM_BASE_ADDR(BASE_ADDR),
+      .MEM_SIZE_WORDS(MEM_SIZE_WORDS),
       .IDLEN(IDLEN)
     ) main_mem (
         .clk_i    (clk_i),
         .rstn_i   (rstn_i),
 
-        .instr_req_addr_i  (instr_req_addr),
-        .instr_req_data_i  (instr_req_data),
-        .instr_req_strobe_i(instr_req_strobe),
-        .instr_req_write_i (instr_req_write),
-        .instr_req_id_i    (instr_req_id),
-        .instr_req_valid_i (instr_req_valid),
-        .instr_req_ready_o (instr_req_ready),
+        .mem_req_addr_i  (instr_req_addr),
+        .mem_req_data_i  (instr_req_data),
+        .mem_req_strobe_i(instr_req_strobe),
+        .mem_req_write_i (instr_req_write),
+        .mem_req_id_i    (instr_req_id),
+        .mem_req_valid_i (instr_req_valid),
+        .mem_req_ready_o (instr_req_ready),
 
-        .instr_rsp_data_o  (instr_rsp_data),
-        .instr_rsp_error_o (instr_rsp_error),
-        .instr_rsp_id_o    (instr_rsp_id),
-        .instr_rsp_valid_o (instr_rsp_valid),
-        .instr_rsp_ready_i (instr_rsp_ready),
-
-        .data_req_addr_i   ('0),
-        .data_req_data_i   ('0),
-        .data_req_strobe_i ('0),
-        .data_req_write_i  (1'b0),
-        .data_req_id_i     ('0),
-        .data_req_valid_i  (1'b0),
-        // verilator lint_off PINCONNECTEMPTY
-        .data_req_ready_o  (),
-
-        .data_rsp_data_o   (),
-        .data_rsp_error_o  (),
-        .data_rsp_id_o     (),
-        .data_rsp_valid_o  (),
-        // verilator lint_on PINCONNECTEMPTY
-        .data_rsp_ready_i  (1'b0)
+        .mem_rsp_data_o  (instr_rsp_data),
+        .mem_rsp_error_o (instr_rsp_error),
+        .mem_rsp_id_o    (instr_rsp_id),
+        .mem_rsp_valid_o (instr_rsp_valid),
+        .mem_rsp_ready_i (instr_rsp_ready)
     );
 
 endmodule

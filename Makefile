@@ -1,49 +1,38 @@
-.PHONY: all doc vivado lint-verilator clean test docker-build docker-run-it 
+THIS_MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+include $(THIS_MAKEFILE_DIR)/common.mk
 
-MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-MKFILE_DIR := $(dir $(MKFILE_PATH))
-INC_DIR := ${MKFILE_DIR}/rtl/inc
-RTL_DIR := ${MKFILE_DIR}/rtl
-TB_SUPPORT_DIR := ${MKFILE_DIR}/tb/support
+.PHONY: sim_flist sim_flist_rvj1_ifu, sim_flist_rvj1_ifu_rvc 
+.PHONY: devtreeblob 
+.PHONY: devcontainer-up devcontainer-exec
 
-V_FILES := $(shell find ${RTL_DIR} ${TB_SUPPORT_DIR} -name "*.v")
-SV_FILES := $(shell find ${RTL_DIR} ${TB_SUPPORT_DIR} -name "*.sv")
-RTL_FILES := ${V_FILES} ${SV_FILES}
+# Filelists
+BENDER_SIM_ARGS := -t rtl -t sim 
 
-CUID := $(shell id -u)
-CGID := $(shell id -g)
-CWD  := $(abspath $(dir $$PWD))
+$(BUILD_CONFIG_SIM_FLIST): $(BENDER_YAML_FILE)
+	mkdir -p $(BUILD_CONFIG_DIR)
+	$(BENDER) script flist-plus $(BENDER_SIM_ARGS) > $(BUILD_CONFIG_SIM_FLIST)
 
-all: lint-verilator test vivado doc
+$(BUILD_IFU_SIM_FLIST):
+	mkdir -p $(BUILD_IFU_DIR)
+	$(BENDER) script --top ifu_mem_test_top flist-plus $(BENDER_SIM_ARGS) > $(BUILD_IFU_SIM_FLIST)
 
-doc:
-	cd docs && $(MAKE)
+$(BUILD_IFU_RVC_SIM_FLIST):
+	mkdir -p $(BUILD_IFU_RVC_DIR)
+	$(BENDER) script --top ifu_mem_test_top flist-plus $(BENDER_SIM_ARGS) > $(BUILD_IFU_RVC_SIM_FLIST)
 
-vivado:
-	cd impl && $(MAKE) vivado
+sim_flist: $(BUILD_CONFIG_SIM_FLIST)
+sim_flist_rvj1_ifu: $(BUILD_IFU_SIM_FLIST)
+sim_flist_rvj1_ifu_rvc: $(BUILD_IFU_RVC_SIM_FLIST)
 
-lint-verilator:
-	verilator --timescale 1ns/1ps \
-			  -DRVFI \
-			  -DRVFI_TRACE \
-			  -DASSERTIONS \
-			  -lint-only \
-			  -Wall \
-			  -Wno-fatal \
-              -f tb/sources.f \
-			  --top-module rvj1_top
+# Device Tree Blobs
+$(BUILD_CONFIG_DTB): $(SCRIPTS_DTS)
+	$(DTC) -o $(BUILD_CONFIG_DTB) $(SCRIPTS_DTS)
+	
+devtreeblob: $(BUILD_CONFIG_DTB)
 
 devcontainer-up:                                        
-	devcontainer up --workspace-folder $(MKFILE_DIR)      
-                                                        
+	devcontainer up --workspace-folder $(THIS_MAKEFILE_DIR)      
+
 devcontainer-exec:                                      
-	devcontainer exec --workspace-folder $(MKFILE_DIR) bash
+	devcontainer exec --workspace-folder $(THIS_MAKEFILE_DIR) bash
 
-
-clean:
-	cd impl && $(MAKE) clean
-	cd doc && $(MAKE) clean
-	cd tb && $(MAKE) clean
-
-test:
-	cd tb && $(MAKE) all 
