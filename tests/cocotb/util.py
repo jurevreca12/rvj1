@@ -3,6 +3,9 @@ import re
 from subprocess import run
 from elftools.elf.elffile import ELFFile
 import numpy as np
+import logging
+
+_log = logging.getLogger("util")
 
 DEFAULT_ARGS = [
      "-Wno-fatal", 
@@ -35,6 +38,7 @@ def run_make(makefile, config, target="all"):
     if config:
         env["CONFIG"] = config
     make_cmd =  ["make", "-f", str(makefile), target]
+    _log.info(f"Running make {str(make_cmd)} with config {config}.")
     output = run(
         make_cmd,
         env=env,

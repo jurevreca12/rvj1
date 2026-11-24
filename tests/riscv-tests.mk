@@ -16,6 +16,9 @@ BIN_NAMES_ELF     := $(addsuffix .elf, $(RV_TESTS))
 BINS              := $(addprefix $(BENCH_DIR)/, $(BIN_NAMES))
 BUILD_BINS        := $(addprefix $(BUILD_TEST_RVTESTS_DIR)/, $(BIN_NAMES_ELF))
 
+export RISCV_PREFIX RISCV_GCC RISCV_MARCH RISCV_VMARCH XLEN
+export ABI = $(MABI)
+
 .PHONY: all
 all: $(BUILD_BINS)
 

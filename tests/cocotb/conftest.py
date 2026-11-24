@@ -10,7 +10,8 @@ from util import (get_make_var,
                   get_config_var,
                   get_buildargs,
                   gen_bender_flist,
-                  run_make)
+                  run_make,
+                  MAIN_MK)
 from pytest import FixtureRequest, Module
 from cocotb.handle import SimHandleBase
 from cocotb_tools._pytest.fixtures import dut
@@ -75,7 +76,7 @@ def pytest_generate_tests(metafunc):
 
     for config in configs:
         run_make(
-            makefile="/workspaces/rvj1/common.mk",
+            makefile=MAIN_MK,
             config=config,
             target="devtreeblob"
         )
@@ -160,12 +161,7 @@ def pytest_collection_modifyitems(config, items):
                 order.get(item.originalname or item.name.split("[")[0], 99),
                 item.nodeid,
             )
-        )   
-def pytest_collection_finish(session):
-    print("\nFinal collected items:")
-    for item in session.items:
-        print(" ", item.nodeid)
-
+        )
 
 @pytest.fixture(scope="session")
 def cpu_build(request: FixtureRequest):

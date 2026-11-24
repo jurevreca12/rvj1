@@ -26,6 +26,7 @@ sim_flist_rvj1_ifu_rvc: $(BUILD_IFU_RVC_SIM_FLIST)
 
 # Device Tree Blobs
 $(BUILD_CONFIG_DTB): $(SCRIPTS_DTS)
+	mkdir -p $(BUILD_CONFIG_DIR)
 	$(DTC) -o $(BUILD_CONFIG_DTB) $(SCRIPTS_DTS)
 	
 devtreeblob: $(BUILD_CONFIG_DTB)
