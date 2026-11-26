@@ -1,4 +1,5 @@
 import os
+import itertools
 from filelock import FileLock
 from typing import Callable, Any
 from subprocess import run
@@ -50,6 +51,25 @@ def pytest_addoption(parser):
     )
     parser.addoption("--case", action="append", default=[])
 
+def pytest_configure(config):
+    if hasattr(config, "workerinput"):
+        return  # This is an xdist worker.
+
+    configs = config.getoption("--config") or CONFIGS
+    for config_name in configs:
+        run_make(
+            makefile=MAIN_MK,
+            config=config_name,
+            target="devtreeblob",
+        )
+        # Run the other required make targets here too.
+        ELF_DIRS = list(itertools.chain.from_iterable(ELF_GROUP_DIRS.values()))
+        for directory in ELF_DIRS:
+            mf = os.path.abspath(
+                os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
+            )
+            run_make(makefile=mf, config=config_name, target="all")
+
 def pytest_generate_tests(metafunc):
     if "elf" in metafunc.fixturenames:
         generate_elf_cases(metafunc)
@@ -78,16 +98,6 @@ def generate_elf_cases(metafunc):
     rows = []
 
     for config in configs:
-        run_make(
-            makefile=MAIN_MK,
-            config=config,
-            target="devtreeblob"
-        )
-        for directory in ELF_GROUP_DIRS[elf_group]:
-            mf = os.path.abspath(
-                os.path.join(ROOT_DIR, "tests", f"{directory}.mk")
-            )
-            run_make(makefile=mf, config=config, target="all")
         if explicit_elfs:
             elfs = [('explicit', Path(p).expanduser().resolve()) for p in explicit_elfs]
         else:
@@ -242,7 +252,7 @@ def ifu_build(request):
     root_build_dir = Path(
         ROOT_DIR, 'build', config, 'sim_build' 
     )
-    root_build_dir.mkdir(exist_ok=True)
+    root_build_dir.mkdir(exist_ok=True, parents=True)
     build_dir = root_build_dir / 'sim_build'
     lock_path =  root_build_dir / '.lock'
     ready_path = root_build_dir / '.complete'
@@ -286,7 +296,7 @@ def lsu_build(request):
     root_build_dir = Path(
         ROOT_DIR, 'build', 'lsu', 'sim_build' 
     )
-    root_build_dir.mkdir(exist_ok=True)
+    root_build_dir.mkdir(exist_ok=True, parents=True)
     build_dir = root_build_dir / 'sim_build'
     lock_path =  root_build_dir / '.lock'
     ready_path = root_build_dir / '.complete'

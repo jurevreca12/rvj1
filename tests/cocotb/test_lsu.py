@@ -106,6 +106,7 @@ async def basic_write_read_word(lsu_fixture, tb: LsuTB, log):
     fixture="lsu_fixture"
 )
 async def burst_write_read_word(lsu_fixture, tb: LsuTB, log, burst_len):
+    burst_len = int(burst_len)
     def gen_wr_req(i: int) -> LsuRequest:
         return LsuRequest(
             cmd = LsuCmd.STORE_WORD,
