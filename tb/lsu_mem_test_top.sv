@@ -91,45 +91,25 @@ module lsu_mem_test_top import rvj1_pkg::*; #(
     );
 
     bytewrite_sram_wrap #(
-      .IMEM_BASE_ADDR(BASE_ADDR),
-      .DMEM_BASE_ADDR(BASE_ADDR),
-      .IMEM_SIZE_WORDS(0),
-      .DMEM_SIZE_WORDS(MEM_SIZE_WORDS)
+      .MEM_BASE_ADDR(BASE_ADDR),
+      .MEM_SIZE_WORDS(MEM_SIZE_WORDS)
     ) main_mem (
         .clk_i    (clk_i),
         .rstn_i   (rstn_i),
 
-        .instr_req_addr_i  ('0),
-        .instr_req_data_i  ('0),
-        .instr_req_strobe_i('0),
-        .instr_req_write_i (1'b0),
-        .instr_req_id_i    ('0),
-        .instr_req_valid_i (1'b0),
-        // verilator lint_off PINCONNECTEMPTY
-        .instr_req_ready_o (),
-        // verilator lint_on PINCONNECTEMPTY
+        .mem_req_addr_i   (data_req_addr),
+        .mem_req_data_i   (data_req_data),
+        .mem_req_strobe_i (data_req_strobe),
+        .mem_req_write_i  (data_req_write),
+        .mem_req_id_i     (data_req_id),
+        .mem_req_valid_i  (data_req_valid),
+        .mem_req_ready_o  (data_req_ready),
 
-        // verilator lint_off PINCONNECTEMPTY
-        .instr_rsp_data_o  (),
-        .instr_rsp_error_o (),
-        .instr_rsp_id_o    (),
-        .instr_rsp_valid_o (),
-        .instr_rsp_ready_i (1'b0),
-        // verilator lint_onqq PINCONNECTEMPTY
-
-        .data_req_addr_i   (data_req_addr),
-        .data_req_data_i   (data_req_data),
-        .data_req_strobe_i (data_req_strobe),
-        .data_req_write_i  (data_req_write),
-        .data_req_id_i     (data_req_id),
-        .data_req_valid_i  (data_req_valid),
-        .data_req_ready_o  (data_req_ready),
-
-        .data_rsp_data_o   (data_rsp_data),
-        .data_rsp_error_o  (data_rsp_error),
-        .data_rsp_id_o     (data_rsp_id),
-        .data_rsp_valid_o  (data_rsp_valid),
-        .data_rsp_ready_i  (data_rsp_ready)
+        .mem_rsp_data_o   (data_rsp_data),
+        .mem_rsp_error_o  (data_rsp_error),
+        .mem_rsp_id_o     (data_rsp_id),
+        .mem_rsp_valid_o  (data_rsp_valid),
+        .mem_rsp_ready_i  (data_rsp_ready)
     );
 
 

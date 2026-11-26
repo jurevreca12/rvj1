@@ -9,6 +9,10 @@ from rvj1.response import LsuRfMonitor, LsuExcMonitor
 from rvj1.sequence import lsu_drive_seq
 from rvj1.transaction import LsuRequest, LsuCmd, LsuRfResponse, LsuExcResponse
 
+str2cmd = {
+    "STORE": LsuCmd.STORE_WORD,
+    "LOAD": LsuCmd.LOAD_WORD
+}
 
 class LsuTB(BaseBench):
     def __init__(self, dut):
@@ -56,8 +60,9 @@ class LsuTB(BaseBench):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
+    fixture="lsu_fixture"
 )
-async def smoke(tb: LsuTB, log):
+async def smoke(lsu_fixture, tb: LsuTB, log):
     await ClockCycles(tb.clk, 10)
 
 
@@ -67,8 +72,9 @@ async def smoke(tb: LsuTB, log):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
+    fixture="lsu_fixture"
 )
-async def basic_write_read_word(tb: LsuTB, log):
+async def basic_write_read_word(lsu_fixture, tb: LsuTB, log):
     tb.schedule(
         lsu_drive_seq(
             lsu_drv=tb.lsu_drv, 
@@ -97,9 +103,9 @@ async def basic_write_read_word(tb: LsuTB, log):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
+    fixture="lsu_fixture"
 )
-@pytest.mark.parametrize("burst_len", [4, 6, 9])
-async def burst_write_read_word(tb: LsuTB, log, burst_len):
+async def burst_write_read_word(lsu_fixture, tb: LsuTB, log, burst_len):
     def gen_wr_req(i: int) -> LsuRequest:
         return LsuRequest(
             cmd = LsuCmd.STORE_WORD,
@@ -133,9 +139,10 @@ async def burst_write_read_word(tb: LsuTB, log, burst_len):
     timeout=100,
     shutdown_delay=1,
     shutdown_loops=1,
+    fixture="lsu_fixture"
 )
-@pytest.mark.parametrize("cmd", [LsuCmd.STORE_WORD, LsuCmd.LOAD_WORD])
-async def bus_error(tb: LsuTB, log, cmd):
+async def bus_error(lsu_fixture, tb: LsuTB, log, cmd):
+    cmd = str2cmd[cmd]
     tb.schedule(
         lsu_drive_seq(
             lsu_drv=tb.lsu_drv,
@@ -156,32 +163,3 @@ async def bus_error(tb: LsuTB, log, cmd):
         )
     )
     await tb.lsu_exc_mon.wait_for(MonitorEvent.CAPTURE)
-
-
-
-
-#if __name__ == "__main__":
-#    sim = os.getenv("SIM", default="verilator")
-#    build_args = ["-Wno-fatal", "--no-stop-fail", "-Wno-REDEFMACRO"]
-#    if WAVES:
-#        build_args += ["--trace-fst"]
-#    if RVFI:
-#        build_args += [f"-DRVFI"]
-#    if RVFI_TRACE:
-#        build_args += [f"-DRVFI_TRACE"]
-#    if ASSERTIONS:
-#        build_args += [f"-DASSERTIONS"]
-#    runner = get_runner(sim)
-#    runner.build(
-#        sources=get_rtl_files(),
-#        includes=get_inc_dirs(),
-#        build_args=build_args,
-#        hdl_toplevel="lsu_mem_test_top",
-#        parameters={"BASE_ADDR": 0x8000_0000, "MEM_SIZE_WORDS":64},
-#        always=True,
-#        waves=False,
-#    )
-#    runner.test(
-#        hdl_toplevel="lsu_mem_test_top", 
-#        test_module="test_lsu"
-#    )

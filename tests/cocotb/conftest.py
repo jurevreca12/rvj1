@@ -1,4 +1,5 @@
 import os
+from filelock import FileLock
 from typing import Callable, Any
 from subprocess import run
 from pathlib import Path
@@ -49,11 +50,13 @@ def pytest_addoption(parser):
     )
     parser.addoption("--case", action="append", default=[])
 
-
 def pytest_generate_tests(metafunc):
-    if "elf" not in metafunc.fixturenames:
-        return
+    if "elf" in metafunc.fixturenames:
+        generate_elf_cases(metafunc)
+    elif 'lsu_fixture' in metafunc.fixturenames:
+        generate_lsu_cases(metafunc)
 
+def generate_elf_cases(metafunc):
     marker = metafunc.definition.get_closest_marker("elf_group")
     if marker is None or not marker.args:
         raise pytest.UsageError(
@@ -128,6 +131,14 @@ def pytest_generate_tests(metafunc):
         scope="session"
     )
 
+def generate_lsu_cases(metafunc):
+    if "burst_len" in metafunc.fixturenames:
+        choices = [os.environ["LSU_BURST_LEN"]] if cocotb.is_simulation else ["4", "6", "9"]
+        metafunc.parametrize("burst_len", choices)
+    if "cmd" in metafunc.fixturenames:
+        choices = [os.environ["LSU_CMD"]] if cocotb.is_simulation else ["STORE", "LOAD"]
+        metafunc.parametrize("cmd", choices)
+
 def pytest_collection_modifyitems(config, items):
     cases = config.getoption("--case")
     if cases:
@@ -164,37 +175,41 @@ def pytest_collection_modifyitems(config, items):
         )
 
 @pytest.fixture(scope="session")
-def cpu_build(request: FixtureRequest):
+def cpu_build(request: FixtureRequest, worker_id):
     config = request.param
-    build_dir = os.path.join(
-        ROOT_DIR, 'build', config, 'cocotb', 'sim_build' 
+    root_build_dir = Path(
+        ROOT_DIR, 'build', config, 'cocotb' 
     )
-    os.makedirs(build_dir, exist_ok=True)
-    # Call bender make for this config, to make sure the flist file exists
-    gen_bender_flist(config)
-
+    root_build_dir.mkdir(exist_ok=True)
+    build_dir = root_build_dir / 'sim_build'
+    lock_path =  root_build_dir / '.lock'
+    ready_path = root_build_dir / '.complete'
     runner = get_runner('verilator')
-
     hdl_toplevel = get_config_var("TOP_SIM", config)
-    runner.build(
-        always=True,
-        sources=[],  # flist
-        includes=[], # flist
-        defines={
-            'RVFI': int(RVFI),
-            'RVFI_TRACE': int(RVFI_TRACE),
-            'ASSERTIONS': int(ASSERTIONS)
-        },
-        hdl_toplevel=hdl_toplevel,
-        build_args=get_buildargs(config, WAVES, 'verilator'),
-        parameters={
-            'CompressedEnabled': int('c' in config)
-        },
-        build_dir=str(build_dir),
-        verbose=False,
-        waves=False, # use buildargs for waveform gen (to get fst)
-    )
-    return (runner, hdl_toplevel, build_dir)
+    with FileLock(str(lock_path)):
+        if not ready_path.exists():
+            # Call bender make for this config, to make sure the flist file exists
+            gen_bender_flist(config)
+            runner.build(
+                always=True,
+                sources=[],  # flist
+                includes=[], # flist
+                defines={
+                    'RVFI': int(RVFI),
+                    'RVFI_TRACE': int(RVFI_TRACE),
+                    'ASSERTIONS': int(ASSERTIONS)
+                },
+                hdl_toplevel=hdl_toplevel,
+                build_args=get_buildargs(config, WAVES, 'verilator'),
+                parameters={
+                    'CompressedEnabled': int('c' in config)
+                },
+                build_dir=str(build_dir),
+                verbose=False,
+                waves=False, # use buildargs for waveform gen (to get fst)
+            )
+            ready_path.write_text("BUILD COMPLETE\n")
+        return (runner, hdl_toplevel, build_dir)
 
 @pytest.fixture()
 def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHandleBase:
@@ -223,27 +238,33 @@ def cpu_fixture(request: FixtureRequest, cpu_build) -> Callable[[], Any] | SimHa
 
 @pytest.fixture(scope="session", params=["rvj1_ifu", "rvj1_ifu_rvc"])
 def ifu_build(request):
-    build_dir = os.path.join(
-        ROOT_DIR, 'build', request.param, 'sim_build' 
-    )
-    os.makedirs(build_dir, exist_ok=True)
     config = request.param
-    is_compressed = int(config == "rvj1_ifu_rvc")
-    # Call bender make to make sure the flist file exists
-    gen_bender_flist(config)
-    runner = get_runner('verilator')
-    runner.build(
-        hdl_toplevel = "ifu_mem_test_top",
-        build_args = get_buildargs(config),
-        parameters = {
-            "CompressedEnabled" : is_compressed,
-            "BASE_ADDR": 0x8000_0000, 
-            "MEM_SIZE_WORDS": 64
-        },
-        build_dir=build_dir,
-        always=True,
-        waves = False,
+    root_build_dir = Path(
+        ROOT_DIR, 'build', config, 'sim_build' 
     )
+    root_build_dir.mkdir(exist_ok=True)
+    build_dir = root_build_dir / 'sim_build'
+    lock_path =  root_build_dir / '.lock'
+    ready_path = root_build_dir / '.complete'
+    is_compressed = int(config == "rvj1_ifu_rvc")
+    runner = get_runner('verilator')
+    with FileLock(str(lock_path)):
+        if not ready_path.exists():
+            # Call bender make to make sure the flist file exists
+            gen_bender_flist(config)
+            runner.build(
+                hdl_toplevel = "ifu_mem_test_top",
+                build_args = get_buildargs(config),
+                parameters = {
+                    "CompressedEnabled" : is_compressed,
+                    "BASE_ADDR": 0x8000_0000, 
+                    "MEM_SIZE_WORDS": 64
+                },
+                build_dir=build_dir,
+                always=True,
+                waves = False,
+            )
+            ready_path.write_text("BUILD COMPLETE\n")
     return (runner, request.param, build_dir)
 
 @pytest.fixture()
@@ -257,5 +278,64 @@ def ifu_fixture(request: FixtureRequest, ifu_build) -> Callable[[], Any] | SimHa
         build_dir=build_dir,
         test_dir=get_make_var("TEST_COCOTB_DIR"),
         #results_xml=results_xml,
+        verbose=True
+    )
+
+@pytest.fixture(scope="session")
+def lsu_build(request):
+    root_build_dir = Path(
+        ROOT_DIR, 'build', 'lsu', 'sim_build' 
+    )
+    root_build_dir.mkdir(exist_ok=True)
+    build_dir = root_build_dir / 'sim_build'
+    lock_path =  root_build_dir / '.lock'
+    ready_path = root_build_dir / '.complete'
+
+    runner = get_runner('verilator')
+    with FileLock(str(lock_path)):
+        if not ready_path.exists():
+            # Call bender make to make sure the flist file exists
+            gen_bender_flist("lsu")
+            runner.build(
+                hdl_toplevel = "lsu_mem_test_top",
+                build_args = get_buildargs("lsu"),
+                parameters = {
+                    "BASE_ADDR": 0x8000_0000, 
+                    "MEM_SIZE_WORDS": 64
+                },
+                build_dir=build_dir,
+                always=True,
+                waves = False,
+            )
+            ready_path.write_text("BUILD COMPLETE\n")
+    return (runner, build_dir)
+
+@pytest.fixture()
+def lsu_fixture(request: FixtureRequest, lsu_build) -> Callable[[], Any] | SimHandleBase:
+    (runner, build_dir) = lsu_build
+    print(f"\nREQUEST: {request}")
+    print(f"NODE: {request.node}")
+    print(f"NODEID: {request.node.nodeid}")
+    print(f"FIxturename: {request.fixturename}")
+    if hasattr(request, "_parent_request"):
+        print("PARENT REQUEST:", request._parent_request)
+        print("PARENT NODE:", request._parent_request.node)
+        print("PARENT NODEID:", request._parent_request.node.nodeid)
+    callspec = getattr(request.node, "callspec", None)
+    params = callspec.params if callspec is not None else {}
+    cmd = params.get('cmd', "")
+    burst_len = params.get('burst_len', "")
+    return lambda: runner.test(
+        hdl_toplevel="lsu_mem_test_top",
+        hdl_toplevel_lang='verilog',
+        test_module=request.module.__name__,
+        plusargs=[],
+        build_dir=build_dir,
+        test_dir=get_make_var("TEST_COCOTB_DIR"),
+        #results_xml=results_xml,
+        extra_env={
+            "LSU_CMD": cmd,
+            "LSU_BURST_LEN": burst_len
+        },
         verbose=True
     )

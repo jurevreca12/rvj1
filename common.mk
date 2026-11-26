@@ -46,6 +46,8 @@ BUILD_IFU_DIR          := $(abspath $(ROOT_DIR)/build/rvj1_ifu)
 BUILD_IFU_RVC_DIR      := $(abspath $(ROOT_DIR)/build/rvj1_ifu_rvc)
 BUILD_IFU_SIM_FLIST    := $(abspath $(BUILD_IFU_DIR)/sim_sources.flist)
 BUILD_IFU_RVC_SIM_FLIST:= $(abspath $(BUILD_IFU_RVC_DIR)/sim_sources.flist)
+BUILD_LSU_DIR          := $(abspath $(ROOT_DIR)/build/lsu)
+BUILD_LSU_SIM_FILST    := $(abspath $(BUILD_LSU_DIR)/sim_sources.flist)
 
 SCRIPTS_DTS            := $(abspath $(SCRIPTS_DIR)/$(CONFIG).dts)
 
